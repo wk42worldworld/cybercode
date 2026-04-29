@@ -1,0 +1,126 @@
+[
+  {
+    "id": "official",
+    "name": "Claude Official",
+    "baseUrl": "",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "",
+      "haiku": "",
+      "sonnet": "",
+      "opus": ""
+    },
+    "needsApiKey": false,
+    "websiteUrl": "https://www.anthropic.com/claude-code"
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "baseUrl": "https://api.deepseek.com/anthropic",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "deepseek-v4-pro",
+      "haiku": "deepseek-v4-flash",
+      "sonnet": "deepseek-v4-pro",
+      "opus": "deepseek-v4-pro"
+    },
+    "needsApiKey": true,
+    "websiteUrl": "https://platform.deepseek.com",
+    "apiKeyUrl": "https://platform.deepseek.com/api_keys"
+  },
+  {
+    "id": "zhipuglm",
+    "name": "Zhipu GLM",
+    "baseUrl": "https://open.bigmodel.cn/api/anthropic",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "glm-5.1",
+      "haiku": "glm-4.5-air",
+      "sonnet": "glm-5-turbo",
+      "opus": "glm-5.1"
+    },
+    "needsApiKey": true,
+    "websiteUrl": "https://open.bigmodel.cn",
+    "apiKeyUrl": "https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys"
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "baseUrl": "https://api.kimi.com/coding",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "kimi-k2.6",
+      "haiku": "kimi-k2.6",
+      "sonnet": "kimi-k2.6",
+      "opus": "kimi-k2.6"
+    },
+    "needsApiKey": true,
+    "websiteUrl": "https://platform.moonshot.cn",
+    "apiKeyUrl": "https://platform.kimi.com/console/api-keys"
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "baseUrl": "https://api.minimaxi.com/anthropic",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "MiniMax-M2.7",
+      "haiku": "MiniMax-M2.7",
+      "sonnet": "MiniMax-M2.7",
+      "opus": "MiniMax-M2.7"
+    },
+    "needsApiKey": true,
+    "websiteUrl": "https://platform.minimaxi.com",
+    "apiKeyUrl": "https://platform.minimaxi.com/user-center/basic-information/interface-key"
+  },
+  {
+    "id": "lmstudio",
+    "name": "LM Studio",
+    "baseUrl": "http://localhost:1234",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "qwen/qwen3.6-27b",
+      "haiku": "qwen/qwen3.6-27b",
+      "sonnet": "qwen/qwen3.6-27b",
+      "opus": "qwen/qwen3.6-27b"
+    },
+    "needsApiKey": false,
+    "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
+    "promoText": "LM Studio 使用 Anthropic 兼容协议，Base URL 填 http://localhost:1234，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
+    "defaultEnv": {
+      "ANTHROPIC_AUTH_TOKEN": "lmstudio"
+    }
+  },
+  {
+    "id": "ollama",
+    "name": "Ollama",
+    "baseUrl": "http://localhost:11434",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "qwen3.6:27b",
+      "haiku": "qwen3.6:27b",
+      "sonnet": "qwen3.6:27b",
+      "opus": "qwen3.6:27b"
+    },
+    "needsApiKey": false,
+    "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
+    "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
+    "defaultEnv": {
+      "ANTHROPIC_AUTH_TOKEN": "ollama"
+    }
+  },
+  {
+    "id": "custom",
+    "name": "Custom",
+    "baseUrl": "",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "",
+      "haiku": "",
+      "sonnet": "",
+      "opus": ""
+    },
+    "needsApiKey": true,
+    "websiteUrl": ""
+  }
+]
