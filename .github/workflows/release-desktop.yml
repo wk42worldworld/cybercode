@@ -34,7 +34,7 @@ jobs:
           # Linux x64
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
-            tauri_args: '--bundles deb,appimage'
+            tauri_args: '--bundles deb'
             label: Linux-x64
             asset_name_pattern: 'CyberCode_[version]_linux_x64_[bundle][ext]'
 
@@ -156,8 +156,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: desktop
           tauriScript: bunx tauri
@@ -166,6 +164,5 @@ jobs:
           releaseBody: ${{ steps.release_notes.outputs.body }}
           releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: false
-          updaterJsonPreferNsis: true
           releaseAssetNamePattern: ${{ matrix.asset_name_pattern }}
           args: ${{ matrix.tauri_args }} --config src-tauri/tauri.release-ci.json
