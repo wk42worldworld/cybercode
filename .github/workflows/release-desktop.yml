@@ -31,6 +31,13 @@ jobs:
             label: macOS-ARM64
             asset_name_pattern: 'CyberCode_[version]_macos_arm64_[bundle][ext]'
 
+          # macOS Intel
+          - platform: macos-latest
+            rust_target: x86_64-apple-darwin
+            tauri_args: '--target x86_64-apple-darwin'
+            label: macOS-x64
+            asset_name_pattern: 'CyberCode_[version]_macos_x64_[bundle][ext]'
+
           # Linux x64
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu

@@ -7,8 +7,11 @@
 | 平台 | 文件 |
 |------|------|
 | macOS (Apple Silicon) | `CyberCode_x.x.x_macos_arm64_aarch64.dmg` |
-| Linux (x64) | `CyberCode_x.x.x_linux_x64_amd64.deb` 或 `.AppImage` |
+| macOS (Intel) | `CyberCode_x.x.x_macos_x64_x64.dmg` |
+| Linux (x64) | `CyberCode_x.x.x_linux_x64_amd64.deb` |
 | Windows (x64) | `CyberCode_x.x.x_windows_x64_x64-setup.exe` |
+
+> 不确定 Mac 是哪种架构？点屏幕左上角  → 关于本机，"芯片"那栏 Apple M 开头选 arm64，Intel 开头选 x64。
 
 ## macOS 安装
 
