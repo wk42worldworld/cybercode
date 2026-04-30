@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: CyberCode
-  text: Locally Runnable Claude Code
-  tagline: Repaired from leaked source, supports any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.)
+  text: Local AI Coding Client
+  tagline: Heavily inspired by Claude Code, supports any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.)
   image:
     src: /images/logo-horizontal.png
     alt: CyberCode

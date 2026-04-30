@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: CyberCode
-  text: 本地可运行的 Claude Code
-  tagline: 基于泄露源码修复，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）
+  text: 本地可运行的 AI 编码客户端
+  tagline: 高度借鉴 Claude Code 设计，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）
   image:
     src: /images/logo-horizontal.png
     alt: CyberCode

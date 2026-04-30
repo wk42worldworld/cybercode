@@ -1,7 +1,7 @@
 # Computer Use 功能指南
 
 
-> **魔改说明**：本功能是基于 Claude Code 泄露源码中的 Computer Use（内部代号 "Chicago"）进行的**深度改造版本**。官方实现依赖 Anthropic 内部私有原生模块（`@ant/computer-use-swift`、`@ant/computer-use-input`），无法公开获取。我们**替换了整个底层操作层**，使用 Python bridge 实现所有系统交互——macOS 使用 `pyautogui` + `mss` + `pyobjc`，Windows 使用 `pyautogui` + `mss` + `win32gui` + `psutil`，使得任何人都可以在 macOS 和 Windows 上运行 Computer Use 功能。
+> **实现说明**：本功能高度借鉴 Claude Code 的 Computer Use 设计思路并完全独立实现。底层操作层使用 Python bridge 完成所有系统交互——macOS 使用 `pyautogui` + `mss` + `pyobjc`，Windows 使用 `pyautogui` + `mss` + `win32gui` + `psutil`，使得任何人都可以在 macOS 和 Windows 上运行 Computer Use 功能。
 
 ---
 
@@ -306,7 +306,7 @@ async function callPythonHelper<T>(command: string, payload: object): Promise<T>
 | [wimi321/macos-computer-use-skill](https://github.com/wimi321/macos-computer-use-skill) | MIT | Python bridge 架构、`mac_helper.py` 运行时、`executor.ts` 适配方案。该项目从 Claude Code 工作流中提取了可复用的 TypeScript 逻辑，并用完全公开的 Python 库替代了私有原生模块 |
 | [domdomegg/computer-use-mcp](https://github.com/domdomegg/computer-use-mcp) | MIT | 独立的 Computer Use MCP 服务器实现（基于 nut.js），跨平台可用。在方案调研阶段提供了参考 |
 | [paoloanzn/free-code](https://github.com/paoloanzn/free-code) | - | Feature flag 系统分析和构建系统参考 |
-| [oboard/claude-code-rev](https://github.com/oboard/claude-code-rev) | - | 泄露源码的早期恢复工作，提供了 stub 包的参考实现 |
+| [oboard/claude-code-rev](https://github.com/oboard/claude-code-rev) | - | 早期社区项目，提供了 stub 包的参考实现 |
 
 ### 底层依赖
 

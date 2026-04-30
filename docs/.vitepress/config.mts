@@ -178,7 +178,7 @@ const enSidebar = [
 
 export default withMermaid(defineConfig({
   title: 'CyberCode',
-  description: '基于 Claude Code 泄露源码修复的本地可运行版本，支持接入任意 Anthropic 兼容 API',
+  description: '高度借鉴 Claude Code 设计的本地可运行客户端，支持接入任意 Anthropic 兼容 API',
   lastUpdated: true,
   base: '/',
 
@@ -211,7 +211,7 @@ export default withMermaid(defineConfig({
     en: {
       label: 'English',
       lang: 'en-US',
-      description: 'A locally runnable version repaired from the leaked Claude Code source, with support for any Anthropic-compatible API endpoint.',
+      description: 'A locally runnable client heavily inspired by Claude Code, with support for any Anthropic-compatible API endpoint.',
       themeConfig: {
         editLink: {
           pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',

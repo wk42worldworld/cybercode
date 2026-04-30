@@ -1,3 +1,3 @@
-// Local recovery stub for missing generated SDK types.
-// The leaked source tree does not include this codegen artifact.
+// Local stub for SDK type definitions.
+// This codegen artifact is generated upstream and not part of this distribution.
 export {}

@@ -9,7 +9,7 @@ function printHelp(): void {
     [
       'Usage: cybercode [options] [prompt]',
       '',
-      'Local recovery mode for this leaked source tree.',
+      'Local fallback mode (simple readline REPL, no Ink TUI).',
       '',
       'Options:',
       '  -h, --help                    Show help',

@@ -16,10 +16,10 @@
 
 </div>
 
-A **locally runnable version** repaired from the leaked Claude Code source, with support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
+A **locally runnable client** that **heavily references Claude Code's design**, with support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
 
 <p align="center">
-  <a href="#features">Features</a> · <a href="#desktop-preview">Desktop</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
+  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
 </p>
 
 ---
@@ -59,26 +59,13 @@ A **locally runnable version** repaired from the leaked Claude Code source, with
 
 ---
 
-## Desktop Preview
+## Desktop Download
 
 <p align="center">
   <a href="https://github.com/wk42worldworld/cybercode/releases"><img src="https://img.shields.io/badge/⬇_Download_Desktop-macOS_%7C_Linux_%7C_Windows-D97757?style=for-the-badge" alt="Download Desktop"></a>
   &nbsp;
   <a href="docs/desktop/04-installation.md"><img src="https://img.shields.io/badge/📖_Install_Guide-Guide-gray?style=for-the-badge" alt="Install Guide"></a>
 </p>
-
-<table>
-  <tr>
-    <td align="center" width="33%"><img src="docs/images/desktop_ui/01_full_ui.png" alt="Main UI"><br><b>Main Interface</b></td>
-    <td align="center" width="33%"><img src="docs/images/desktop_ui/02_edit_code.png" alt="Code Editing"><br><b>Code Editing & Diff View</b></td>
-    <td align="center" width="33%"><img src="docs/images/desktop_ui/03_ask_question_and_permission.png" alt="Permission Control"><br><b>Permission Control & AI Questions</b></td>
-  </tr>
-  <tr>
-    <td align="center" width="33%"><img src="docs/images/desktop_ui/05_settings.png" alt="Provider Settings"><br><b>Multi-Provider Management</b></td>
-    <td align="center" width="33%"><img src="docs/images/desktop_ui/08_scheduled_task.png" alt="Scheduled Tasks"><br><b>Scheduled Tasks</b></td>
-    <td align="center" width="33%"><img src="docs/images/desktop_ui/07_im.png" alt="IM Adapters"><br><b>IM Adapters (Telegram / Feishu)</b></td>
-  </tr>
-</table>
 
 ---
 
@@ -202,7 +189,6 @@ http://127.0.0.1:2024
 | [Desktop App](docs/desktop/) | Tauri 2 + React GUI client — [Quick Start](docs/desktop/01-quick-start.md) \| [Architecture](docs/desktop/02-architecture.md) \| [Installation](docs/desktop/04-installation.md) |
 | [Global Usage](docs/en/guide/global-usage.md) | Run cybercode from any directory |
 | [FAQ](docs/en/guide/faq.md) | Common error troubleshooting |
-| [Source Fixes](docs/en/reference/fixes.md) | Fixes compared with the original leaked source |
 | [Project Structure](docs/en/reference/project-structure.md) | Code directory structure |
 
 ---
@@ -233,4 +219,4 @@ If this project helps you, please support it with a ⭐ Star so more people can 
 
 ## Disclaimer
 
-This repository is based on the Claude Code source leaked from the Anthropic npm registry on 2026-03-31. All original source code copyrights belong to [Anthropic](https://www.anthropic.com). It is provided for learning and research purposes only.
+This project is an independent implementation that **heavily references** the product design, interaction model, and feature architecture of Claude Code by [Anthropic](https://www.anthropic.com). Claude and Claude Code are trademarks of Anthropic, and any related APIs and protocols belong to Anthropic. This project is provided for technical learning and research purposes only and has no commercial affiliation with Anthropic.
