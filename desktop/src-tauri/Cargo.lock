@@ -328,22 +328,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cybercode-desktop"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "portable-pty",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-updater",
-]
-
-[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -500,6 +484,22 @@ checksum = "32a2785755761f3ddc1492979ce1e48d2c00d09311c39e4466429188f3dd6501"
 dependencies = [
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "cybercode-desktop"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "portable-pty",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-updater",
 ]
 
 [[package]]

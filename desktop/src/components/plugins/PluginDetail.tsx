@@ -6,7 +6,6 @@ import { useUIStore } from '../../stores/uiStore'
 import { Button } from '../shared/Button'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import type { PluginCapabilityKey } from '../../types/plugin'
-import { SETTINGS_TAB_ID, useTabStore } from '../../stores/tabStore'
 import { useSkillStore } from '../../stores/skillStore'
 import { useAgentStore } from '../../stores/agentStore'
 import { useMcpStore } from '../../stores/mcpStore'
@@ -102,8 +101,7 @@ export function PluginDetail() {
   }
 
   const openSettingsTab = (tab: 'skills' | 'agents' | 'mcp') => {
-    useUIStore.getState().setPendingSettingsTab(tab)
-    useTabStore.getState().openTab(SETTINGS_TAB_ID, 'Settings', 'settings')
+    useUIStore.getState().openSettings(tab)
   }
 
   const handleOpenSkill = async (skillName: string) => {

@@ -7,23 +7,26 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   icon?: ReactNode
+  /** Whether to apply uppercase + letter-spacing (SpaceX-style stencil) */
+  stencil?: boolean
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
     'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:opacity-85 active:opacity-95',
   secondary:
-    'bg-transparent text-[var(--color-text-primary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]',
+    'bg-transparent text-[var(--color-text-primary)] border border-[var(--color-border)] hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)]',
   danger:
     'bg-[var(--color-error)] text-white hover:opacity-85',
+  // SpaceX-inspired ghost: translucent surface + spectral border
   ghost:
-    'bg-transparent text-[var(--color-text-primary)] opacity-60 hover:opacity-100 hover:bg-[var(--color-surface-hover)]',
+    'btn-ghost',
 }
 
 const sizeStyles = {
-  sm: 'px-3 py-1 text-xs',
-  md: 'px-4 py-1.5 text-sm',
-  lg: 'px-5 py-2 text-sm',
+  sm: 'px-3 py-1 text-[11px]',
+  md: 'px-4 py-1.5 text-xs',
+  lg: 'px-6 py-2 text-xs',
 }
 
 export function Button({
@@ -32,16 +35,20 @@ export function Button({
   loading = false,
   icon,
   disabled,
+  stencil = true,
   children,
   className = '',
   ...props
 }: ButtonProps) {
+  const stencilClass = stencil
+    ? 'uppercase tracking-[0.08em] font-semibold'
+    : 'font-medium'
   return (
     <button
       disabled={disabled || loading}
       className={`
         inline-flex items-center justify-center gap-1.5 rounded-full
-        font-medium transition-all duration-150 cursor-pointer
+        ${stencilClass} transition-all duration-150 cursor-pointer
         disabled:opacity-40 disabled:cursor-not-allowed
         ${variantStyles[variant]} ${sizeStyles[size]} ${className}
       `}

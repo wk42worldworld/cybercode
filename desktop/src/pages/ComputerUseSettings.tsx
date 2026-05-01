@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { computerUseApi, type ComputerUseStatus, type SetupResult, type InstalledApp, type AuthorizedApp } from '../api/computerUse'
 import { useTranslation } from '../i18n'
+import { SettingsPage } from '../components/settings/SettingsLayout'
 
 type CheckState = 'loading' | 'ready' | 'error'
 const PYTHON_DOWNLOAD_URLS: Record<string, string> = {
@@ -190,18 +191,9 @@ export function ComputerUseSettings() {
   }, [filteredApps, authorizedBundleIds])
 
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Title */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-          {t('settings.computerUse.title')}
-        </h2>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-          {t('settings.computerUse.description')}
-        </p>
-      </div>
-
-      {checkState === 'loading' ? (
+    <SettingsPage title={t('settings.computerUse.title')} description={t('settings.computerUse.description')}>
+      <div className="space-y-5">
+        {checkState === 'loading' ? (
         <div className="py-8 text-center text-sm text-[var(--color-text-tertiary)]">
           {t('common.loading')}
         </div>
@@ -316,7 +308,7 @@ export function ComputerUseSettings() {
             {!status.python.installed && (
               <button
                 onClick={() => openExternalUrl(pythonDownloadUrl)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                 {t('settings.computerUse.downloadPython')}
@@ -326,7 +318,7 @@ export function ComputerUseSettings() {
               <button
                 onClick={handleSetup}
                 disabled={setupRunning}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 <span className="material-symbols-outlined text-[18px]">{setupRunning ? 'hourglass_empty' : 'download'}</span>
                 {setupRunning ? t('settings.computerUse.setupRunning') : t('settings.computerUse.setupBtn')}
@@ -440,6 +432,7 @@ export function ComputerUseSettings() {
           )}
         </>
       ) : null}
-    </div>
+      </div>
+    </SettingsPage>
   )
 }

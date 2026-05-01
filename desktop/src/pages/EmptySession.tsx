@@ -7,7 +7,7 @@ import { useProviderStore } from '../stores/providerStore'
 import { useSessionRuntimeStore, DRAFT_RUNTIME_SELECTION_KEY } from '../stores/sessionRuntimeStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUIStore } from '../stores/uiStore'
-import { SETTINGS_TAB_ID, useTabStore } from '../stores/tabStore'
+import { useTabStore } from '../stores/tabStore'
 import { OFFICIAL_DEFAULT_MODEL_ID } from '../constants/modelCatalog'
 import { DirectoryPicker } from '../components/shared/DirectoryPicker'
 import { PermissionModeSelector } from '../components/controls/PermissionModeSelector'
@@ -199,8 +199,7 @@ export function EmptySession() {
     }
 
     if (slashUiAction?.type === 'settings') {
-      useUIStore.getState().setPendingSettingsTab(slashUiAction.tab)
-      useTabStore.getState().openTab(SETTINGS_TAB_ID, 'Settings', 'settings')
+      useUIStore.getState().openSettings(slashUiAction.tab)
       setInput('')
       setSlashMenuOpen(false)
       setFileSearchOpen(false)
@@ -458,6 +457,7 @@ export function EmptySession() {
 
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--color-surface)]">
+      <div className="h-8 shrink-0" data-tauri-drag-region />
       <div className="flex flex-1 flex-col items-center justify-center p-8 pb-32">
         <div className="flex max-w-md flex-col items-center text-center">
           <img src="/app-icon.png" alt="CyberCode" className="mb-6 h-24 w-24" />

@@ -5,6 +5,7 @@ import { Input } from '../components/shared/Input'
 import { Button } from '../components/shared/Button'
 import { DirectoryPicker } from '../components/shared/DirectoryPicker'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
+import { SettingsPage } from '../components/settings/SettingsLayout'
 
 type ImTab = 'feishu' | 'telegram'
 
@@ -153,14 +154,10 @@ export function AdapterSettings() {
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
-      {/* Description */}
-      <div>
-        <p className="text-sm text-[var(--color-text-secondary)]">{t('settings.adapters.description')}</p>
-      </div>
-
-      {/* Pairing */}
-      <section className="rounded-xl border border-[var(--color-border)] overflow-hidden">
+    <SettingsPage title={t('settings.tab.adapters')} description={t('settings.adapters.description')}>
+      <div className="space-y-5">
+        {/* Pairing */}
+        <section className="rounded-xl border border-[var(--color-border)] overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface-hover)] border-b border-[var(--color-border)]">
           <span className="material-symbols-outlined text-[18px] text-[var(--color-text-secondary)]">link</span>
           <span className="text-sm font-semibold text-[var(--color-text-primary)]">{t('settings.adapters.pairing')}</span>
@@ -372,7 +369,8 @@ export function AdapterSettings() {
         confirmVariant="danger"
         loading={isUnbinding}
       />
-    </div>
+      </div>
+    </SettingsPage>
   )
 }
 

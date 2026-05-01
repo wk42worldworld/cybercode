@@ -6,7 +6,7 @@ import { Settings } from '../pages/Settings'
 import { useSkillStore } from '../stores/skillStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
-import { useTabStore, SETTINGS_TAB_ID } from '../stores/tabStore'
+import { useTabStore } from '../stores/tabStore'
 import { useUIStore } from '../stores/uiStore'
 
 vi.mock('../api/agents', () => ({
@@ -146,7 +146,7 @@ describe('Settings > Skills tab', () => {
     expect(screen.getByText('Telegram Access')).toBeInTheDocument()
   })
 
-  it('uses the active session workDir even when settings tab is focused', () => {
+  it('uses the active session workDir when settings drawer is opened', () => {
     const fetchSkills = vi.fn()
     useSkillStore.setState({
       skills: [],
@@ -157,10 +157,6 @@ describe('Settings > Skills tab', () => {
       fetchSkills,
       fetchSkillDetail: MOCK_FETCH_SKILL_DETAIL,
       clearSelection: MOCK_CLEAR_SELECTION,
-    })
-    useTabStore.setState({
-      activeTabId: SETTINGS_TAB_ID,
-      tabs: [{ sessionId: SETTINGS_TAB_ID, title: 'Settings', type: 'settings', status: 'idle' }],
     })
 
     render(<Settings />)

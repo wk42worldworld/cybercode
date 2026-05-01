@@ -7,7 +7,7 @@ import { useAgentStore } from '../stores/agentStore'
 import { useSkillStore } from '../stores/skillStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
-import { SETTINGS_TAB_ID, useTabStore } from '../stores/tabStore'
+import { useTabStore } from '../stores/tabStore'
 import { useUIStore } from '../stores/uiStore'
 
 vi.mock('../api/agents', () => ({
@@ -211,17 +211,13 @@ describe('Settings > Agents tab', () => {
     expect(spinner).toBeInTheDocument()
   })
 
-  it('uses the active session workDir even when settings tab is focused', async () => {
+  it('uses the active session workDir when settings drawer is opened', async () => {
     const fetchAgents = vi.fn()
     useAgentStore.setState({
       allAgents: [],
       activeAgents: [],
       isLoading: false,
       fetchAgents,
-    })
-    useTabStore.setState({
-      activeTabId: SETTINGS_TAB_ID,
-      tabs: [{ sessionId: SETTINGS_TAB_ID, title: 'Settings', type: 'settings', status: 'idle' }],
     })
 
     render(<Settings />)

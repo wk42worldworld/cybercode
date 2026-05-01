@@ -2,9 +2,29 @@
 @import "@xterm/xterm/css/xterm.css";
 @plugin "@tailwindcss/typography";
 
-/* ─── Self-hosted fonts ─────────────────────────────────────────── */
+/* ─── Self-hosted fonts (SpaceX-inspired industrial) ─────────────── */
 
-/* Archivo – variable weight, primary UI font (open-webui style) */
+/* Geist – Vercel's industrial sans, close to D-DIN aesthetic */
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/Geist-Variable.woff2') format('woff2-variations'),
+       url('/fonts/Geist-Variable.woff2') format('woff2');
+}
+
+/* Geist Mono – matching monospace */
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2-variations'),
+       url('/fonts/GeistMono-Variable.woff2') format('woff2');
+}
+
+/* Archivo – kept as fallback for compatibility */
 @font-face {
   font-family: 'Archivo';
   font-style: normal;
@@ -13,7 +33,7 @@
   src: url('/fonts/Archivo-Variable.ttf') format('truetype-variations');
 }
 
-/* JetBrains Mono – monospace for code */
+/* JetBrains Mono – kept as monospace fallback */
 @font-face {
   font-family: 'JetBrains Mono';
   font-style: normal;
@@ -136,12 +156,31 @@
   --color-success: #16A34A;
   --color-warning: #CA8A04;
 
-  /* Fonts — Archivo as primary, Apple system fallbacks */
-  --font-sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-headline: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-label: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  /* Fonts — Geist (Vercel) as primary, SpaceX-style industrial */
+  --font-sans: 'Geist', 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-headline: 'Geist', 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Geist', 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-label: 'Geist', 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Override Tailwind's font-size scale — SpaceX-style: bigger, more readable
+     than default Tailwind. Affects ALL elements using text-xs/text-sm/text-base/etc */
+  --text-xs: 12px;
+  --text-xs--line-height: 1.3;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.4;
+  --text-base: 14px;
+  --text-base--line-height: 1.5;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.4;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.3;
+  --text-2xl: 26px;
+  --text-2xl--line-height: 1.2;
+  --text-3xl: 32px;
+  --text-3xl--line-height: 1.1;
+  --text-4xl: 40px;
+  --text-4xl--line-height: 1.0;
 }
 
 /* ─── Semantic Aliases — Light theme ─────────────────────────────── */
@@ -266,132 +305,132 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-primary: #fafafa;
+  --color-primary: #f0f0fa;
   --color-primary-container: #cdcdcd;
-  --color-primary-fixed: #262626;
+  --color-primary-fixed: #1a1a1a;
   --color-primary-fixed-dim: #4e4e4e;
 
-  --color-on-primary: #1d1d1f;
-  --color-on-surface: #fafafa;
-  --color-on-surface-variant: rgba(255, 255, 255, 0.60);
+  --color-on-primary: #000000;
+  --color-on-surface: #f0f0fa;
+  --color-on-surface-variant: rgba(240, 240, 250, 0.62);
 
-  --color-surface: #0a0a0a;
-  --color-surface-bright: #262626;
-  --color-surface-dim: #050505;
-  --color-surface-container: #171717;
-  --color-surface-container-low: #0d0d0d;
-  --color-surface-container-high: #262626;
-  --color-surface-container-highest: #333333;
+  --color-surface: #000000;
+  --color-surface-bright: #1a1a1a;
+  --color-surface-dim: #000000;
+  --color-surface-container: #0a0a0a;
+  --color-surface-container-low: #050505;
+  --color-surface-container-high: #1a1a1a;
+  --color-surface-container-highest: #262626;
   --color-surface-container-lowest: #000000;
-  --color-surface-variant: #171717;
-  --color-background: #0a0a0a;
+  --color-surface-variant: #0a0a0a;
+  --color-background: #000000;
 
   --color-outline: #676767;
-  --color-outline-variant: rgba(255, 255, 255, 0.08);
+  --color-outline-variant: rgba(240, 240, 250, 0.10);
 
   --color-secondary: #cdcdcd;
-  --color-secondary-container: #262626;
+  --color-secondary-container: #1a1a1a;
   --color-tertiary: #b4b4b4;
-  --color-tertiary-container: #333333;
+  --color-tertiary-container: #262626;
 
   --color-error: #ff8b85;
   --color-error-container: #4d1612;
   --color-on-error-container: #ffd9d6;
 
-  --color-inverse-surface: #f5f5f7;
-  --color-inverse-on-surface: #1d1d1f;
-  --color-inverse-primary: #1d1d1f;
+  --color-inverse-surface: #f0f0fa;
+  --color-inverse-on-surface: #000000;
+  --color-inverse-primary: #000000;
 
   --color-success: #6FCF87;
   --color-warning: #F0B340;
 
-  /* Surface aliases */
-  --color-surface-sidebar: #0d0d0d;
-  --color-surface-hover: rgba(255, 255, 255, 0.05);
-  --color-surface-selected: rgba(255, 255, 255, 0.07);
-  --color-model-option-selected-bg: rgba(255, 255, 255, 0.06);
-  --color-model-option-selected-border: rgba(255, 255, 255, 0.18);
+  /* Surface aliases — minimalist, ghost-like */
+  --color-surface-sidebar: #050505;
+  --color-surface-hover: rgba(240, 240, 250, 0.06);
+  --color-surface-selected: rgba(240, 240, 250, 0.10);
+  --color-model-option-selected-bg: rgba(240, 240, 250, 0.08);
+  --color-model-option-selected-border: rgba(240, 240, 250, 0.35);
   --color-sidebar-filter-bg: transparent;
-  --color-sidebar-filter-border: rgba(255, 255, 255, 0.08);
+  --color-sidebar-filter-border: rgba(240, 240, 250, 0.10);
   --color-sidebar-filter-icon-bg: transparent;
-  --color-sidebar-search-bg: rgba(255, 255, 255, 0.04);
-  --color-sidebar-search-border: rgba(255, 255, 255, 0.08);
-  --color-sidebar-item-hover: rgba(255, 255, 255, 0.05);
-  --color-sidebar-item-active: rgba(255, 255, 255, 0.08);
-  --color-sidebar-item-active-border: rgba(255, 255, 255, 0.14);
+  --color-sidebar-search-bg: rgba(240, 240, 250, 0.04);
+  --color-sidebar-search-border: rgba(240, 240, 250, 0.10);
+  --color-sidebar-item-hover: rgba(240, 240, 250, 0.06);
+  --color-sidebar-item-active: rgba(240, 240, 250, 0.10);
+  --color-sidebar-item-active-border: rgba(240, 240, 250, 0.20);
   --sidebar-panel-bg-image: none;
 
-  /* Border aliases */
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-focus: rgba(255, 255, 255, 0.40);
-  --color-border-separator: rgba(255, 255, 255, 0.06);
+  /* Border aliases — spectral, very subtle */
+  --color-border: rgba(240, 240, 250, 0.10);
+  --color-border-focus: rgba(240, 240, 250, 0.50);
+  --color-border-separator: rgba(240, 240, 250, 0.06);
 
-  /* Text aliases */
-  --color-text-primary: var(--color-on-surface);
-  --color-text-secondary: var(--color-on-surface-variant);
-  --color-text-tertiary: rgba(255, 255, 255, 0.40);
+  /* Text aliases — spectral white */
+  --color-text-primary: #f0f0fa;
+  --color-text-secondary: rgba(240, 240, 250, 0.62);
+  --color-text-tertiary: rgba(240, 240, 250, 0.40);
 
-  --color-surface-info: rgba(23, 23, 23, 0.92);
+  --color-surface-info: rgba(10, 10, 10, 0.92);
   --color-brand: var(--color-primary);
   --color-text-accent: var(--color-primary);
 
-  /* Shadows */
-  --shadow-dropdown: 0 8px 28px rgba(0, 0, 0, 0.50), 0 16px 48px rgba(0, 0, 0, 0.40);
+  /* Shadows — SpaceX has zero shadows; keep minimal for functional separation only */
+  --shadow-dropdown: 0 0 0 1px rgba(240, 240, 250, 0.08), 0 8px 32px rgba(0, 0, 0, 0.60);
   --shadow-sidebar-filter: none;
-  --shadow-focus-ring: 0 0 0 1px rgba(255, 255, 255, 0.32);
+  --shadow-focus-ring: 0 0 0 1px rgba(240, 240, 250, 0.40);
   --shadow-error-ring: 0 0 0 1px rgba(255, 139, 133, 0.30);
-  --shadow-button-primary: 0 12px 24px rgba(0, 0, 0, 0.40);
+  --shadow-button-primary: none;
 
   --gradient-btn-primary: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
   --gradient-btn-primary-hover: linear-gradient(135deg, var(--color-primary-container), var(--color-primary));
 
-  --color-surface-user-msg: rgba(255, 255, 255, 0.05);
+  --color-surface-user-msg: rgba(240, 240, 250, 0.06);
 
-  --color-overlay-scrim: rgba(0, 0, 0, 0.65);
-  --color-surface-glass: rgba(23, 23, 23, 0.84);
-  --color-surface-glass-border: rgba(255, 255, 255, 0.06);
+  --color-overlay-scrim: rgba(0, 0, 0, 0.75);
+  --color-surface-glass: rgba(10, 10, 10, 0.84);
+  --color-surface-glass-border: rgba(240, 240, 250, 0.06);
 
   /* Code + diff */
-  --color-code-bg: #0d0d0d;
-  --color-code-fg: #fafafa;
-  --color-code-comment: #9b9b9b;
+  --color-code-bg: #050505;
+  --color-code-fg: #f0f0fa;
+  --color-code-comment: #676767;
   --color-code-string: #7ee787;
   --color-code-keyword: #ff7b72;
   --color-code-function: #d2a8ff;
   --color-code-number: #79c0ff;
   --color-code-property: #ffa657;
   --color-code-type: #d2a8ff;
-  --color-code-parameter: #fafafa;
+  --color-code-parameter: #f0f0fa;
   --color-code-punctuation: #b4b4b4;
   --color-code-inserted: #7ee787;
   --color-code-deleted: #ff7b72;
 
-  --color-diff-added-bg: rgba(126, 231, 135, 0.12);
-  --color-diff-added-word: rgba(126, 231, 135, 0.24);
-  --color-diff-added-gutter: rgba(126, 231, 135, 0.18);
+  --color-diff-added-bg: rgba(126, 231, 135, 0.10);
+  --color-diff-added-word: rgba(126, 231, 135, 0.22);
+  --color-diff-added-gutter: rgba(126, 231, 135, 0.16);
   --color-diff-added-text: #7ee787;
-  --color-diff-removed-bg: rgba(255, 123, 114, 0.12);
-  --color-diff-removed-word: rgba(255, 123, 114, 0.24);
-  --color-diff-removed-gutter: rgba(255, 123, 114, 0.18);
+  --color-diff-removed-bg: rgba(255, 123, 114, 0.10);
+  --color-diff-removed-word: rgba(255, 123, 114, 0.22);
+  --color-diff-removed-gutter: rgba(255, 123, 114, 0.16);
   --color-diff-removed-text: #ff7b72;
-  --color-diff-highlight-bg: rgba(210, 168, 255, 0.12);
-  --color-diff-highlight-gutter: rgba(210, 168, 255, 0.18);
+  --color-diff-highlight-bg: rgba(210, 168, 255, 0.10);
+  --color-diff-highlight-gutter: rgba(210, 168, 255, 0.16);
   --color-diff-title-bg: var(--color-surface-container-low);
   --color-diff-title-color: var(--color-text-tertiary);
-  --color-diff-title-border: rgba(255, 255, 255, 0.06);
+  --color-diff-title-border: rgba(240, 240, 250, 0.06);
 
   /* Terminal */
-  --color-terminal-header: #1a1a1a;
-  --color-terminal-bg: #0d0d0d;
-  --color-terminal-border: #171717;
-  --color-terminal-fg: #d7d7d7;
-  --color-terminal-muted: #9b9b9b;
+  --color-terminal-header: #0a0a0a;
+  --color-terminal-bg: #000000;
+  --color-terminal-border: #1a1a1a;
+  --color-terminal-fg: #f0f0fa;
+  --color-terminal-muted: #676767;
   --color-terminal-accent: #7EF18A;
   --color-terminal-danger: #FF6D67;
   --color-terminal-warning: #F8C55F;
 
   --color-window-close-hover: #C63B44;
-  --color-selection-bg: rgba(255, 255, 255, 0.15);
+  --color-selection-bg: rgba(240, 240, 250, 0.20);
   --color-selection-fg: inherit;
 }
 
@@ -424,7 +463,8 @@ html, body, #root {
   margin: 0;
   padding: 0;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.4;
   color: var(--color-on-surface);
   background-color: var(--color-background);
   -webkit-font-smoothing: antialiased;
@@ -432,9 +472,155 @@ html, body, #root {
   text-rendering: optimizeLegibility;
 }
 
+/* Tight, technical heading defaults — SpaceX feel without being unusable */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-headline);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+h1 { font-size: 36px; line-height: 1.0; letter-spacing: 0.02em; }
+h2 { font-size: 26px; line-height: 1.05; }
+h3 { font-size: 18px; line-height: 1.1; letter-spacing: 0.04em; }
+h4 { font-size: 14px; line-height: 1.15; letter-spacing: 0.06em; }
+h5 { font-size: 12px; line-height: 1.2; letter-spacing: 0.08em; }
+h6 { font-size: 10px; line-height: 1.2; letter-spacing: 0.10em; }
+
+/* Smaller radius scale globally — SpaceX uses sharp 4px on most, 32px only for buttons */
+:root {
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+}
+
+/* Sharpen card-like surfaces (rounded-2xl / rounded-3xl in components) — they
+   are now visibly aerospace-flat instead of consumer-friendly soft. Buttons
+   keep their pill shape via the rounded-full Tailwind class. */
+.rounded-3xl { border-radius: 8px !important; }
+.rounded-2xl { border-radius: 6px !important; }
+.rounded-xl  { border-radius: 4px !important; }
+.rounded-lg  { border-radius: 4px !important; }
+.rounded-md  { border-radius: 3px !important; }
+
+/* Aggressive shadow removal — SpaceX has zero shadows; we keep only minimal
+   functional separation via 1px rings on overlays */
+.shadow-2xl,
+.shadow-xl,
+.shadow-lg,
+.shadow-md,
+.shadow-sm,
+.shadow {
+  box-shadow: 0 0 0 1px var(--color-border) !important;
+}
+
 ::selection {
   background: var(--color-selection-bg);
   color: var(--color-selection-fg);
+}
+
+/* ─── SpaceX-inspired utility classes ────────────────────────────── */
+
+/* Stenciled label — uppercase + positive letter-spacing
+   Use for: nav links, section headers, button labels, badges */
+.text-stencil {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.text-stencil-tight {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.text-stencil-wide {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+/* Heading hierarchy — SpaceX-style display ramp */
+.heading-display {
+  font-family: var(--font-headline);
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.0;
+  text-transform: uppercase;
+}
+
+.heading-section {
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.heading-card {
+  font-family: var(--font-headline);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.label-micro {
+  font-family: var(--font-headline);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 0.94;
+  text-transform: uppercase;
+}
+
+/* Ghost button — SpaceX's signature interactive element
+   Translucent surface + spectral border, the only button style on spacex.com */
+.btn-ghost {
+  background: rgba(240, 240, 250, 0.06);
+  border: 1px solid rgba(240, 240, 250, 0.18);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  transition: all 150ms ease;
+}
+
+.btn-ghost:hover {
+  background: rgba(240, 240, 250, 0.12);
+  border-color: rgba(240, 240, 250, 0.35);
+}
+
+[data-theme="light"] .btn-ghost,
+:root:not([data-theme="dark"]) .btn-ghost {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .btn-ghost:hover,
+:root:not([data-theme="dark"]) .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.24);
+}
+
+/* All small buttons get auto-stenciled (aerospace voice) — affects any
+   <button> with text-xs, text-[10px], text-[11px], or text-[12px] class.
+   Body text and chat content are not buttons, so they remain readable. */
+button.text-xs,
+button.text-\[10px\],
+button.text-\[11px\],
+button.text-\[12px\] {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
 }
 
 /* Tauri drag region */
@@ -702,12 +888,42 @@ button, input, textarea, select, a, [role="button"] {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes indeterminate-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
 .animate-shimmer { animation: shimmer 1.5s ease-in-out infinite; }
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
 .animate-fade-in { animation: fade-in 150ms ease-out; }
 .animate-modal-in { animation: modal-in 180ms cubic-bezier(0.22, 1, 0.36, 1); }
 .animate-slide-down { animation: slide-down 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Indeterminate progress bar — sweeps across the top during async loading */
+.session-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 30;
+  background: rgba(240, 240, 250, 0.04);
+}
+.session-loading-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 25%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-text-primary),
+    transparent
+  );
+  animation: indeterminate-bar 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
 
 /* Progress bar */
 @keyframes progress-fill {

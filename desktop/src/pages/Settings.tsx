@@ -27,6 +27,7 @@ import { McpSettings } from './McpSettings'
 import { TerminalSettings } from './TerminalSettings'
 import { useUIStore, type SettingsTab } from '../stores/uiStore'
 import { ClaudeOfficialLogin } from '../components/settings/ClaudeOfficialLogin'
+import { SettingsPage, SettingsSection, SettingsRow, SegmentedControl, Switch } from '../components/settings/SettingsLayout'
 import { useUpdateStore } from '../stores/updateStore'
 import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
@@ -48,6 +49,8 @@ export function Settings() {
         {/* Tab navigation */}
         <div className="w-[180px] border-r border-[var(--color-border)] py-3 flex-shrink-0 flex flex-col">
           <div className="flex-1">
+            <TabButton icon="arrow_back" label={t('settings.back')} active={false} onClick={() => useUIStore.getState().closeSettings()} />
+            <div className="my-1 border-t border-[var(--color-border)]/40" />
             <TabButton icon="dns" label={t('settings.tab.providers')} active={activeTab === 'providers'} onClick={() => setActiveTab('providers')} />
             <TabButton icon="shield" label={t('settings.tab.permissions')} active={activeTab === 'permissions'} onClick={() => setActiveTab('permissions')} />
             <TabButton icon="tune" label={t('settings.tab.general')} active={activeTab === 'general'} onClick={() => setActiveTab('general')} />
@@ -87,10 +90,10 @@ function TabButton({ icon, label, active, onClick }: { icon: string; label: stri
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors ${
+      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[11px] uppercase tracking-[0.08em] text-left transition-colors ${
         active
-          ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] font-medium'
-          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+          ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] font-bold'
+          : 'text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-hover)]'
       }`}
     >
       <span className="material-symbols-outlined text-[18px]">{icon}</span>
@@ -425,6 +428,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
   const [isTesting, setIsTesting] = useState(false)
   const [settingsJson, setSettingsJson] = useState('')
   const [settingsJsonError, setSettingsJsonError] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(initialPreset.id === 'custom')
   const jsonPastedRef = useRef(false)
 
   // Load current settings.json and merge provider env vars
@@ -472,6 +476,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
     setApiFormat(preset.apiFormat ?? 'anthropic')
     setModels({ ...preset.defaultModels })
     setTestResult(null)
+    if (preset.id === 'custom') setShowAdvanced(true)
   }
 
   const isCustom = selectedPreset.id === 'custom'
@@ -622,120 +627,52 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
           </div>
         )}
 
-        <Input label={t('settings.providers.name')} required value={name} onChange={(e) => setName(e.target.value)} placeholder={t('settings.providers.namePlaceholder')} />
-
-        <Input label={t('settings.providers.notes')} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('settings.providers.notesPlaceholder')} />
-
-        <Input label={t('settings.providers.baseUrl')} required value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('settings.providers.baseUrlPlaceholder')} />
-
-        {/* API Format */}
-        {(isCustom || mode === 'edit') ? (
-          <div>
-            <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
-            <Dropdown<ApiFormat>
-              items={apiFormatItems}
-              value={apiFormat}
-              onChange={setApiFormat}
-              width="100%"
-              className="block w-full"
-              trigger={
-                <button
-                  type="button"
-                  className="flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-left text-sm text-[var(--color-text-primary)] outline-none transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-container-low)] focus-visible:border-[var(--color-border-focus)] focus-visible:shadow-[var(--shadow-focus-ring)]"
-                >
-                  <span className="min-w-0 flex-1 truncate">{selectedApiFormatLabel}</span>
-                  <span className="material-symbols-outlined flex-shrink-0 text-[18px] text-[var(--color-text-secondary)]">expand_more</span>
-                </button>
-              }
-            />
-            {apiFormat !== 'anthropic' && (
-              <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('settings.providers.proxyHint')}</p>
-            )}
-          </div>
-        ) : apiFormat !== 'anthropic' ? (
-          <div>
-            <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
-            <div className="text-xs text-[var(--color-text-tertiary)] px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border border-[var(--color-border)]">
-              {apiFormat === 'openai_chat' ? t('settings.providers.apiFormatOpenaiChat') : t('settings.providers.apiFormatOpenaiResponses')}
-            </div>
-          </div>
-        ) : null}
-
         <div className="flex flex-col gap-1">
           <label htmlFor="provider-api-key" className="text-sm font-medium text-[var(--color-text-primary)]">
             {t('settings.providers.apiKey')}
             {mode === 'create' && requiresApiKey && <span className="text-[var(--color-error)] ml-0.5">*</span>}
           </label>
-          <div className="relative">
-            <input
-              id="provider-api-key"
-              type={showApiKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
-              className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-sm text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)]"
-            />
-            <button
-              type="button"
-              onClick={() => setShowApiKey((visible) => !visible)}
-              aria-label={showApiKey ? 'Hide API Key' : 'Show API Key'}
-              className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {showApiKey ? 'visibility_off' : 'visibility'}
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {(apiKeyUrl || promoText) && (
-          <div className="-mt-2 flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                id="provider-api-key"
+                type={showApiKey ? 'text' : 'password'}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-sm text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey((visible) => !visible)}
+                aria-label={showApiKey ? 'Hide API Key' : 'Show API Key'}
+                className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+              >
+                <span className="material-symbols-outlined text-[16px]">
+                  {showApiKey ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
             {apiKeyUrl && (
               <button
                 type="button"
                 onClick={() => openExternalUrl(apiKeyUrl)}
-                className="group inline-flex h-6 w-fit cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1.5 text-[11px] font-medium leading-none text-[var(--color-brand)] transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+                className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 text-xs font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
               >
-                <span className="material-symbols-outlined text-[13px]">key</span>
                 {t('settings.providers.getApiKey')}
-                <span className="material-symbols-outlined text-[9px] opacity-60 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">arrow_outward</span>
               </button>
             )}
-            {promoText && (
-              <button
-                type="button"
-                onClick={() => apiKeyUrl && openExternalUrl(apiKeyUrl)}
-                disabled={!apiKeyUrl}
-                className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-brand)]/25 bg-[var(--color-brand)]/8 px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand)]/45 hover:bg-[var(--color-brand)]/12 focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:hover:border-[var(--color-brand)]/25 disabled:hover:bg-[var(--color-brand)]/8"
-              >
-                <span className="material-symbols-outlined mt-0.5 text-[13px] text-[var(--color-brand)]">tips_and_updates</span>
-                <span>{promoText}</span>
-                {apiKeyUrl && (
-                  <span className="material-symbols-outlined ml-auto mt-1 text-[10px] text-[var(--color-brand)] opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">arrow_outward</span>
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={isTesting || !baseUrl.trim() || !models.main.trim()}
+              className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 text-xs font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
+            >
+              {isTesting ? `${t('settings.providers.testConnection')}…` : t('settings.providers.testConnection')}
+            </button>
           </div>
-        )}
-
-        {/* Model Mapping */}
-        <div>
-          <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.modelMapping')}</label>
-          <div className="grid grid-cols-2 gap-2">
-            <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => setModels({ ...models, main: e.target.value })} placeholder="Model ID" />
-            <Input label={t('settings.providers.haikuModel')} value={models.haiku} onChange={(e) => setModels({ ...models, haiku: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
-            <Input label={t('settings.providers.sonnetModel')} value={models.sonnet} onChange={(e) => setModels({ ...models, sonnet: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
-            <Input label={t('settings.providers.opusModel')} value={models.opus} onChange={(e) => setModels({ ...models, opus: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
-          </div>
-        </div>
-
-        {/* Test connection */}
-        <div className="flex items-center gap-3">
-          <Button variant="secondary" size="sm" onClick={handleTest} loading={isTesting} disabled={!baseUrl.trim() || !models.main.trim()}>
-            {t('settings.providers.testConnection')}
-          </Button>
           {testResult && (
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-0.5 mt-1">
               <span className={`text-xs ${testResult.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                 {testResult.connectivity.success
                   ? t('settings.providers.connectivityOk', { latency: String(testResult.connectivity.latencyMs) })
@@ -752,64 +689,144 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
           )}
         </div>
 
-        {/* Settings JSON — editable, shown for all presets including official */}
-        <div>
-          <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.settingsJson')}</label>
-          <textarea
-            value={displayedSettingsJson}
-            onChange={(e) => {
-              const raw = e.target.value
-              try {
-                const parsed = restoreSettingsJsonSecrets(JSON.parse(raw), apiKey)
-                setSettingsJson(JSON.stringify(parsed, null, 2))
-                setSettingsJsonError(null)
-                // Auto-fill form fields from parsed JSON env
-                const env = parsed.env as Record<string, string> | undefined
-                if (env) {
-                  if (env.ANTHROPIC_BASE_URL) {
-                    setBaseUrl(env.ANTHROPIC_BASE_URL)
-                    // Auto-switch to matching preset or Custom
-                    if (mode === 'create') {
-                      const matchedPreset = availablePresets.find((p) => p.id !== 'custom' && p.baseUrl === env.ANTHROPIC_BASE_URL)
-                      const targetPreset = requirePreset(
-                        matchedPreset ?? availablePresets.find((p) => p.id === 'custom'),
-                      )
-                      if (targetPreset.id !== selectedPreset.id) {
-                        jsonPastedRef.current = true
-                        setSelectedPreset(targetPreset)
-                      }
+        {promoText && (
+          <button
+            type="button"
+            onClick={() => apiKeyUrl && openExternalUrl(apiKeyUrl)}
+            disabled={!apiKeyUrl}
+            className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-brand)]/25 bg-[var(--color-brand)]/8 px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand)]/45 hover:bg-[var(--color-brand)]/12 focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:hover:border-[var(--color-brand)]/25 disabled:hover:bg-[var(--color-brand)]/8"
+          >
+            <span className="material-symbols-outlined mt-0.5 text-[13px] text-[var(--color-brand)]">tips_and_updates</span>
+            <span>{promoText}</span>
+            {apiKeyUrl && (
+              <span className="material-symbols-outlined ml-auto mt-1 text-[10px] text-[var(--color-brand)] opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">arrow_outward</span>
+            )}
+          </button>
+        )}
+
+        {/* Advanced settings — folded by default */}
+        <div className="border-t border-[var(--color-border)] pt-3">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex w-full cursor-pointer items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus:outline-none"
+          >
+            <span className="material-symbols-outlined text-[18px] transition-transform" style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)' }}>chevron_right</span>
+            {t('settings.providers.advanced')}
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 flex flex-col gap-4">
+              <Input label={t('settings.providers.name')} required value={name} onChange={(e) => setName(e.target.value)} placeholder={t('settings.providers.namePlaceholder')} />
+
+              <Input label={t('settings.providers.notes')} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('settings.providers.notesPlaceholder')} />
+
+              <Input label={t('settings.providers.baseUrl')} required value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('settings.providers.baseUrlPlaceholder')} />
+
+              {/* API Format */}
+              {(isCustom || mode === 'edit') ? (
+                <div>
+                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
+                  <Dropdown<ApiFormat>
+                    items={apiFormatItems}
+                    value={apiFormat}
+                    onChange={setApiFormat}
+                    width="100%"
+                    className="block w-full"
+                    trigger={
+                      <button
+                        type="button"
+                        className="flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-left text-sm text-[var(--color-text-primary)] outline-none transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-container-low)] focus-visible:border-[var(--color-border-focus)] focus-visible:shadow-[var(--shadow-focus-ring)]"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{selectedApiFormatLabel}</span>
+                        <span className="material-symbols-outlined flex-shrink-0 text-[18px] text-[var(--color-text-secondary)]">expand_more</span>
+                      </button>
                     }
-                  }
-                  const nextApiKey = env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY
-                  if (nextApiKey && nextApiKey !== '(your API key)' && nextApiKey !== API_KEY_JSON_PLACEHOLDER) {
-                    setApiKey(nextApiKey)
-                  }
-                  const newModels: Partial<ModelMapping> = {}
-                  if (env.ANTHROPIC_MODEL) newModels.main = env.ANTHROPIC_MODEL
-                  if (env.ANTHROPIC_DEFAULT_HAIKU_MODEL) newModels.haiku = env.ANTHROPIC_DEFAULT_HAIKU_MODEL
-                  if (env.ANTHROPIC_DEFAULT_SONNET_MODEL) newModels.sonnet = env.ANTHROPIC_DEFAULT_SONNET_MODEL
-                  if (env.ANTHROPIC_DEFAULT_OPUS_MODEL) newModels.opus = env.ANTHROPIC_DEFAULT_OPUS_MODEL
-                  if (Object.keys(newModels).length > 0) {
-                    setModels((prev) => ({ ...prev, ...newModels }))
-                  }
-                }
-              } catch (err) {
-                setSettingsJson(raw)
-                setSettingsJsonError(err instanceof Error ? err.message : 'Invalid JSON')
-              }
-            }}
-            rows={16}
-            spellCheck={false}
-            className={`w-full text-xs px-3 py-3 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
-              settingsJsonError
-                ? 'border-[var(--color-error)] focus:border-[var(--color-error)]'
-                : 'border-[var(--color-border)] focus:border-[var(--color-border-focus)]'
-            }`}
-          />
-          {settingsJsonError && (
-            <p className="text-[11px] text-[var(--color-error)] mt-1">{t('settings.providers.jsonError', { error: settingsJsonError })}</p>
+                  />
+                  {apiFormat !== 'anthropic' && (
+                    <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('settings.providers.proxyHint')}</p>
+                  )}
+                </div>
+              ) : apiFormat !== 'anthropic' ? (
+                <div>
+                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
+                  <div className="text-xs text-[var(--color-text-tertiary)] px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border border-[var(--color-border)]">
+                    {apiFormat === 'openai_chat' ? t('settings.providers.apiFormatOpenaiChat') : t('settings.providers.apiFormatOpenaiResponses')}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Model Mapping */}
+              <div>
+                <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.modelMapping')}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => setModels({ ...models, main: e.target.value })} placeholder="Model ID" />
+                  <Input label={t('settings.providers.haikuModel')} value={models.haiku} onChange={(e) => setModels({ ...models, haiku: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
+                  <Input label={t('settings.providers.sonnetModel')} value={models.sonnet} onChange={(e) => setModels({ ...models, sonnet: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
+                  <Input label={t('settings.providers.opusModel')} value={models.opus} onChange={(e) => setModels({ ...models, opus: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
+                </div>
+              </div>
+
+              {/* Settings JSON — editable, shown for all presets including official */}
+              <div>
+                <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.settingsJson')}</label>
+                <textarea
+                  value={displayedSettingsJson}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    try {
+                      const parsed = restoreSettingsJsonSecrets(JSON.parse(raw), apiKey)
+                      setSettingsJson(JSON.stringify(parsed, null, 2))
+                      setSettingsJsonError(null)
+                      // Auto-fill form fields from parsed JSON env
+                      const env = parsed.env as Record<string, string> | undefined
+                      if (env) {
+                        if (env.ANTHROPIC_BASE_URL) {
+                          setBaseUrl(env.ANTHROPIC_BASE_URL)
+                          // Auto-switch to matching preset or Custom
+                          if (mode === 'create') {
+                            const matchedPreset = availablePresets.find((p) => p.id !== 'custom' && p.baseUrl === env.ANTHROPIC_BASE_URL)
+                            const targetPreset = requirePreset(
+                              matchedPreset ?? availablePresets.find((p) => p.id === 'custom'),
+                            )
+                            if (targetPreset.id !== selectedPreset.id) {
+                              jsonPastedRef.current = true
+                              setSelectedPreset(targetPreset)
+                            }
+                          }
+                        }
+                        const nextApiKey = env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY
+                        if (nextApiKey && nextApiKey !== '(your API key)' && nextApiKey !== API_KEY_JSON_PLACEHOLDER) {
+                          setApiKey(nextApiKey)
+                        }
+                        const newModels: Partial<ModelMapping> = {}
+                        if (env.ANTHROPIC_MODEL) newModels.main = env.ANTHROPIC_MODEL
+                        if (env.ANTHROPIC_DEFAULT_HAIKU_MODEL) newModels.haiku = env.ANTHROPIC_DEFAULT_HAIKU_MODEL
+                        if (env.ANTHROPIC_DEFAULT_SONNET_MODEL) newModels.sonnet = env.ANTHROPIC_DEFAULT_SONNET_MODEL
+                        if (env.ANTHROPIC_DEFAULT_OPUS_MODEL) newModels.opus = env.ANTHROPIC_DEFAULT_OPUS_MODEL
+                        if (Object.keys(newModels).length > 0) {
+                          setModels((prev) => ({ ...prev, ...newModels }))
+                        }
+                      }
+                    } catch (err) {
+                      setSettingsJson(raw)
+                      setSettingsJsonError(err instanceof Error ? err.message : 'Invalid JSON')
+                    }
+                  }}
+                  rows={16}
+                  spellCheck={false}
+                  className={`w-full text-xs px-3 py-3 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
+                    settingsJsonError
+                      ? 'border-[var(--color-error)] focus:border-[var(--color-error)]'
+                      : 'border-[var(--color-border)] focus:border-[var(--color-border-focus)]'
+                  }`}
+                />
+                {settingsJsonError && (
+                  <p className="text-[11px] text-[var(--color-error)] mt-1">{t('settings.providers.jsonError', { error: settingsJsonError })}</p>
+                )}
+                <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('settings.providers.settingsJsonDesc')}</p>
+              </div>
+            </div>
           )}
-          <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('settings.providers.settingsJsonDesc')}</p>
         </div>
       </div>
     </Modal>
@@ -831,38 +848,37 @@ function PermissionSettings() {
   ]
 
   return (
-    <div className="max-w-xl">
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.permissions.title')}</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-4">{t('settings.permissions.description')}</p>
-
-      <div className="flex flex-col gap-2">
-        {MODES.map(({ mode, icon, label, desc }) => {
-          const isSelected = permissionMode === mode
-          return (
-            <button
-              key={mode}
-              onClick={() => setPermissionMode(mode)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
-                isSelected
-                  ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
-                  : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[20px] text-[var(--color-text-secondary)]">{icon}</span>
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">{label}</div>
-                <div className="text-xs text-[var(--color-text-tertiary)]">{desc}</div>
-              </div>
-              {isSelected && (
-                <span className="material-symbols-outlined text-[18px] text-[var(--color-brand)]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  check_circle
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-    </div>
+    <SettingsPage title={t('settings.permissions.title')} description={t('settings.permissions.description')}>
+      <SettingsSection>
+        <div className="flex flex-col gap-2 py-2">
+          {MODES.map(({ mode, icon, label, desc }) => {
+            const isSelected = permissionMode === mode
+            return (
+              <button
+                key={mode}
+                onClick={() => setPermissionMode(mode)}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                  isSelected
+                    ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
+                    : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px] text-[var(--color-text-secondary)]">{icon}</span>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">{label}</div>
+                  <div className="text-xs text-[var(--color-text-tertiary)]">{desc}</div>
+                </div>
+                {isSelected && (
+                  <span className="material-symbols-outlined text-[18px] text-[var(--color-brand)]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                    check_circle
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </SettingsSection>
+    </SettingsPage>
   )
 }
 
@@ -881,104 +897,48 @@ function GeneralSettings() {
   } = useSettingsStore()
   const t = useTranslation()
 
-  const EFFORT_LABELS: Record<EffortLevel, string> = {
-    low: t('settings.general.effort.low'),
-    medium: t('settings.general.effort.medium'),
-    high: t('settings.general.effort.high'),
-    max: t('settings.general.effort.max'),
-  }
-
-  const LANGUAGES: Array<{ value: Locale; label: string }> = [
-    { value: 'en', label: 'English' },
-    { value: 'zh', label: '中文' },
-  ]
-
-  const THEMES: Array<{ value: ThemeMode; label: string }> = [
+  const themeItems: Array<{ value: ThemeMode; label: string }> = [
     { value: 'light', label: t('settings.general.appearance.light') },
     { value: 'dark', label: t('settings.general.appearance.dark') },
   ]
 
+  const localeItems: Array<{ value: Locale; label: string }> = [
+    { value: 'en', label: 'English' },
+    { value: 'zh', label: '中文' },
+  ]
+
+  const effortItems: Array<{ value: EffortLevel; label: string }> = [
+    { value: 'low', label: t('settings.general.effort.low') },
+    { value: 'medium', label: t('settings.general.effort.medium') },
+    { value: 'high', label: t('settings.general.effort.high') },
+    { value: 'max', label: t('settings.general.effort.max') },
+  ]
+
   return (
-    <div className="max-w-xl">
-      {/* Appearance selector */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.appearanceTitle')}</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.appearanceDescription')}</p>
-      <div className="flex gap-2 mb-8">
-        {THEMES.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => void setTheme(value)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${
-              theme === value
-                ? 'bg-[var(--color-primary)] text-[var(--color-btn-primary-fg)] border-transparent'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Language selector */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.languageTitle')}</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.languageDescription')}</p>
-      <div className="flex gap-2 mb-8">
-        {LANGUAGES.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => setLocale(value)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${
-              locale === value
-                ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Effort Level */}
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.effortTitle')}</h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.effortDescription')}</p>
-      <div className="flex gap-2">
-        {(['low', 'medium', 'high', 'max'] as EffortLevel[]).map((level) => (
-          <button
-            key={level}
-            onClick={() => setEffort(level)}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${
-              effortLevel === level
-                ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
-            }`}
-          >
-            {EFFORT_LABELS[level]}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">{t('settings.general.webFetchPreflightTitle')}</h2>
-        <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.webFetchPreflightDescription')}</p>
-        <label className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3 cursor-pointer hover:border-[var(--color-border-focus)] transition-colors">
-          <input
-            type="checkbox"
-            aria-label={t('settings.general.webFetchPreflightEnabled')}
+    <SettingsPage title={t('settings.tab.general')}>
+      <SettingsSection>
+        <SettingsRow label={t('settings.general.appearanceTitle')} hint={t('settings.general.appearanceDescription')}>
+          <SegmentedControl items={themeItems} value={theme} onChange={(v) => void setTheme(v)} />
+        </SettingsRow>
+        <SettingsRow label={t('settings.general.languageTitle')} hint={t('settings.general.languageDescription')}>
+          <SegmentedControl items={localeItems} value={locale} onChange={(v) => setLocale(v)} />
+        </SettingsRow>
+        <SettingsRow label={t('settings.general.effortTitle')} hint={t('settings.general.effortDescription')}>
+          <SegmentedControl items={effortItems} value={effortLevel} onChange={(v) => setEffort(v)} />
+        </SettingsRow>
+        <SettingsRow
+          label={t('settings.general.webFetchPreflightEnabled')}
+          hint={t('settings.general.webFetchPreflightHint')}
+          align="start"
+        >
+          <Switch
             checked={skipWebFetchPreflight}
-            onChange={(e) => void setSkipWebFetchPreflight(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
+            onChange={(next) => void setSkipWebFetchPreflight(next)}
+            ariaLabel={t('settings.general.webFetchPreflightEnabled')}
           />
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-[var(--color-text-primary)]">
-              {t('settings.general.webFetchPreflightEnabled')}
-            </div>
-            <div className="text-xs text-[var(--color-text-tertiary)] mt-1 leading-5">
-              {t('settings.general.webFetchPreflightHint')}
-            </div>
-          </div>
-        </label>
-      </div>
-    </div>
+        </SettingsRow>
+      </SettingsSection>
+    </SettingsPage>
   )
 }
 
@@ -1481,15 +1441,9 @@ function SkillSettings() {
   }
 
   return (
-    <div className="w-full min-w-0">
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-        {t('settings.skills.title')}
-      </h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-        {t('settings.skills.description')}
-      </p>
+    <SettingsPage title={t('settings.skills.title')} description={t('settings.skills.description')}>
       <SkillList />
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -1506,21 +1460,16 @@ function PluginSettings() {
   }
 
   return (
-    <div className="w-full min-w-0">
-      <h2 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
-        {t('settings.plugins.title')}
-      </h2>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
-        {t('settings.plugins.description')}
-      </p>
+    <SettingsPage title={t('settings.plugins.title')} description={t('settings.plugins.description')}>
       <PluginList />
-    </div>
+    </SettingsPage>
   )
 }
 
 // ─── About Settings ──────────────────────────────────────
 
 const GITHUB_REPO = 'https://github.com/wk42worldworld/cybercode'
+const GITHUB_STAR_URL = 'https://github.com/login?return_to=%2Fwk42worldworld%2Fcybercode'
 const GITHUB_ISSUES = `${GITHUB_REPO}/issues`
 const GITHUB_RELEASES = `${GITHUB_REPO}/releases`
 
@@ -1614,7 +1563,7 @@ function AboutSettings() {
       {/* GitHub Repo */}
       <div className="mt-6 w-full">
         <button
-          onClick={() => openUrl(GITHUB_REPO)}
+          onClick={() => openUrl(GITHUB_STAR_URL)}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
         >
           <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5 opacity-70" />

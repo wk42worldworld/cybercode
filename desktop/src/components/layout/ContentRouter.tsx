@@ -3,7 +3,6 @@ import { useTabStore } from '../../stores/tabStore'
 import { EmptySession } from '../../pages/EmptySession'
 import { ActiveSession } from '../../pages/ActiveSession'
 import { ScheduledTasks } from '../../pages/ScheduledTasks'
-import { Settings } from '../../pages/Settings'
 import { TerminalSettings } from '../../pages/TerminalSettings'
 
 export function ContentRouter() {
@@ -15,8 +14,6 @@ export function ContentRouter() {
   let page: ReactNode = null
   if (!activeTabId || !activeTabType) {
     page = <EmptySession />
-  } else if (activeTabType === 'settings') {
-    page = <Settings />
   } else if (activeTabType === 'scheduled') {
     page = <ScheduledTasks />
   } else if (activeTabType !== 'terminal') {

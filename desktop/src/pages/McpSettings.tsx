@@ -678,7 +678,7 @@ export function McpSettings() {
     const server = view.server
     return (
       <>
-        <div className="max-w-5xl min-w-0">
+        <div className="mx-auto w-full max-w-5xl min-w-0">
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
@@ -688,11 +688,11 @@ export function McpSettings() {
             {t('settings.mcp.form.back')}
           </button>
 
-          <div className="flex items-start justify-between gap-4 mb-8">
+          <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-[2.2rem] font-semibold tracking-[-0.03em] text-[var(--color-text-primary)]">{server.name}</h2>
-              <p className="mt-3 text-base text-[var(--color-text-secondary)]">{server.summary}</p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+              <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">{server.name}</h1>
+              <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{server.summary}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
                 <StatusBadge server={server} />
                 {server.statusDetail && (
                   <span className="text-sm text-[var(--color-text-tertiary)]">{server.statusDetail}</span>
@@ -735,7 +735,7 @@ export function McpSettings() {
 
     return (
       <>
-        <div className="max-w-5xl min-w-0">
+        <div className="mx-auto w-full max-w-5xl min-w-0">
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
@@ -745,12 +745,12 @@ export function McpSettings() {
             {t('settings.mcp.form.back')}
           </button>
 
-          <div className="flex items-start justify-between gap-4 mb-8">
+          <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-[2.2rem] font-semibold tracking-[-0.03em] text-[var(--color-text-primary)]">
+              <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
                 {editing ? t('settings.mcp.form.editTitle', { name: targetServer!.name }) : t('settings.mcp.form.createTitle')}
-              </h2>
-              <p className="mt-3 text-base text-[var(--color-text-secondary)]">
+              </h1>
+              <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
                 {editing ? t('settings.mcp.form.editHint') : t('settings.mcp.form.createHint')}
               </p>
               {editing && targetServer && (
@@ -934,17 +934,17 @@ export function McpSettings() {
   }
 
   return (
-    <div className="max-w-5xl min-w-0">
-      <div className="flex items-start justify-between gap-6 mb-8">
+    <div className="mx-auto w-full max-w-5xl min-w-0">
+      <div className="flex items-start justify-between gap-6 mb-6">
         <div>
-          <h2 className="text-[2.2rem] font-semibold tracking-[-0.03em] text-[var(--color-text-primary)]">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
             {t('settings.mcp.title')}
-          </h2>
-          <p className="mt-3 text-base text-[var(--color-text-secondary)]">
+          </h1>
+          <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
             {t('settings.mcp.description')}
           </p>
         </div>
-        <Button variant="secondary" size="lg" onClick={beginCreate}>
+        <Button variant="secondary" size="sm" onClick={beginCreate}>
           <span className="material-symbols-outlined text-[18px]">add</span>
           {t('settings.mcp.addServer')}
         </Button>

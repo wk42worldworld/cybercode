@@ -194,10 +194,10 @@ export function TerminalSettings({
     <div className={`flex h-full flex-col overflow-hidden ${workspace ? 'min-h-0 bg-[var(--color-surface)] px-5 py-4' : 'min-h-[620px]'}`}>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
             {t('settings.terminal.title')}
-          </h2>
-          <p className="mt-0.5 max-w-2xl text-sm text-[var(--color-text-tertiary)]">
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-tertiary)]">
             {t('settings.terminal.description')}
           </p>
         </div>

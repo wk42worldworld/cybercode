@@ -112,7 +112,7 @@ export function ScheduledTasksList() {
                 <h1 className="font-[var(--font-headline)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">{t('scheduledPage.title')}</h1>
                 <p className="text-[var(--color-text-secondary)] text-sm">{t('scheduledPage.subtitle')}</p>
               </div>
-              <button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-container)] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all shadow-sm font-medium text-sm">
+              <button className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-container)] text-[var(--color-on-primary)] px-5 py-2.5 rounded-lg flex items-center gap-2 transition-all shadow-sm font-medium text-sm">
                 <span className="material-symbols-outlined text-[1.1rem]">add_task</span>
                 {t('tasks.createNew')}
               </button>

@@ -9,7 +9,6 @@ import {
 } from '../../api/sessions'
 import { useTranslation, type TranslationKey } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
-import { SETTINGS_TAB_ID, useTabStore } from '../../stores/tabStore'
 import { useMcpStore } from '../../stores/mcpStore'
 import { useSkillStore } from '../../stores/skillStore'
 import type { McpServerRecord } from '../../types/mcp'
@@ -179,7 +178,7 @@ function assertSessionInspectionResponse(value: unknown, t: Translate): SessionI
 function InspectorSectionTitle({ children, action }: { children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-4">
-      <div className="font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-[#2b1b15]">{children}</div>
+      <div className="font-mono text-[12px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-primary)]">{children}</div>
       {action}
     </div>
   )
@@ -187,18 +186,18 @@ function InspectorSectionTitle({ children, action }: { children: React.ReactNode
 
 function MetricCard({ label, value, detail }: { label: string; value: React.ReactNode; detail?: React.ReactNode }) {
   return (
-    <div className="min-h-[82px] rounded-md border border-[#d8b3a8] bg-[#f4f2ed] px-4 py-4 font-mono">
-      <div className="text-[12px] uppercase tracking-[0.2em] text-[#2b1b15]">{label}</div>
-      <div className="mt-3 whitespace-pre-line text-[15px] leading-6 text-[#1f1713]">{value}</div>
-      {detail && <div className="mt-1 text-[13px] leading-5 text-[#7b665f]">{detail}</div>}
+    <div className="min-h-[82px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container)] px-4 py-4 font-mono">
+      <div className="text-[12px] uppercase tracking-[0.2em] text-[var(--color-text-primary)]">{label}</div>
+      <div className="mt-3 whitespace-pre-line text-[15px] leading-6 text-[var(--color-text-primary)]">{value}</div>
+      {detail && <div className="mt-1 text-[13px] leading-5 text-[var(--color-text-tertiary)]">{detail}</div>}
     </div>
   )
 }
 
 function InspectorNotice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-[#d8b3a8] bg-[#fbfaf6] px-4 py-3 text-[14px] text-[#2b1b15]">
-      <span className="material-symbols-outlined text-[18px] text-[#7b665f]">info</span>
+    <div className="flex items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-[14px] text-[var(--color-text-primary)]">
+      <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">info</span>
       <span>{children}</span>
     </div>
   )
@@ -206,13 +205,13 @@ function InspectorNotice({ children }: { children: React.ReactNode }) {
 
 function KeyValueRows({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return (
-    <div className="overflow-hidden rounded-md border border-[#d8b3a8] bg-[#fbfaf6] font-mono">
+    <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
       {rows.map(([label, value]) => (
-        <div key={label} className="grid grid-cols-[220px_minmax(0,1fr)] border-t border-[#d8b3a8] first:border-t-0">
-          <div className="border-r border-[#d8b3a8] bg-[#f4f2ed] px-4 py-3 text-[12px] font-semibold uppercase tracking-[0.24em] text-[#2b1b15]">
+        <div key={label} className="grid grid-cols-[220px_minmax(0,1fr)] border-t border-[var(--color-border)] first:border-t-0">
+          <div className="border-r border-[var(--color-border)] bg-[var(--color-surface-container)] px-4 py-3 text-[12px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-primary)]">
             {label}
           </div>
-          <div className="min-w-0 break-words px-4 py-3 text-[14px] text-[#1f1713]">{value}</div>
+          <div className="min-w-0 break-words px-4 py-3 text-[14px] text-[var(--color-text-primary)]">{value}</div>
         </div>
       ))}
     </div>
@@ -278,7 +277,7 @@ function UsageTab({
         </InspectorNotice>
       )}
       {usage.source === 'transcript' && (
-        <div className="rounded-md border border-[#d8b3a8] bg-[#fbfaf6] px-4 py-3 text-sm text-[#5f514c]">
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-sm text-[#5f514c]">
           {t('slash.inspector.usage.transcriptNotice')}
         </div>
       )}
@@ -302,30 +301,30 @@ function UsageTab({
         <MetricCard label={t('slash.inspector.usage.webSearch')} value={formatNumber(usage.totalWebSearchRequests)} />
       </div>
       <section>
-        <div className="mb-3 text-[22px] font-semibold text-[#1f1713]">{t('slash.inspector.usage.byModel')}</div>
+        <div className="mb-3 text-[22px] font-semibold text-[var(--color-text-primary)]">{t('slash.inspector.usage.byModel')}</div>
         {models.length === 0 ? (
           <EmptyState title={t('slash.inspector.usage.noModelTitle')} body={t('slash.inspector.usage.noModelBody')} />
         ) : (
-          <div className="overflow-hidden rounded-md border border-[#d8b3a8] bg-[#fbfaf6] font-mono">
+          <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
             {models.map((model) => (
-              <div key={model.model} className="border-t border-[#d8b3a8] first:border-t-0">
-                <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-4 border-b border-[#d8b3a8] px-4 py-3">
-                  <div className="min-w-0 truncate text-[13px] font-semibold text-[#1f1713]">{model.displayName || model.model}</div>
-                  <div className="text-right text-[12px] font-semibold uppercase tracking-[0.18em] text-[#2b1b15]">{t('slash.inspector.usage.tokens')}</div>
+              <div key={model.model} className="border-t border-[var(--color-border)] first:border-t-0">
+                <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-3">
+                  <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{model.displayName || model.model}</div>
+                  <div className="text-right text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-primary)]">{t('slash.inspector.usage.tokens')}</div>
                 </div>
-                <div className="grid grid-cols-[160px_minmax(0,1fr)_120px] items-center gap-4 border-b border-[#d8b3a8] px-4 py-3 last:border-b-0">
-                  <div className="text-[12px] uppercase tracking-[0.18em] text-[#2b1b15]">{t('slash.inspector.usage.input')}</div>
+                <div className="grid grid-cols-[160px_minmax(0,1fr)_120px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-3 last:border-b-0">
+                  <div className="text-[12px] uppercase tracking-[0.18em] text-[var(--color-text-primary)]">{t('slash.inspector.usage.input')}</div>
                   <div className="h-1 overflow-hidden rounded-full bg-[#ebe7df]">
                     <div className="h-full rounded-full bg-[#8f3217]" style={{ width: '95%' }} />
                   </div>
-                  <div className="text-right text-[13px] text-[#1f1713]">{formatNumber(model.inputTokens)}</div>
+                  <div className="text-right text-[13px] text-[var(--color-text-primary)]">{formatNumber(model.inputTokens)}</div>
                 </div>
                 <div className="grid grid-cols-[160px_minmax(0,1fr)_120px] items-center gap-4 px-4 py-3">
-                  <div className="text-[12px] uppercase tracking-[0.18em] text-[#2b1b15]">{t('slash.inspector.usage.output')}</div>
+                  <div className="text-[12px] uppercase tracking-[0.18em] text-[var(--color-text-primary)]">{t('slash.inspector.usage.output')}</div>
                   <div className="h-1 overflow-hidden rounded-full bg-[#ebe7df]">
                     <div className="h-full rounded-full bg-[#0f5c8f]" style={{ width: `${Math.max(4, Math.min(100, (model.outputTokens / Math.max(1, model.inputTokens)) * 100))}%` }} />
                   </div>
-                  <div className="text-right text-[13px] text-[#1f1713]">{formatNumber(model.outputTokens)}</div>
+                  <div className="text-right text-[13px] text-[var(--color-text-primary)]">{formatNumber(model.outputTokens)}</div>
                 </div>
               </div>
             ))}
@@ -372,7 +371,7 @@ function CategoryBreakdown({ categories, rawMaxTokens, t }: { categories: Contex
   }
 
   return (
-    <div className="rounded-md border border-[#d8b3a8] bg-[#f4f2ed] px-5 py-5 font-mono">
+    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-5 font-mono">
       <InspectorSectionTitle>{t('slash.inspector.context.categoryTitle')}</InspectorSectionTitle>
       <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
         {visibleCategories.map((category) => {
@@ -385,13 +384,13 @@ function CategoryBreakdown({ categories, rawMaxTokens, t }: { categories: Contex
             >
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className={`min-w-0 truncate text-[14px] font-semibold ${muted ? 'text-[#5f514c]' : 'text-[#1f1713]'}`}>
+                  <span className={`min-w-0 truncate text-[14px] font-semibold ${muted ? 'text-[#5f514c]' : 'text-[var(--color-text-primary)]'}`}>
                     {category.name}
                   </span>
                 </div>
                 <div className="shrink-0 text-right leading-tight">
-                  <div className="text-sm text-[#1f1713]">{formatNumber(category.tokens)}</div>
-                  <div className="mt-0.5 text-[12px] text-[#7b665f]">{formatPercent(percent)}</div>
+                  <div className="text-sm text-[var(--color-text-primary)]">{formatNumber(category.tokens)}</div>
+                  <div className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{formatPercent(percent)}</div>
                 </div>
               </div>
               <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#ebe7df]">
@@ -414,9 +413,9 @@ function CategoryBreakdown({ categories, rawMaxTokens, t }: { categories: Contex
 function ContextStatPill({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
     <div className="min-w-0 font-mono">
-      <div className="truncate text-[12px] font-semibold uppercase tracking-[0.22em] text-[#7b665f]">{label}</div>
-      <div className="mt-2 truncate text-[16px] font-semibold text-[#1f1713]">{value}</div>
-      {detail && <div className="mt-1 truncate text-[13px] text-[#7b665f]">{detail}</div>}
+      <div className="truncate text-[12px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-tertiary)]">{label}</div>
+      <div className="mt-2 truncate text-[16px] font-semibold text-[var(--color-text-primary)]">{value}</div>
+      {detail && <div className="mt-1 truncate text-[13px] text-[var(--color-text-tertiary)]">{detail}</div>}
     </div>
   )
 }
@@ -437,7 +436,7 @@ function InspectorStatusBadge({ status, t }: { status: string; t: Translate }) {
     : isFailed
       ? 'bg-[#ffd9d3] text-[#c51616]'
       : 'bg-[#ebe7df] text-[#5f514c]'
-  const dotClass = isConnected ? 'bg-[#25451b]' : isFailed ? 'bg-[#c51616]' : 'bg-[#7b665f]'
+  const dotClass = isConnected ? 'bg-[#25451b]' : isFailed ? 'bg-[#c51616]' : 'bg-[var(--color-text-tertiary)]'
 
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] ${badgeClass}`}>
@@ -462,14 +461,14 @@ function ContextOverview({ context, categories, t }: { context: SessionContextSn
   const freeTokens = Math.max(0, context.rawMaxTokens - context.totalTokens)
   const freePercent = context.rawMaxTokens > 0 ? (freeTokens / context.rawMaxTokens) * 100 : 0
   return (
-    <div className="rounded-md border border-[#d8b3a8] bg-[#f4f2ed] px-5 py-6">
+    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-6">
       <div className="mb-8 flex items-start justify-between gap-4">
         <InspectorSectionTitle>{t('slash.inspector.context.windowUsage')}</InspectorSectionTitle>
-        <span className="rounded-sm border border-[#d8b3a8] bg-[#ebe7df] px-2 py-1 font-mono text-xs text-[#5f514c]">{context.model}</span>
+        <span className="rounded-sm border border-[var(--color-border)] bg-[#ebe7df] px-2 py-1 font-mono text-xs text-[#5f514c]">{context.model}</span>
       </div>
-      <div className="font-mono text-[24px] font-semibold text-[#1f1713]">
+      <div className="font-mono text-[24px] font-semibold text-[var(--color-text-primary)]">
         {formatNumber(context.totalTokens)}
-        <span className="mx-1.5 text-[#1f1713]">/</span>
+        <span className="mx-1.5 text-[var(--color-text-primary)]">/</span>
         <span>{formatNumber(context.rawMaxTokens)}</span>
         <span className="ml-3 align-middle text-sm font-normal text-[#0f5c8f]">[{formatPercent(usedPercent)} {t('slash.inspector.context.used')}]</span>
       </div>
@@ -477,16 +476,16 @@ function ContextOverview({ context, categories, t }: { context: SessionContextSn
         <ContextStackedBar categories={categories} rawMaxTokens={context.rawMaxTokens} />
       </div>
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-md border border-[#d8b3a8] bg-[#fbfaf6] px-4 py-3">
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.free')} value={formatNumber(freeTokens)} detail={formatPercent(freePercent)} />
         </div>
-        <div className="rounded-md border border-[#d8b3a8] bg-[#fbfaf6] px-4 py-3">
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.messages')} value={formatNumber(context.messageBreakdown?.assistantMessageTokens ?? 0)} detail={t('slash.inspector.context.assistant')} />
         </div>
-        <div className="rounded-md border border-[#d8b3a8] bg-[#fbfaf6] px-4 py-3">
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.toolResults')} value={formatNumber(context.messageBreakdown?.toolResultTokens ?? 0)} />
         </div>
-        <div className="rounded-md border border-[#d8b3a8] bg-[#fbfaf6] px-4 py-3">
+        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.context')} value={formatPercent(usedPercent)} />
         </div>
       </div>
@@ -555,14 +554,14 @@ function StatusTab({
           value={(
             <span>
               <span className="text-[#25451b]">{formatNumber(connectedMcp)}</span>
-              <span className="mx-5 text-[#1f1713]">/</span>
+              <span className="mx-5 text-[var(--color-text-primary)]">/</span>
               <span className="text-[#c51616]">{formatNumber(failedMcp)}</span>
             </span>
           )}
           detail={(
             <span>
               <span className="text-[#25451b]">{t('slash.inspector.status.connected')}</span>
-              <span className="mx-5 text-[#1f1713]" />
+              <span className="mx-5 text-[var(--color-text-primary)]" />
               <span className="text-[#c51616]">{t('slash.inspector.status.failed')}</span>
             </span>
           )}
@@ -594,12 +593,12 @@ function StatusTab({
               <div
                 key={`${server.name}:${server.status}`}
                 className={`flex min-h-[48px] items-center justify-between gap-4 rounded-md border px-4 py-3 font-mono ${
-                  server.status === 'failed' ? 'border-[#f1b8b0] bg-[#fff7f5]' : 'border-[#d8b3a8] bg-[#f4f2ed]'
+                  server.status === 'failed' ? 'border-[#f1b8b0] bg-[#fff7f5]' : 'border-[var(--color-border)] bg-[var(--color-surface-container)]'
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <McpServerIcon status={server.status} />
-                  <span className="min-w-0 truncate text-[14px] text-[#1f1713]">{server.name}</span>
+                  <span className="min-w-0 truncate text-[14px] text-[var(--color-text-primary)]">{server.name}</span>
                 </div>
                 <InspectorStatusBadge status={server.status} t={t} />
               </div>
@@ -628,10 +627,10 @@ function SessionInspectorShell({
 }) {
   return (
     <div
-      className="absolute bottom-full left-0 right-0 z-50 mb-4 overflow-hidden rounded-[10px] border bg-[#fbfaf6] shadow-[0_28px_80px_rgba(65,54,48,0.22)]"
+      className="absolute bottom-full left-0 right-0 z-50 mb-4 overflow-hidden rounded-[10px] border bg-[var(--color-surface-container-lowest)] shadow-[0_28px_80px_rgba(65,54,48,0.22)]"
       style={{ borderColor: inspector.line, color: inspector.ink }}
     >
-      <div className="grid min-h-[64px] grid-cols-[1fr_auto_1fr] items-center border-b border-[#d8b3a8] bg-[#fbfaf6] px-6">
+      <div className="grid min-h-[64px] grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-6">
         <div className="font-mono text-[16px] font-semibold uppercase text-[#8f3217]">{t('slash.inspector.title')}</div>
         <div className="flex items-center gap-8">
           {tabs.map((tab) => (
@@ -659,7 +658,7 @@ function SessionInspectorShell({
           </button>
         </div>
       </div>
-      <div className="max-h-[min(540px,58vh)] overflow-y-auto bg-[#fbfaf6] px-6 py-6">{children}</div>
+      <div className="max-h-[min(540px,58vh)] overflow-y-auto bg-[var(--color-surface-container-lowest)] px-6 py-6">{children}</div>
     </div>
   )
 }
@@ -775,7 +774,7 @@ function SessionInspectorPanel({
 
 function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
   const t = useTranslation()
-  const setPendingSettingsTab = useUIStore((s) => s.setPendingSettingsTab)
+  const openSettings = useUIStore((s) => s.openSettings)
   const selectServer = useMcpStore((s) => s.selectServer)
   const [servers, setServers] = useState<McpServerRecord[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -852,8 +851,7 @@ function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
                     key={`${server.scope}:${server.projectPath ?? 'global'}:${server.name}`}
                     onClick={() => {
                       selectServer(server)
-                      setPendingSettingsTab('mcp')
-                      useTabStore.getState().openTab(SETTINGS_TAB_ID, 'Settings', 'settings')
+                      openSettings('mcp')
                       onClose()
                     }}
                     className="block w-full border-t border-[var(--color-border)] px-4 py-4 text-left first:border-t-0 hover:bg-[var(--color-surface-hover)]"
@@ -886,7 +884,7 @@ function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
 
 function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
   const t = useTranslation()
-  const setPendingSettingsTab = useUIStore((s) => s.setPendingSettingsTab)
+  const openSettings = useUIStore((s) => s.openSettings)
   const fetchSkillDetail = useSkillStore((s) => s.fetchSkillDetail)
   const [skills, setSkills] = useState<SkillMeta[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -927,8 +925,7 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
               key={`${skill.source}:${skill.name}`}
               onClick={async () => {
                 await fetchSkillDetail(skill.source, skill.name, cwd, 'skills')
-                setPendingSettingsTab('skills')
-                useTabStore.getState().openTab(SETTINGS_TAB_ID, 'Settings', 'settings')
+                openSettings('skills')
                 onClose()
               }}
               className="block w-full border-t border-[var(--color-border)] px-4 py-4 text-left first:border-t-0 hover:bg-[var(--color-surface-hover)]"

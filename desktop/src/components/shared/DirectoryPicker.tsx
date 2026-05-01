@@ -302,7 +302,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
               {/* Use current folder */}
               <div className="px-3 py-2 border-t border-[var(--color-border)] flex justify-between items-center">
                 <span className="text-[10px] text-[var(--color-text-tertiary)] font-[var(--font-mono)] truncate">{browsePath}</span>
-                <button onClick={() => handleSelect(browsePath)} className="px-3 py-1.5 bg-[var(--color-brand)] text-white text-xs font-semibold rounded-lg hover:opacity-90">
+                <button onClick={() => handleSelect(browsePath)} className="px-3 py-1.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-xs font-semibold rounded-lg hover:opacity-90">
                   {t('dirPicker.useThisFolder')}
                 </button>
               </div>

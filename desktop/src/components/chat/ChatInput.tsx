@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
-import { SETTINGS_TAB_ID, useTabStore } from '../../stores/tabStore'
+import { useTabStore } from '../../stores/tabStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
@@ -11,7 +11,6 @@ import { PermissionModeSelector } from '../controls/PermissionModeSelector'
 import { ModelSelector } from '../controls/ModelSelector'
 import type { AttachmentRef } from '../../types/chat'
 import { AttachmentGallery } from './AttachmentGallery'
-import { ProjectContextChip } from '../shared/ProjectContextChip'
 import { DirectoryPicker } from '../shared/DirectoryPicker'
 import { FileSearchMenu, type FileSearchMenuHandle } from './FileSearchMenu'
 import { LocalSlashCommandPanel, type LocalSlashCommandName } from './LocalSlashCommandPanel'
@@ -315,8 +314,7 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
     }
 
     if (slashUiAction?.type === 'settings') {
-      useUIStore.getState().setPendingSettingsTab(slashUiAction.tab)
-      useTabStore.getState().openTab(SETTINGS_TAB_ID, 'Settings', 'settings')
+      useUIStore.getState().openSettings(slashUiAction.tab)
       setInput('')
       setSlashMenuOpen(false)
       setFileSearchOpen(false)
@@ -711,30 +709,34 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
 
         {!isMemberSession && (
           <div className="mt-3 px-1">
-            {hasMessages ? (
-              <ProjectContextChip
-                workDir={resolvedWorkDir}
-                repoName={gitInfo?.repoName || null}
-                branch={gitInfo?.branch || null}
-              />
-            ) : (
-              <DirectoryPicker
-                value={resolvedWorkDir || ''}
-                onChange={async (newWorkDir) => {
-                  if (!activeTabId) return
-                  const oldId = activeTabId
-                  const { deleteSession, createSession } = useSessionStore.getState()
-                  const { replaceTabSession } = useTabStore.getState()
-                  const { disconnectSession, connectToSession } = useChatStore.getState()
-                  const newId = await createSession(newWorkDir)
+            <DirectoryPicker
+              value={resolvedWorkDir || ''}
+              onChange={async (newWorkDir) => {
+                if (!activeTabId) return
+                if (newWorkDir === resolvedWorkDir) return
+
+                const oldId = activeTabId
+                const { createSession, deleteSession } = useSessionStore.getState()
+                const { openTab, setActiveTab, replaceTabSession } = useTabStore.getState()
+                const { disconnectSession, connectToSession } = useChatStore.getState()
+                const newId = await createSession(newWorkDir)
+
+                if (hasMessages) {
+                  // Existing chat — open new tab, preserve old session
+                  const folderName = newWorkDir.split('/').pop() || newWorkDir
+                  openTab(newId, folderName)
+                  setActiveTab(newId)
+                  connectToSession(newId)
+                } else {
+                  // Empty session — replace in place (no chat to lose)
                   useSessionRuntimeStore.getState().moveSelection(oldId, newId)
                   disconnectSession(oldId)
                   replaceTabSession(oldId, newId)
                   connectToSession(newId)
                   deleteSession(oldId).catch(() => {})
-                }}
-              />
-            )}
+                }
+              }}
+            />
           </div>
         )}
       </div>

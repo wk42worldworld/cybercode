@@ -26,6 +26,8 @@ export const en = {
   'sidebar.sessionListFailed': 'Session list failed to load',
   'sidebar.missingDir': 'missing dir',
   'sidebar.confirmDelete': 'Delete this session? This cannot be undone.',
+  'sidebar.openInNewTab': 'Open in new tab',
+  'settings.back': 'Back',
   'sidebar.allProjects': 'All projects',
   'sidebar.other': 'Other',
   'sidebar.timeGroup.today': 'Today',
@@ -130,6 +132,7 @@ export const en = {
   'settings.providers.apiFormatOpenaiChat': 'OpenAI Chat Completions (proxy)',
   'settings.providers.apiFormatOpenaiResponses': 'OpenAI Responses API (proxy)',
   'settings.providers.proxyHint': 'Requests will be translated via the local proxy',
+  'settings.providers.advanced': 'Advanced settings',
 
   // Settings > Permissions
   'settings.permissions.title': 'Permission Mode',

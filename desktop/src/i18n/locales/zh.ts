@@ -28,6 +28,8 @@ export const zh: Record<TranslationKey, string> = {
   'sidebar.sessionListFailed': '会话列表加载失败',
   'sidebar.missingDir': '目录缺失',
   'sidebar.confirmDelete': '确定要删除这个会话吗？此操作不可撤销。',
+  'sidebar.openInNewTab': '在新标签页打开',
+  'settings.back': '返回',
   'sidebar.allProjects': '所有项目',
   'sidebar.other': '其他',
   'sidebar.timeGroup.today': '今天',
@@ -132,6 +134,7 @@ export const zh: Record<TranslationKey, string> = {
   'settings.providers.apiFormatOpenaiChat': 'OpenAI Chat Completions (代理转换)',
   'settings.providers.apiFormatOpenaiResponses': 'OpenAI Responses API (代理转换)',
   'settings.providers.proxyHint': '请求将通过本地代理转换协议格式',
+  'settings.providers.advanced': '高级设置',
 
   // Settings > Permissions
   'settings.permissions.title': '权限模式',

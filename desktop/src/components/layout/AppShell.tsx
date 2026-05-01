@@ -9,16 +9,26 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { initializeDesktopServerUrl } from '../../lib/desktopRuntime'
 import { TabBar } from './TabBar'
 import { StartupErrorView } from './StartupErrorView'
-import { useTabStore, SETTINGS_TAB_ID } from '../../stores/tabStore'
+import { SettingsPanel } from './SettingsPanel'
+import { useTabStore } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
 import { useTranslation } from '../../i18n'
 
 export function AppShell() {
   const fetchSettings = useSettingsStore((s) => s.fetchAll)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
+  const settingsOpen = useUIStore((s) => s.settingsOpen)
+  const closeSettings = useUIStore((s) => s.closeSettings)
+  const activeTabId = useTabStore((s) => s.activeTabId)
   const [ready, setReady] = useState(false)
   const [startupError, setStartupError] = useState<string | null>(null)
   const t = useTranslation()
+
+  // Close the settings panel automatically when the user navigates to a different tab
+  useEffect(() => {
+    if (settingsOpen) closeSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTabId])
 
   useEffect(() => {
     let cancelled = false
@@ -60,10 +70,7 @@ export function AppShell() {
       .then(({ listen }) =>
         listen<string>('native-menu-navigate', (event) => {
           const target = event.payload as SettingsTab | 'settings'
-          if (target === 'about') {
-            useUIStore.getState().setPendingSettingsTab('about')
-          }
-          useTabStore.getState().openTab(SETTINGS_TAB_ID, 'Settings', 'settings')
+          useUIStore.getState().openSettings(target === 'about' ? 'about' : undefined)
         }),
       )
       .then((fn) => { unlisten = fn })
@@ -102,6 +109,7 @@ export function AppShell() {
         <TabBar />
         <ContentRouter />
       </main>
+      <SettingsPanel visible={settingsOpen} />
       <ToastContainer />
       <UpdateChecker />
     </div>

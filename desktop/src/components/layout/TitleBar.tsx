@@ -15,7 +15,7 @@ export function TitleBar() {
 
       {/* Logo */}
       <div className="flex items-center gap-2 mr-4" data-tauri-drag-region>
-        <span className="text-[11px] font-semibold tracking-wide text-[var(--color-text-primary)] opacity-80">CyberCode</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-primary)]">CYBERCODE</span>
       </div>
 
       {/* Navigation arrows */}
@@ -82,7 +82,7 @@ function TabButton({
     <button
       onClick={onClick}
       className={`
-        flex items-center gap-1.5 px-3 py-1 text-[12px] font-medium rounded-full transition-all duration-150
+        flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.10em] rounded-full transition-all duration-150
         ${active
           ? 'bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]'
           : 'text-[var(--color-text-primary)] opacity-50 hover:opacity-100'

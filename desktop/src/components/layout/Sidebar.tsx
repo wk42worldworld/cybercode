@@ -5,7 +5,7 @@ import { useTranslation } from '../../i18n'
 import { ProjectFilter } from './ProjectFilter'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import type { SessionListItem } from '../../types/session'
-import { useTabStore, SETTINGS_TAB_ID, SCHEDULED_TAB_ID } from '../../stores/tabStore'
+import { useTabStore, SCHEDULED_TAB_ID } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
 
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
@@ -25,6 +25,9 @@ export function Sidebar() {
   const addToast = useUIStore((s) => s.addToast)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const settingsOpen = useUIStore((s) => s.settingsOpen)
+  const openSettings = useUIStore((s) => s.openSettings)
+  const closeSettings = useUIStore((s) => s.closeSettings)
   const activeTabId = useTabStore((s) => s.activeTabId)
   const activeTabType = useTabStore((s) => s.tabs.find((tab) => tab.sessionId === s.activeTabId)?.type)
   const closeTab = useTabStore((s) => s.closeTab)
@@ -89,6 +92,14 @@ export function Sidebar() {
     setRenameValue(currentTitle)
   }, [])
 
+  const handleOpenInNewTab = useCallback((id: string) => {
+    setContextMenu(null)
+    const session = sessions.find((s) => s.id === id)
+    if (!session) return
+    useTabStore.getState().openTab(session.id, session.title)
+    useChatStore.getState().connectToSession(session.id)
+  }, [sessions])
+
   const handleFinishRename = useCallback(async () => {
     if (renamingId && renameValue.trim()) {
       await renameSession(renamingId, renameValue.trim())
@@ -136,15 +147,15 @@ export function Sidebar() {
           <div className={`flex min-w-0 items-center ${sidebarOpen ? 'gap-2.5' : 'justify-center'}`}>
             <img src="/app-icon.png" alt="" className="h-8 w-8 flex-shrink-0" />
             <span
-              className={`sidebar-copy ${sidebarOpen ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]`}
+              className={`sidebar-copy ${sidebarOpen ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} text-[12px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-primary)]`}
               style={{ fontFamily: 'var(--font-headline)' }}
             >
-              CyberCode
+              CYBERCODE
             </span>
           </div>
           <div className={`flex items-center ${sidebarOpen ? 'gap-1.5' : 'flex-col gap-2'}`}>
             <a
-              href="https://github.com/wk42worldworld/cybercode"
+              href="https://github.com/login?return_to=%2Fwk42worldworld%2Fcybercode"
               target="_blank"
               rel="noopener noreferrer"
               className={`sidebar-copy ${sidebarOpen ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} inline-flex items-center justify-center rounded-md p-1 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]`}
@@ -265,7 +276,7 @@ export function Sidebar() {
                 if (!items || items.length === 0) return null
                 return (
                   <div key={group} className="mb-1">
-                    <div className="px-2 pb-1 pt-4 text-[11px] font-semibold tracking-wide text-[var(--color-text-tertiary)]">
+                    <div className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
                       {timeGroupLabels[group]}
                     </div>
                     {items.map((session) => (
@@ -288,7 +299,7 @@ export function Sidebar() {
                         ) : (
                           <button
                             onClick={() => {
-                              useTabStore.getState().openTab(session.id, session.title)
+                              useTabStore.getState().switchToSession(session.id, session.title)
                               useChatStore.getState().connectToSession(session.id)
                             }}
                             onContextMenu={(e) => handleContextMenu(e, session.id)}
@@ -337,10 +348,10 @@ export function Sidebar() {
 
       <div className={`border-t border-[var(--color-border)] p-3 ${sidebarOpen ? '' : 'flex justify-center'}`}>
         <NavItem
-          active={activeTabId === SETTINGS_TAB_ID}
+          active={settingsOpen}
           collapsed={!sidebarOpen}
           label={t('sidebar.settings')}
-          onClick={() => useTabStore.getState().openTab(SETTINGS_TAB_ID, t('sidebar.settings'), 'settings')}
+          onClick={() => (settingsOpen ? closeSettings() : openSettings())}
           icon={<span className="material-symbols-outlined text-[18px]">settings</span>}
         >
           {t('sidebar.settings')}
@@ -352,6 +363,12 @@ export function Sidebar() {
           className="fixed z-50 min-w-[140px] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1"
           style={{ left: contextMenu.x, top: contextMenu.y, boxShadow: 'var(--shadow-dropdown)' }}
         >
+          <button
+            onClick={() => handleOpenInNewTab(contextMenu.id)}
+            className="w-full px-3 py-1.5 text-left text-xs text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+          >
+            {t('sidebar.openInNewTab')}
+          </button>
           <button
             onClick={() => {
               const session = sessions.find((s) => s.id === contextMenu.id)

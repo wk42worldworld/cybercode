@@ -81,7 +81,7 @@ describe('TabBar', () => {
     useTabStore.setState({
       tabs: [
         { sessionId: 'tab-1', title: 'Untitled Session', type: 'session', status: 'idle' },
-        { sessionId: 'tab-2', title: 'Settings', type: 'settings', status: 'idle' },
+        { sessionId: 'tab-2', title: 'Scheduled', type: 'scheduled', status: 'idle' },
         { sessionId: 'tab-3', title: 'hello', type: 'session', status: 'idle' },
         { sessionId: 'tab-4', title: 'overflow', type: 'session', status: 'idle' },
       ],

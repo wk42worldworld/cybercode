@@ -228,7 +228,7 @@ export function TabBar() {
     void startDragging().catch(() => {})
   }, [])
 
-  if (tabs.length === 0 && !showWindowControls) return null
+  if (tabs.length <= 1) return null
 
   return (
     <div
@@ -395,9 +395,6 @@ const TabItem = forwardRef<HTMLDivElement, {
       )}
       {tab.type === 'session' && tab.status === 'error' && (
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-error)] flex-shrink-0" />
-      )}
-      {tab.type === 'settings' && (
-        <span className="material-symbols-outlined text-[14px] flex-shrink-0 text-[var(--color-text-tertiary)]">settings</span>
       )}
       {tab.type === 'scheduled' && (
         <span className="material-symbols-outlined text-[14px] flex-shrink-0 text-[var(--color-text-tertiary)]">schedule</span>

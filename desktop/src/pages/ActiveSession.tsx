@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { useTabStore } from '../stores/tabStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useChatStore } from '../stores/chatStore'
@@ -23,12 +23,14 @@ export function ActiveSession() {
   const trackedTaskSessionId = useCLITaskStore((s) => s.sessionId)
   const hasIncompleteTasks = useCLITaskStore((s) => s.tasks.some((task) => task.status !== 'completed'))
   const chatState = sessionState?.chatState ?? 'idle'
-  const tokenUsage = sessionState?.tokenUsage ?? { input_tokens: 0, output_tokens: 0 }
 
   const session = sessions.find((s) => s.id === activeTabId)
   const memberInfo = useTeamStore((s) => activeTabId ? s.getMemberBySessionId(activeTabId) : null)
   const activeTeam = useTeamStore((s) => s.activeTeam)
   const isMemberSession = !!memberInfo
+  const isReconnecting = !isMemberSession &&
+    sessionState !== undefined &&
+    sessionState.connectionState !== 'connected'
 
   useEffect(() => {
     if (activeTabId && !isMemberSession) {
@@ -66,22 +68,17 @@ export function ActiveSession() {
   const streamingText = sessionState?.streamingText ?? ''
   const isEmpty = messages.length === 0 && !streamingText
 
-  const isActive = chatState !== 'idle'
-  const totalTokens = tokenUsage.input_tokens + tokenUsage.output_tokens
-
-  const lastUpdated = useMemo(() => {
-    if (!session?.modifiedAt) return ''
-    const diff = Date.now() - new Date(session.modifiedAt).getTime()
-    if (diff < 60000) return t('session.timeJustNow')
-    if (diff < 3600000) return t('session.timeMinutes', { n: Math.floor(diff / 60000) })
-    if (diff < 86400000) return t('session.timeHours', { n: Math.floor(diff / 3600000) })
-    return t('session.timeDays', { n: Math.floor(diff / 86400000) })
-  }, [session?.modifiedAt, t])
-
   if (!activeTabId) return null
 
   return (
     <div className="flex-1 flex flex-col relative overflow-hidden bg-background text-on-surface">
+      {/* Persistent drag strip so the top of the chat area can move the window */}
+      <div className="h-8 shrink-0" data-tauri-drag-region />
+
+      {/* Indeterminate top loading bar — visible whenever the session is
+          (re)connecting, so users see "something is loading" instead of a frozen UI */}
+      {isReconnecting && <div className="session-loading-bar" aria-hidden="true" />}
+
       {isMemberSession && (
         <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface-container)]">
           <div className="mx-auto max-w-[860px] flex items-center justify-between gap-4 px-8 py-2">
@@ -154,46 +151,13 @@ export function ActiveSession() {
         </div>
       ) : (
         <>
-          {!isMemberSession && (
-            <div className="mx-auto flex w-full max-w-[860px] items-center border-b border-outline-variant/10 px-8 py-3">
-              <div className="flex-1">
-                <h1 className="text-lg font-bold font-headline text-on-surface leading-tight">
-                  {session?.title || t('session.untitled')}
-                </h1>
-                <div className="flex items-center gap-2 text-[10px] text-outline font-medium mt-1">
-                  {isActive && (
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse-dot" />
-                      {t('session.active')}
-                    </span>
-                  )}
-                  {totalTokens > 0 && (
-                    <>
-                      <span className="text-[var(--color-outline)]">·</span>
-                      <span>{totalTokens.toLocaleString()} t</span>
-                    </>
-                  )}
-                  {lastUpdated && (
-                    <>
-                      <span className="text-[var(--color-outline)]">·</span>
-                      <span>{t('session.lastUpdated', { time: lastUpdated })}</span>
-                    </>
-                  )}
-                  {session?.messageCount !== undefined && session.messageCount > 0 && (
-                    <>
-                      <span className="text-[var(--color-outline)]">·</span>
-                      <span>{t('session.messages', { count: session.messageCount })}</span>
-                    </>
-                  )}
-                </div>
-                {session?.workDirExists === false && (
-                  <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error)]/8 px-3 py-1.5 text-[11px] text-[var(--color-error)]">
-                    <span className="material-symbols-outlined text-[14px]">warning</span>
-                    <span className="truncate">
-                      {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
-                    </span>
-                  </div>
-                )}
+          {!isMemberSession && session?.workDirExists === false && (
+            <div className="mx-auto w-full max-w-[860px] px-8 py-2" data-tauri-drag-region>
+              <div className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error)]/8 px-3 py-1.5 text-[11px] text-[var(--color-error)]">
+                <span className="material-symbols-outlined text-[14px]">warning</span>
+                <span className="truncate">
+                  {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
+                </span>
               </div>
             </div>
           )}

@@ -3,11 +3,10 @@ import { sessionsApi } from '../api/sessions'
 
 const TAB_STORAGE_KEY = 'cybercode-open-tabs'
 
-export const SETTINGS_TAB_ID = '__settings__'
 export const SCHEDULED_TAB_ID = '__scheduled__'
 export const TERMINAL_TAB_PREFIX = '__terminal__'
 
-export type TabType = 'session' | 'settings' | 'scheduled' | 'terminal'
+export type TabType = 'session' | 'scheduled' | 'terminal'
 
 export type Tab = {
   sessionId: string
@@ -27,6 +26,7 @@ type TabStore = {
 
   openTab: (sessionId: string, title: string, type?: TabType) => void
   openTerminalTab: () => string
+  switchToSession: (sessionId: string, title: string) => void
   closeTab: (sessionId: string) => void
   setActiveTab: (sessionId: string) => void
   updateTabTitle: (sessionId: string, title: string) => void
@@ -70,6 +70,34 @@ export const useTabStore = create<TabStore>((set, get) => ({
     const sessionId = `${TERMINAL_TAB_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     get().openTab(sessionId, `Terminal ${nextIndex}`, 'terminal')
     return sessionId
+  },
+
+  switchToSession: (sessionId, title) => {
+    const { tabs, activeTabId } = get()
+
+    // Already open as a tab — just activate it
+    if (tabs.some((tab) => tab.sessionId === sessionId)) {
+      set({ activeTabId: sessionId })
+      get().saveTabs()
+      return
+    }
+
+    const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
+    // Replace in place when active tab is a session tab; otherwise open a new tab
+    if (activeTab && activeTab.type === 'session') {
+      set({
+        tabs: tabs.map((tab) =>
+          tab.sessionId === activeTabId
+            ? { sessionId, title, type: 'session', status: 'idle' }
+            : tab,
+        ),
+        activeTabId: sessionId,
+      })
+      get().saveTabs()
+      return
+    }
+
+    get().openTab(sessionId, title, 'session')
   },
 
   closeTab: (sessionId) => {
@@ -161,14 +189,13 @@ export const useTabStore = create<TabStore>((set, get) => ({
 
       const validTabs: Tab[] = data.openTabs
         .filter((t) => {
-          // Special tabs are always valid
-          if (t.type === 'settings' || t.type === 'scheduled') return true
+          if (t.type === 'scheduled') return true
           if (t.type === 'terminal') return false
           // Session tabs must exist on server
           return existingIds.has(t.sessionId)
         })
         .map((t) => {
-          if (t.type === 'settings' || t.type === 'scheduled') {
+          if (t.type === 'scheduled') {
             return { sessionId: t.sessionId, title: t.title, type: t.type, status: 'idle' as const }
           }
           return {
