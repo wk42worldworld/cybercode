@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Modal } from '../shared/Modal'
+import { Icon } from '../shared/Icon'
 
 type GalleryImage = {
   src: string
@@ -39,8 +40,8 @@ export function ImageGalleryModal({ open, images, activeIndex, onClose, onSelect
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-[var(--color-text-primary)]">{activeImage.name}</div>
-            <div className="text-xs text-[var(--color-text-tertiary)]">
+            <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{activeImage.name}</div>
+            <div className="text-[12px] text-[var(--color-text-tertiary)]">
               {activeIndex + 1} / {images.length}
             </div>
           </div>
@@ -48,23 +49,23 @@ export function ImageGalleryModal({ open, images, activeIndex, onClose, onSelect
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onSelect((activeIndex - 1 + images.length) % images.length)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
                 aria-label="Previous image"
               >
-                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                <Icon name="chevron_left" size={18} />
               </button>
               <button
                 onClick={() => onSelect((activeIndex + 1) % images.length)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
                 aria-label="Next image"
               >
-                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                <Icon name="chevron_right" size={18} />
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex max-h-[70vh] items-center justify-center overflow-hidden rounded-2xl bg-[#111]">
+        <div className="flex max-h-[70vh] items-center justify-center overflow-hidden rounded-lg bg-[#111]">
           <img src={activeImage.src} alt={activeImage.name} className="max-h-[70vh] w-full object-contain" />
         </div>
 
@@ -74,7 +75,7 @@ export function ImageGalleryModal({ open, images, activeIndex, onClose, onSelect
               <button
                 key={`${image.name}-${index}`}
                 onClick={() => onSelect(index)}
-                className={`overflow-hidden rounded-xl border transition-all ${
+                className={`overflow-hidden rounded-md border transition-all ${
                   index === activeIndex
                     ? 'border-[var(--color-brand)] shadow-[0_0_0_1px_var(--color-brand)]'
                     : 'border-[var(--color-border)]'
@@ -89,3 +90,4 @@ export function ImageGalleryModal({ open, images, activeIndex, onClose, onSelect
     </Modal>
   )
 }
+

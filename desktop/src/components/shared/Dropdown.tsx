@@ -56,13 +56,13 @@ export function Dropdown<T extends string>({
       {open && (
         <div
           className={`
-            absolute z-50 mt-1 overflow-hidden rounded-[var(--radius-lg)]
-            bg-[var(--color-surface-container-lowest)] border border-[var(--color-border)]
-            shadow-[var(--shadow-dropdown)]
+            absolute z-50 mt-1.5 overflow-hidden rounded-[6px]
+            bg-[var(--color-surface-container-lowest)] border-2 border-[var(--color-border)]
+            backdrop-blur-xl
             animate-in fade-in slide-in-from-top-1
             ${align === 'right' ? 'right-0' : 'left-0'}
           `}
-          style={{ width }}
+          style={{ width, boxShadow: 'var(--shadow-dropdown)' }}
         >
           {items.map((item, i) => (
             <button
@@ -77,13 +77,13 @@ export function Dropdown<T extends string>({
             >
               {item.icon && <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[var(--color-text-secondary)]">{item.icon}</span>}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-[var(--color-text-primary)]">{item.label}</div>
+                <div className="text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]">{item.label}</div>
                 {item.description && (
-                  <div className="text-xs text-[var(--color-text-secondary)] mt-0.5">{item.description}</div>
+                  <div className="text-[11px] text-[var(--color-text-secondary)] mt-0.5">{item.description}</div>
                 )}
               </div>
               {item.value === value && (
-                <span className="material-symbols-outlined flex-shrink-0 text-[16px] text-[var(--color-brand)]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                <span className="material-symbols-outlined flex-shrink-0 text-[16px] text-[var(--color-spacex-accent)]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
               )}
             </button>
           ))}

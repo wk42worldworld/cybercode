@@ -497,7 +497,7 @@ export const en = {
   'empty.failedToCreate': 'Failed to create session',
 
   // ─── Chat Input ──────────────────────────────────────
-  'chat.placeholder': 'Ask Claude to edit, debug or explain...',
+  'chat.placeholder': 'Send a message',
   'chat.placeholderMissing': 'This session points to a missing workspace. Create a new session or pick another project.',
   'chat.addFiles': 'Add files or photos',
   'chat.slashCommands': 'Slash commands',

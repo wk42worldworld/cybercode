@@ -17,10 +17,10 @@ export function TaskEmptyState({ onCreateTask }: Props) {
         </svg>
       </div>
 
-      <h3 className="text-sm font-medium text-[var(--color-text-primary)] mb-1">
+      <h3 className="text-[14px] font-medium text-[var(--color-text-primary)] mb-1">
         {t('tasks.emptyTitle')}
       </h3>
-      <p className="text-sm text-[var(--color-text-tertiary)] mb-4 text-center max-w-sm">
+      <p className="text-[14px] text-[var(--color-text-tertiary)] mb-4 text-center max-w-sm">
         {t('tasks.emptyDesc')}
       </p>
 

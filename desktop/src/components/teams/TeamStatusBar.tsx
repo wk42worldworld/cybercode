@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTeamStore } from '../../stores/teamStore'
 import { useTranslation } from '../../i18n'
 import type { TeamMember } from '../../types/team'
+import { Icon } from '../shared/Icon'
 
 const memberStatusConfig = {
   running: {
@@ -45,17 +46,17 @@ export function TeamStatusBar() {
 
   return (
     <div className="shrink-0 px-8">
-      <div className="mx-auto max-w-[860px] rounded-[var(--radius-lg)] border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
+      <div className="mx-auto max-w-[860px] rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
         {/* Header */}
         <button
           onClick={() => setExpanded((v) => !v)}
           className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-surface-container-low)] transition-colors bg-[var(--color-surface-container)]"
         >
           <div className="flex items-center justify-center w-6 h-6 rounded-[var(--radius-md)] bg-[var(--color-brand)]/10">
-            <span className="material-symbols-outlined text-[14px] text-[var(--color-brand)]">groups</span>
+            <Icon name="groups" size={14} className="text-[var(--color-brand)]" />
           </div>
 
-          <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+          <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">
             {t('teams.team')} {activeTeam.name}
           </span>
 
@@ -119,8 +120,8 @@ function MemberRow({ member, onView }: { member: TeamMember; onView: () => void 
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[12px] text-[var(--color-text-tertiary)]">smart_toy</span>
-          <span className={`text-xs ${
+          <Icon name="smart_toy" size={12} className="text-[var(--color-text-tertiary)]" />
+          <span className={`text-[12px] ${
             member.status === 'completed'
               ? 'text-[var(--color-text-tertiary)]'
               : 'text-[var(--color-text-primary)]'
@@ -139,9 +140,8 @@ function MemberRow({ member, onView }: { member: TeamMember; onView: () => void 
         )}
       </div>
 
-      <span className="material-symbols-outlined text-[14px] text-[var(--color-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity">
-        open_in_new
-      </span>
+      <Icon name="open_in_new" size={14} className="text-[var(--color-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>
   )
 }
+

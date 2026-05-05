@@ -3,6 +3,7 @@ import { useTabStore, type Tab } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
 import { useTranslation } from '../../i18n'
 import { WindowControls, showWindowControls } from './WindowControls'
+import { Icon } from '../shared/Icon'
 
 const TAB_WIDTH = 180
 const DRAG_START_THRESHOLD = 4
@@ -102,44 +103,44 @@ export function TabBar() {
 
   const handleCloseOthers = (sessionId: string) => {
     setContextMenu(null)
-    const otherTabs = tabs.filter((t) => t.sessionId !== sessionId)
+    const otherTabs = sessionTabs.filter((t) => t.sessionId !== sessionId)
     for (const tab of otherTabs) {
-      if (tab.type === 'session') disconnectSession(tab.sessionId)
+      disconnectSession(tab.sessionId)
       closeTab(tab.sessionId)
     }
   }
 
   const handleCloseLeft = (sessionId: string) => {
     setContextMenu(null)
-    const idx = tabs.findIndex((t) => t.sessionId === sessionId)
-    const leftTabs = tabs.slice(0, idx)
+    const idx = sessionTabs.findIndex((t) => t.sessionId === sessionId)
+    const leftTabs = sessionTabs.slice(0, idx)
     for (const tab of leftTabs) {
-      if (tab.type === 'session') disconnectSession(tab.sessionId)
+      disconnectSession(tab.sessionId)
       closeTab(tab.sessionId)
     }
   }
 
   const handleCloseRight = (sessionId: string) => {
     setContextMenu(null)
-    const idx = tabs.findIndex((t) => t.sessionId === sessionId)
-    const rightTabs = tabs.slice(idx + 1)
+    const idx = sessionTabs.findIndex((t) => t.sessionId === sessionId)
+    const rightTabs = sessionTabs.slice(idx + 1)
     for (const tab of rightTabs) {
-      if (tab.type === 'session') disconnectSession(tab.sessionId)
+      disconnectSession(tab.sessionId)
       closeTab(tab.sessionId)
     }
   }
 
   const handleCloseAll = () => {
     setContextMenu(null)
-    for (const tab of tabs) {
-      if (tab.type === 'session') disconnectSession(tab.sessionId)
+    for (const tab of sessionTabs) {
+      disconnectSession(tab.sessionId)
       closeTab(tab.sessionId)
     }
   }
 
   const getTargetIndexFromClientX = useCallback((clientX: number) => {
-    for (let index = 0; index < tabs.length; index++) {
-      const tab = tabs[index]
+    for (let index = 0; index < sessionTabs.length; index++) {
+      const tab = sessionTabs[index]
       if (!tab) continue
       const el = tabRefs.current.get(tab.sessionId)
       if (!el) continue
@@ -172,7 +173,7 @@ export function TabBar() {
       if (Math.max(deltaX, deltaY) < DRAG_START_THRESHOLD) return
       dragIndexRef.current = pending.index
       suppressClickRef.current = true
-      setDraggingSessionId(tabs[pending.index]?.sessionId ?? null)
+      setDraggingSessionId(sessionTabs[pending.index]?.sessionId ?? null)
     }
 
     setDragOffsetX(event.clientX - pending.startX)
@@ -228,27 +229,29 @@ export function TabBar() {
     void startDragging().catch(() => {})
   }, [])
 
-  if (tabs.length <= 1) return null
+  const sessionTabs = tabs.filter((t) => t.type === 'session')
+
+  if (sessionTabs.length <= 1) return null
 
   return (
     <div
       data-testid="tab-bar"
-      className="flex items-stretch bg-[var(--color-surface-container)] min-h-[37px] select-none border-b border-[var(--color-border)]"
+      className="flex items-stretch bg-white/90 dark:bg-[#050505] min-h-[40px] select-none border-b border-black/[0.12] dark:border-white/[0.12]"
     >
 
       {canScrollLeft && (
-        <button onClick={() => scroll('left')} className="flex-shrink-0 w-7 h-[37px] flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
-          <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+        <button onClick={() => scroll('left')} className="flex-shrink-0 w-7 h-[40px] flex items-center justify-center rounded-full text-black/60 dark:text-white/60 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+          <Icon name="chevron_left" size={16} />
         </button>
       )}
 
       <div
         ref={scrollRef}
-        className="tab-bar-hit-area flex-1 flex items-stretch overflow-x-hidden"
+        className="tab-bar-hit-area flex-1 flex items-stretch overflow-x-hidden gap-1 px-1 py-1"
         onDragOver={(e) => e.preventDefault()}
         onMouseDown={handleScrollRegionMouseDown}
       >
-        {tabs.map((tab, index) => (
+        {sessionTabs.map((tab, index) => (
           <TabItem
             key={tab.sessionId}
             ref={(node) => { tabRefs.current.set(tab.sessionId, node) }}
@@ -270,13 +273,13 @@ export function TabBar() {
           data-testid="tab-bar-drag-gutter"
           data-tauri-drag-region
           aria-hidden="true"
-          className={`flex-shrink-0 min-h-[37px] ${showWindowControls ? 'w-3' : 'w-4'}`}
+          className={`flex-shrink-0 min-h-[40px] ${showWindowControls ? 'w-3' : 'w-4'}`}
         />
       )}
 
       {canScrollRight && (
-        <button onClick={() => scroll('right')} className="flex-shrink-0 w-7 h-[37px] flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
-          <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+        <button onClick={() => scroll('right')} className="flex-shrink-0 w-7 h-[40px] flex items-center justify-center rounded-full text-black/60 dark:text-white/60 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+          <Icon name="chevron_right" size={16} />
         </button>
       )}
 
@@ -284,37 +287,37 @@ export function TabBar() {
 
       {contextMenu && (
         <div
-          className="fixed z-50 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] py-1 min-w-[160px]"
+          className="fixed z-50 bg-[var(--color-surface)] border-2 border-[var(--color-border)] rounded-[5px] py-1 min-w-[160px] backdrop-blur"
           style={{ left: contextMenu.x, top: contextMenu.y, boxShadow: 'var(--shadow-dropdown)' }}
         >
           <button
             onClick={() => { handleClose(contextMenu.sessionId); setContextMenu(null) }}
-            className="w-full px-3 py-1.5 text-xs text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+            className="w-full px-3 py-2 text-[12px] text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             {t('tabs.close')}
           </button>
           <button
             onClick={() => handleCloseOthers(contextMenu.sessionId)}
-            className="w-full px-3 py-1.5 text-xs text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+            className="w-full px-3 py-2 text-[12px] text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             {t('tabs.closeOthers')}
           </button>
           <button
             onClick={() => handleCloseLeft(contextMenu.sessionId)}
-            className="w-full px-3 py-1.5 text-xs text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+            className="w-full px-3 py-2 text-[12px] text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             {t('tabs.closeLeft')}
           </button>
           <button
             onClick={() => handleCloseRight(contextMenu.sessionId)}
-            className="w-full px-3 py-1.5 text-xs text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+            className="w-full px-3 py-2 text-[12px] text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             {t('tabs.closeRight')}
           </button>
           <div className="my-1 border-t border-[var(--color-border)]" />
           <button
             onClick={handleCloseAll}
-            className="w-full px-3 py-1.5 text-xs text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+            className="w-full px-3 py-2 text-[12px] text-left text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           >
             {t('tabs.closeAll')}
           </button>
@@ -323,16 +326,16 @@ export function TabBar() {
 
       {closingTabId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--color-overlay-scrim)] backdrop-blur-sm animate-fade-in">
-          <div className="bg-[var(--color-surface-container-lowest)] rounded-3xl border border-[var(--color-border)] p-6 max-w-sm w-full mx-4 shadow-2xl animate-modal-in">
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">{t('tabs.closeConfirmTitle')}</h3>
-            <p className="text-xs text-[var(--color-text-secondary)] mb-4">{t('tabs.closeConfirmMessage')}</p>
+          <div className="bg-[var(--color-surface-container-lowest)] rounded-[8px] border-2 border-[var(--color-border)] p-6 max-w-sm w-full mx-4 animate-modal-in" style={{ boxShadow: 'var(--shadow-window)' }}>
+            <h3 className="text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)] mb-2">{t('tabs.closeConfirmTitle')}</h3>
+            <p className="text-[13px] text-[var(--color-text-secondary)] mb-5 leading-relaxed">{t('tabs.closeConfirmMessage')}</p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setClosingTabId(null)} className="px-3 py-1.5 text-xs rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-150">
+              <button onClick={() => setClosingTabId(null)} className="px-4 py-1.5 text-[12px] font-medium rounded-full border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-200">
                 {t('common.cancel')}
               </button>
               <button
                 onClick={() => { closeTab(closingTabId); setClosingTabId(null) }}
-                className="px-3 py-1.5 text-xs rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-150"
+                className="px-4 py-1.5 text-[12px] font-medium rounded-full border-2 border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-all duration-200"
               >
                 {t('tabs.closeConfirmKeep')}
               </button>
@@ -343,7 +346,7 @@ export function TabBar() {
                   closeTab(closingTabId)
                   setClosingTabId(null)
                 }}
-                className="px-3 py-1.5 text-xs rounded-full bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:opacity-80 transition-opacity duration-150"
+                className="px-4 py-1.5 text-[12px] font-semibold rounded-full bg-[var(--color-spacex-accent)] text-white hover:opacity-90 transition-opacity duration-150 shadow-md shadow-[var(--color-spacex-accent)]/20"
               >
                 {t('tabs.closeConfirmStop')}
               </button>
@@ -374,15 +377,15 @@ const TabItem = forwardRef<HTMLDivElement, {
       onMouseDown={onMouseDown}
       onContextMenu={onContextMenu}
       className={`
-        tab-bar-hit-area group flex-shrink-0 flex items-center gap-1.5 px-3 min-h-[37px] relative
+        tab-bar-hit-area group flex-shrink-0 flex items-center gap-1.5 px-3 h-[32px] relative rounded-[10px]
         ${isDragging ? 'z-20 cursor-grabbing' : 'cursor-grab'}
-        transition-[background-color,box-shadow,opacity,transform] duration-150 ease-out
+        transition-all duration-200 ease-out
         ${isActive
-          ? 'bg-[var(--color-surface)]'
-          : 'bg-transparent hover:bg-[var(--color-surface-hover)]'
+          ? 'bg-black/5 dark:bg-white/5 text-black/90 dark:text-white/90'
+          : 'bg-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
         }
-        ${isDragging ? 'opacity-95 shadow-[0_10px_24px_rgba(0,0,0,0.18)] ring-1 ring-[var(--color-border)]' : ''}
-        ${isDragOver ? 'before:absolute before:left-0 before:top-[4px] before:bottom-[4px] before:w-[3px] before:bg-[var(--color-brand)] before:rounded-full before:shadow-[0_0_0_1px_rgba(255,255,255,0.25)]' : ''}
+        ${isDragging ? 'opacity-95 ring-1 ring-black/10 dark:ring-white/10' : ''}
+        ${isDragOver ? 'before:absolute before:left-[-2px] before:top-[6px] before:bottom-[6px] before:w-[2px] before:bg-[var(--color-spacex-accent)] before:rounded-full' : ''}
       `}
       style={{
         width: TAB_WIDTH,
@@ -391,19 +394,19 @@ const TabItem = forwardRef<HTMLDivElement, {
       }}
     >
       {tab.type === 'session' && tab.status === 'running' && (
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse flex-shrink-0" />
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-dot flex-shrink-0" />
       )}
       {tab.type === 'session' && tab.status === 'error' && (
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-error)] flex-shrink-0" />
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
       )}
       {tab.type === 'scheduled' && (
-        <span className="material-symbols-outlined text-[14px] flex-shrink-0 text-[var(--color-text-tertiary)]">schedule</span>
+        <Icon name="schedule" size={14} className="flex-shrink-0 text-black/60 dark:text-white/60" />
       )}
       {tab.type === 'terminal' && (
-        <span className="material-symbols-outlined text-[14px] flex-shrink-0 text-[var(--color-text-tertiary)]">terminal</span>
+        <Icon name="terminal" size={14} className="flex-shrink-0 text-black/60 dark:text-white/60" />
       )}
 
-      <span className={`flex-1 truncate text-xs ${isActive ? 'text-[var(--color-text-primary)] font-medium' : 'text-[var(--color-text-secondary)]'}`}>
+      <span className={`flex-1 truncate text-[12px] tracking-tight ${isActive ? 'text-black/90 dark:text-white/90 font-semibold' : 'text-black/60 dark:text-white/60 font-medium'}`}>
         {tab.title || 'Untitled'}
       </span>
 
@@ -412,11 +415,12 @@ const TabItem = forwardRef<HTMLDivElement, {
         aria-label={`Close ${tab.title || 'Untitled'}`}
         onMouseDown={(e) => { e.stopPropagation() }}
         onClick={(e) => { e.stopPropagation(); onClose() }}
-        className="flex-shrink-0 -mr-0.5 inline-flex h-3 w-3 items-center justify-center bg-transparent p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-[opacity,color] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] focus-visible:outline-none"
+        className="flex-shrink-0 -mr-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-transparent p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-[opacity,color,background] text-black/60 dark:text-white/60 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/10 dark:hover:bg-white/10 focus-visible:outline-none"
       >
-        <span className="material-symbols-outlined text-[11px] leading-none">close</span>
+        <Icon name="close" size={12} className="leading-none" />
       </button>
     </div>
   )
 })
 TabItem.displayName = 'TabItem'
+

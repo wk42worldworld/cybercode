@@ -4,6 +4,7 @@ import { sessionsApi } from '../api/sessions'
 const TAB_STORAGE_KEY = 'cybercode-open-tabs'
 
 export const SCHEDULED_TAB_ID = '__scheduled__'
+export const TERMINAL_TAB_ID = '__terminal__'
 export const TERMINAL_TAB_PREFIX = '__terminal__'
 
 export type TabType = 'session' | 'scheduled' | 'terminal'
@@ -23,6 +24,8 @@ type TabPersistence = {
 type TabStore = {
   tabs: Tab[]
   activeTabId: string | null
+  /** Last N session-type tab IDs visited — kept mounted for instant switching */
+  recentSessionIds: string[]
 
   openTab: (sessionId: string, title: string, type?: TabType) => void
   openTerminalTab: () => string
@@ -38,46 +41,45 @@ type TabStore = {
   restoreTabs: () => Promise<void>
 }
 
+const RECENT_MAX = 1
+
+function addToRecent(ids: string[], id: string): string[] {
+  return [id, ...ids.filter((x) => x !== id)].slice(0, RECENT_MAX)
+}
+
 export const useTabStore = create<TabStore>((set, get) => ({
   tabs: [],
   activeTabId: null,
+  recentSessionIds: [],
 
   openTab: (sessionId, title, type = 'session') => {
-    const { tabs } = get()
+    const { tabs, recentSessionIds } = get()
     const existing = tabs.find((t) => t.sessionId === sessionId)
+    const newRecent = type === 'session' ? addToRecent(recentSessionIds, sessionId) : recentSessionIds
     if (existing) {
-      set({ activeTabId: sessionId })
+      set({ activeTabId: sessionId, recentSessionIds: newRecent })
     } else {
       set({
         tabs: [...tabs, { sessionId, title, type, status: 'idle' }],
         activeTabId: sessionId,
+        recentSessionIds: newRecent,
       })
     }
     get().saveTabs()
   },
 
   openTerminalTab: () => {
-    const { tabs } = get()
-    const nextIndex = Math.max(
-      0,
-      ...tabs
-        .filter((tab) => tab.type === 'terminal')
-        .map((tab) => {
-          const match = /^Terminal (\d+)$/.exec(tab.title)
-          return match ? Number(match[1]) : 0
-        }),
-    ) + 1
-    const sessionId = `${TERMINAL_TAB_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    get().openTab(sessionId, `Terminal ${nextIndex}`, 'terminal')
-    return sessionId
+    get().openTab(TERMINAL_TAB_ID, 'Terminal', 'terminal')
+    return TERMINAL_TAB_ID
   },
 
   switchToSession: (sessionId, title) => {
-    const { tabs, activeTabId } = get()
+    const { tabs, activeTabId, recentSessionIds } = get()
+    const newRecent = addToRecent(recentSessionIds, sessionId)
 
     // Already open as a tab — just activate it
     if (tabs.some((tab) => tab.sessionId === sessionId)) {
-      set({ activeTabId: sessionId })
+      set({ activeTabId: sessionId, recentSessionIds: newRecent })
       get().saveTabs()
       return
     }
@@ -92,6 +94,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
             : tab,
         ),
         activeTabId: sessionId,
+        recentSessionIds: newRecent,
       })
       get().saveTabs()
       return
@@ -101,7 +104,7 @@ export const useTabStore = create<TabStore>((set, get) => ({
   },
 
   closeTab: (sessionId) => {
-    const { tabs, activeTabId } = get()
+    const { tabs, activeTabId, recentSessionIds } = get()
     const index = tabs.findIndex((t) => t.sessionId === sessionId)
     if (index < 0) return
 
@@ -118,12 +121,19 @@ export const useTabStore = create<TabStore>((set, get) => ({
       }
     }
 
-    set({ tabs: newTabs, activeTabId: newActiveId })
+    set({
+      tabs: newTabs,
+      activeTabId: newActiveId,
+      recentSessionIds: recentSessionIds.filter((id) => id !== sessionId),
+    })
     get().saveTabs()
   },
 
   setActiveTab: (sessionId) => {
-    set({ activeTabId: sessionId })
+    const { tabs, recentSessionIds } = get()
+    const tab = tabs.find((t) => t.sessionId === sessionId)
+    const newRecent = tab?.type === 'session' ? addToRecent(recentSessionIds, sessionId) : recentSessionIds
+    set({ activeTabId: sessionId, recentSessionIds: newRecent })
     get().saveTabs()
   },
 
@@ -141,12 +151,13 @@ export const useTabStore = create<TabStore>((set, get) => ({
   },
 
   replaceTabSession: (oldSessionId, newSessionId) => {
-    const { activeTabId } = get()
+    const { activeTabId, recentSessionIds } = get()
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.sessionId === oldSessionId ? { ...t, sessionId: newSessionId } : t,
       ),
       activeTabId: activeTabId === oldSessionId ? newSessionId : activeTabId,
+      recentSessionIds: recentSessionIds.map((id) => (id === oldSessionId ? newSessionId : id)),
     }))
     get().saveTabs()
   },
@@ -191,7 +202,6 @@ export const useTabStore = create<TabStore>((set, get) => ({
         .filter((t) => {
           if (t.type === 'scheduled') return true
           if (t.type === 'terminal') return false
-          // Session tabs must exist on server
           return existingIds.has(t.sessionId)
         })
         .map((t) => {
@@ -212,7 +222,15 @@ export const useTabStore = create<TabStore>((set, get) => ({
         ? data.activeTabId
         : validTabs[0]!.sessionId
 
-      set({ tabs: validTabs, activeTabId: activeId })
+      // Seed recentSessionIds: active session first, then other session tabs (up to RECENT_MAX)
+      const recentSessionIds = [
+        activeId,
+        ...validTabs
+          .filter((t) => t.type === 'session' && t.sessionId !== activeId)
+          .map((t) => t.sessionId),
+      ].slice(0, RECENT_MAX)
+
+      set({ tabs: validTabs, activeTabId: activeId, recentSessionIds })
     } catch { /* noop */ }
   },
 }))

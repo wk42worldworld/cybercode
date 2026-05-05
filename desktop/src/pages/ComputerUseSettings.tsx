@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { computerUseApi, type ComputerUseStatus, type SetupResult, type InstalledApp, type AuthorizedApp } from '../api/computerUse'
 import { useTranslation } from '../i18n'
 import { SettingsPage } from '../components/settings/SettingsLayout'
+import { Icon } from '../components/shared/Icon'
 
 type CheckState = 'loading' | 'ready' | 'error'
 const PYTHON_DOWNLOAD_URLS: Record<string, string> = {
@@ -11,7 +12,7 @@ const PYTHON_DOWNLOAD_URLS: Record<string, string> = {
 
 function StatusIcon({ ok }: { ok: boolean | null }) {
   if (ok === null) {
-    return <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">help</span>
+    return <Icon name="help" size={18} className="text-[var(--color-text-tertiary)]" />
   }
   return ok ? (
     <span className="material-symbols-outlined text-[18px] text-green-500" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
@@ -25,8 +26,8 @@ function StatusRow({ label, ok, detail }: { label: string; ok: boolean | null; d
     <div className="flex items-center gap-3 py-2.5 px-4 rounded-lg bg-[var(--color-surface-container-low)]">
       <StatusIcon ok={ok} />
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium text-[var(--color-text-primary)]">{label}</span>
-        <span className="ml-2 text-xs text-[var(--color-text-tertiary)]">{detail}</span>
+        <span className="text-[14px] font-medium text-[var(--color-text-primary)]">{label}</span>
+        <span className="ml-2 text-[12px] text-[var(--color-text-tertiary)]">{detail}</span>
       </div>
     </div>
   )
@@ -191,21 +192,21 @@ export function ComputerUseSettings() {
   }, [filteredApps, authorizedBundleIds])
 
   return (
-    <SettingsPage title={t('settings.computerUse.title')} description={t('settings.computerUse.description')}>
+    <SettingsPage icon="mouse" title={t('settings.computerUse.title')} description={t('settings.computerUse.description')}>
       <div className="space-y-5">
         {checkState === 'loading' ? (
-        <div className="py-8 text-center text-sm text-[var(--color-text-tertiary)]">
+        <div className="py-8 text-center text-[14px] text-[var(--color-text-tertiary)]">
           {t('common.loading')}
         </div>
       ) : checkState === 'error' ? (
-        <div className="py-8 text-center text-sm text-red-400">
+        <div className="py-8 text-center text-[14px] text-red-400">
           Failed to check status.
           <button onClick={fetchStatus} className="ml-2 underline">{t('common.retry')}</button>
         </div>
       ) : status ? (
         <>
           {!status.supported && (
-            <div className="px-4 py-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-sm text-yellow-600">
+            <div className="px-4 py-3 rounded-lg bg-yellow-500/10 border-2 border-yellow-500/40 text-[14px] text-yellow-600">
               {t('settings.computerUse.notSupported')}
             </div>
           )}
@@ -255,24 +256,24 @@ export function ComputerUseSettings() {
                 }
               />
               {(accessibilityNeedsAttention || screenRecordingNeedsAttention) && (
-                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20">
-                  <p className="text-xs text-[var(--color-text-tertiary)]">{t('settings.computerUse.permRestartHint')}</p>
+                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-yellow-500/5 border-2 border-yellow-500/30">
+                  <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.computerUse.permRestartHint')}</p>
                   <div className="flex gap-2">
                     {accessibilityNeedsAttention && (
                       <button
                         onClick={() => openSystemSettings('Privacy_Accessibility')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--color-text-accent)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-accent)] border-2 border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
                       >
-                        <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                        <Icon name="open_in_new" size={14} />
                         {t('settings.computerUse.openAccessibility')}
                       </button>
                     )}
                     {screenRecordingNeedsAttention && (
                       <button
                         onClick={() => openSystemSettings('Privacy_ScreenCapture')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--color-text-accent)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-accent)] border-2 border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
                       >
-                        <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                        <Icon name="open_in_new" size={14} />
                         {t('settings.computerUse.openScreenRecording')}
                       </button>
                     )}
@@ -283,19 +284,19 @@ export function ComputerUseSettings() {
           )}
 
           {allReady && (status.platform !== 'darwin' || (status.permissions.accessibility && screenRecordingReady)) && (
-            <div className="px-4 py-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-green-600 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+            <div className="px-4 py-3 rounded-lg bg-green-500/10 border-2 border-green-500/40 text-[14px] text-green-600 flex items-center gap-2">
+              <Icon name="verified" size={18} />
               {t('settings.computerUse.allReady')}
             </div>
           )}
 
           {setupResult && (
             <div className={`rounded-lg border p-4 space-y-2 ${setupResult.success ? 'bg-green-500/5 border-green-500/30' : 'bg-red-500/5 border-red-500/30'}`}>
-              <div className={`text-sm font-medium ${setupResult.success ? 'text-green-600' : 'text-red-400'}`}>
+              <div className={`text-[14px] font-medium ${setupResult.success ? 'text-green-600' : 'text-red-400'}`}>
                 {setupResult.success ? t('settings.computerUse.setupSuccess') : t('settings.computerUse.setupFail')}
               </div>
               {setupResult.steps.map((step, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                <div key={i} className="flex items-center gap-2 text-[12px] text-[var(--color-text-secondary)]">
                   <StatusIcon ok={step.ok} />
                   <span>{step.message}</span>
                 </div>
@@ -308,9 +309,9 @@ export function ComputerUseSettings() {
             {!status.python.installed && (
               <button
                 onClick={() => openExternalUrl(pythonDownloadUrl)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-[14px] font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
-                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+                <Icon name="open_in_new" size={18} />
                 {t('settings.computerUse.downloadPython')}
               </button>
             )}
@@ -318,7 +319,7 @@ export function ComputerUseSettings() {
               <button
                 onClick={handleSetup}
                 disabled={setupRunning}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-[14px] font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 <span className="material-symbols-outlined text-[18px]">{setupRunning ? 'hourglass_empty' : 'download'}</span>
                 {setupRunning ? t('settings.computerUse.setupRunning') : t('settings.computerUse.setupBtn')}
@@ -326,9 +327,9 @@ export function ComputerUseSettings() {
             )}
             <button
               onClick={fetchStatus}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 text-[14px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border-2 border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">refresh</span>
+              <Icon name="refresh" size={18} />
               {t('settings.computerUse.recheckBtn')}
             </button>
           </div>
@@ -337,23 +338,23 @@ export function ComputerUseSettings() {
           {envReady && (
             <div className="space-y-4 pt-4 border-t border-[var(--color-border)]">
               <div>
-                <h3 className="text-base font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
+                <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
                   {t('settings.computerUse.appsTitle')}
                   {appsSaved && (
-                    <span className="text-xs font-normal text-green-500 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                    <span className="text-[12px] font-normal text-green-500 flex items-center gap-1">
+                      <Icon name="check" size={14} />
                       {t('settings.computerUse.appsSaved')}
                     </span>
                   )}
                 </h3>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                <p className="mt-1 text-[14px] text-[var(--color-text-secondary)]">
                   {t('settings.computerUse.appsDescription')}
                 </p>
               </div>
 
               {/* Grant flags */}
               <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] cursor-pointer">
+                <label className="flex items-center gap-2 text-[14px] text-[var(--color-text-secondary)] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={clipboardAccess}
@@ -362,7 +363,7 @@ export function ComputerUseSettings() {
                   />
                   {t('settings.computerUse.flagClipboard')}
                 </label>
-                <label className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)] cursor-pointer">
+                <label className="flex items-center gap-2 text-[14px] text-[var(--color-text-secondary)] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={systemKeys}
@@ -375,27 +376,27 @@ export function ComputerUseSettings() {
 
               {/* Search */}
               <div className="relative">
-                <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2">search</span>
+                <Icon name="search" size={18} className="text-[var(--color-text-tertiary)] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={t('settings.computerUse.appsSearch')}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-[var(--color-surface-container-low)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-brand)]"
+                  className="w-full pl-9 pr-4 py-2 text-[14px] bg-[var(--color-surface-container-low)] border-2 border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-border-focus)]"
                 />
               </div>
 
               {/* App list */}
               {appsLoading ? (
-                <div className="py-6 text-center text-sm text-[var(--color-text-tertiary)]">
+                <div className="py-6 text-center text-[14px] text-[var(--color-text-tertiary)]">
                   {t('settings.computerUse.appsLoading')}
                 </div>
               ) : installedApps.length === 0 ? (
-                <div className="py-6 text-center text-sm text-[var(--color-text-tertiary)]">
+                <div className="py-6 text-center text-[14px] text-[var(--color-text-tertiary)]">
                   {t('settings.computerUse.appsEmpty')}
                 </div>
               ) : (
-                <div className="max-h-[400px] overflow-y-auto rounded-lg border border-[var(--color-border)]">
+                <div className="max-h-[400px] overflow-y-auto rounded-lg border-2 border-[var(--color-border)]">
                   {sortedApps.map(app => {
                     const isAuthorized = authorizedBundleIds.has(app.bundleId)
                     return (
@@ -416,7 +417,7 @@ export function ComputerUseSettings() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                          <div className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">
                             {app.displayName}
                           </div>
                           <div className="text-[11px] text-[var(--color-text-tertiary)] truncate font-mono">
@@ -436,3 +437,4 @@ export function ComputerUseSettings() {
     </SettingsPage>
   )
 }
+

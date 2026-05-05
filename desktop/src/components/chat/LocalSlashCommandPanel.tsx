@@ -14,6 +14,7 @@ import { useSkillStore } from '../../stores/skillStore'
 import type { McpServerRecord } from '../../types/mcp'
 import type { SkillMeta } from '../../types/skill'
 import type { SlashCommandOption } from './composerUtils'
+import { Icon } from '../shared/Icon'
 
 export type LocalSlashCommandName = 'mcp' | 'skills' | 'help' | 'status' | 'cost' | 'context'
 
@@ -74,18 +75,18 @@ function PanelShell({
   onClose: () => void
 }) {
   return (
-    <div className="absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]">
+    <div className="absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]">
       <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h3>
-          <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{subtitle}</p>
+          <h3 className="text-[18px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
+          <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">{subtitle}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
-          <span className="material-symbols-outlined text-[18px]">close</span>
+          <Icon name="close" size={18} />
         </button>
       </div>
       <div className="max-h-[min(620px,72vh)] overflow-y-auto px-5 py-4">{children}</div>
@@ -95,7 +96,7 @@ function PanelShell({
 
 function LoadingState({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center py-12 text-sm text-[var(--color-text-tertiary)]">
+    <div className="flex items-center justify-center py-12 text-[14px] text-[var(--color-text-tertiary)]">
       <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-brand)] border-t-transparent" />
       {label}
     </div>
@@ -104,16 +105,16 @@ function LoadingState({ label }: { label: string }) {
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-10 text-center">
-      <div className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</div>
-      <div className="mt-2 text-xs leading-6 text-[var(--color-text-tertiary)]">{body}</div>
+    <div className="rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-10 text-center">
+      <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{title}</div>
+      <div className="mt-2 text-[12px] leading-6 text-[var(--color-text-tertiary)]">{body}</div>
     </div>
   )
 }
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-error)]/20 bg-[var(--color-error)]/8 px-5 py-4 text-sm text-[var(--color-error)]">
+    <div className="rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error)]/8 px-5 py-4 text-[14px] text-[var(--color-error)]">
       {message}
     </div>
   )
@@ -186,7 +187,7 @@ function InspectorSectionTitle({ children, action }: { children: React.ReactNode
 
 function MetricCard({ label, value, detail }: { label: string; value: React.ReactNode; detail?: React.ReactNode }) {
   return (
-    <div className="min-h-[82px] rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container)] px-4 py-4 font-mono">
+    <div className="min-h-[82px] rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container)] px-4 py-4 font-mono">
       <div className="text-[12px] uppercase tracking-[0.2em] text-[var(--color-text-primary)]">{label}</div>
       <div className="mt-3 whitespace-pre-line text-[15px] leading-6 text-[var(--color-text-primary)]">{value}</div>
       {detail && <div className="mt-1 text-[13px] leading-5 text-[var(--color-text-tertiary)]">{detail}</div>}
@@ -196,8 +197,8 @@ function MetricCard({ label, value, detail }: { label: string; value: React.Reac
 
 function InspectorNotice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-[14px] text-[var(--color-text-primary)]">
-      <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">info</span>
+    <div className="flex items-center gap-3 rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-[14px] text-[var(--color-text-primary)]">
+      <Icon name="info" size={18} className="text-[var(--color-text-tertiary)]" />
       <span>{children}</span>
     </div>
   )
@@ -205,7 +206,7 @@ function InspectorNotice({ children }: { children: React.ReactNode }) {
 
 function KeyValueRows({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return (
-    <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
+    <div className="overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
       {rows.map(([label, value]) => (
         <div key={label} className="grid grid-cols-[220px_minmax(0,1fr)] border-t border-[var(--color-border)] first:border-t-0">
           <div className="border-r border-[var(--color-border)] bg-[var(--color-surface-container)] px-4 py-3 text-[12px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-primary)]">
@@ -277,12 +278,12 @@ function UsageTab({
         </InspectorNotice>
       )}
       {usage.source === 'transcript' && (
-        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-sm text-[#5f514c]">
+        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-[14px] text-[#5f514c]">
           {t('slash.inspector.usage.transcriptNotice')}
         </div>
       )}
       {usage.hasUnknownModelCost && (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
+        <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[14px] text-amber-700">
           {t('slash.inspector.usage.unknownCost')}
         </div>
       )}
@@ -305,7 +306,7 @@ function UsageTab({
         {models.length === 0 ? (
           <EmptyState title={t('slash.inspector.usage.noModelTitle')} body={t('slash.inspector.usage.noModelBody')} />
         ) : (
-          <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
+          <div className="overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
             {models.map((model) => (
               <div key={model.model} className="border-t border-[var(--color-border)] first:border-t-0">
                 <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-3">
@@ -371,7 +372,7 @@ function CategoryBreakdown({ categories, rawMaxTokens, t }: { categories: Contex
   }
 
   return (
-    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-5 font-mono">
+    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-5 font-mono">
       <InspectorSectionTitle>{t('slash.inspector.context.categoryTitle')}</InspectorSectionTitle>
       <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
         {visibleCategories.map((category) => {
@@ -389,7 +390,7 @@ function CategoryBreakdown({ categories, rawMaxTokens, t }: { categories: Contex
                   </span>
                 </div>
                 <div className="shrink-0 text-right leading-tight">
-                  <div className="text-sm text-[var(--color-text-primary)]">{formatNumber(category.tokens)}</div>
+                  <div className="text-[14px] text-[var(--color-text-primary)]">{formatNumber(category.tokens)}</div>
                   <div className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{formatPercent(percent)}</div>
                 </div>
               </div>
@@ -461,31 +462,31 @@ function ContextOverview({ context, categories, t }: { context: SessionContextSn
   const freeTokens = Math.max(0, context.rawMaxTokens - context.totalTokens)
   const freePercent = context.rawMaxTokens > 0 ? (freeTokens / context.rawMaxTokens) * 100 : 0
   return (
-    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-6">
+    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-6">
       <div className="mb-8 flex items-start justify-between gap-4">
         <InspectorSectionTitle>{t('slash.inspector.context.windowUsage')}</InspectorSectionTitle>
-        <span className="rounded-sm border border-[var(--color-border)] bg-[#ebe7df] px-2 py-1 font-mono text-xs text-[#5f514c]">{context.model}</span>
+        <span className="rounded-sm border-2 border-[var(--color-border)] bg-[#ebe7df] px-2 py-1 font-mono text-[12px] text-[#5f514c]">{context.model}</span>
       </div>
       <div className="font-mono text-[24px] font-semibold text-[var(--color-text-primary)]">
         {formatNumber(context.totalTokens)}
         <span className="mx-1.5 text-[var(--color-text-primary)]">/</span>
         <span>{formatNumber(context.rawMaxTokens)}</span>
-        <span className="ml-3 align-middle text-sm font-normal text-[#0f5c8f]">[{formatPercent(usedPercent)} {t('slash.inspector.context.used')}]</span>
+        <span className="ml-3 align-middle text-[14px] font-normal text-[#0f5c8f]">[{formatPercent(usedPercent)} {t('slash.inspector.context.used')}]</span>
       </div>
       <div className="mt-7">
         <ContextStackedBar categories={categories} rawMaxTokens={context.rawMaxTokens} />
       </div>
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
+        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.free')} value={formatNumber(freeTokens)} detail={formatPercent(freePercent)} />
         </div>
-        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
+        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.messages')} value={formatNumber(context.messageBreakdown?.assistantMessageTokens ?? 0)} detail={t('slash.inspector.context.assistant')} />
         </div>
-        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
+        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.toolResults')} value={formatNumber(context.messageBreakdown?.toolResultTokens ?? 0)} />
         </div>
-        <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
+        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3">
           <ContextStatPill label={t('slash.inspector.context.context')} value={formatPercent(usedPercent)} />
         </div>
       </div>
@@ -638,7 +639,7 @@ function SessionInspectorShell({
               key={tab.id}
               type="button"
               onClick={() => onSelectTab(tab.id)}
-              className={`relative h-10 px-0 font-sans text-sm transition-colors ${
+              className={`relative h-10 px-0 font-sans text-[14px] transition-colors ${
                 selectedTab === tab.id ? 'text-[#8f3217]' : 'text-[#5f514c] hover:text-[#8f3217]'
               }`}
             >
@@ -654,7 +655,7 @@ function SessionInspectorShell({
             aria-label={t('slash.inspector.close')}
             className="flex h-10 w-10 items-center justify-center text-[#8f3217] transition-colors hover:text-[#5b1e0d]"
           >
-            <span className="material-symbols-outlined text-[24px]">close</span>
+            <Icon name="close" size={24} />
           </button>
         </div>
       </div>
@@ -841,10 +842,10 @@ function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
           {['user', 'local', 'project'].filter((scope) => grouped.has(scope)).map((scope) => (
             <section key={scope}>
               <div className="mb-2 flex items-center justify-between">
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">{scopeLabel(scope, t)}</div>
-                <div className="text-xs text-[var(--color-text-tertiary)]">{grouped.get(scope)?.length ?? 0}</div>
+                <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{scopeLabel(scope, t)}</div>
+                <div className="text-[12px] text-[var(--color-text-tertiary)]">{grouped.get(scope)?.length ?? 0}</div>
               </div>
-              <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+              <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
                 {grouped.get(scope)?.map((server) => (
                   <button
                     type="button"
@@ -857,12 +858,12 @@ function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
                     className="block w-full border-t border-[var(--color-border)] px-4 py-4 text-left first:border-t-0 hover:bg-[var(--color-surface-hover)]"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="text-sm font-semibold text-[var(--color-text-primary)]">{server.name}</div>
+                      <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{server.name}</div>
                       <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-semibold ${toneForStatus(server.status)}`}>
                         {server.statusLabel}
                       </span>
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
                       <span className="rounded-full bg-[var(--color-surface-hover)] px-2 py-1">{server.transport}</span>
                       {server.projectPath && (
                         <span className="rounded-full bg-[var(--color-surface-hover)] px-2 py-1" title={server.projectPath}>
@@ -918,7 +919,7 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
       ) : skills.length === 0 ? (
         <EmptyState title={t('slash.skills.emptyTitle')} body={t('slash.skills.emptyBody')} />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
           {skills.map((skill) => (
             <button
               type="button"
@@ -931,12 +932,12 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
               className="block w-full border-t border-[var(--color-border)] px-4 py-4 text-left first:border-t-0 hover:bg-[var(--color-surface-hover)]"
             >
               <div className="flex items-center gap-3">
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">/{skill.name}</div>
+                <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">/{skill.name}</div>
                 <span className="rounded-full bg-[var(--color-surface-hover)] px-2 py-1 text-[11px] text-[var(--color-text-secondary)]">
                   {skill.source}
                 </span>
               </div>
-              <div className="mt-2 text-xs leading-6 text-[var(--color-text-tertiary)]">{skill.description}</div>
+              <div className="mt-2 text-[12px] leading-6 text-[var(--color-text-tertiary)]">{skill.description}</div>
             </button>
           ))}
         </div>
@@ -987,8 +988,8 @@ function HelpPanel({
 
   const renderCommand = (command: SlashCommandOption) => (
     <div key={command.name} className="flex min-w-0 items-start gap-3 border-t border-[var(--color-border)] px-4 py-3 first:border-t-0">
-      <div className="shrink-0 font-mono text-sm font-semibold text-[var(--color-text-primary)]">/{command.name}</div>
-      <div className="min-w-0 flex-1 text-xs leading-5 text-[var(--color-text-tertiary)]">{command.description}</div>
+      <div className="shrink-0 font-mono text-[14px] font-semibold text-[var(--color-text-primary)]">/{command.name}</div>
+      <div className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--color-text-tertiary)]">{command.description}</div>
     </div>
   )
 
@@ -1006,8 +1007,8 @@ function HelpPanel({
           if (entries.length === 0) return null
           return (
             <section key={group.titleKey}>
-              <div className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">{t(group.titleKey)}</div>
-              <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+              <div className="mb-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{t(group.titleKey)}</div>
+              <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
                 {entries.map(renderCommand)}
               </div>
             </section>
@@ -1016,12 +1017,12 @@ function HelpPanel({
 
         {otherCommands.length > 0 && (
           <section>
-            <div className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">{t('slash.help.group.more')}</div>
-            <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+            <div className="mb-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{t('slash.help.group.more')}</div>
+            <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
               {otherCommands.map(renderCommand)}
             </div>
             {hiddenOtherCommandCount > 0 && (
-              <p className="mt-2 text-xs leading-5 text-[var(--color-text-tertiary)]">
+              <p className="mt-2 text-[12px] leading-5 text-[var(--color-text-tertiary)]">
                 {t('slash.help.moreAvailable', { count: hiddenOtherCommandCount })}
               </p>
             )}
@@ -1040,3 +1041,4 @@ export function LocalSlashCommandPanel({ command, sessionId, cwd, commands, onCl
   }
   return <HelpPanel commands={commands} onClose={onClose} />
 }
+

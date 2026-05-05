@@ -47,13 +47,13 @@ export function ClaudeOfficialLogin() {
   if (status === null) {
     if (error) {
       return (
-        <div className="text-xs text-[var(--color-error)]">
+        <div className="text-[12px] text-[var(--color-error)]">
           {t('settings.claudeOfficialLogin.errorPrefix')}{error}
         </div>
       )
     }
     return (
-      <div className="text-xs text-[var(--color-text-tertiary)]">
+      <div className="text-[12px] text-[var(--color-text-tertiary)]">
         {t('common.loading')}
       </div>
     )
@@ -64,7 +64,7 @@ export function ClaudeOfficialLogin() {
       ? status.subscriptionType.toUpperCase()
       : t('settings.claudeOfficialLogin.subTypeUnknown')
     return (
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-3 text-[14px]">
         <span className="text-[var(--color-success)]">
           ✓ {t('settings.claudeOfficialLogin.loggedInPrefix')} {subTypeLabel})
         </span>
@@ -72,7 +72,7 @@ export function ClaudeOfficialLogin() {
           type="button"
           onClick={logout}
           disabled={isLoading}
-          className="px-3 py-1 text-xs rounded-md border border-[var(--color-border-separator)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-colors"
+          className="px-3 py-1 text-[12px] rounded-md border border-[var(--color-border-separator)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-colors"
         >
           {isLoading
             ? t('settings.claudeOfficialLogin.logoutProcessing')
@@ -84,21 +84,21 @@ export function ClaudeOfficialLogin() {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-sm text-[var(--color-text-secondary)]">
+      <div className="text-[14px] text-[var(--color-text-secondary)]">
         {t('settings.claudeOfficialLogin.intro')}
       </div>
       <button
         type="button"
         onClick={handleLogin}
         disabled={isLoading}
-        className="self-start rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-[var(--color-btn-primary-fg)] hover:opacity-85 disabled:opacity-50 transition-opacity"
+        className="self-start rounded-md bg-[var(--color-primary)] px-4 py-2 text-[14px] text-[var(--color-btn-primary-fg)] hover:opacity-85 disabled:opacity-50 transition-opacity"
       >
         {isLoading
           ? t('settings.claudeOfficialLogin.loginStarting')
           : t('settings.claudeOfficialLogin.loginButton')}
       </button>
       {error && (
-        <div className="text-xs text-[var(--color-error)]">
+        <div className="text-[12px] text-[var(--color-error)]">
           {t('settings.claudeOfficialLogin.errorPrefix')}{error}
         </div>
       )}

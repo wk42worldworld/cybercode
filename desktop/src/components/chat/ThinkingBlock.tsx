@@ -41,7 +41,7 @@ export function ThinkingBlock({ content, isActive = false }: { content: string; 
       {expanded && (
         <div
           ref={contentRef}
-          className="mt-1 max-h-[300px] overflow-y-auto rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-lowest)] p-2.5 font-[var(--font-mono)] text-[11px] leading-[1.35] text-[var(--color-text-secondary)] whitespace-pre-wrap break-words"
+          className="mt-1 max-h-[300px] overflow-y-auto rounded-lg border-2 border-[var(--color-border)]/40 bg-[var(--color-surface-container-lowest)] p-2.5 font-[var(--font-mono)] text-[11px] leading-[1.35] text-[var(--color-text-secondary)] whitespace-pre-wrap break-words"
         >
           {content}
           {isActive && expanded && <span className="thinking-cursor" />}

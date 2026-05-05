@@ -5,6 +5,7 @@ import { useTabStore } from '../../stores/tabStore'
 import { useTranslation } from '../../i18n'
 import { parseRunOutput } from '../../lib/parseRunOutput'
 import type { TaskRun } from '../../types/task'
+import { Icon } from '../shared/Icon'
 
 function RunOutput({ run }: { run: TaskRun }) {
   const t = useTranslation()
@@ -12,7 +13,7 @@ function RunOutput({ run }: { run: TaskRun }) {
   // Show error prominently if present
   if (run.error) {
     return (
-      <div className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-[var(--radius-sm)] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/28 p-2.5 text-xs text-[var(--color-error)]">
+      <div className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-[var(--radius-sm)] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/28 p-2.5 text-[12px] text-[var(--color-error)]">
         {run.error}
       </div>
     )
@@ -22,7 +23,7 @@ function RunOutput({ run }: { run: TaskRun }) {
 
   if (!text) {
     return (
-      <div className="mt-2 p-2.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-container)] text-xs text-[var(--color-text-tertiary)] italic">
+      <div className="mt-2 p-2.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-container)] text-[12px] text-[var(--color-text-tertiary)] italic">
         {run.sessionId ? t('tasks.outputHintSession') : t('tasks.noOutputText')}
       </div>
     )
@@ -30,7 +31,7 @@ function RunOutput({ run }: { run: TaskRun }) {
 
   // Render AI text response with proper formatting (not monospace <pre>)
   return (
-    <div className="mt-2 p-2.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-container)] text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap break-words max-h-48 overflow-y-auto leading-relaxed">
+    <div className="mt-2 p-2.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-container)] text-[12px] text-[var(--color-text-secondary)] whitespace-pre-wrap break-words max-h-48 overflow-y-auto leading-relaxed">
       {text}
     </div>
   )
@@ -101,15 +102,15 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
   }, [hasRunning, taskId, refreshKey])
 
   return (
-    <div className="mt-2 mb-1 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+    <div className="mt-2 mb-1 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[var(--color-surface-container)]">
-        <span className="text-xs font-medium text-[var(--color-text-primary)]">{t('tasks.logsTitle')}</span>
+        <span className="text-[12px] font-medium text-[var(--color-text-primary)]">{t('tasks.logsTitle')}</span>
         <button
           onClick={onClose}
           className="p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
         >
-          <span className="material-symbols-outlined text-[16px]">close</span>
+          <Icon name="close" size={16} />
         </button>
       </div>
 
@@ -120,7 +121,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
             <div className="animate-spin w-4 h-4 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />
           </div>
         ) : runs.length === 0 ? (
-          <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">
+          <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">
             {t('tasks.noLogs')}
           </div>
         ) : (
@@ -140,18 +141,18 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                     </span>
 
                     {/* Status text */}
-                    <span className="text-xs font-medium" style={{ color: cfg.color }}>
+                    <span className="text-[12px] font-medium" style={{ color: cfg.color }}>
                       {t(`tasks.runStatus.${run.status}` as any)} {/* dynamic key */}
                     </span>
 
                     {/* Time */}
-                    <span className="text-xs text-[var(--color-text-tertiary)]">
+                    <span className="text-[12px] text-[var(--color-text-tertiary)]">
                       {new Date(run.startedAt).toLocaleString()}
                     </span>
 
                     {/* Duration */}
                     {run.durationMs != null && (
-                      <span className="text-xs text-[var(--color-text-tertiary)]">
+                      <span className="text-[12px] text-[var(--color-text-tertiary)]">
                         {t('tasks.duration', { s: Math.round(run.durationMs / 1000) })}
                       </span>
                     )}
@@ -161,9 +162,9 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                       {run.sessionId && run.status !== 'running' && (
                         <button
                           onClick={() => openSession(run.sessionId!, run.taskName)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[var(--color-brand)] bg-[var(--color-brand)]/8 hover:bg-[var(--color-brand)]/15 rounded-[var(--radius-sm)] transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-[var(--color-brand)] bg-[var(--color-brand)]/8 hover:bg-[var(--color-brand)]/15 rounded-[var(--radius-sm)] transition-colors"
                         >
-                          <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                          <Icon name="open_in_new" size={14} />
                           {t('tasks.openSession')}
                         </button>
                       )}
@@ -172,7 +173,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                       {(run.output || run.error) && (
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : run.id)}
-                          className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
+                          className="text-[12px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
                         >
                           {isExpanded ? t('tasks.hideOutput') : t('tasks.viewOutput')}
                         </button>
@@ -193,3 +194,4 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
     </div>
   )
 }
+

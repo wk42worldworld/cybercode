@@ -1,5 +1,6 @@
 import { useUIStore } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
+import { Icon } from '../shared/Icon'
 
 export function TitleBar() {
   const { activeView, setActiveView } = useUIStore()
@@ -60,7 +61,7 @@ export function TitleBar() {
       {/* Right: Settings */}
       <div className="flex items-center gap-2 mr-4">
         <button className="p-1.5 rounded-full text-[var(--color-text-primary)] opacity-50 hover:opacity-100 transition-opacity duration-150">
-          <span className="material-symbols-outlined text-[16px]">settings</span>
+          <Icon name="settings" size={16} />
         </button>
       </div>
     </div>
@@ -89,8 +90,9 @@ function TabButton({
         }
       `}
     >
-      <span className="material-symbols-outlined text-[14px]">{icon}</span>
+      <Icon name={icon} size={14} />
       {children}
     </button>
   )
 }
+

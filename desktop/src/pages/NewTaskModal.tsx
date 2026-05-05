@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { mockNewTaskDefaults, mockSessions, mockStatusBar } from '../mocks/data'
+import { Icon } from '../components/shared/Icon'
 
 /**
  * NewTaskModal page -- pixel-perfect replica of the HTML prototype.
@@ -24,10 +25,10 @@ export default function NewTaskModal() {
       {/* ─── TopAppBar / Header ──────────────────────────────────── */}
       <header className="bg-[var(--color-surface)] flex justify-between items-center px-6 h-12 w-full z-40">
         <div className="flex items-center gap-6">
-          <span className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-tighter font-[var(--font-headline)]">
+          <span className="text-[14px] font-bold text-[var(--color-text-primary)] uppercase tracking-tighter font-[var(--font-headline)]">
             CyberCode
           </span>
-          <nav className="hidden md:flex gap-4 font-[var(--font-headline)] font-semibold tracking-wide text-sm">
+          <nav className="hidden md:flex gap-4 font-[var(--font-headline)] font-semibold tracking-wide text-[14px]">
             <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer">Code</a>
             <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer">Terminal</a>
             <a className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer">History</a>
@@ -35,10 +36,10 @@ export default function NewTaskModal() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-[var(--color-primary)]">
-            <span className="material-symbols-outlined cursor-pointer active:opacity-70 text-sm">arrow_back_ios</span>
-            <span className="material-symbols-outlined cursor-pointer active:opacity-70 text-sm">arrow_forward_ios</span>
+            <Icon name="arrow_back_ios" size={18} className="cursor-pointer active:opacity-70 text-[14px]" />
+            <Icon name="arrow_forward_ios" size={18} className="cursor-pointer active:opacity-70 text-[14px]" />
           </div>
-          <span className="font-[var(--font-headline)] font-semibold tracking-wide text-sm text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-primary)] transition-colors">
+          <span className="font-[var(--font-headline)] font-semibold tracking-wide text-[14px] text-[var(--color-text-secondary)] cursor-pointer hover:text-[var(--color-primary)] transition-colors">
             Settings
           </span>
         </div>
@@ -57,27 +58,27 @@ export default function NewTaskModal() {
               <span className="material-symbols-outlined text-[var(--color-outline)]">filter</span>
             </div>
             <div>
-              <div className="text-[var(--color-on-surface)] font-semibold text-xs">All projects</div>
+              <div className="text-[var(--color-on-surface)] font-semibold text-[12px]">All projects</div>
               <div className="text-[10px] text-[var(--color-outline)]">Active Session</div>
             </div>
           </div>
 
           {/* nav items -- session counts derived from mockSessions */}
-          <div className="font-[var(--font-body)] text-sm font-medium space-y-1">
+          <div className="font-[var(--font-body)] text-[14px] font-medium space-y-1">
             <div className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-secondary)]">
-              <span className="material-symbols-outlined">add</span>New session
+              <Icon name="add" size={18} />New session
             </div>
             <div className="flex items-center gap-3 px-3 py-2 bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg relative before:content-[''] before:absolute before:left-[-8px] before:w-1 before:h-4 before:bg-[var(--color-primary)] before:rounded-full">
-              <span className="material-symbols-outlined">calendar_today</span>Scheduled
+              <Icon name="calendar_today" size={18} />Scheduled
             </div>
             <div className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-secondary)]">
-              <span className="material-symbols-outlined">history</span>Today
+              <Icon name="history" size={18} />Today
               {mockSessions.today.length > 0 && (
                 <span className="ml-auto text-[10px] text-[var(--color-text-secondary)]">{mockSessions.today.length}</span>
               )}
             </div>
             <div className="flex items-center gap-3 px-3 py-2 text-[var(--color-text-secondary)]">
-              <span className="material-symbols-outlined">event_note</span>Previous 7 Days
+              <Icon name="event_note" size={18} />Previous 7 Days
               {mockSessions.previous7Days.length > 0 && (
                 <span className="ml-auto text-[10px] text-[var(--color-text-secondary)]">{mockSessions.previous7Days.length}</span>
               )}
@@ -93,15 +94,15 @@ export default function NewTaskModal() {
               Scheduled Tasks
             </h1>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="h-40 bg-[var(--color-surface-container-lowest)] rounded-xl border border-[var(--color-outline-variant)]/20 p-4" />
-              <div className="h-40 bg-[var(--color-surface-container-lowest)] rounded-xl border border-[var(--color-outline-variant)]/20 p-4" />
+              <div className="h-40 bg-[var(--color-surface-container-lowest)] rounded-md border-2 border-[var(--color-outline-variant)]/20 p-4" />
+              <div className="h-40 bg-[var(--color-surface-container-lowest)] rounded-md border-2 border-[var(--color-outline-variant)]/20 p-4" />
             </div>
           </div>
 
           {/* ═══ MODAL OVERLAY ═══════════════════════════════════════ */}
           <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-[var(--color-on-surface)]/40 backdrop-blur-sm">
             <div
-              className="bg-[var(--color-surface-container-lowest)] w-full max-w-lg rounded-xl overflow-hidden flex flex-col"
+              className="bg-[var(--color-surface-container-lowest)] w-full max-w-lg rounded-md overflow-hidden flex flex-col"
               style={{
                 boxShadow:
                   '0 4px 20px rgba(27,28,26,0.04), 0 12px 40px rgba(27,28,26,0.08)',
@@ -109,7 +110,7 @@ export default function NewTaskModal() {
             >
               {/* ── Modal Header ─────────────────────────────────── */}
               <div className="px-6 py-4 flex items-center justify-between border-b border-[var(--color-outline-variant)]/10">
-                <h2 className="font-[var(--font-headline)] font-bold text-lg text-[var(--color-on-surface)]">
+                <h2 className="font-[var(--font-headline)] font-bold text-[18px] text-[var(--color-on-surface)]">
                   New Scheduled Task
                 </h2>
                 <span className="material-symbols-outlined text-[var(--color-outline)] cursor-pointer hover:text-[var(--color-on-surface)] transition-colors">
@@ -128,10 +129,10 @@ export default function NewTaskModal() {
               >
                 {/* Info Banner */}
                 <div className="bg-[var(--color-surface-container-high)]/50 rounded-lg p-3 flex gap-3 items-start">
-                  <span className="material-symbols-outlined text-[var(--color-primary)] text-sm mt-0.5">
+                  <span className="material-symbols-outlined text-[var(--color-primary)] text-[14px] mt-0.5">
                     info
                   </span>
-                  <p className="text-xs text-[var(--color-on-surface-variant)] font-medium">
+                  <p className="text-[12px] text-[var(--color-on-surface-variant)] font-medium">
                     Local tasks only run while your computer is awake.
                   </p>
                 </div>
@@ -149,7 +150,7 @@ export default function NewTaskModal() {
                         value={taskName}
                         onChange={(e) => setTaskName(e.target.value)}
                         placeholder="e.g., Weekly Code Audit"
-                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
+                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
                       />
                     </div>
 
@@ -163,7 +164,7 @@ export default function NewTaskModal() {
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Brief purpose of this schedule..."
-                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
+                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
                       />
                     </div>
 
@@ -177,7 +178,7 @@ export default function NewTaskModal() {
                         onChange={(e) => setSystemPrompt(e.target.value)}
                         placeholder="Define the agent's goal and behavior..."
                         rows={3}
-                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all resize-none outline-none"
+                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all resize-none outline-none"
                       />
                     </div>
                   </div>
@@ -193,7 +194,7 @@ export default function NewTaskModal() {
                         <select
                           value={permissionMode}
                           onChange={(e) => setPermissionMode(e.target.value)}
-                          className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm px-4 py-2.5 appearance-none cursor-pointer outline-none"
+                          className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] px-4 py-2.5 appearance-none cursor-pointer outline-none"
                         >
                           {mockNewTaskDefaults.permissionModes.map((pm) => (
                             <option key={pm} value={pm}>
@@ -201,9 +202,7 @@ export default function NewTaskModal() {
                             </option>
                           ))}
                         </select>
-                        <span className="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-[var(--color-outline)] text-sm">
-                          unfold_more
-                        </span>
+                        <Icon name="unfold_more" size={18} className="absolute right-3 top-2.5 pointer-events-none text-[var(--color-outline)] text-[14px]" />
                       </div>
                     </div>
 
@@ -216,7 +215,7 @@ export default function NewTaskModal() {
                         <select
                           value={model}
                           onChange={(e) => setModel(e.target.value)}
-                          className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm px-4 py-2.5 appearance-none cursor-pointer outline-none"
+                          className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] px-4 py-2.5 appearance-none cursor-pointer outline-none"
                         >
                           {mockNewTaskDefaults.models.map((m) => (
                             <option key={m} value={m}>
@@ -224,9 +223,7 @@ export default function NewTaskModal() {
                             </option>
                           ))}
                         </select>
-                        <span className="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-[var(--color-outline)] text-sm">
-                          unfold_more
-                        </span>
+                        <Icon name="unfold_more" size={18} className="absolute right-3 top-2.5 pointer-events-none text-[var(--color-outline)] text-[14px]" />
                       </div>
                     </div>
                   </div>
@@ -242,10 +239,10 @@ export default function NewTaskModal() {
                         value={rootFolder}
                         onChange={(e) => setRootFolder(e.target.value)}
                         placeholder="/users/projects/claude-app"
-                        className="flex-1 bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
+                        className="flex-1 bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
                       />
                       <button className="bg-[var(--color-surface-container-high)] px-3 rounded-lg flex items-center justify-center hover:bg-[var(--color-surface-variant)] transition-colors">
-                        <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-sm">
+                        <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-[14px]">
                           folder_open
                         </span>
                       </button>
@@ -261,7 +258,7 @@ export default function NewTaskModal() {
                       <select
                         value={frequency}
                         onChange={(e) => setFrequency(e.target.value)}
-                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-sm px-4 py-2.5 appearance-none cursor-pointer outline-none"
+                        className="w-full bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] px-4 py-2.5 appearance-none cursor-pointer outline-none"
                       >
                         {mockNewTaskDefaults.frequencies.map((f) => (
                           <option key={f} value={f}>
@@ -269,9 +266,7 @@ export default function NewTaskModal() {
                           </option>
                         ))}
                       </select>
-                      <span className="material-symbols-outlined absolute right-3 top-2.5 pointer-events-none text-[var(--color-outline)] text-sm">
-                        schedule
-                      </span>
+                      <Icon name="schedule" size={18} className="absolute right-3 top-2.5 pointer-events-none text-[var(--color-outline)] text-[14px]" />
                     </div>
                   </div>
 
@@ -288,7 +283,7 @@ export default function NewTaskModal() {
                     </div>
                     <label
                       htmlFor="worktree"
-                      className="text-sm text-[var(--color-on-surface)] font-medium cursor-pointer"
+                      className="text-[14px] text-[var(--color-on-surface)] font-medium cursor-pointer"
                     >
                       Create separate worktree for execution
                     </label>
@@ -298,11 +293,11 @@ export default function NewTaskModal() {
 
               {/* ── Modal Footer ─────────────────────────────────── */}
               <div className="px-6 py-4 bg-[var(--color-surface-container-low)]/50 flex items-center justify-end gap-3">
-                <button className="px-5 py-2 text-sm font-semibold text-[var(--color-outline)] hover:text-[var(--color-on-surface)] transition-colors">
+                <button className="px-5 py-2 text-[14px] font-semibold text-[var(--color-outline)] hover:text-[var(--color-on-surface)] transition-colors">
                   Cancel
                 </button>
                 <button
-                  className="px-6 py-2 rounded-lg text-sm font-bold text-[var(--color-on-primary)] shadow-sm hover:opacity-90 active:scale-95 transition-all"
+                  className="px-6 py-2 rounded-lg text-[14px] font-bold text-[var(--color-on-primary)] shadow-sm hover:opacity-90 active:scale-95 transition-all"
                   style={{
                     backgroundImage:
                       'linear-gradient(to bottom, var(--color-primary), var(--color-primary-container))',
@@ -317,7 +312,7 @@ export default function NewTaskModal() {
       </main>
 
       {/* ─── Footer / Status Bar ─────────────────────────────────── */}
-      <footer className="bg-[var(--color-surface)] flex items-center justify-between px-4 z-50 fixed bottom-0 left-0 w-full h-8 border-t border-[var(--color-text-secondary)]/20 font-[var(--font-body)] text-xs tracking-tight">
+      <footer className="bg-[var(--color-surface)] flex items-center justify-between px-4 z-50 fixed bottom-0 left-0 w-full h-8 border-t border-[var(--color-text-secondary)]/20 font-[var(--font-body)] text-[12px] tracking-tight">
         <div className="flex items-center gap-3">
           <span className="text-[var(--color-text-secondary)]">
             {mockStatusBar.user} &bull; {mockStatusBar.username} &bull; {mockStatusBar.plan}
@@ -336,7 +331,7 @@ export default function NewTaskModal() {
             {mockStatusBar.localSwitch}
           </span>
           <div className="flex items-center gap-1 text-[var(--color-text-secondary)]">
-            <span className="material-symbols-outlined text-[14px]">terminal</span>
+            <Icon name="terminal" size={14} />
             <span>{mockStatusBar.status === 'Ready' ? 'Active' : mockStatusBar.status}</span>
           </div>
         </div>
@@ -344,3 +339,4 @@ export default function NewTaskModal() {
     </div>
   )
 }
+

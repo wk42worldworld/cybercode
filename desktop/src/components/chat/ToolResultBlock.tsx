@@ -2,6 +2,7 @@ import { CodeViewer } from './CodeViewer'
 import { useState } from 'react'
 import { useTranslation } from '../../i18n'
 import { InlineImageGallery } from './InlineImageGallery'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   content: unknown
@@ -27,10 +28,10 @@ export function ToolResultBlock({ content, isError, toolName, standalone = true 
   const hasMore = text.length > 200
 
   return (
-    <div className={`mb-2 overflow-hidden rounded-xl border ${
+    <div className={`mb-2 overflow-hidden rounded-md border-2 ${
       isError
-        ? 'border-[var(--color-error)]/20'
-        : 'border-[var(--color-outline-variant)]/20'
+        ? 'border-[var(--color-error)]/40'
+        : 'border-[var(--color-outline-variant)]'
     }`}>
       {/* Status header */}
       <button
@@ -43,9 +44,7 @@ export function ToolResultBlock({ content, isError, toolName, standalone = true 
       }`}
       >
         <span className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[12px]">
-            {isError ? 'error' : 'check_circle'}
-          </span>
+          <Icon name={isError ? 'error' : 'check_circle'} size={12} />
           {toolName ? t('tool.result', { toolName }) : t('tool.resultGeneric')}
         </span>
         <span className={`px-2 py-0.5 rounded-full text-[9px] ${
@@ -105,3 +104,4 @@ function extractText(content: unknown): string {
   }
   return String(content ?? '')
 }
+

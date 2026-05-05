@@ -40,7 +40,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="px-4 py-3 rounded-[var(--radius-lg)] bg-[var(--color-surface-info)]">
       <div className="text-2xl font-bold text-[var(--color-text-primary)]">{value}</div>
-      <div className="text-xs text-[var(--color-text-secondary)]">{label}</div>
+      <div className="text-[12px] text-[var(--color-text-secondary)]">{label}</div>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useChatStore } from '../../stores/chatStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useTranslation } from '../../i18n'
 import { Button } from '../shared/Button'
+import { Icon } from '../shared/Icon'
 
 type QuestionOption = {
   label: string
@@ -147,12 +148,10 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
           : 'bg-[var(--color-surface-container)]'
       }`}>
         <div className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] bg-[var(--color-secondary)]/10">
-          <span className="material-symbols-outlined text-[18px] text-[var(--color-secondary)]">
-            help
-          </span>
+          <Icon name="help" size={18} className="text-[var(--color-secondary)]" />
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
             {t('question.needsInput')}
           </span>
           {submitted && (
@@ -174,14 +173,14 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
               <button
                 key={i}
                 onClick={() => setActiveTab(i)}
-                className={`relative flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                className={`relative flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? 'text-[var(--color-secondary)]'
                     : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
                 }`}
               >
                 {isAnswered && (
-                  <span className="material-symbols-outlined text-[14px] text-[var(--color-success)]">check_circle</span>
+                  <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
                 )}
                 {tabLabel}
                 {isActive && (
@@ -195,7 +194,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
 
       {/* Active question content */}
       <div className="px-4 py-3">
-        <p className="text-sm font-medium text-[var(--color-text-primary)] mb-3">
+        <p className="text-[14px] font-medium text-[var(--color-text-primary)] mb-3">
           {activeQuestion.question}
         </p>
 
@@ -229,7 +228,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className={`text-sm font-medium ${
+                      <span className={`text-[14px] font-medium ${
                         isSelected
                           ? 'text-[var(--color-secondary)]'
                           : 'text-[var(--color-text-primary)]'
@@ -237,7 +236,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                         {opt.label}
                       </span>
                       {opt.description && (
-                        <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                        <p className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">
                           {opt.description}
                         </p>
                       )}
@@ -252,7 +251,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
         {/* Free text input */}
         {!submitted && (
           <div>
-            <label className="text-xs text-[var(--color-text-tertiary)] mb-1.5 block">
+            <label className="text-[12px] text-[var(--color-text-tertiary)] mb-1.5 block">
               {t('question.customResponse')}
             </label>
             <input
@@ -269,15 +268,15 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                 if (e.key === 'Enter' && allAnswered) handleSubmit()
               }}
               placeholder={t('question.typePlaceholder')}
-              className="w-full px-3 py-2 text-sm bg-[var(--color-surface)] border border-[var(--color-outline-variant)]/40 rounded-[var(--radius-md)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-secondary)] focus:ring-1 focus:ring-[var(--color-secondary)]/30"
+              className="w-full px-3 py-2 text-[14px] bg-[var(--color-surface)] border-2 border-[var(--color-outline-variant)]/40 rounded-[var(--radius-md)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-secondary)] focus:ring-1 focus:ring-[var(--color-secondary)]/30"
             />
           </div>
         )}
 
         {/* Submitted answer display */}
         {submitted && (
-          <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-            <span className="material-symbols-outlined text-[14px] text-[var(--color-success)]">check_circle</span>
+          <div className="flex items-center gap-2 text-[12px] text-[var(--color-text-secondary)]">
+            <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
             <span>
               {t('question.answeredPrefix')}<strong>{answeredText}</strong>
             </span>
@@ -294,7 +293,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
             disabled={!allAnswered || !pendingRequest}
             onClick={handleSubmit}
             icon={
-              <span className="material-symbols-outlined text-[14px]">send</span>
+              <Icon name="send" size={14} />
             }
           >
             {t('question.submit')}
@@ -304,3 +303,4 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
     </div>
   )
 }
+

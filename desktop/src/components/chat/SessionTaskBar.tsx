@@ -1,6 +1,7 @@
 import { useCLITaskStore } from '../../stores/cliTaskStore'
 import { useTranslation } from '../../i18n'
 import type { CLITask } from '../../types/cliTask'
+import { Icon } from '../shared/Icon'
 
 const statusConfig = {
   pending: {
@@ -42,7 +43,7 @@ export function SessionTaskBar() {
 
   return (
     <div className="shrink-0 px-8">
-      <div className="mx-auto max-w-[860px] rounded-[var(--radius-lg)] border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
+      <div className="mx-auto max-w-[860px] rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
         {/* Header — always visible, clickable to toggle */}
         <div className="flex items-center gap-2 bg-[var(--color-surface-container)] px-2 py-1.5">
           <button
@@ -51,14 +52,10 @@ export function SessionTaskBar() {
             className="flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-md)] px-2 py-1 hover:bg-[var(--color-surface-container-low)] transition-colors"
           >
             <div className="flex items-center justify-center w-6 h-6 rounded-[var(--radius-md)] bg-[var(--color-secondary)]/10">
-              <span
-                className="material-symbols-outlined text-[14px] text-[var(--color-secondary)]"
-              >
-                checklist
-              </span>
+              <Icon name="checklist" size={14} className="text-[var(--color-secondary)]" />
             </div>
 
-            <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+            <span className="text-[11px] font-semibold tracking-[-0.01em] text-[var(--color-text-primary)]">
               {t('tasks.title')}
             </span>
 
@@ -75,7 +72,7 @@ export function SessionTaskBar() {
               />
             </div>
 
-            <span className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums">
+            <span className="text-[9px] font-mono text-[var(--color-text-tertiary)] tabular-nums">
               {completedCount}/{totalCount}
             </span>
 
@@ -94,7 +91,7 @@ export function SessionTaskBar() {
               onClick={() => { void resetCompletedTasks() }}
               className="flex shrink-0 items-center justify-center rounded-[var(--radius-md)] p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)] transition-colors"
             >
-              <span className="material-symbols-outlined text-[16px]">close</span>
+              <Icon name="close" size={16} />
             </button>
           )}
         </div>
@@ -126,10 +123,10 @@ function TaskItem({ task }: { task: CLITask }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-mono text-[var(--color-text-tertiary)]">
+          <span className="text-[9px] font-mono text-[var(--color-text-tertiary)]">
             #{task.id}
           </span>
-          <span className={`text-xs ${
+          <span className={`text-[11px] tracking-[-0.005em] ${
             task.status === 'completed'
               ? 'text-[var(--color-text-tertiary)] line-through'
               : 'text-[var(--color-text-primary)]'
@@ -149,7 +146,7 @@ function TaskItem({ task }: { task: CLITask }) {
 
         {task.owner && (
           <span className="text-[10px] text-[var(--color-text-tertiary)] mt-0.5 inline-flex items-center gap-0.5">
-            <span className="material-symbols-outlined text-[10px]">person</span>
+            <Icon name="person" size={10} />
             {task.owner}
           </span>
         )}
@@ -157,3 +154,4 @@ function TaskItem({ task }: { task: CLITask }) {
     </div>
   )
 }
+

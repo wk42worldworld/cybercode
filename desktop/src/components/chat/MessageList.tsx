@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, memo, useState, useCallback } from 'react'
+import { useRef, useEffect, useLayoutEffect, useMemo, memo, useState, useCallback } from 'react'
 import { ApiError } from '../../api/client'
 import { sessionsApi, type SessionRewindResponse } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
@@ -125,6 +125,7 @@ export function MessageList({ sessionId }: MessageListProps = {}) {
   )
   const stopGeneration = useChatStore((s) => s.stopGeneration)
   const reloadHistory = useChatStore((s) => s.reloadHistory)
+  const loadMoreHistory = useChatStore((s) => s.loadMoreHistory)
   const queueComposerPrefill = useChatStore((s) => s.queueComposerPrefill)
   const isMemberSession = useTeamStore((s) =>
     resolvedSessionId ? Boolean(s.getMemberBySessionId(resolvedSessionId)) : false,
@@ -135,9 +136,13 @@ export function MessageList({ sessionId }: MessageListProps = {}) {
   const streamingText = sessionState?.streamingText ?? ''
   const activeThinkingId = sessionState?.activeThinkingId ?? null
   const agentTaskNotifications = sessionState?.agentTaskNotifications ?? {}
+  const hasMoreHistory = sessionState?.hasMoreHistory ?? false
+  const isLoadingMoreHistory = sessionState?.isLoadingMoreHistory ?? false
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
+  const prevScrollHeightRef = useRef(0)
+  const pendingPrependRef = useRef(false)
   const lastSessionIdRef = useRef<string | null | undefined>(resolvedSessionId)
   const t = useTranslation()
   const [rewindTarget, setRewindTarget] = useState<{
@@ -151,11 +156,24 @@ export function MessageList({ sessionId }: MessageListProps = {}) {
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isExecutingRewind, setIsExecutingRewind] = useState(false)
 
-  const updateAutoScrollState = useCallback(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-    shouldAutoScrollRef.current = isNearScrollBottom(container)
-  }, [])
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    shouldAutoScrollRef.current = isNearScrollBottom(el)
+    // Trigger load-more only when: near top + content overflows + not already loading
+    if (
+      !pendingPrependRef.current &&
+      hasMoreHistory &&
+      !isLoadingMoreHistory &&
+      resolvedSessionId &&
+      el.scrollTop < 100 &&
+      el.scrollHeight > el.clientHeight + 100
+    ) {
+      prevScrollHeightRef.current = el.scrollHeight
+      pendingPrependRef.current = true
+      loadMoreHistory(resolvedSessionId)
+    }
+  }, [hasMoreHistory, isLoadingMoreHistory, loadMoreHistory, resolvedSessionId])
 
   useEffect(() => {
     if (lastSessionIdRef.current !== resolvedSessionId) {
@@ -215,6 +233,16 @@ export function MessageList({ sessionId }: MessageListProps = {}) {
     () => buildRenderModel(messages),
     [messages],
   )
+
+  // MUST be after renderItems (prevents TDZ). Restores scroll position after prepend.
+  useLayoutEffect(() => {
+    if (!pendingPrependRef.current) return
+    const el = scrollContainerRef.current
+    if (!el) return
+    // Push above trigger threshold to prevent immediate re-trigger
+    el.scrollTop = Math.max(el.scrollTop + (el.scrollHeight - prevScrollHeightRef.current), 150)
+    pendingPrependRef.current = false
+  }, [renderItems.length])
 
   const closeRewindModal = useCallback(() => {
     if (isExecutingRewind) return
@@ -290,10 +318,16 @@ export function MessageList({ sessionId }: MessageListProps = {}) {
   return (
     <div
       ref={scrollContainerRef}
-      onScroll={updateAutoScrollState}
+      onScroll={handleScroll}
       className="flex-1 overflow-y-auto px-4 py-4"
     >
       <div className="mx-auto max-w-[860px]">
+        {/* Load-more indicator */}
+        {(hasMoreHistory || isLoadingMoreHistory) && (
+          <div className="flex justify-center py-3 text-[12px] text-black/40 dark:text-white/40">
+            {isLoadingMoreHistory ? '加载中…' : '↑ 上滑加载更多'}
+          </div>
+        )}
         {renderItems.map((item) => {
           if (item.kind === 'tool_group') {
             return (

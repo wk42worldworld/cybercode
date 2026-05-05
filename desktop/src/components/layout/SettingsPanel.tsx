@@ -1,7 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, memo } from 'react'
 import { Settings } from '../../pages/Settings'
 import { useUIStore } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
+
+const MemoSettings = memo(Settings)
 
 type Props = {
   visible: boolean
@@ -44,7 +46,7 @@ export function SettingsPanel({ visible }: Props) {
         />
       )}
       <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
-        <Settings />
+        <MemoSettings />
       </div>
     </section>
   )

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { mockTeam, mockTeamMessages } from '../mocks/data'
+import { Icon } from '../components/shared/Icon'
 
 // ─── Inline keyframes for pulse-subtle animation ─────────────────
 const pulseSubtleStyle = `
@@ -27,11 +28,11 @@ export function AgentTeams() {
             <div className="space-y-6">
               {/* USER message */}
               <div className="flex gap-4 group">
-                <div className="w-8 h-8 rounded-full bg-[var(--color-primary-fixed)] flex-shrink-0 flex items-center justify-center text-[var(--color-on-primary)] font-bold text-xs">
+                <div className="w-8 h-8 rounded-full bg-[var(--color-primary-fixed)] flex-shrink-0 flex items-center justify-center text-[var(--color-on-primary)] font-bold text-[12px]">
                   U
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest">
+                  <p className="text-[12px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest">
                     User
                   </p>
                   <p className="text-[var(--color-text-primary)] leading-relaxed">
@@ -44,17 +45,17 @@ export function AgentTeams() {
               <div className="flex gap-4 group">
                 <div className="w-8 h-8 rounded-full bg-[var(--color-tertiary-container)] flex-shrink-0 flex items-center justify-center text-[var(--color-tertiary)]">
                   <span
-                    className="material-symbols-outlined text-sm"
+                    className="material-symbols-outlined text-[14px]"
                     style={{ fontVariationSettings: "'FILL' 1" }}
                   >
                     smart_toy
                   </span>
                 </div>
                 <div className="space-y-4 flex-1">
-                  <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest">
+                  <p className="text-[12px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest">
                     Claude Companion
                   </p>
-                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-5 shadow-[var(--shadow-dropdown)]">
+                  <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-5 shadow-[var(--shadow-dropdown)]">
                     <p className="mb-4 text-[var(--color-text-primary)]">
                       {mockTeamMessages.assistantMessage}
                     </p>
@@ -74,7 +75,7 @@ export function AgentTeams() {
             <div className="relative py-8">
               <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-[var(--color-border-separator)]" />
 
-              <div className="relative glass-panel p-4 rounded-2xl flex flex-col md:flex-row md:items-center gap-4 overflow-hidden">
+              <div className="relative glass-panel p-4 rounded-lg flex flex-col md:flex-row md:items-center gap-4 overflow-hidden">
                 {/* Team label */}
                 <div className="flex items-center gap-3 pr-4 md:border-r border-[var(--color-border-separator)]">
                   <div className="p-2 bg-[var(--color-primary-fixed)]/20 rounded-lg">
@@ -83,7 +84,7 @@ export function AgentTeams() {
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)' }}>
+                    <h3 className="text-[14px] font-bold text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)' }}>
                       Team: {mockTeam.name}
                     </h3>
                     <p className="text-[11px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-tighter">
@@ -102,7 +103,7 @@ export function AgentTeams() {
                           className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface-container-high)] rounded-full border border-[var(--color-success)]/20 group hover:border-[var(--color-success)]/50 transition-all cursor-pointer"
                         >
                           <div className="w-2 h-2 rounded-full bg-[var(--color-success)] shadow-[0_0_8px_rgba(126,219,139,0.4)]" />
-                          <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+                          <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">
                             {member.role}
                           </span>
                           <span
@@ -122,7 +123,7 @@ export function AgentTeams() {
                           className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface-container-high)] rounded-full border border-[var(--color-brand)]/20 animate-pulse-subtle group hover:border-[var(--color-brand)]/50 transition-all cursor-pointer"
                         >
                           <div className="w-2 h-2 rounded-full bg-[var(--color-warning)] shadow-[0_0_8px_rgba(247,196,108,0.4)]" />
-                          <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+                          <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">
                             {member.role}
                           </span>
                           <span
@@ -138,15 +139,13 @@ export function AgentTeams() {
                     return (
                       <div
                         key={member.id}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface-container-low)] rounded-full border border-[var(--color-border)] grayscale group hover:grayscale-0 hover:border-[var(--color-secondary)]/50 transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface-container-low)] rounded-full border-2 border-[var(--color-border)] grayscale group hover:grayscale-0 hover:border-[var(--color-secondary)]/50 transition-all cursor-pointer"
                       >
                         <div className="w-2 h-2 rounded-full bg-[var(--color-text-tertiary)] shadow-[0_0_8px_rgba(135,115,109,0.2)]" />
-                        <span className="text-xs font-semibold text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-primary)]">
+                        <span className="text-[12px] font-semibold text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-primary)]">
                           {member.role}
                         </span>
-                        <span className="material-symbols-outlined text-[14px] text-[var(--color-text-tertiary)]">
-                          {member.role === 'Tester' ? 'schedule' : 'pause_circle'}
-                        </span>
+                        <Icon name={member.role === 'Tester' ? 'schedule' : 'pause_circle'} size={14} className="text-[var(--color-text-tertiary)]" />
                       </div>
                     )
                   })}
@@ -154,19 +153,19 @@ export function AgentTeams() {
 
                 {/* Expand button */}
                 <button className="ml-auto p-2 hover:bg-[var(--color-surface-hover)] rounded-full transition-colors text-[var(--color-text-tertiary)]">
-                  <span className="material-symbols-outlined text-sm">expand_more</span>
+                  <span className="material-symbols-outlined text-[14px]">expand_more</span>
                 </button>
               </div>
             </div>
 
             {/* ─── Chat Composer ─── */}
             <div className="max-w-3xl mx-auto w-full mt-auto">
-              <div className="glass-panel relative rounded-xl p-1.5 flex items-center gap-2 transition-all">
+              <div className="glass-panel relative rounded-md p-1.5 flex items-center gap-2 transition-all">
                 <div className="p-2 text-[var(--color-text-secondary)]">
-                  <span className="material-symbols-outlined">attach_file</span>
+                  <Icon name="attach_file" size={18} />
                 </div>
                 <input
-                  className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-sm text-[var(--color-text-primary)] py-2"
+                  className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-[14px] text-[var(--color-text-primary)] py-2"
                   placeholder="Type a command or ask Claude..."
                   type="text"
                   value={inputValue}
@@ -174,7 +173,7 @@ export function AgentTeams() {
                 />
                 <button className="bg-[var(--color-primary)] text-[var(--color-btn-primary-fg)] w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:opacity-85 active:scale-95">
                   <span
-                    className="material-symbols-outlined text-lg"
+                    className="material-symbols-outlined text-[18px]"
                     style={{ fontVariationSettings: "'FILL' 1" }}
                   >
                     send
@@ -198,3 +197,4 @@ export function AgentTeams() {
     </>
   )
 }
+

@@ -3,6 +3,7 @@ import { ModelSelector } from '../controls/ModelSelector'
 import { DirectoryPicker } from '../shared/DirectoryPicker'
 import { useTranslation } from '../../i18n'
 import type { PermissionMode } from '../../types/settings'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   value: string
@@ -37,14 +38,14 @@ export function PromptEditor({
 }: Props) {
   const t = useTranslation()
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-visible">
+    <div className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-visible">
       {/* Prompt textarea */}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={4}
-        className="w-full resize-y bg-transparent px-3 py-2.5 text-sm leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
+        className="w-full resize-y bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
         style={{ minHeight: 120 }}
       />
 
@@ -64,7 +65,7 @@ export function PromptEditor({
         {/* Bypass + no folder warning */}
         {permissionMode === 'bypassPermissions' && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-[var(--color-error)]/8 text-[10px] text-[var(--color-error)]">
-            <span className="material-symbols-outlined text-[12px]">warning</span>
+            <Icon name="warning" size={12} />
             {t('promptEditor.bypassWarning')}{folderPath ? ` ${t('promptEditor.within')} ${folderPath}` : ` ${t('promptEditor.selectFolder')}`}.
           </div>
         )}
@@ -72,3 +73,4 @@ export function PromptEditor({
     </div>
   )
 }
+

@@ -30,8 +30,14 @@ import type {
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
+export const HISTORY_PAGE_SIZE = 50
+export const MAX_VISIBLE_MESSAGES = 100
+
 export type PerSessionState = {
   messages: UIMessage[]
+  historyBuffer: UIMessage[]
+  hasMoreHistory: boolean
+  isLoadingMoreHistory: boolean
   chatState: ChatState
   connectionState: ConnectionState
   streamingText: string
@@ -65,6 +71,9 @@ export type PerSessionState = {
 
 const DEFAULT_SESSION_STATE: PerSessionState = {
   messages: [],
+  historyBuffer: [],
+  hasMoreHistory: false,
+  isLoadingMoreHistory: false,
   chatState: 'idle',
   connectionState: 'disconnected',
   streamingText: '',
@@ -117,6 +126,7 @@ type ChatStore = {
   setSessionPermissionMode: (sessionId: string, mode: PermissionMode) => void
   stopGeneration: (sessionId: string) => void
   loadHistory: (sessionId: string) => Promise<void>
+  loadMoreHistory: (sessionId: string) => void
   reloadHistory: (sessionId: string) => Promise<void>
   queueComposerPrefill: (
     sessionId: string,
@@ -435,6 +445,25 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     })
   },
 
+  loadMoreHistory: (sessionId) => {
+    const session = get().sessions[sessionId]
+    if (!session || !session.hasMoreHistory || session.isLoadingMoreHistory) return
+
+    const { historyBuffer, messages } = session
+    const chunk = historyBuffer.slice(-HISTORY_PAGE_SIZE)
+    const remaining = historyBuffer.slice(0, -HISTORY_PAGE_SIZE)
+
+    // Simply prepend — Virtuoso handles DOM virtualization, no need to trim
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, () => ({
+        messages: [...chunk, ...messages],
+        historyBuffer: remaining,
+        hasMoreHistory: remaining.length > 0,
+        isLoadingMoreHistory: false,
+      })),
+    }))
+  },
+
   loadHistory: async (sessionId) => {
     try {
       const {
@@ -443,11 +472,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         lastTodos,
         hasMessagesAfterTaskCompletion,
       } = await fetchAndMapSessionHistory(sessionId)
+      const displayMessages = uiMessages.slice(-HISTORY_PAGE_SIZE)
+      const historyBuffer = uiMessages.slice(0, -HISTORY_PAGE_SIZE)
       set((state) => {
         const session = state.sessions[sessionId]
         if (!session || session.messages.length > 0) return state
         return { sessions: updateSessionIn(state.sessions, sessionId, (s) => ({
-          messages: uiMessages,
+          messages: displayMessages,
+          historyBuffer,
+          hasMoreHistory: historyBuffer.length > 0,
           agentTaskNotifications: { ...s.agentTaskNotifications, ...restoredNotifications },
         })) }
       })

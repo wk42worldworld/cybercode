@@ -41,7 +41,7 @@ export function ConfirmDialog({
         </>
       )}
     >
-      <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+      <p className="text-[14px] leading-6 text-[var(--color-text-secondary)]">
         {body}
       </p>
     </Modal>

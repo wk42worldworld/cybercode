@@ -7,26 +7,26 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   icon?: ReactNode
-  /** Whether to apply uppercase + letter-spacing (SpaceX-style stencil) */
+  /** Whether to apply uppercase + letter-spacing (spacex-codex tracker style) */
   stencil?: boolean
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:opacity-85 active:opacity-95',
+    'bg-black text-white dark:bg-white dark:text-black hover:opacity-90 active:opacity-95 shadow-md',
   secondary:
-    'bg-transparent text-[var(--color-text-primary)] border border-[var(--color-border)] hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)]',
+    'bg-transparent text-[var(--color-text-primary)] border-2 border-[var(--color-border)] hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)]',
   danger:
-    'bg-[var(--color-error)] text-white hover:opacity-85',
-  // SpaceX-inspired ghost: translucent surface + spectral border
+    'bg-[var(--color-error)] text-white hover:opacity-90',
+  // spacex-codex ghost: translucent surface + subtle border
   ghost:
     'btn-ghost',
 }
 
 const sizeStyles = {
-  sm: 'px-3 py-1 text-[11px]',
-  md: 'px-4 py-1.5 text-xs',
-  lg: 'px-6 py-2 text-xs',
+  sm: 'h-7 px-3 text-[12px]',
+  md: 'h-8 px-4 text-[13px]',
+  lg: 'h-9 px-5 text-[13px]',
 }
 
 export function Button({
@@ -35,20 +35,20 @@ export function Button({
   loading = false,
   icon,
   disabled,
-  stencil = true,
+  stencil = false,
   children,
   className = '',
   ...props
 }: ButtonProps) {
   const stencilClass = stencil
-    ? 'uppercase tracking-[0.08em] font-semibold'
-    : 'font-medium'
+    ? 'uppercase tracking-[0.10em] font-bold font-mono'
+    : 'font-semibold tracking-tight'
   return (
     <button
       disabled={disabled || loading}
       className={`
-        inline-flex items-center justify-center gap-1.5 rounded-full
-        ${stencilClass} transition-all duration-150 cursor-pointer
+        inline-flex items-center justify-center gap-1.5 rounded-md
+        ${stencilClass} transition-all duration-200 cursor-pointer
         disabled:opacity-40 disabled:cursor-not-allowed
         ${variantStyles[variant]} ${sizeStyles[size]} ${className}
       `}

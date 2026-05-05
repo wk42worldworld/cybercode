@@ -13,17 +13,19 @@ function ToastItem({ toast }: { toast: ToastType }) {
   return (
     <div
       className={`
-        bg-[var(--color-surface)] rounded-[var(--radius-md)] shadow-[var(--shadow-dropdown)]
-        px-4 py-3 text-sm text-[var(--color-text-primary)]
+        bg-[var(--color-surface-container-lowest)] rounded-[6px]
+        px-4 py-3 text-[13px] text-[var(--color-text-primary)] backdrop-blur-xl
+        border-2 border-[var(--color-border)]
         ${typeStyles[toast.type]}
         animate-in slide-in-from-right fade-in duration-200
       `}
+      style={{ boxShadow: 'var(--shadow-dropdown)' }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span>{toast.message}</span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="leading-relaxed">{toast.message}</span>
         <button
           onClick={() => removeToast(toast.id)}
-          className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] text-lg leading-none"
+          className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] text-[18px] leading-none transition-colors"
         >
           ×
         </button>

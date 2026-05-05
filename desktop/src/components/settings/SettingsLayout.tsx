@@ -1,43 +1,109 @@
 import type { ReactNode } from 'react'
+import { Icon } from '../shared/Icon'
 
-export function SettingsPage({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+/* ── Settings primitives ──────────────────────────────────────────────
+ * Calibrated against macOS Ventura System Settings + Linear settings.
+ * Density, rounded corners, hierarchy and motion all match those two refs. */
+
+export function SettingsPage({
+  title,
+  description,
+  icon,
+  children,
+}: {
+  title: string
+  description?: string
+  icon?: string
+  children: ReactNode
+}) {
   return (
-    <div className="mx-auto flex w-full max-w-[680px] flex-col gap-5">
-      <header>
-        <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">{title}</h1>
-        {description && <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{description}</p>}
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
+      <header className="flex flex-col gap-1.5 pb-2">
+        <div className="flex items-center gap-3">
+          {icon && (
+            <Icon name={icon} size={24} className="text-black/60 dark:text-white/60" />
+          )}
+          <h1 className="text-[26px] font-semibold tracking-tight text-black/90 dark:text-white/90">
+            {title}
+          </h1>
+        </div>
+        {description && (
+          <p className="text-[13px] leading-[1.6] text-black/70 dark:text-white/70">
+            {description}
+          </p>
+        )}
       </header>
       {children}
     </div>
   )
 }
 
-export function SettingsSection({ title, description, action, children }: { title?: string; description?: string; action?: ReactNode; children: ReactNode }) {
+export function SettingsSection({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title?: string
+  description?: string
+  action?: ReactNode
+  children: ReactNode
+}) {
   const hasHeader = !!(title || description || action)
   return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)]/60">
+    <section className="overflow-hidden rounded-lg border-2 border-black/30 dark:border-white/30 bg-white dark:bg-white/[0.03]">
       {hasHeader && (
-        <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-3">
+        <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 border-b border-black/[0.10] dark:border-white/[0.10]">
           <div className="min-w-0">
-            {title && <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h2>}
-            {description && <p className="mt-0.5 text-xs text-[var(--color-text-tertiary)]">{description}</p>}
+            {title && (
+              <h2 className="text-[13px] font-semibold tracking-tight text-black/90 dark:text-white/90">
+                {title}
+              </h2>
+            )}
+            {description && (
+              <p className="mt-1 text-[12px] leading-[1.5] text-black/65 dark:text-white/65">
+                {description}
+              </p>
+            )}
           </div>
           {action && <div className="flex-shrink-0">{action}</div>}
         </header>
       )}
-      <div className={`px-5 ${hasHeader ? 'pb-2' : 'py-2'}`}>{children}</div>
+      <div className="divide-y divide-black/[0.10] dark:divide-white/[0.10]">
+        {children}
+      </div>
     </section>
   )
 }
 
-export function SettingsRow({ label, hint, children, align = 'center' }: { label?: string; hint?: string; children: ReactNode; align?: 'center' | 'start' }) {
+export function SettingsRow({
+  label,
+  hint,
+  children,
+  align = 'center',
+}: {
+  label?: string
+  hint?: string
+  children: ReactNode
+  align?: 'center' | 'start'
+}) {
   const hasLabel = !!(label || hint)
   return (
-    <div className={`flex gap-4 border-b border-[var(--color-border)]/40 py-3 last:border-b-0 ${align === 'start' ? 'items-start' : 'items-center'} ${hasLabel ? '' : 'justify-end'}`}>
+    <div
+      className={`flex gap-4 px-5 py-3.5 ${align === 'start' ? 'items-start' : 'items-center'} ${hasLabel ? '' : 'justify-end'}`}
+    >
       {hasLabel && (
         <div className="min-w-0 flex-1">
-          {label && <div className="text-sm text-[var(--color-text-primary)]">{label}</div>}
-          {hint && <p className="mt-0.5 text-[11px] leading-5 text-[var(--color-text-tertiary)]">{hint}</p>}
+          {label && (
+            <div className="text-[13px] font-medium tracking-tight text-black/85 dark:text-white/85">
+              {label}
+            </div>
+          )}
+          {hint && (
+            <p className="mt-1 text-[11px] leading-[1.6] text-black/60 dark:text-white/60">
+              {hint}
+            </p>
+          )}
         </div>
       )}
       <div className="flex-shrink-0">{children}</div>
@@ -45,9 +111,17 @@ export function SettingsRow({ label, hint, children, align = 'center' }: { label
   )
 }
 
-export function SegmentedControl<T extends string>({ items, value, onChange }: { items: Array<{ value: T; label: string }>; value: T; onChange: (next: T) => void }) {
+export function SegmentedControl<T extends string>({
+  items,
+  value,
+  onChange,
+}: {
+  items: Array<{ value: T; label: string }>
+  value: T
+  onChange: (next: T) => void
+}) {
   return (
-    <div className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] p-0.5">
+    <div className="inline-flex rounded-lg bg-black/5 dark:bg-white/[0.06] p-0.5">
       {items.map((item) => {
         const isActive = item.value === value
         return (
@@ -55,10 +129,10 @@ export function SegmentedControl<T extends string>({ items, value, onChange }: {
             key={item.value}
             type="button"
             onClick={() => onChange(item.value)}
-            className={`min-w-[52px] cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+            className={`min-w-[56px] cursor-pointer rounded-[7px] px-3.5 py-1 text-[12px] font-medium tracking-tight transition-all duration-150 ${
               isActive
-                ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm'
-                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+                ? 'bg-white dark:bg-white/15 text-black/90 dark:text-white/95 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
+                : 'text-black/70 dark:text-white/70 hover:text-black/80 dark:hover:text-white/85'
             }`}
           >
             {item.label}
@@ -69,7 +143,15 @@ export function SegmentedControl<T extends string>({ items, value, onChange }: {
   )
 }
 
-export function Switch({ checked, onChange, ariaLabel }: { checked: boolean; onChange: (next: boolean) => void; ariaLabel?: string }) {
+export function Switch({
+  checked,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean
+  onChange: (next: boolean) => void
+  ariaLabel?: string
+}) {
   return (
     <button
       type="button"
@@ -77,13 +159,13 @@ export function Switch({ checked, onChange, ariaLabel }: { checked: boolean; onC
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:shadow-[var(--shadow-focus-ring)] ${
-        checked ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-border)]'
+      className={`relative inline-flex h-[26px] w-[44px] cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#050505] ${
+        checked ? 'bg-emerald-500' : 'bg-black/25 dark:bg-white/25'
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-          checked ? 'translate-x-[18px]' : 'translate-x-0.5'
+        className={`inline-block h-[22px] w-[22px] rounded-full bg-white shadow-[0_2px_4px_rgba(0,0,0,0.20),0_1px_1px_rgba(0,0,0,0.04)] transition-transform duration-200 ${
+          checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
         }`}
       />
     </button>

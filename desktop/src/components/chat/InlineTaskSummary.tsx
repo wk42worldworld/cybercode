@@ -19,14 +19,14 @@ export function InlineTaskSummary({ tasks }: { tasks: TaskSummaryItem[] }) {
   const total = tasks.length
 
   return (
-    <div className="mb-3 rounded-[var(--radius-lg)] border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden">
+    <div className="mb-3 rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-2 bg-[var(--color-surface-container)]">
         <div className="flex items-center justify-center w-5 h-5 rounded-[var(--radius-md)] bg-[var(--color-success)]/10">
           <span className="material-symbols-outlined text-[13px] text-[var(--color-success)]" style={{ fontVariationSettings: "'FILL' 1" }}>
             task_alt
           </span>
         </div>
-        <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+        <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">
           {t('tasks.completed')}
         </span>
         <span className="text-[10px] text-[var(--color-text-tertiary)] tabular-nums">
@@ -45,7 +45,7 @@ export function InlineTaskSummary({ tasks }: { tasks: TaskSummaryItem[] }) {
             <span className="text-[10px] font-mono text-[var(--color-text-tertiary)]">
               #{task.id}
             </span>
-            <span className={`text-xs ${
+            <span className={`text-[12px] ${
               task.status === 'completed'
                 ? 'text-[var(--color-text-tertiary)] line-through'
                 : 'text-[var(--color-text-primary)]'

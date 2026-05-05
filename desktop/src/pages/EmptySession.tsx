@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+
 import { skillsApi } from '../api/skills'
 import { useTranslation } from '../i18n'
 import { useSessionStore } from '../stores/sessionStore'
@@ -25,6 +26,7 @@ import {
 } from '../components/chat/composerUtils'
 import type { AttachmentRef } from '../types/chat'
 import type { SlashCommandOption } from '../components/chat/composerUtils'
+import { Icon } from '../components/shared/Icon'
 
 type Attachment = {
   id: string
@@ -234,7 +236,12 @@ export function EmptySession() {
       useSessionRuntimeStore.getState().setSelection(sessionId, draftSelection)
       useSessionRuntimeStore.getState().clearSelection(DRAFT_RUNTIME_SELECTION_KEY)
       setActiveView('code')
-      useTabStore.getState().openTab(sessionId, 'New Session')
+      const { activeTabId: curTabId } = useTabStore.getState()
+      if (curTabId) {
+        useTabStore.getState().replaceTabSession(curTabId, sessionId)
+      } else {
+        useTabStore.getState().openTab(sessionId, 'New Session')
+      }
       connectToSession(sessionId)
       const attachmentPayload: AttachmentRef[] = attachments.map((attachment) => ({
         type: attachment.type,
@@ -456,24 +463,30 @@ export function EmptySession() {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--color-surface)]">
+    <div className="relative flex flex-1 flex-col overflow-hidden transition-colors duration-300">
       <div className="h-8 shrink-0" data-tauri-drag-region />
-      <div className="flex flex-1 flex-col items-center justify-center p-8 pb-32">
-        <div className="flex max-w-md flex-col items-center text-center">
-          <img src="/app-icon.png" alt="CyberCode" className="mb-6 h-24 w-24" />
-          <h1 className="mb-2 text-3xl font-extrabold tracking-tight text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)' }}>
-            {t('empty.title')}
-          </h1>
-          <p className="mx-auto max-w-xs text-[var(--color-text-secondary)]" style={{ fontFamily: 'var(--font-body)' }}>
-            {t('empty.subtitle')}
-          </p>
-        </div>
-      </div>
 
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center px-8">
-        <div className="flex w-full max-w-3xl flex-col gap-2">
+      {/* One centered column — hero + composer + meta. Cursor / ChatGPT style. */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 md:px-12 overflow-y-auto">
+        <div className="w-full max-w-[640px] flex flex-col">
+          {/* Hero */}
+          <div className="flex flex-col items-center text-center mb-8">
+            <img src="/app-icon.png" alt="CyberCode" className="mb-5 h-[88px] w-[88px] rounded-[8px]" />
+            <h1
+              className="mb-2 text-[32px] font-semibold leading-[1.15] tracking-[-0.02em] text-black/90 dark:text-white/90"
+            >
+              {t('empty.title')}
+            </h1>
+            <p
+              className="max-w-[420px] text-[14px] leading-[1.6] text-black/70 dark:text-white/70"
+            >
+              {t('empty.subtitle')}
+            </p>
+          </div>
+
+          {/* Composer pill */}
           <div
-            className="glass-panel relative flex flex-col gap-3 rounded-xl p-4"
+            className="relative"
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDrop}
           >
@@ -513,7 +526,8 @@ export function EmptySession() {
             {slashMenuOpen && filteredCommands.length > 0 && (
               <div
                 ref={slashMenuRef}
-                className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]"
+                className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#0A0A0A]"
+                style={{ boxShadow: 'var(--shadow-dropdown)' }}
               >
                 <div className="max-h-[260px] overflow-y-auto py-1">
                   {filteredCommands.map((command, index) => (
@@ -523,11 +537,11 @@ export function EmptySession() {
                       onClick={() => selectSlashCommand(command.name)}
                       onMouseEnter={() => setSlashSelectedIndex(index)}
                       className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                        index === slashSelectedIndex ? 'bg-[var(--color-surface-hover)]' : 'hover:bg-[var(--color-surface-hover)]'
+                        index === slashSelectedIndex ? 'bg-black/5 dark:bg-white/5' : 'hover:bg-black/5 dark:hover:bg-white/5'
                       }`}
                     >
-                      <span className="shrink-0 text-sm font-semibold text-[var(--color-text-primary)]">/{command.name}</span>
-                      <span className="min-w-0 flex-1 truncate text-xs text-[var(--color-text-tertiary)]">{command.description}</span>
+                      <span className="shrink-0 text-[13px] font-semibold text-black/90 dark:text-white/90 font-mono">/{command.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-[12px] text-black/60 dark:text-white/60">{command.description}</span>
                     </button>
                   ))}
                 </div>
@@ -535,76 +549,77 @@ export function EmptySession() {
             )}
 
             {attachments.length > 0 && (
-              <AttachmentGallery attachments={attachments} variant="composer" onRemove={removeAttachment} />
+              <div className="mb-2">
+                <AttachmentGallery attachments={attachments} variant="composer" onRemove={removeAttachment} />
+              </div>
             )}
 
-            <div className="flex items-start gap-3">
+            {/* Glass pill — same as ChatInput default variant */}
+            <div className="flex flex-col bg-white dark:bg-[#111] rounded-lg p-4 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.55)] border-2 border-black/15 dark:border-white/20 focus-within:border-black/30 dark:focus-within:border-white/35 transition-all">
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(event) => handleInputChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                className="flex-1 resize-none border-none bg-transparent py-2 leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
-                style={{ fontFamily: 'var(--font-body)' }}
                 placeholder={t('empty.placeholder')}
                 rows={2}
+                className="w-full resize-none bg-transparent outline-none text-[13px] font-medium text-black/90 dark:text-white/90 placeholder:text-black/55 dark:placeholder:text-white/70 placeholder:text-[13px] leading-relaxed tracking-tight"
               />
-            </div>
 
-            <div className="flex items-center justify-between border-t border-[var(--color-border-separator)] pt-3">
-              <div className="flex items-center gap-2">
-                <div ref={plusMenuRef} className="relative">
-                  <button
-                    onClick={() => setPlusMenuOpen((prev) => !prev)}
-                    aria-label="Open composer tools"
-                    className="rounded-lg p-1.5 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">add</span>
-                  </button>
-
-                  {plusMenuOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 w-[240px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] py-1 shadow-[var(--shadow-dropdown)]">
-                      <button
-                        onClick={() => {
-                          fileInputRef.current?.click()
-                          setPlusMenuOpen(false)
-                        }}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-[var(--color-text-secondary)]">attach_file</span>
-                        {t('empty.addFiles')}
-                      </button>
-                      <button
-                        onClick={insertSlashCommand}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
-                      >
-                        <span className="w-5 text-center text-[18px] font-bold text-[var(--color-text-secondary)]">/</span>
-                        {t('empty.slashCommands')}
-                      </button>
-                    </div>
-                  )}
+              <div className="flex items-center justify-between gap-2 mt-3">
+                {/* Left: + button, permission, separator, directory */}
+                <div className="flex items-center gap-1 min-w-0">
+                  <div ref={plusMenuRef} className="relative shrink-0">
+                    <button
+                      onClick={() => setPlusMenuOpen((prev) => !prev)}
+                      aria-label="Open composer tools"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-black/65 dark:text-white/65 hover:bg-black/[0.05] dark:hover:bg-white/[0.07] hover:text-black/80 dark:hover:text-white/80 transition-colors"
+                    >
+                      <Icon name="add" size={18} />
+                    </button>
+                    {plusMenuOpen && (
+                      <div className="absolute bottom-full left-0 z-50 mb-2 w-[240px] rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur py-1" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+                        <button onClick={() => { fileInputRef.current?.click(); setPlusMenuOpen(false) }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5">
+                          <Icon name="attach_file" size={18} className="text-black/60 dark:text-white/60" />
+                          <span className="text-[13px] text-black/90 dark:text-white/90">{t('empty.addFiles')}</span>
+                        </button>
+                        <button onClick={insertSlashCommand} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5">
+                          <span className="w-[24px] text-center text-[18px] font-bold text-black/60 dark:text-white/60 font-mono">/</span>
+                          <span className="text-[13px] text-black/90 dark:text-white/90">{t('empty.slashCommands')}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <PermissionModeSelector workDir={workDir} />
+                  <div className="w-px h-3.5 bg-black/10 dark:bg-white/10 mx-0.5 shrink-0" />
+                  <DirectoryPicker value={workDir} onChange={setWorkDir} />
                 </div>
 
-                <PermissionModeSelector workDir={workDir} />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <ModelSelector runtimeKey={DRAFT_RUNTIME_SELECTION_KEY} disabled={isSubmitting} />
-                <button
-                  onClick={handleSubmit}
-                  disabled={(!input.trim() && attachments.length === 0) || isSubmitting}
-                  className="flex w-[112px] items-center justify-center gap-1 rounded-lg bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-btn-primary-fg)] transition-all hover:opacity-85 disabled:opacity-30"
-                >
-                  {t('common.run')}
-                  <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                </button>
+                {/* Right: model selector + send */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <ModelSelector runtimeKey={DRAFT_RUNTIME_SELECTION_KEY} disabled={isSubmitting} />
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={(!input.trim() && attachments.length === 0) || isSubmitting}
+                    aria-label={t('common.run')}
+                    className="h-8 w-8 flex items-center justify-center rounded-full border transition-all disabled:opacity-40 bg-black/[0.06] dark:bg-white/[0.08] text-black/70 dark:text-white/70 border-transparent hover:bg-black/80 hover:text-white dark:hover:bg-white/80 dark:hover:text-black"
+                  >
+                    <SendIcon />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          <div>
-            <DirectoryPicker value={workDir} onChange={setWorkDir} />
+          {/* Keyboard hint */}
+          <div className="mt-3 flex items-center justify-center gap-3 text-[10px] text-black/70 dark:text-white/70">
+            <span><kbd className="font-mono opacity-90">⏎</kbd> Send</span>
+            <span className="opacity-30">·</span>
+            <span><kbd className="font-mono opacity-90">⇧⏎</kbd> Newline</span>
+            <span className="opacity-30">·</span>
+            <span><kbd className="font-mono opacity-90">/</kbd> Commands</span>
           </div>
         </div>
       </div>
@@ -613,3 +628,13 @@ export function EmptySession() {
     </div>
   )
 }
+
+function SendIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  )
+}
+

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Sidebar } from './Sidebar'
+import { IconRail } from './IconRail'
 import { ContentRouter } from './ContentRouter'
 import { ToastContainer } from '../shared/Toast'
 import { UpdateChecker } from '../shared/UpdateChecker'
@@ -86,25 +87,35 @@ export function AppShell() {
 
   if (!ready) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[var(--color-surface)] text-[var(--color-text-secondary)]">
-        {t('app.launching')}
+      <div className="h-screen flex items-center justify-center bg-[#f5f5f7] dark:bg-black text-black/60 dark:text-white/60 font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-black/80 dark:bg-white/80" style={{ animation: 'bounce-dot 1.2s infinite ease-in-out' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-black/80 dark:bg-white/80" style={{ animation: 'bounce-dot 1.2s infinite ease-in-out -0.15s' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-black/80 dark:bg-white/80" style={{ animation: 'bounce-dot 1.2s infinite ease-in-out -0.30s' }} />
+          </div>
+          <span className="font-mono text-[10px] tracking-[0.32em] font-bold uppercase opacity-60">{t('app.launching')}</span>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[var(--color-surface)]">
-      <div
-        data-testid="sidebar-shell"
-        data-state={sidebarOpen ? 'open' : 'closed'}
-        className="sidebar-shell"
-      >
-        <Sidebar />
+    <div className="h-screen w-screen flex overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] font-sans">
+
+      <div className="flex shrink-0 h-full relative z-20 border-r border-black/[0.10] dark:border-white/20 bg-white/60 dark:bg-white/[0.06]">
+        <IconRail />
+        <div
+          data-testid="sidebar-shell"
+          data-state={sidebarOpen ? 'open' : 'closed'}
+          className="sidebar-shell relative"
+        >
+          <Sidebar />
+        </div>
       </div>
       <main
         id="content-area"
-        data-sidebar-state={sidebarOpen ? 'open' : 'closed'}
-        className="min-w-0 flex-1 flex flex-col overflow-hidden"
+        className="min-w-0 flex-1 flex flex-col overflow-hidden relative z-10"
       >
         <TabBar />
         <ContentRouter />

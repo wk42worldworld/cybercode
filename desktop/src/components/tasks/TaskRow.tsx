@@ -5,6 +5,7 @@ import { useTranslation } from '../../i18n'
 import { describeCron } from '../../lib/cronDescribe'
 import { TaskRunsPanel } from './TaskRunsPanel'
 import { NewTaskModal } from './NewTaskModal'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   task: CronTask
@@ -68,7 +69,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
   }
 
   const iconBtn = 'p-1.5 rounded-[var(--radius-sm)] transition-colors'
-  const menuItem = 'flex items-center gap-2.5 w-full px-3 py-2 text-xs text-left rounded-[var(--radius-sm)] transition-colors'
+  const menuItem = 'flex items-center gap-2.5 w-full px-3 py-2 text-[12px] text-left rounded-[var(--radius-sm)] transition-colors'
 
   return (
     <div className="border-b border-[var(--color-border-separator)]">
@@ -77,9 +78,9 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${task.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
           <div className="min-w-0">
-            <div className="text-sm font-medium text-[var(--color-text-primary)] truncate">{task.name}</div>
+            <div className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">{task.name}</div>
             {task.description && (
-              <div className="text-xs text-[var(--color-text-secondary)] truncate">{task.description}</div>
+              <div className="text-[12px] text-[var(--color-text-secondary)] truncate">{task.description}</div>
             )}
             <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
               <span>{t('tasks.createdAt')}{new Date(task.createdAt).toLocaleDateString()}</span>
@@ -92,7 +93,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
 
         {/* Right: cron + actions */}
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-xs text-[var(--color-text-tertiary)]" title={task.cron}>
+          <span className="text-[12px] text-[var(--color-text-tertiary)]" title={task.cron}>
             {describeCron(task.cron, t)}
           </span>
 
@@ -126,7 +127,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
               className={`${iconBtn} ${showLogs ? 'text-[var(--color-brand)] bg-[var(--color-surface-selected)]' : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-selected)]'}`}
               title={t('tasks.viewLogs')}
             >
-              <span className="material-symbols-outlined text-[18px]">receipt_long</span>
+              <Icon name="receipt_long" size={18} />
             </button>
 
             {/* More menu */}
@@ -135,17 +136,17 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
                 onClick={() => { setShowMenu(!showMenu); setConfirmAction(null) }}
                 className={`${iconBtn} text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-selected)]`}
               >
-                <span className="material-symbols-outlined text-[18px]">more_vert</span>
+                <Icon name="more_vert" size={18} />
               </button>
 
               {showMenu && !confirmAction && (
-                <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1">
+                <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1">
                   {/* Edit */}
                   <button
                     onClick={() => { setShowMenu(false); setShowEdit(true) }}
                     className={`${menuItem} text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]`}
                   >
-                    <span className="material-symbols-outlined text-[16px] text-[var(--color-text-secondary)]">edit</span>
+                    <Icon name="edit" size={16} className="text-[var(--color-text-secondary)]" />
                     {t('tasks.edit')}
                   </button>
 
@@ -154,9 +155,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
                     onClick={() => setConfirmAction('toggle')}
                     className={`${menuItem} text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]`}
                   >
-                    <span className="material-symbols-outlined text-[16px] text-[var(--color-text-secondary)]">
-                      {task.enabled ? 'pause_circle' : 'play_circle'}
-                    </span>
+                    <Icon name={task.enabled ? 'pause_circle' : 'play_circle'} size={16} className="text-[var(--color-text-secondary)]" />
                     {task.enabled ? t('common.disable') : t('common.enable')}
                   </button>
 
@@ -167,7 +166,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
                     onClick={() => setConfirmAction('delete')}
                     className={`${menuItem} text-[var(--color-error)] hover:bg-[var(--color-error-container)]/18`}
                   >
-                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                    <Icon name="delete" size={16} />
                     {t('common.delete')}
                   </button>
                 </div>
@@ -228,18 +227,18 @@ function ConfirmPopover({ message, confirmLabel, onConfirm, onCancel, cancelLabe
   variant?: 'brand' | 'error'
 }) {
   return (
-    <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg p-3">
-      <p className="text-xs text-[var(--color-text-secondary)] mb-2.5">{message}</p>
+    <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg p-3">
+      <p className="text-[12px] text-[var(--color-text-secondary)] mb-2.5">{message}</p>
       <div className="flex justify-end gap-1.5">
         <button
           onClick={onCancel}
-          className="px-2.5 py-1 text-xs rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+          className="px-2.5 py-1 text-[12px] rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
         >
           {cancelLabel}
         </button>
         <button
           onClick={onConfirm}
-          className={`px-2.5 py-1 text-xs rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity ${
+          className={`px-2.5 py-1 text-[12px] rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity ${
             variant === 'error'
               ? 'bg-[var(--color-error-container)] text-[var(--color-on-error-container)]'
               : 'bg-[var(--color-primary)] text-[var(--color-btn-primary-fg)]'
@@ -251,3 +250,4 @@ function ConfirmPopover({ message, confirmLabel, onConfirm, onCancel, cancelLabe
     </div>
   )
 }
+

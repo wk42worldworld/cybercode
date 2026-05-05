@@ -6,6 +6,7 @@ import { Button } from '../components/shared/Button'
 import { TaskList } from '../components/tasks/TaskList'
 import { TaskEmptyState } from '../components/tasks/TaskEmptyState'
 import { NewTaskModal } from '../components/tasks/NewTaskModal'
+import { Icon } from '../components/shared/Icon'
 
 export function ScheduledTasks() {
   const { tasks, fetchTasks, isLoading } = useTaskStore()
@@ -24,10 +25,10 @@ export function ScheduledTasks() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">{t('scheduledPage.title')}</h1>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-1 text-[14px] text-[var(--color-text-secondary)]">
               {(() => {
                 const parts = t('scheduledPage.subtitle').split('{code}')
-                return <>{parts[0]}<code className="px-1 py-0.5 rounded bg-[var(--color-surface-container)] text-xs font-[var(--font-mono)]">/schedule</code>{parts[1]}</>
+                return <>{parts[0]}<code className="px-1 py-0.5 rounded bg-[var(--color-surface-container)] text-[12px] font-[var(--font-mono)]">/schedule</code>{parts[1]}</>
               })()}
             </p>
           </div>
@@ -36,8 +37,8 @@ export function ScheduledTasks() {
 
         {/* Desktop-online notice */}
         <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-md)] bg-[var(--color-warning)]/8 border border-[var(--color-warning)]/15 mb-6">
-          <span className="material-symbols-outlined text-[18px] text-[var(--color-warning)]">schedule</span>
-          <span className="text-xs text-[var(--color-text-secondary)]">
+          <Icon name="schedule" size={18} className="text-[var(--color-warning)]" />
+          <span className="text-[12px] text-[var(--color-text-secondary)]">
             {t('scheduledPage.desktopNotice')}
           </span>
         </div>
@@ -64,3 +65,4 @@ export function ScheduledTasks() {
     </div>
   )
 }
+

@@ -30,7 +30,7 @@
   },
   {
     "id": "zhipuglm",
-    "name": "Zhipu GLM",
+    "name": "智谱 GLM",
     "baseUrl": "https://open.bigmodel.cn/api/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
@@ -111,7 +111,7 @@
   },
   {
     "id": "custom",
-    "name": "Custom",
+    "name": "自定义",
     "baseUrl": "",
     "apiFormat": "anthropic",
     "defaultModels": {

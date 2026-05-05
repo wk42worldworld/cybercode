@@ -196,7 +196,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
       {open && dropdownPos && createPortal(
         <div
           ref={dropdownRef}
-          className="w-[360px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]"
+          className="w-[360px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[18px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]"
           style={{
             position: 'fixed',
             left: Math.min(dropdownPos.left, window.innerWidth - Math.min(360, window.innerWidth - 32) - 16),
@@ -211,7 +211,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
             <button
               type="button"
               onClick={selectAll}
-              className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-[5px] px-3 py-2.5 text-left transition-colors ${
                 isAllSelected
                   ? 'bg-[var(--color-sidebar-item-active)]'
                   : 'hover:bg-[var(--color-sidebar-item-hover)]'
@@ -219,7 +219,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
             >
               <FolderIcon className="text-[var(--color-text-secondary)]" />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{t('sidebar.allProjects')}</div>
+                <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">{t('sidebar.allProjects')}</div>
               </div>
               {isAllSelected && <CheckIcon />}
             </button>
@@ -227,9 +227,9 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
             <div className="mx-3 my-2 border-t border-[var(--color-border)]" />
 
             {loading ? (
-              <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
+              <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
             ) : options.length === 0 ? (
-              <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
+              <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
             ) : (
               options.map((option) => {
                 const checked = !isAllSelected && selectedProjects.includes(option.projectPath)
@@ -238,7 +238,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                     key={option.projectPath}
                     type="button"
                     onClick={() => toggleProject(option.projectPath)}
-                    className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition-colors ${
+                    className={`flex w-full items-center gap-3 rounded-[5px] px-3 py-2.5 text-left transition-colors ${
                       checked
                         ? 'bg-[var(--color-sidebar-item-active)]'
                         : 'hover:bg-[var(--color-sidebar-item-hover)]'
@@ -246,7 +246,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                   >
                     {option.isGit ? <GitBranchIcon className="text-[var(--color-text-secondary)]" /> : <FolderIcon />}
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{option.title}</div>
+                      <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">{option.title}</div>
                       {option.subtitle && (
                         <div className="truncate pt-0.5 text-[11px] text-[var(--color-text-tertiary)] font-[var(--font-mono)]">
                           {option.subtitle}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ImageGalleryModal } from './ImageGalleryModal'
+import { Icon } from '../shared/Icon'
 
 export type AttachmentPreview = {
   id?: string
@@ -49,8 +50,8 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
                   onClick={() => setActiveImageIndex(images.findIndex((image) => image.src === src))}
                   className={
                     isComposer
-                      ? 'overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)]'
-                      : 'overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left shadow-sm transition-transform hover:scale-[1.01]'
+                      ? 'overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)]'
+                      : 'overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left shadow-sm transition-transform hover:scale-[1.01]'
                   }
                 >
                   <img
@@ -80,9 +81,9 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
           return (
             <div
               key={attachment.id || `${attachment.name}-${index}`}
-              className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-2 text-xs text-[var(--color-text-secondary)]"
+              className="flex items-center gap-2 rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)]"
             >
-              <span className="material-symbols-outlined text-[14px]">attach_file</span>
+              <Icon name="attach_file" size={14} />
               <span className="max-w-[220px] truncate">{attachment.name}</span>
               {onRemove && attachment.id && (
                 <button
@@ -91,7 +92,7 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
                   className="ml-1 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-error)]"
                   aria-label={`Remove ${attachment.name}`}
                 >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
+                  <Icon name="close" size={14} />
                 </button>
               )}
             </div>
@@ -111,3 +112,4 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
     </>
   )
 }
+

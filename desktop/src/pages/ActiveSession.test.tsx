@@ -90,7 +90,7 @@ describe('ActiveSession task polling', () => {
       },
     })
 
-    const { unmount } = render(<ActiveSession />)
+    const { unmount } = render(<ActiveSession sessionId="test-session" isActive={true} />)
 
     expect(fetchSessionTasks).toHaveBeenCalledWith(sessionId)
 
@@ -169,7 +169,7 @@ describe('ActiveSession task polling', () => {
       },
     })
 
-    const { queryByTestId, unmount } = render(<ActiveSession />)
+    const { queryByTestId, unmount } = render(<ActiveSession sessionId="test-session" isActive={true} />)
 
     expect(queryByTestId('chat-input')).toBeInTheDocument()
     expect(queryByTestId('session-task-bar')).not.toBeInTheDocument()

@@ -3,6 +3,7 @@ import type { Terminal as XTermTerminal } from '@xterm/xterm'
 import type { FitAddon as XTermFitAddon } from '@xterm/addon-fit'
 import { useTranslation, type TranslationKey } from '../i18n'
 import { terminalApi } from '../api/terminal'
+import { Icon } from '../components/shared/Icon'
 
 type TerminalStatus = 'idle' | 'starting' | 'running' | 'exited' | 'error' | 'unavailable'
 
@@ -197,7 +198,7 @@ export function TerminalSettings({
           <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
             {t('settings.terminal.title')}
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-tertiary)]">
+          <p className="mt-1 max-w-2xl text-[14px] text-[var(--color-text-tertiary)]">
             {t('settings.terminal.description')}
           </p>
         </div>
@@ -206,9 +207,9 @@ export function TerminalSettings({
             <button
               type="button"
               onClick={onNewTerminal}
-              className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] px-2.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             >
-              <span className="material-symbols-outlined text-[16px]">add</span>
+              <Icon name="add" size={16} />
               {t('terminal.newTab')}
             </button>
           )}
@@ -216,23 +217,23 @@ export function TerminalSettings({
             type="button"
             onClick={clearTerminal}
             disabled={!terminalRef.current}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] px-2.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[16px]">mop</span>
+            <Icon name="mop" size={16} />
             {t('settings.terminal.clear')}
           </button>
           <button
             type="button"
             onClick={() => void startTerminal()}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--color-text-primary)] px-2.5 text-xs font-medium text-[var(--color-surface)] transition-colors hover:opacity-90"
+            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] px-2.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+            <Icon name="restart_alt" size={16} />
             {t('settings.terminal.restart')}
           </button>
         </div>
       </div>
 
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
         <StatusPill status={status} label={t(STATUS_LABEL_KEYS[status])} />
         {shellInfo && (
           <>
@@ -244,21 +245,19 @@ export function TerminalSettings({
       </div>
 
       {error && (
-        <div className="mb-3 rounded-[var(--radius-md)] border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 px-3 py-2 text-sm text-[var(--color-error)]">
+        <div className="mb-3 rounded-[var(--radius-md)] border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 px-3 py-2 text-[14px] text-[var(--color-error)]">
           {error}
         </div>
       )}
 
       {status === 'unavailable' ? (
-        <div className="flex flex-1 items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-8 text-center">
+        <div className="flex flex-1 items-center justify-center rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-8 text-center">
           <div>
-            <span className="material-symbols-outlined mb-3 block text-[32px] text-[var(--color-text-tertiary)]">
-              desktop_windows
-            </span>
-            <p className="text-sm font-medium text-[var(--color-text-primary)]">
+            <Icon name="desktop_windows" size={18} className="mb-3 block text-[32px] text-[var(--color-text-tertiary)]" />
+            <p className="text-[14px] font-medium text-[var(--color-text-primary)]">
               {t('settings.terminal.unavailableTitle')}
             </p>
-            <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
+            <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">
               {t('settings.terminal.unavailableBody')}
             </p>
           </div>
@@ -295,9 +294,10 @@ function StatusPill({ status, label }: { status: TerminalStatus; label: string }
           : 'bg-[var(--color-text-tertiary)]'
 
   return (
-    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
+    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
       <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
       {label}
     </span>
   )
 }
+

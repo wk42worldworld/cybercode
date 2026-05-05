@@ -145,7 +145,7 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
     >
       {tccState ? (
         <div className="space-y-4">
-          <p className="text-sm text-[var(--color-text-secondary)]">
+          <p className="text-[14px] text-[var(--color-text-secondary)]">
             {t('computerUseApproval.tccHint')}
           </p>
 
@@ -166,7 +166,7 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
             />
           </div>
 
-          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-xs text-[var(--color-text-tertiary)]">
+          <div className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-[12px] text-[var(--color-text-tertiary)]">
             {t('computerUseApproval.tryAgainHint')}
           </div>
 
@@ -179,11 +179,11 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
       ) : (
         <div className="space-y-4">
           {request.reason ? (
-            <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+            <div className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3">
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
                 {t('computerUseApproval.reason')}
               </div>
-              <div className="mt-1 text-sm text-[var(--color-text-primary)]">
+              <div className="mt-1 text-[14px] text-[var(--color-text-primary)]">
                 {request.reason}
               </div>
             </div>
@@ -195,14 +195,14 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
               return (
                 <div
                   key={resolved?.bundleId ?? app.requestedName}
-                  className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3"
+                  className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+                      <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">
                         {resolved?.displayName ?? app.requestedName}
                       </div>
-                      <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                      <div className="mt-1 text-[12px] text-[var(--color-text-tertiary)]">
                         {resolved?.bundleId ?? t('computerUseApproval.notInstalled')}
                       </div>
                     </div>
@@ -212,19 +212,19 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
                   </div>
 
                   {!resolved ? (
-                    <p className="mt-2 text-xs text-[var(--color-error)]">
+                    <p className="mt-2 text-[12px] text-[var(--color-error)]">
                       {t('computerUseApproval.notInstalled')}
                     </p>
                   ) : null}
 
                   {app.alreadyGranted ? (
-                    <p className="mt-2 text-xs text-[var(--color-success)]">
+                    <p className="mt-2 text-[12px] text-[var(--color-success)]">
                       {t('computerUseApproval.alreadyGranted')}
                     </p>
                   ) : null}
 
                   {app.isSentinel ? (
-                    <p className="mt-2 text-xs text-[var(--color-warning)]">
+                    <p className="mt-2 text-[12px] text-[var(--color-warning)]">
                       {t('computerUseApproval.sensitiveApp')}
                     </p>
                   ) : null}
@@ -234,8 +234,8 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
           </div>
 
           {requestedFlags.length > 0 ? (
-            <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
+            <div className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3">
+              <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)]">
                 {t('computerUseApproval.alsoRequested')}
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -252,7 +252,7 @@ export function ComputerUsePermissionModal({ sessionId, request }: Props) {
           ) : null}
 
           {request.willHide && request.willHide.length > 0 ? (
-            <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-sm text-[var(--color-text-secondary)]">
+            <div className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 text-[14px] text-[var(--color-text-secondary)]">
               {request.autoUnhideEnabled
                 ? t('computerUseApproval.hideWhileWorkingRestore', {
                     count: request.willHide.length,
@@ -284,12 +284,12 @@ function PermissionRow({
   const t = useTranslation()
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3">
+    <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3">
       <div>
-        <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+        <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">
           {label}
         </div>
-        <div className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+        <div className="mt-1 text-[12px] text-[var(--color-text-tertiary)]">
           {granted
             ? t('computerUseApproval.granted')
             : t('computerUseApproval.notGranted')}

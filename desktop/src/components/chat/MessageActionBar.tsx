@@ -1,4 +1,5 @@
 import { CopyButton } from '../shared/CopyButton'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   copyText?: string
@@ -35,9 +36,9 @@ export function MessageActionBar({
             onClick={onRewind}
             aria-label={rewindLabel}
             title={rewindLabel}
-            className="inline-flex min-h-7 items-center gap-1 rounded-full border border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-brand)]/35 hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]/35"
+            className="inline-flex min-h-7 items-center gap-1 rounded-md border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-border-focus)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
           >
-            <span className="material-symbols-outlined text-[14px]">undo</span>
+            <Icon name="undo" size={14} />
             <span className="hidden min-[920px]:inline">Rewind</span>
           </button>
         )}
@@ -47,10 +48,11 @@ export function MessageActionBar({
             label={copyLabel}
             displayLabel="Copy"
             displayCopiedLabel="Copied"
-            className="inline-flex min-h-7 items-center rounded-full border border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-brand)]/35 hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]/35"
+            className="inline-flex min-h-7 items-center rounded-md border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-border-focus)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
           />
         )}
       </div>
     </div>
   )
 }
+

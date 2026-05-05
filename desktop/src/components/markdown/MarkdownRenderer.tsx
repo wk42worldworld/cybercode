@@ -115,18 +115,18 @@ const BASE_PROSE_CLASSES = `markdown-prose prose prose-sm max-w-none text-[var(-
   prose-strong:text-[var(--color-text-primary)]
   prose-ul:my-2 prose-ol:my-2
   prose-li:my-0.5
-  prose-table:my-0 prose-table:w-full prose-table:table-auto prose-table:text-sm
+  prose-table:my-0 prose-table:w-full prose-table:table-auto prose-table:text-[14px]
   prose-th:bg-[var(--color-surface-info)] prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:whitespace-normal prose-th:break-words prose-th:align-top prose-th:border-b prose-th:border-[var(--color-border)]
   prose-td:px-3 prose-td:py-2 prose-td:border-b prose-td:border-[var(--color-border)] prose-td:whitespace-normal prose-td:break-words prose-td:align-top prose-td:bg-[var(--color-surface)]
-  [&_.md-table-wrap]:my-5 [&_.md-table-wrap]:overflow-x-auto [&_.md-table-wrap]:rounded-xl [&_.md-table-wrap]:border [&_.md-table-wrap]:border-[var(--color-border)] [&_.md-table-wrap]:bg-[var(--color-surface-container-lowest)]`
+  [&_.md-table-wrap]:my-5 [&_.md-table-wrap]:overflow-x-auto [&_.md-table-wrap]:rounded-md [&_.md-table-wrap]:border [&_.md-table-wrap]:border-[var(--color-border)] [&_.md-table-wrap]:bg-[var(--color-surface-container-lowest)]`
 
 const DOCUMENT_PROSE_CLASSES = `
   prose-p:text-[15px] prose-p:leading-7
   prose-headings:scroll-mt-6 prose-headings:tracking-[-0.01em]
   prose-h1:mb-4 prose-h1:text-2xl prose-h1:font-semibold prose-h1:leading-tight
   prose-h2:mt-8 prose-h2:mb-3 prose-h2:border-b prose-h2:border-[var(--color-border)] prose-h2:pb-2 prose-h2:text-xl prose-h2:font-semibold
-  prose-h3:mt-6 prose-h3:mb-2 prose-h3:text-base prose-h3:font-semibold
-  prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-sm prose-h4:font-semibold
+  prose-h3:mt-6 prose-h3:mb-2 prose-h3:text-[16px] prose-h3:font-semibold
+  prose-h4:mt-5 prose-h4:mb-2 prose-h4:text-[14px] prose-h4:font-semibold
   prose-blockquote:my-4 prose-blockquote:rounded-r-lg prose-blockquote:border-l-4 prose-blockquote:border-[var(--color-outline-variant)] prose-blockquote:bg-[var(--color-surface-container-low)] prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:italic
   prose-hr:my-6 prose-hr:border-[var(--color-border)]
   prose-img:rounded-lg prose-img:border prose-img:border-[var(--color-border)]

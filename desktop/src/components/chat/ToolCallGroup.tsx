@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
 import type { AgentTaskNotification, UIMessage } from '../../types/chat'
 import { AGENT_LIFECYCLE_TYPES } from '../../types/team'
+import { Icon } from '../shared/Icon'
 
 type ToolCall = Extract<UIMessage, { type: 'tool_use' }>
 type ToolResult = Extract<UIMessage, { type: 'tool_result' }>
@@ -132,11 +133,9 @@ function AgentToolGroup({
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
+        className="flex w-full items-center gap-2 rounded-lg border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
       >
-        <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">
-          {expanded ? 'expand_less' : 'expand_more'}
-        </span>
+        <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)]" />
         <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
           {toolCalls.length === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: toolCalls.length })}
         </span>
@@ -146,16 +145,16 @@ function AgentToolGroup({
           </span>
         )}
         {!isAnyRunning && errorPresent && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-error)]">error</span>
+          <Icon name="error" size={14} className="text-[var(--color-error)]" />
         )}
         {!isAnyRunning && !errorPresent && allComplete && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-success)]">check_circle</span>
+          <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
         )}
         {!isAnyRunning && !errorPresent && !allComplete && !anyStopped && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">pending</span>
+          <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
         )}
         {!isAnyRunning && !errorPresent && !allComplete && anyStopped && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">stop_circle</span>
+          <Icon name="stop_circle" size={14} className="text-[var(--color-outline)]" />
         )}
       </button>
 
@@ -167,7 +166,7 @@ function AgentToolGroup({
               <div key={toolCall.id} className="relative pl-7">
                 <div className="absolute left-0 top-1/2 -translate-y-1/2">
                   <div className="absolute left-[11px] top-1/2 h-px w-4 -translate-y-1/2 bg-[var(--color-border)]/45" />
-                  <div className="absolute left-[8px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border border-[var(--color-border)]/65 bg-[var(--color-surface-container-lowest)] shadow-[0_0_0_2px_var(--color-surface)]" />
+                  <div className="absolute left-[8px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-[var(--color-border)]/65 bg-[var(--color-surface-container-lowest)] shadow-[0_0_0_2px_var(--color-surface)]" />
                 </div>
                 <AgentCallCard
                   toolCall={toolCall}
@@ -205,22 +204,20 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
+        className="flex w-full items-center gap-2 rounded-lg border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
       >
-        <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">
-          {expanded ? 'expand_less' : 'expand_more'}
-        </span>
+        <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)]" />
         <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
           {summary}
         </span>
         {!isStreaming && allComplete && !errorPresent && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-success)]">check_circle</span>
+          <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
         )}
         {!isStreaming && errorPresent && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-error)]">error</span>
+          <Icon name="error" size={14} className="text-[var(--color-error)]" />
         )}
         {!isStreaming && !allComplete && !errorPresent && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">pending</span>
+          <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
         )}
         {isStreaming && (
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
@@ -295,9 +292,9 @@ function AgentCallCard({
   const description = typeof input.description === 'string' ? input.description : ''
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-surface-container-lowest)]">
+    <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)]/50 bg-[var(--color-surface-container-lowest)]">
       <div className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50">
-        <span className="material-symbols-outlined text-[18px] text-[var(--color-outline)]">smart_toy</span>
+        <Icon name="smart_toy" size={18} className="text-[var(--color-outline)]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">Agent</span>
@@ -351,9 +348,7 @@ function AgentCallCard({
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--color-outline)] transition-colors hover:bg-[var(--color-surface-hover)]"
           aria-label={expanded ? 'Collapse agent' : 'Expand agent'}
         >
-          <span className="material-symbols-outlined text-[16px]">
-          {expanded ? 'expand_less' : 'expand_more'}
-          </span>
+          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={16} />
         </button>
       </div>
 
@@ -621,3 +616,4 @@ function extractTextContent(content: unknown): string {
   }
   return ''
 }
+

@@ -43,16 +43,16 @@ export function UpdateChecker() {
 
   return (
     <div className="fixed top-4 right-4 z-[200] max-w-sm">
-      <div className="bg-[var(--color-surface-container-low)] border border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-dropdown)] p-4">
-        <p className="text-sm font-medium text-[var(--color-text-primary)]">
+      <div className="bg-[var(--color-surface-container-low)] border-2 border-[var(--color-border)] rounded-[var(--radius-lg)] shadow-[var(--shadow-dropdown)] p-4">
+        <p className="text-[14px] font-medium text-[var(--color-text-primary)]">
           {t('update.available', { version: availableVersion })}
         </p>
 
         {releaseNotes && (
-          <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-surface)]/70 px-3 py-2">
+          <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border-2 border-[var(--color-border)]/60 bg-[var(--color-surface)]/70 px-3 py-2">
             <MarkdownRenderer
               content={releaseNotes}
-              className="text-xs leading-5 text-[var(--color-text-secondary)] [&_h1]:mb-2 [&_h1]:text-sm [&_h1]:font-semibold [&_h2]:mb-1.5 [&_h2]:text-xs [&_h2]:font-semibold [&_p]:my-1.5 [&_p]:text-xs [&_p]:leading-5 [&_ul]:my-1.5 [&_ol]:my-1.5"
+              className="text-[12px] leading-5 text-[var(--color-text-secondary)] [&_h1]:mb-2 [&_h1]:text-[14px] [&_h1]:font-semibold [&_h2]:mb-1.5 [&_h2]:text-[12px] [&_h2]:font-semibold [&_p]:my-1.5 [&_p]:text-[12px] [&_p]:leading-5 [&_ul]:my-1.5 [&_ol]:my-1.5"
             />
           </div>
         )}
@@ -70,7 +70,7 @@ export function UpdateChecker() {
               )}
             </div>
             {statusText && (
-              <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+              <p className="text-[12px] text-[var(--color-text-tertiary)] mt-1">
                 {statusText}
                 {status === 'downloading' && hasKnownProgress ? ` ${progressPercent}%` : ''}
               </p>
@@ -79,7 +79,7 @@ export function UpdateChecker() {
         )}
 
         {error && (
-          <p className="mt-2 text-xs text-[var(--color-error)]">
+          <p className="mt-2 text-[12px] text-[var(--color-error)]">
             {t('update.failed', { error })}
           </p>
         )}
@@ -88,13 +88,13 @@ export function UpdateChecker() {
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => void installUpdate()}
-              className="px-3 py-1 text-xs font-medium rounded-[var(--radius-md)] bg-[var(--color-text-accent)] text-[var(--color-on-primary)] hover:opacity-90 transition-opacity"
+              className="px-3 py-1 text-[12px] font-medium rounded-[var(--radius-md)] bg-[var(--color-text-accent)] text-[var(--color-on-primary)] hover:opacity-90 transition-opacity"
             >
               {t('update.now')}
             </button>
             <button
               onClick={dismissPrompt}
-              className="px-3 py-1 text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
+              className="px-3 py-1 text-[12px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] transition-colors"
             >
               {t('update.later')}
             </button>

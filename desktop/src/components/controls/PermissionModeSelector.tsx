@@ -7,6 +7,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useTranslation } from '../../i18n'
 import type { PermissionMode } from '../../types/settings'
+import { Icon } from '../shared/Icon'
 
 const MODE_ICONS: Record<PermissionMode, string> = {
   default: 'verified_user',
@@ -104,15 +105,15 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-surface-container-low)] hover:bg-[var(--color-surface-hover)] rounded-full text-xs font-medium text-[var(--color-text-secondary)] transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-surface-container-low)] hover:bg-[var(--color-surface-hover)] rounded-md text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors"
       >
         <span className="material-symbols-outlined text-[14px]">{MODE_ICONS[currentMode]}</span>
         <span>{MODE_LABELS[currentMode]}</span>
-        <span className="material-symbols-outlined text-[12px]">expand_more</span>
+        <Icon name="expand_more" size={12} />
       </button>
 
       {open && (
-        <div className="absolute left-0 bottom-full mb-2 w-[320px] rounded-xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-border)] shadow-[var(--shadow-dropdown)] z-50 py-2">
+        <div className="absolute left-0 bottom-full mb-2 w-[320px] rounded-md bg-[var(--color-surface-container-lowest)] border-2 border-[var(--color-border)] shadow-[var(--shadow-dropdown)] z-50 py-2">
           <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--color-outline)]">
             {t('permMode.executionPermissions')}
           </div>
@@ -143,8 +144,8 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
                 {item.icon}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">{item.label}</div>
-                <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{item.description}</div>
+                <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{item.label}</div>
+                <div className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{item.description}</div>
               </div>
               {item.value === currentMode && (
                 <span className="material-symbols-outlined text-[16px] text-[var(--color-brand)] mt-0.5" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -160,38 +161,38 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
       {confirmDialog && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 pl-[var(--sidebar-width)]" onClick={() => setConfirmDialog(false)}>
           <div
-            className="w-[420px] rounded-2xl bg-[var(--color-surface-container-lowest)] border border-[var(--color-border)] shadow-[var(--shadow-dropdown)] overflow-hidden"
+            className="w-[420px] rounded-lg bg-[var(--color-surface-container-lowest)] border-2 border-[var(--color-border)] shadow-[var(--shadow-dropdown)] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 bg-[var(--color-error)]/8 border-b border-[var(--color-error)]/15">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[var(--color-error)]/12">
-                <span className="material-symbols-outlined text-[22px] text-[var(--color-error)]">warning</span>
+              <div className="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--color-error)]/12">
+                <Icon name="warning" size={22} className="text-[var(--color-error)]" />
               </div>
               <div>
-                <div className="text-sm font-bold text-[var(--color-text-primary)]">{t('permMode.enableBypassTitle')}</div>
-                <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('permMode.enableBypassSubtitle')}</div>
+                <div className="text-[14px] font-bold text-[var(--color-text-primary)]">{t('permMode.enableBypassTitle')}</div>
+                <div className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{t('permMode.enableBypassSubtitle')}</div>
               </div>
             </div>
 
             {/* Body */}
             <div className="px-5 py-4">
-              <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t('permMode.enableBypassBody')) }} />
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-container)] border border-[var(--color-border)]" title={workDir}>
-                <span className="material-symbols-outlined text-[16px] text-[var(--color-text-tertiary)] shrink-0">folder</span>
-                <code className="text-xs font-[var(--font-mono)] text-[var(--color-text-primary)] truncate">{workDir}</code>
+              <p className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t('permMode.enableBypassBody')) }} />
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-container)] border-2 border-[var(--color-border)]" title={workDir}>
+                <Icon name="folder" size={16} className="text-[var(--color-text-tertiary)] shrink-0" />
+                <code className="text-[12px] font-[var(--font-mono)] text-[var(--color-text-primary)] truncate">{workDir}</code>
               </div>
-              <ul className="mt-3 space-y-1.5 text-xs text-[var(--color-text-secondary)]">
+              <ul className="mt-3 space-y-1.5 text-[12px] text-[var(--color-text-secondary)]">
                 <li className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-[var(--color-error)] mt-0.5">check</span>
+                  <Icon name="check" size={14} className="text-[var(--color-error)] mt-0.5" />
                   {t('permMode.permReadWrite')}
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-[var(--color-error)] mt-0.5">check</span>
+                  <Icon name="check" size={14} className="text-[var(--color-error)] mt-0.5" />
                   {t('permMode.permShell')}
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-[14px] text-[var(--color-error)] mt-0.5">check</span>
+                  <Icon name="check" size={14} className="text-[var(--color-error)] mt-0.5" />
                   {t('permMode.permPackages')}
                 </li>
               </ul>
@@ -201,7 +202,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
             <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
               <button
                 onClick={() => setConfirmDialog(false)}
-                className="px-4 py-2 text-xs font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+                className="px-4 py-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
               >
                 {t('common.cancel')}
               </button>
@@ -215,7 +216,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
                   }
                   setConfirmDialog(false)
                 }}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[var(--color-error)] hover:opacity-90 rounded-lg transition-colors"
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[var(--color-error)] hover:opacity-90 rounded-lg transition-colors"
               >
                 {t('permMode.enableBypassBtn')}
               </button>
@@ -227,3 +228,4 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
     </div>
   )
 }
+

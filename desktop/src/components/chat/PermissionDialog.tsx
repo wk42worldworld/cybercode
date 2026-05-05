@@ -5,6 +5,7 @@ import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
 import { Button } from '../shared/Button'
 import { DiffViewer } from './DiffViewer'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   requestId: string
@@ -142,16 +143,11 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
           className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)]"
           style={{ backgroundColor: `${meta.color}18` }}
         >
-          <span
-            className="material-symbols-outlined text-[18px]"
-            style={{ color: meta.color }}
-          >
-            {meta.icon}
-          </span>
+          <Icon name={meta.icon} size={18} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+            <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
               {title}
             </span>
             {isPending && (
@@ -167,7 +163,7 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
             )}
           </div>
           {description && (
-            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)] truncate">{description}</p>
+            <p className="mt-0.5 text-[12px] text-[var(--color-text-secondary)] truncate">{description}</p>
           )}
         </div>
       </div>
@@ -177,10 +173,8 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
         {preview ? (
           <div className="space-y-2">
             {details.primary && toolName !== 'Bash' ? (
-              <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] px-3 py-2 text-xs font-[var(--font-mono)] text-[var(--color-text-secondary)]">
-                <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)] flex-shrink-0">
-                  folder_open
-                </span>
+              <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] px-3 py-2 text-[12px] font-[var(--font-mono)] text-[var(--color-text-secondary)]">
+                <Icon name="folder_open" size={14} className="text-[var(--color-outline)] flex-shrink-0" />
                 <span className="truncate">{details.primary}</span>
               </div>
             ) : null}
@@ -188,10 +182,8 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
           </div>
         ) : details.primary ? (
           <div className="mb-2">
-            <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] px-3 py-2 text-xs font-[var(--font-mono)] text-[var(--color-text-secondary)]">
-              <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)] flex-shrink-0">
-                {toolName === 'Glob' || toolName === 'Grep' ? 'search' : 'folder_open'}
-              </span>
+            <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] px-3 py-2 text-[12px] font-[var(--font-mono)] text-[var(--color-text-secondary)]">
+              <Icon name={toolName === 'Glob' || toolName === 'Grep' ? 'search' : 'folder_open'} size={14} className="text-[var(--color-outline)] flex-shrink-0" />
               <span className="truncate">{details.primary}</span>
             </div>
           </div>
@@ -199,7 +191,7 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
 
         {/* Secondary detail */}
         {details.secondary && (
-          <p className="mt-2 text-xs text-[var(--color-text-tertiary)]">{details.secondary}</p>
+          <p className="mt-2 text-[12px] text-[var(--color-text-tertiary)]">{details.secondary}</p>
         )}
 
         {allowRawToggle && (
@@ -207,9 +199,7 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
             onClick={() => setShowRaw(!showRaw)}
             className="mt-2 flex cursor-pointer items-center gap-1 text-[11px] text-[var(--color-text-accent)] hover:underline"
           >
-            <span className="material-symbols-outlined text-[14px]">
-              {showRaw ? 'expand_less' : 'expand_more'}
-            </span>
+            <Icon name={showRaw ? 'expand_less' : 'expand_more'} size={14} />
             {showRaw ? t('permission.hideDetails') : t('permission.showFullInput')}
           </button>
         )}
@@ -229,7 +219,7 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
             size="sm"
             onClick={() => activeTabId && respondToPermission(activeTabId, requestId, true)}
             icon={
-              <span className="material-symbols-outlined text-[14px]">check</span>
+              <Icon name="check" size={14} />
             }
           >
             {t('permission.allow')}
@@ -239,7 +229,7 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
             size="sm"
             onClick={() => activeTabId && respondToPermission(activeTabId, requestId, true, { rule: 'always' })}
             icon={
-              <span className="material-symbols-outlined text-[14px]">verified</span>
+              <Icon name="verified" size={14} />
             }
           >
             {t('permission.allowForSession')}
@@ -250,7 +240,7 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
             size="sm"
             onClick={() => activeTabId && respondToPermission(activeTabId, requestId, false)}
             icon={
-              <span className="material-symbols-outlined text-[14px]">close</span>
+              <Icon name="close" size={14} />
             }
           >
             {t('permission.deny')}
@@ -260,3 +250,4 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
     </div>
   )
 }
+

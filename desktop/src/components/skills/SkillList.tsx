@@ -3,6 +3,7 @@ import { useSkillStore } from '../../stores/skillStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTranslation } from '../../i18n'
 import type { SkillMeta, SkillSource } from '../../types/skill'
+import { Icon } from '../shared/Icon'
 
 const SOURCE_ORDER: SkillSource[] = ['user', 'project', 'plugin', 'mcp', 'bundled']
 
@@ -67,19 +68,17 @@ export function SkillList() {
   }
 
   if (error) {
-    return <div className="text-sm text-[var(--color-error)] py-4">{error}</div>
+    return <div className="text-[14px] text-[var(--color-error)] py-4">{error}</div>
   }
 
   if (skills.length === 0) {
     return (
-      <div className="text-center py-12 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6">
-        <span className="material-symbols-outlined text-[40px] text-[var(--color-text-tertiary)] mb-2 block">
-          auto_awesome
-        </span>
-        <p className="text-sm text-[var(--color-text-tertiary)]">
+      <div className="text-center py-12 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6">
+        <Icon name="auto_awesome" size={40} className="text-[var(--color-text-tertiary)] mb-2 block" />
+        <p className="text-[14px] text-[var(--color-text-tertiary)]">
           {t('settings.skills.empty')}
         </p>
-        <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+        <p className="text-[12px] text-[var(--color-text-tertiary)] mt-1">
           {t('settings.skills.emptyHint')}
         </p>
       </div>
@@ -88,21 +87,19 @@ export function SkillList() {
 
   return (
     <div className="flex flex-col gap-6 min-w-0">
-      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
+      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
         <div className="grid gap-4 px-5 py-5 min-w-0 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] xl:items-end">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
               {t('settings.skills.browserEyebrow')}
             </div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="material-symbols-outlined text-[22px] text-[var(--color-brand)]">
-                auto_awesome
-              </span>
-              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+              <Icon name="auto_awesome" size={22} className="text-[var(--color-brand)]" />
+              <h3 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
                 {t('settings.skills.browserTitle')}
               </h3>
             </div>
-            <p className="text-sm leading-6 text-[var(--color-text-secondary)] max-w-3xl">
+            <p className="text-[14px] leading-6 text-[var(--color-text-secondary)] max-w-3xl">
               {t('settings.skills.browserDescription')}
             </p>
           </div>
@@ -145,24 +142,22 @@ export function SkillList() {
           return (
             <section
               key={source}
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden min-w-0"
+              className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden min-w-0"
             >
               <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${SOURCE_ACCENT_CLASSES[source]}`}>
-                      <span className="material-symbols-outlined text-[16px]">
-                        {SOURCE_ICONS[source]}
-                      </span>
+                      <Icon name={SOURCE_ICONS[source]} size={16} />
                     </span>
-                    <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                    <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
                       {sourceLabel}
                     </h4>
-                    <span className="text-xs text-[var(--color-text-tertiary)]">
+                    <span className="text-[12px] text-[var(--color-text-tertiary)]">
                       {group.length}
                     </span>
                   </div>
-                  <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+                  <p className="text-[12px] leading-5 text-[var(--color-text-tertiary)]">
                     {t('settings.skills.groupHint', {
                       source: sourceLabel,
                       count: String(group.length),
@@ -183,7 +178,7 @@ export function SkillList() {
                       fetchSkillDetail(skill.source, skill.name, currentWorkDir, 'skills')
                     }
                     disabled={!skill.hasDirectory}
-                    className="group rounded-xl border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:opacity-60 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:border-transparent"
+                    className="group rounded-md border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:opacity-60 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:border-transparent"
                   >
                     <div className="flex items-start gap-3">
                       <span className="mt-0.5 material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">
@@ -191,7 +186,7 @@ export function SkillList() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-[var(--color-text-primary)] break-all">
+                          <span className="text-[14px] font-semibold text-[var(--color-text-primary)] break-all">
                             {skill.displayName || skill.name}
                           </span>
                           {skill.version && (
@@ -200,12 +195,12 @@ export function SkillList() {
                             </span>
                           )}
                           {skill.userInvocable && (
-                            <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+                            <span className="rounded-full border-2 border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
                               {t('settings.skills.slashCommand')}
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)] break-words">
+                        <p className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)] break-words">
                           {skill.description}
                         </p>
                         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
@@ -214,9 +209,7 @@ export function SkillList() {
                           <span>{skill.hasDirectory ? t('settings.skills.ready') : t('settings.skills.unavailable')}</span>
                         </div>
                       </div>
-                      <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100">
-                        chevron_right
-                      </span>
+                      <Icon name="chevron_right" size={18} className="text-[var(--color-text-tertiary)] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
                     </div>
                   </button>
                 ))}
@@ -241,14 +234,15 @@ function SummaryCard({
   className?: string
 }) {
   return (
-    <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 min-w-0 ${className}`}>
+    <div className={`rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 min-w-0 ${className}`}>
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] min-w-0">
-        <span className="material-symbols-outlined text-[14px] flex-shrink-0">{icon}</span>
+        <Icon name={icon} size={14} className="flex-shrink-0" />
         <span className="truncate">{label}</span>
       </div>
-      <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)] truncate">
+      <div className="mt-2 text-[18px] font-semibold text-[var(--color-text-primary)] truncate">
         {value}
       </div>
     </div>
   )
 }
+

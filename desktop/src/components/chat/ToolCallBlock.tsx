@@ -7,6 +7,7 @@ import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
 import { InlineImageGallery } from './InlineImageGallery'
 import type { AgentTaskNotification } from '../../types/chat'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   toolName: string
@@ -50,7 +51,7 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
   const expandable = toolName === 'Edit' || toolName === 'Write' || hasResultDetails
 
   return (
-    <div className={`overflow-hidden rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-surface-container-lowest)] ${
+    <div className={`overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] ${
       compact ? 'mb-0' : 'mb-2'
     }`}>
       <button
@@ -62,7 +63,7 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
         }}
         className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
       >
-        <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">{icon}</span>
+        <Icon name={icon} size={14} className="text-[var(--color-outline)]" />
         <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">
           {toolName}
         </span>
@@ -89,12 +90,10 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
           </span>
         )}
         {result?.isError && (
-          <span className="material-symbols-outlined shrink-0 text-[14px] text-[var(--color-error)]">error</span>
+          <Icon name="error" size={18} className="shrink-0 text-[14px] text-[var(--color-error)]" />
         )}
         {expandable && (
-          <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">
-            {expanded ? 'expand_less' : 'expand_more'}
-          </span>
+          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)]" />
         )}
       </button>
 
@@ -144,9 +143,9 @@ function renderPreview(
       return (
         <>
           <InlineImageGallery text={text} />
-          <div className={`overflow-hidden rounded-lg border ${
+          <div className={`overflow-hidden rounded-lg border-2 ${
             result.isError
-              ? 'border-[var(--color-error)]/20 bg-[var(--color-error-container)]/60'
+              ? 'border-[var(--color-error)]/40 bg-[var(--color-error-container)]/60'
               : 'border-[var(--color-border)] bg-[var(--color-surface)]'
           }`}>
             <div className="flex items-center justify-between border-b border-[var(--color-border)]/60 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-outline)]">
@@ -173,7 +172,7 @@ function renderDetails(toolName: string, obj: Record<string, unknown>, t?: (key:
 
   const text = JSON.stringify(obj, null, 2)
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="flex items-center justify-between border-b border-[var(--color-border)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-outline)]">
         <span>{t?.('tool.toolInput') ?? 'Tool Input'}</span>
         <CopyButton
@@ -278,3 +277,4 @@ function changedLineSummary(oldString: string, newString: string, t?: (key: Tran
 
   return t?.('tool.linesChanged', { count: changed }) ?? `${changed} lines changed`
 }
+

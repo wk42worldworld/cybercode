@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify'
 import mermaid from 'mermaid'
 import { Modal } from '../shared/Modal'
 import { CopyButton } from '../shared/CopyButton'
+import { Icon } from '../shared/Icon'
 
 type Props = {
   code: string
@@ -229,9 +230,9 @@ export function MermaidRenderer({ code }: Props) {
 
   if (error) {
     return (
-      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-error)]/30">
+      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-error)]/50">
         <div className="flex items-center gap-2 border-b border-[var(--color-error)]/20 bg-[var(--color-error-container)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-error)]">
-          <span className="material-symbols-outlined text-[14px]">error</span>
+          <Icon name="error" size={14} />
           Mermaid Error
         </div>
         <div className="bg-[var(--color-error-container)]/30 px-3 py-2 font-[var(--font-mono)] text-[11px] text-[var(--color-error)]">
@@ -243,9 +244,9 @@ export function MermaidRenderer({ code }: Props) {
 
   if (!svg) {
     return (
-      <div className="my-4 flex items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-border)]/50 bg-[var(--color-surface-container-low)] py-8">
+      <div className="my-4 flex items-center justify-center rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] py-8">
         <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-tertiary)]">
-          <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+          <Icon name="progress_activity" size={18} className="animate-spin text-[16px]" />
           Rendering diagram...
         </div>
       </div>
@@ -254,24 +255,24 @@ export function MermaidRenderer({ code }: Props) {
 
   return (
     <>
-      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-outline-variant)]/50 bg-[var(--color-surface-container-low)]">
+      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container)] px-3 py-1.5 text-[11px] text-[var(--color-text-tertiary)]">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[14px]">account_tree</span>
+            <Icon name="account_tree" size={14} />
             <span className="font-semibold uppercase tracking-[0.14em]">Mermaid</span>
           </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={handlePreview}
-              className="flex items-center gap-1 rounded-md border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+              className="flex items-center gap-1 rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
             >
-              <span className="material-symbols-outlined text-[12px]">fullscreen</span>
+              <Icon name="fullscreen" size={12} />
               Preview
             </button>
             <CopyButton
               text={code}
-              className="rounded-md border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+              className="rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
             />
           </div>
         </div>
@@ -290,19 +291,19 @@ export function MermaidRenderer({ code }: Props) {
       <Modal open={previewOpen} onClose={handlePreviewClose} width={1100}>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-primary)]">
-              <span className="material-symbols-outlined text-[18px]">account_tree</span>
+            <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--color-text-primary)]">
+              <Icon name="account_tree" size={18} />
               Mermaid Diagram
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-1">
+              <div className="flex items-center gap-1 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-1">
                 <button
                   type="button"
                   onClick={zoomOut}
                   aria-label="Zoom out"
                   className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                 >
-                  <span className="material-symbols-outlined text-[16px]">remove</span>
+                  <Icon name="remove" size={16} />
                 </button>
                 <button
                   type="button"
@@ -317,7 +318,7 @@ export function MermaidRenderer({ code }: Props) {
                   aria-label="Zoom in"
                   className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                 >
-                  <span className="material-symbols-outlined text-[16px]">add</span>
+                  <Icon name="add" size={16} />
                 </button>
               </div>
               <CopyButton
@@ -329,7 +330,7 @@ export function MermaidRenderer({ code }: Props) {
           <div
             ref={previewViewportRef}
             data-testid="mermaid-preview-viewport"
-            className="overflow-auto rounded-xl bg-white"
+            className="overflow-auto rounded-md bg-white"
             style={{
               maxHeight: '75vh',
               cursor: isDraggingPreview ? 'grabbing' : 'grab',
@@ -360,3 +361,4 @@ export function MermaidRenderer({ code }: Props) {
     </>
   )
 }
+

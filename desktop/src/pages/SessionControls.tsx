@@ -6,6 +6,7 @@ import {
   mockSessions,
   mockStatusBar,
 } from '../mocks/data'
+import { Icon } from '../components/shared/Icon'
 
 /* ────────────────────────────────────────────────────────────────────
    Icon helpers for the permission modes (matching HTML prototype exactly)
@@ -39,9 +40,9 @@ export default function SessionControls() {
   return (
     <div className="h-screen w-screen bg-background text-on-surface font-body selection:bg-primary-fixed overflow-hidden relative">
       {/* ─── TopAppBar ─────────────────────────────────────────── */}
-      <header className="bg-[var(--color-surface)] font-headline font-semibold tracking-wide text-sm fixed top-0 left-0 right-0 flex justify-between items-center px-6 h-12 z-40">
+      <header className="bg-[var(--color-surface)] font-headline font-semibold tracking-wide text-[14px] fixed top-0 left-0 right-0 flex justify-between items-center px-6 h-12 z-40">
         <div className="flex items-center gap-6">
-          <span className="text-sm font-bold text-[var(--color-text-primary)] uppercase tracking-tighter">
+          <span className="text-[14px] font-bold text-[var(--color-text-primary)] uppercase tracking-tighter">
             CyberCode
           </span>
           <nav className="hidden md:flex gap-4">
@@ -73,7 +74,7 @@ export default function SessionControls() {
       <div className="bg-[var(--color-surface-container-low)] h-[1px] w-full fixed top-12 z-40" />
 
       {/* ─── SideNavBar ────────────────────────────────────────── */}
-      <aside className="bg-[var(--color-surface-container-low)] font-body text-sm font-medium fixed left-0 top-0 h-full w-[280px] hidden md:flex flex-col p-4 gap-2 pt-16 z-30">
+      <aside className="bg-[var(--color-surface-container-low)] font-body text-[14px] font-medium fixed left-0 top-0 h-full w-[280px] hidden md:flex flex-col p-4 gap-2 pt-16 z-30">
         {/* Project header */}
         <div className="px-2 mb-4">
           <div className="flex items-center gap-3 mb-1">
@@ -97,31 +98,31 @@ export default function SessionControls() {
           <span>New session</span>
         </button>
         <button className="w-full text-left p-2.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-all duration-200 ease-in-out flex items-center gap-3">
-          <span className="material-symbols-outlined">calendar_today</span>
+          <Icon name="calendar_today" size={18} />
           <span>Scheduled</span>
         </button>
         <button className="w-full text-left p-2.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-all duration-200 ease-in-out flex items-center gap-3" data-count={mockSessions.today.length}>
-          <span className="material-symbols-outlined">history</span>
+          <Icon name="history" size={18} />
           <span>Today</span>
         </button>
         <button className="w-full text-left p-2.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-all duration-200 ease-in-out flex items-center gap-3" data-count={mockSessions.previous7Days.length}>
-          <span className="material-symbols-outlined">event_note</span>
+          <Icon name="event_note" size={18} />
           <span>Previous 7 Days</span>
         </button>
         <button className="w-full text-left p-2.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-all duration-200 ease-in-out flex items-center gap-3" data-count={mockSessions.older.length}>
-          <span className="material-symbols-outlined">archive</span>
+          <Icon name="archive" size={18} />
           <span>Older</span>
         </button>
 
         {/* Bottom modes */}
         <div className="mt-auto pt-4 border-t border-outline/10 flex flex-col gap-1">
           <button className="flex items-center gap-3 p-2 text-outline hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-xs">computer</span>
-            <span className="text-xs">Local Mode</span>
+            <span className="material-symbols-outlined text-[12px]">computer</span>
+            <span className="text-[12px]">Local Mode</span>
           </button>
           <button className="flex items-center gap-3 p-2 text-outline hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-xs">cloud</span>
-            <span className="text-xs">Remote Mode</span>
+            <span className="material-symbols-outlined text-[12px]">cloud</span>
+            <span className="text-[12px]">Remote Mode</span>
           </button>
         </div>
       </aside>
@@ -133,16 +134,16 @@ export default function SessionControls() {
             {/* Main Thread */}
             <div className="col-span-8 space-y-8">
               {/* AI message */}
-              <div className="bg-surface-container-low rounded-xl p-6">
+              <div className="bg-surface-container-low rounded-md p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-[12px]">
                     AI
                   </div>
-                  <span className="font-semibold text-sm">Claude 4.6 Sonnet</span>
+                  <span className="font-semibold text-[14px]">Claude 4.6 Sonnet</span>
                 </div>
                 <p className="text-on-surface-variant leading-relaxed">
                   I've analyzed the{' '}
-                  <code className="bg-surface-dim px-1.5 py-0.5 rounded font-mono text-sm">
+                  <code className="bg-surface-dim px-1.5 py-0.5 rounded font-mono text-[14px]">
                     auth_provider.go
                   </code>{' '}
                   file. The race condition occurs during the token refresh cycle. I recommend
@@ -152,7 +153,7 @@ export default function SessionControls() {
 
               {/* User message */}
               <div className="flex justify-end">
-                <div className="bg-surface-container-highest rounded-xl p-6 max-w-[80%]">
+                <div className="bg-surface-container-highest rounded-md p-6 max-w-[80%]">
                   <p className="text-on-surface leading-relaxed">
                     Can you implement that? Also check if this affects the WebSocket connection
                     longevity.
@@ -161,12 +162,12 @@ export default function SessionControls() {
               </div>
 
               {/* Code Block Preview */}
-              <div className="bg-surface-dim rounded-lg overflow-hidden font-mono text-sm">
+              <div className="bg-surface-dim rounded-lg overflow-hidden font-mono text-[14px]">
                 <div className="bg-surface-container-high px-4 py-2 flex justify-between items-center">
-                  <span className="text-xs text-on-surface-variant">
+                  <span className="text-[12px] text-on-surface-variant">
                     internal/auth/provider.go
                   </span>
-                  <span className="material-symbols-outlined text-sm text-outline cursor-pointer">
+                  <span className="material-symbols-outlined text-[14px] text-outline cursor-pointer">
                     content_copy
                   </span>
                 </div>
@@ -184,21 +185,21 @@ export default function SessionControls() {
 
             {/* Session Meta */}
             <div className="col-span-4 space-y-6">
-              <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-outline mb-4">
+              <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-md p-4">
+                <h4 className="text-[12px] font-bold uppercase tracking-widest text-outline mb-4">
                   Context Files
                 </h4>
                 <ul className="space-y-3">
-                  <li className="flex items-center gap-2 text-sm text-on-surface-variant">
-                    <span className="material-symbols-outlined text-sm">description</span>
+                  <li className="flex items-center gap-2 text-[14px] text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[14px]">description</span>
                     auth_provider.go
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-on-surface-variant">
-                    <span className="material-symbols-outlined text-sm">description</span>
+                  <li className="flex items-center gap-2 text-[14px] text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[14px]">description</span>
                     main.go
                   </li>
-                  <li className="flex items-center gap-2 text-sm text-on-surface-variant">
-                    <span className="material-symbols-outlined text-sm">description</span>
+                  <li className="flex items-center gap-2 text-[14px] text-on-surface-variant">
+                    <span className="material-symbols-outlined text-[14px]">description</span>
                     session_test.go
                   </li>
                 </ul>
@@ -215,7 +216,7 @@ export default function SessionControls() {
           {/* ── Permissions Dropdown ─────────────────────────────── */}
           {showPermissions && (
             <div
-              className="w-80 rounded-xl border border-[#E8E6DC] overflow-hidden flex flex-col"
+              className="w-80 rounded-md border border-[#E8E6DC] overflow-hidden flex flex-col"
               style={{
                 background: 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(20px)',
@@ -259,16 +260,16 @@ export default function SessionControls() {
                       </span>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className={`text-sm font-semibold ${labelColor}`}>
+                          <span className={`text-[14px] font-semibold ${labelColor}`}>
                             {mode.label}
                           </span>
                           {isSelected && (
-                            <span className="material-symbols-outlined text-primary text-sm">
+                            <span className="material-symbols-outlined text-primary text-[14px]">
                               check_circle
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-on-surface-variant">{mode.description}</p>
+                        <p className="text-[12px] text-on-surface-variant">{mode.description}</p>
                       </div>
                     </button>
                   )
@@ -280,7 +281,7 @@ export default function SessionControls() {
           {/* ── Model & Effort Dropdown ─────────────────────────── */}
           {showModelConfig && (
             <div
-              className="w-64 rounded-xl border border-[#E8E6DC] overflow-hidden flex flex-col"
+              className="w-64 rounded-md border border-[#E8E6DC] overflow-hidden flex flex-col"
               style={{
                 background: 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(20px)',
@@ -316,16 +317,16 @@ export default function SessionControls() {
                         }`}
                       >
                         <span
-                          className={`material-symbols-outlined text-sm ${
+                          className={`material-symbols-outlined text-[14px] ${
                             isActive ? '' : 'text-outline'
                           }`}
                         >
                           {icon}
                         </span>
-                        <span className="text-sm">{model.name}</span>
+                        <span className="text-[14px]">{model.name}</span>
                       </div>
                       {isActive && (
-                        <span className="material-symbols-outlined text-sm">
+                        <span className="material-symbols-outlined text-[14px]">
                           radio_button_checked
                         </span>
                       )}
@@ -355,7 +356,7 @@ export default function SessionControls() {
                       <button
                         key={level}
                         onClick={() => setSelectedEffort(level)}
-                        className={`text-xs py-2 px-3 rounded-md transition-all ${
+                        className={`text-[12px] py-2 px-3 rounded-md transition-all ${
                           isActive
                             ? 'bg-primary text-on-primary'
                             : 'border border-outline-variant/30 hover:border-primary'
@@ -373,7 +374,7 @@ export default function SessionControls() {
 
         {/* ── The Composer (Anchor) ─────────────────────────────── */}
         <div
-          className="w-full max-w-2xl p-4 rounded-xl border border-outline-variant/15 pointer-events-auto flex flex-col gap-3"
+          className="w-full max-w-2xl p-4 rounded-md border border-outline-variant/15 pointer-events-auto flex flex-col gap-3"
           style={{
             background: 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(20px)',
@@ -391,9 +392,9 @@ export default function SessionControls() {
               {/* Permission pill */}
               <button
                 onClick={() => setShowPermissions((v) => !v)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-[#E8E6DC] text-xs font-medium hover:bg-surface-container-high transition-all"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-[#E8E6DC] text-[12px] font-medium hover:bg-surface-container-high transition-all"
               >
-                <span className="material-symbols-outlined text-base">
+                <span className="material-symbols-outlined text-[16px]">
                   {permissionIcons[selectedPermission]?.icon || 'verified_user'}
                 </span>
                 {mockPermissionModes.find((m) => m.id === selectedPermission)?.label ||
@@ -403,9 +404,9 @@ export default function SessionControls() {
               {/* Model pill */}
               <button
                 onClick={() => setShowModelConfig((v) => !v)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-[#E8E6DC] text-xs font-medium hover:bg-surface-container-high transition-all"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-[#E8E6DC] text-[12px] font-medium hover:bg-surface-container-high transition-all"
               >
-                <span className="material-symbols-outlined text-base">
+                <span className="material-symbols-outlined text-[16px]">
                   {modelIcons[selectedModel] || 'smart_toy'}
                 </span>
                 {activeModel?.name || 'Sonnet 4.6'}
@@ -413,21 +414,21 @@ export default function SessionControls() {
 
               {/* Attach file button */}
               <button className="p-1.5 rounded-lg text-outline hover:bg-surface-container-low transition-colors">
-                <span className="material-symbols-outlined">attach_file</span>
+                <Icon name="attach_file" size={18} />
               </button>
             </div>
 
             {/* Run button */}
-            <button className="bg-primary text-on-primary px-4 py-1.5 rounded-lg font-semibold text-sm flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <button className="bg-primary text-on-primary px-4 py-1.5 rounded-lg font-semibold text-[14px] flex items-center gap-2 hover:opacity-90 transition-opacity">
               Run
-              <span className="material-symbols-outlined text-base">send</span>
+              <span className="material-symbols-outlined text-[16px]">send</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* ─── Footer / Status Bar ───────────────────────────────── */}
-      <footer className="bg-[var(--color-surface)] font-body text-xs tracking-tight fixed bottom-0 left-0 w-full h-8 border-t border-[var(--color-text-secondary)]/20 flex items-center justify-between px-4 z-[60]">
+      <footer className="bg-[var(--color-surface)] font-body text-[12px] tracking-tight fixed bottom-0 left-0 w-full h-8 border-t border-[var(--color-text-secondary)]/20 flex items-center justify-between px-4 z-[60]">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded-full bg-primary-fixed flex items-center justify-center">
@@ -458,3 +459,4 @@ export default function SessionControls() {
     </div>
   )
 }
+

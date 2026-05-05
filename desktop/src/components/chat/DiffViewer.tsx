@@ -120,7 +120,7 @@ export function DiffViewer({ filePath, oldString, newString }: Props) {
   const deletions = oldLines.filter((l, i) => l !== (newLines[i] ?? null)).length
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-outline-variant)]/50 bg-[var(--color-surface-container-low)]">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/50 bg-[var(--color-surface-container-low)]">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container)] px-3 py-1.5">
         <div className="min-w-0">
@@ -135,7 +135,7 @@ export function DiffViewer({ filePath, oldString, newString }: Props) {
         <CopyButton
           text={`--- ${filePath}\n+++ ${filePath}`}
           label="Copy path"
-          className="rounded-md border border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+          className="rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
         />
       </div>
 

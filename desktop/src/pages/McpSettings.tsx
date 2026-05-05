@@ -7,6 +7,7 @@ import { useUIStore } from '../stores/uiStore'
 import { useMcpStore } from '../stores/mcpStore'
 import { useSessionStore } from '../stores/sessionStore'
 import type { McpServerRecord, McpUpsertPayload } from '../types/mcp'
+import { Icon } from '../components/shared/Icon'
 
 type EditorMode =
   | { type: 'list' }
@@ -296,8 +297,8 @@ function ArraySection({
   addLabel: string
 }) {
   return (
-    <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <div className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">{title}</div>
+    <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+      <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">{title}</div>
       <div className="space-y-3">
         {rows.map((row) => (
           <div key={row.id} className={`grid gap-3 ${singleValue ? 'grid-cols-[minmax(0,1fr)_32px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px]'}`}>
@@ -319,7 +320,7 @@ function ArraySection({
               className="mt-1 flex h-10 w-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
               aria-label={addLabel}
             >
-              <span className="material-symbols-outlined text-[18px]">delete</span>
+              <Icon name="delete" size={18} />
             </button>
           </div>
         ))}
@@ -328,7 +329,7 @@ function ArraySection({
           onClick={onAdd}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <Icon name="add" size={18} />
           {addLabel}
         </button>
       </div>
@@ -338,10 +339,10 @@ function ArraySection({
 
 function StatCard({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-5 py-4">
+    <div className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-5 py-4">
       <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] mb-2">
-        <span className="material-symbols-outlined text-[18px]">{icon}</span>
-        <span className="text-xs uppercase tracking-[0.18em] font-semibold">{label}</span>
+        <Icon name={icon} size={18} />
+        <span className="text-[12px] uppercase tracking-[0.18em] font-semibold">{label}</span>
       </div>
       <div className="text-3xl font-semibold text-[var(--color-text-primary)]">{value}</div>
     </div>
@@ -368,7 +369,7 @@ function ServerRow({
           <div className="text-[1.05rem] font-semibold text-[var(--color-text-primary)] truncate">{server.name}</div>
           <StatusBadge server={server} />
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+        <div className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
           <span className="rounded-full bg-[var(--color-surface-hover)] px-2 py-1 font-medium text-[var(--color-text-secondary)]">
             {transportLabel(server.transport, t)}
           </span>
@@ -378,7 +379,7 @@ function ServerRow({
           <span className="truncate">{server.summary}</span>
         </div>
         {server.statusDetail && (
-          <div className="mt-2 text-xs text-[var(--color-text-tertiary)] truncate">{server.statusDetail}</div>
+          <div className="mt-2 text-[12px] text-[var(--color-text-tertiary)] truncate">{server.statusDetail}</div>
         )}
       </div>
 
@@ -388,7 +389,7 @@ function ServerRow({
         className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         aria-label={`Open ${server.name}`}
       >
-        <span className="material-symbols-outlined text-[20px]">settings</span>
+        <Icon name="settings" size={20} />
       </button>
 
       <ToggleSwitch checked={server.enabled} disabled={isBusy || !server.canToggle} onChange={onToggle} />
@@ -606,7 +607,7 @@ export function McpSettings() {
         </>
       )}
     >
-      <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+      <p className="text-[14px] leading-6 text-[var(--color-text-secondary)]">
         {pendingDeleteServer ? t('settings.mcp.form.deleteConfirmBody', { name: pendingDeleteServer.name }) : ''}
       </p>
     </Modal>
@@ -682,32 +683,32 @@ export function McpSettings() {
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
-            className="mb-5 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+            className="mb-5 inline-flex items-center gap-2 text-[14px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
           >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            <Icon name="arrow_back" size={18} />
             {t('settings.mcp.form.back')}
           </button>
 
           <div className="flex items-start justify-between gap-4 mb-6">
             <div>
               <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">{server.name}</h1>
-              <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">{server.summary}</p>
+              <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">{server.summary}</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <StatusBadge server={server} />
                 {server.statusDetail && (
-                  <span className="text-sm text-[var(--color-text-tertiary)]">{server.statusDetail}</span>
+                  <span className="text-[14px] text-[var(--color-text-tertiary)]">{server.statusDetail}</span>
                 )}
               </div>
             </div>
             {server.canReconnect && (
               <Button variant="secondary" onClick={() => handleReconnect(server)} loading={busyServerName === server.name}>
-                <span className="material-symbols-outlined text-[16px]">sync</span>
+                <Icon name="sync" size={16} />
                 {t('settings.mcp.form.reconnect')}
               </Button>
             )}
           </div>
 
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-6">
             <div className="grid gap-4 md:grid-cols-2">
               <InfoPair label={t('settings.mcp.form.transport')} value={transportLabel(server.transport, t)} />
               <InfoPair label={t('settings.mcp.form.scope')} value={scopeLabel(server, t)} />
@@ -715,8 +716,8 @@ export function McpSettings() {
               <InfoPair label={t('settings.mcp.form.location')} value={server.configLocation} />
             </div>
             <div className="mt-5">
-              <div className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">{t('settings.mcp.form.rawConfig')}</div>
-              <pre className="overflow-x-auto rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] p-4 text-xs text-[var(--color-text-secondary)]">
+              <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2">{t('settings.mcp.form.rawConfig')}</div>
+              <pre className="overflow-x-auto rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] p-4 text-[12px] text-[var(--color-text-secondary)]">
                 {JSON.stringify(server.config, null, 2)}
               </pre>
             </div>
@@ -739,9 +740,9 @@ export function McpSettings() {
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
-            className="mb-5 inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+            className="mb-5 inline-flex items-center gap-2 text-[14px] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
           >
-            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            <Icon name="arrow_back" size={18} />
             {t('settings.mcp.form.back')}
           </button>
 
@@ -750,14 +751,14 @@ export function McpSettings() {
               <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
                 {editing ? t('settings.mcp.form.editTitle', { name: targetServer!.name }) : t('settings.mcp.form.createTitle')}
               </h1>
-              <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
+              <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">
                 {editing ? t('settings.mcp.form.editHint') : t('settings.mcp.form.createHint')}
               </p>
               {editing && targetServer && (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <StatusBadge server={targetServer} />
                   {targetServer.statusDetail && (
-                    <span className="text-sm text-[var(--color-text-tertiary)]">{targetServer.statusDetail}</span>
+                    <span className="text-[14px] text-[var(--color-text-tertiary)]">{targetServer.statusDetail}</span>
                   )}
                 </div>
               )}
@@ -766,7 +767,7 @@ export function McpSettings() {
             <div className="flex items-center gap-3">
               {editing && targetServer?.canReconnect && (
                 <Button variant="secondary" onClick={() => handleReconnect(targetServer)} loading={busyServerName === targetServer.name}>
-                  <span className="material-symbols-outlined text-[16px]">sync</span>
+                  <Icon name="sync" size={16} />
                   {t('settings.mcp.form.reconnect')}
                 </Button>
               )}
@@ -777,7 +778,7 @@ export function McpSettings() {
                   onClick={() => handleDelete(targetServer)}
                   loading={isDeleting}
                 >
-                  <span className="material-symbols-outlined text-[16px]">delete</span>
+                  <Icon name="delete" size={16} />
                   {t('settings.mcp.form.uninstall')}
                 </Button>
               )}
@@ -785,7 +786,7 @@ export function McpSettings() {
           </div>
 
           <div className="space-y-4">
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <Input
               label={t('settings.mcp.form.name')}
               value={draft.name}
@@ -796,16 +797,16 @@ export function McpSettings() {
             />
           </section>
 
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-            <div className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">
+          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2">
               {t('settings.mcp.form.scope')}
             </div>
-            <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+            <p className="text-[12px] leading-5 text-[var(--color-text-tertiary)]">
               {t('settings.mcp.globalOnlyHint')}
             </p>
           </section>
 
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
             <div className="grid grid-cols-3">
               {(['stdio', 'http', 'sse'] as TransportKind[]).map((transport) => {
                 const active = draft.transport === transport
@@ -815,7 +816,7 @@ export function McpSettings() {
                     type="button"
                     disabled={transportLocked}
                     onClick={() => setDraftField('transport', transport)}
-                    className={`h-14 text-sm font-semibold transition-colors ${
+                    className={`h-14 text-[14px] font-semibold transition-colors ${
                       active
                         ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]'
                         : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
@@ -829,14 +830,14 @@ export function McpSettings() {
           </section>
 
           {editing && (
-            <div className="text-sm text-[var(--color-text-tertiary)]">
+            <div className="text-[14px] text-[var(--color-text-tertiary)]">
               {t('settings.mcp.form.transportLocked')}
             </div>
           )}
 
           {draft.transport === 'stdio' ? (
             <>
-              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <Input
                   label={t('settings.mcp.form.command')}
                   value={draft.command}
@@ -844,7 +845,7 @@ export function McpSettings() {
                   placeholder={t('settings.mcp.form.commandPlaceholder')}
                   required
                 />
-                <p className="mt-2 text-xs leading-5 text-[var(--color-text-tertiary)]">
+                <p className="mt-2 text-[12px] leading-5 text-[var(--color-text-tertiary)]">
                   {t('settings.mcp.form.commandHostHint')}
                 </p>
               </section>
@@ -873,7 +874,7 @@ export function McpSettings() {
             </>
           ) : (
             <>
-              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <Input
                   label={draft.transport === 'http' ? t('settings.mcp.form.url') : t('settings.mcp.form.sseUrl')}
                   value={draft.url}
@@ -894,7 +895,7 @@ export function McpSettings() {
                 addLabel={t('settings.mcp.form.addHeader')}
               />
 
-              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <Input
                     label={t('settings.mcp.form.oauthClientId')}
@@ -940,12 +941,12 @@ export function McpSettings() {
           <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
             {t('settings.mcp.title')}
           </h1>
-          <p className="mt-1 text-sm text-[var(--color-text-tertiary)]">
+          <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">
             {t('settings.mcp.description')}
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={beginCreate}>
-          <span className="material-symbols-outlined text-[18px]">add</span>
+          <Icon name="add" size={18} />
           {t('settings.mcp.addServer')}
         </Button>
       </div>
@@ -961,22 +962,22 @@ export function McpSettings() {
           <div className="animate-spin h-6 w-6 rounded-full border-2 border-[var(--color-brand)] border-t-transparent" />
         </div>
       ) : error ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
-          <span className="material-symbols-outlined text-[40px] text-[var(--color-error)] mb-3 block">error</span>
-          <p className="text-sm text-[var(--color-error)] mb-3">{error}</p>
+        <div className="text-center py-16 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+          <Icon name="error" size={40} className="text-[var(--color-error)] mb-3 block" />
+          <p className="text-[14px] text-[var(--color-error)] mb-3">{error}</p>
           <button
             type="button"
             onClick={() => void fetchServers(undefined, currentWorkDir)}
-            className="text-sm text-[var(--color-text-accent)] hover:underline"
+            className="text-[14px] text-[var(--color-text-accent)] hover:underline"
           >
             {t('common.retry')}
           </button>
         </div>
       ) : servers.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
-          <span className="material-symbols-outlined text-[40px] text-[var(--color-text-tertiary)] mb-3 block">dns</span>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-1">{t('settings.mcp.empty')}</p>
-          <p className="text-xs text-[var(--color-text-tertiary)]">{t('settings.mcp.emptyHint')}</p>
+        <div className="text-center py-16 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+          <Icon name="dns" size={40} className="text-[var(--color-text-tertiary)] mb-3 block" />
+          <p className="text-[14px] text-[var(--color-text-secondary)] mb-1">{t('settings.mcp.empty')}</p>
+          <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.mcp.emptyHint')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -990,9 +991,9 @@ export function McpSettings() {
                   <div className="text-[1.35rem] font-semibold text-[var(--color-text-primary)]">
                     {group === 'plugin' ? t('settings.mcp.scope.plugin') : t(`settings.mcp.scope.${group}`)}
                   </div>
-                  <div className="text-sm text-[var(--color-text-tertiary)]">{groupServers.length}</div>
+                  <div className="text-[14px] text-[var(--color-text-tertiary)]">{groupServers.length}</div>
                 </div>
-                <div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+                <div className="rounded-[5px] border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
                   {groupServers.map((server) => (
                     <ServerRow
                       key={`${server.scope}:${server.name}`}
@@ -1017,8 +1018,9 @@ export function McpSettings() {
 function InfoPair({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] px-4 py-3">
-      <div className="text-xs uppercase tracking-[0.16em] font-semibold text-[var(--color-text-tertiary)] mb-2">{label}</div>
-      <div className="text-sm text-[var(--color-text-primary)] break-all">{value}</div>
+      <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-[var(--color-text-tertiary)] mb-2">{label}</div>
+      <div className="text-[14px] text-[var(--color-text-primary)] break-all">{value}</div>
     </div>
   )
 }
+

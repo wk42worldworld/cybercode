@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { mockToolInspection } from '../mocks/data'
+import { Icon } from '../components/shared/Icon'
 
 export function ToolInspection() {
   const [activeDiffTab, setActiveDiffTab] = useState<'split' | 'unified'>('split')
@@ -29,10 +30,10 @@ export function ToolInspection() {
               <p className="text-[var(--color-on-surface-variant)] font-medium">{description}</p>
             </div>
             <div className="flex gap-2">
-              <button className="px-4 py-2 bg-[var(--color-surface-container-high)] rounded-lg text-sm font-semibold hover:bg-[var(--color-surface-variant)] transition-all">
+              <button className="px-4 py-2 bg-[var(--color-surface-container-high)] rounded-lg text-[14px] font-semibold hover:bg-[var(--color-surface-variant)] transition-all">
                 Revert Change
               </button>
-              <button className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-all">
+              <button className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded-lg text-[14px] font-semibold shadow-sm hover:opacity-90 transition-all">
                 Apply to All
               </button>
             </div>
@@ -40,38 +41,33 @@ export function ToolInspection() {
 
           {/* ── Metadata cards ─────────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[var(--color-surface-container-low)] rounded-xl p-4 flex flex-col gap-1">
+            <div className="bg-[var(--color-surface-container-low)] rounded-md p-4 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-[var(--color-outline)] uppercase tracking-wider">
                 Target File
               </span>
               <div className="flex items-center gap-2 text-[var(--color-on-surface)]">
-                <span className="material-symbols-outlined text-[18px]">description</span>
-                <span className="font-[var(--font-mono)] text-sm">{filePath}</span>
+                <Icon name="description" size={18} />
+                <span className="font-[var(--font-mono)] text-[14px]">{filePath}</span>
               </div>
             </div>
 
-            <div className="bg-[var(--color-surface-container-low)] rounded-xl p-4 flex flex-col gap-1">
+            <div className="bg-[var(--color-surface-container-low)] rounded-md p-4 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-[var(--color-outline)] uppercase tracking-wider">
                 Status
               </span>
               <div className="flex items-center gap-2 text-[var(--color-tertiary)]">
-                <span
-                  className="material-symbols-outlined text-[18px]"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  check_circle
-                </span>
-                <span className="font-semibold text-sm">{dryRunStatus}</span>
+                <Icon name="check_circle" size={18} />
+                <span className="font-semibold text-[14px]">{dryRunStatus}</span>
               </div>
             </div>
 
-            <div className="bg-[var(--color-surface-container-low)] rounded-xl p-4 flex flex-col gap-1">
+            <div className="bg-[var(--color-surface-container-low)] rounded-md p-4 flex flex-col gap-1">
               <span className="text-[10px] font-bold text-[var(--color-outline)] uppercase tracking-wider">
                 Lines Modified
               </span>
               <div className="flex items-center gap-2 text-[var(--color-on-surface)]">
-                <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                <span className="font-semibold text-sm">
+                <Icon name="edit_note" size={18} />
+                <span className="font-semibold text-[14px]">
                   +{linesChanged.added} / -{linesChanged.removed} lines
                 </span>
               </div>
@@ -79,7 +75,7 @@ export function ToolInspection() {
           </div>
 
           {/* ── Diff Viewer ────────────────────────────────── */}
-          <div className="bg-[var(--color-surface-dim)] rounded-xl overflow-hidden border border-[var(--color-outline-variant)]/20 shadow-sm">
+          <div className="bg-[var(--color-surface-dim)] rounded-md overflow-hidden border-2 border-[var(--color-outline-variant)]/20 shadow-sm">
             <div className="px-4 py-2.5 bg-[var(--color-surface-container-high)] flex items-center justify-between border-b border-[var(--color-outline-variant)]/20">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
@@ -87,7 +83,7 @@ export function ToolInspection() {
                   <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-primary-fixed-dim)]" />
                   <div className="w-2.5 h-2.5 rounded-full bg-[var(--color-tertiary-container)] opacity-30" />
                 </div>
-                <span className="font-[var(--font-mono)] text-xs text-[var(--color-outline)] px-2 border-l border-[var(--color-outline-variant)]/30">
+                <span className="font-[var(--font-mono)] text-[12px] text-[var(--color-outline)] px-2 border-l border-[var(--color-outline-variant)]/30">
                   {filePath} — Diff View
                 </span>
               </div>
@@ -153,23 +149,21 @@ export function ToolInspection() {
           </div>
 
           {/* ── Implementation Context ─────────────────────── */}
-          <div className="p-6 bg-[var(--color-surface-container-lowest)] rounded-2xl border border-[var(--color-outline-variant)]/10">
-            <h3 className="font-[var(--font-headline)] font-bold text-sm text-[var(--color-on-surface)] mb-4">
+          <div className="p-6 bg-[var(--color-surface-container-lowest)] rounded-lg border-2 border-[var(--color-outline-variant)]/10">
+            <h3 className="font-[var(--font-headline)] font-bold text-[14px] text-[var(--color-on-surface)] mb-4">
               Implementation Context
             </h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="mt-1 w-6 h-6 rounded bg-[var(--color-primary-fixed)] flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[14px] text-[var(--color-on-primary)]">
-                      psychology
-                    </span>
+                    <Icon name="psychology" size={14} className="text-[var(--color-on-primary)]" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-outline)] mb-1">
+                    <p className="text-[12px] font-bold uppercase tracking-widest text-[var(--color-outline)] mb-1">
                       Reasoning
                     </p>
-                    <p className="text-sm text-[var(--color-on-surface-variant)] leading-relaxed">
+                    <p className="text-[14px] text-[var(--color-on-surface-variant)] leading-relaxed">
                       The <code className="font-[var(--font-mono)]">legacyAuthService</code> was
                       deprecated in RFC-204. The new SDK provides automatic session refresh and
                       better error typing. This migration ensures the login flow is compliant with
@@ -180,15 +174,13 @@ export function ToolInspection() {
 
                 <div className="flex items-start gap-3">
                   <div className="mt-1 w-6 h-6 rounded bg-[var(--color-diff-added-bg)] flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[14px] text-[var(--color-diff-added-text)]">
-                      science
-                    </span>
+                    <Icon name="science" size={14} className="text-[var(--color-diff-added-text)]" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-outline)] mb-1">
+                    <p className="text-[12px] font-bold uppercase tracking-widest text-[var(--color-outline)] mb-1">
                       Impact Analysis
                     </p>
-                    <p className="text-sm text-[var(--color-on-surface-variant)] leading-relaxed">
+                    <p className="text-[14px] text-[var(--color-on-surface-variant)] leading-relaxed">
                       No changes needed in calling components. The interface remains compatible but
                       internal state management is improved.
                     </p>
@@ -197,7 +189,7 @@ export function ToolInspection() {
               </div>
 
               <div className="flex items-center justify-center">
-                <div className="w-full h-32 rounded-xl bg-[var(--color-surface-container)] relative overflow-hidden group">
+                <div className="w-full h-32 rounded-md bg-[var(--color-surface-container)] relative overflow-hidden group">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/5 to-[var(--color-secondary)]/5" />
                   <div className="absolute inset-0 flex items-center justify-center gap-4">
                     <div className="flex flex-col items-center gap-1">
@@ -233,3 +225,4 @@ export function ToolInspection() {
     </div>
   )
 }
+

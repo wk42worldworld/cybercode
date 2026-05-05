@@ -31,6 +31,7 @@ import { SettingsPage, SettingsSection, SettingsRow, SegmentedControl, Switch } 
 import { useUpdateStore } from '../stores/updateStore'
 import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
+import { Icon } from '../components/shared/Icon'
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('providers')
@@ -43,32 +44,66 @@ export function Settings() {
     useUIStore.getState().setPendingSettingsTab(null)
   }, [pendingSettingsTab])
 
+  const tabTitle = t(`settings.tab.${activeTab}` as never) as string
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">
-      <div className="flex-1 flex overflow-hidden">
-        {/* Tab navigation */}
-        <div className="w-[180px] border-r border-[var(--color-border)] py-3 flex-shrink-0 flex flex-col">
-          <div className="flex-1">
-            <TabButton icon="arrow_back" label={t('settings.back')} active={false} onClick={() => useUIStore.getState().closeSettings()} />
-            <div className="my-1 border-t border-[var(--color-border)]/40" />
-            <TabButton icon="dns" label={t('settings.tab.providers')} active={activeTab === 'providers'} onClick={() => setActiveTab('providers')} />
-            <TabButton icon="shield" label={t('settings.tab.permissions')} active={activeTab === 'permissions'} onClick={() => setActiveTab('permissions')} />
-            <TabButton icon="tune" label={t('settings.tab.general')} active={activeTab === 'general'} onClick={() => setActiveTab('general')} />
-            <TabButton icon="chat" label={t('settings.tab.adapters')} active={activeTab === 'adapters'} onClick={() => setActiveTab('adapters')} />
-            <TabButton icon="terminal" label={t('settings.tab.terminal')} active={activeTab === 'terminal'} onClick={() => setActiveTab('terminal')} />
-            <TabButton icon="dns" label={t('settings.tab.mcp')} active={activeTab === 'mcp'} onClick={() => setActiveTab('mcp')} />
-            <TabButton icon="smart_toy" label={t('settings.tab.agents')} active={activeTab === 'agents'} onClick={() => setActiveTab('agents')} />
-            <TabButton icon="auto_awesome" label={t('settings.tab.skills')} active={activeTab === 'skills'} onClick={() => setActiveTab('skills')} />
-            <TabButton icon="extension" label={t('settings.tab.plugins')} active={activeTab === 'plugins'} onClick={() => setActiveTab('plugins')} />
-            <TabButton icon="mouse" label={t('settings.tab.computerUse')} active={activeTab === 'computerUse'} onClick={() => setActiveTab('computerUse')} />
-          </div>
-          <div className="border-t border-[var(--color-border)]/40 pt-1">
-            <TabButton icon="info" label={t('settings.tab.about')} active={activeTab === 'about'} onClick={() => setActiveTab('about')} />
-          </div>
+    <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#050505]">
+      {/* Top toolbar — title on the left, close affordance on the right */}
+      <header className="h-12 flex items-center justify-between px-5 border-b border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#050505] shrink-0 z-10">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            onClick={() => useUIStore.getState().closeSettings()}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-black/65 dark:text-white/65 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            aria-label={t('settings.back')}
+            title={t('settings.back')}
+          >
+            <Icon name="arrow_back" size={20} />
+          </button>
+          <span className="text-[13px] font-semibold tracking-tight text-black/90 dark:text-white/90 truncate">
+            {t('sidebar.settings')}
+            <span className="mx-2 opacity-30">/</span>
+            <span className="text-black/70 dark:text-white/70 font-normal">{tabTitle}</span>
+          </span>
         </div>
+        <button
+          onClick={() => useUIStore.getState().closeSettings()}
+          className="flex h-7 w-7 items-center justify-center rounded-full text-black/65 dark:text-white/65 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          aria-label="Close"
+          title="Esc"
+        >
+          <Icon name="close" size={18} />
+        </button>
+      </header>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar nav — grouped, Apple-style */}
+        <nav className="w-[228px] shrink-0 overflow-y-auto bg-black/[0.02] dark:bg-white/[0.02] border-r border-black/[0.12] dark:border-white/[0.12] py-4 px-3 space-y-5">
+          <NavGroup>
+            <NavItem icon="dns"          label={t('settings.tab.providers')}   active={activeTab === 'providers'}   onClick={() => setActiveTab('providers')} />
+            <NavItem icon="shield"       label={t('settings.tab.permissions')} active={activeTab === 'permissions'} onClick={() => setActiveTab('permissions')} />
+          </NavGroup>
+
+          <NavGroup>
+            <NavItem icon="tune"         label={t('settings.tab.general')}     active={activeTab === 'general'}     onClick={() => setActiveTab('general')} />
+            <NavItem icon="terminal"     label={t('settings.tab.terminal')}    active={activeTab === 'terminal'}    onClick={() => setActiveTab('terminal')} />
+          </NavGroup>
+
+          <NavGroup>
+            <NavItem icon="chat"         label={t('settings.tab.adapters')}    active={activeTab === 'adapters'}    onClick={() => setActiveTab('adapters')} />
+            <NavItem icon="hub"          label={t('settings.tab.mcp')}         active={activeTab === 'mcp'}         onClick={() => setActiveTab('mcp')} />
+            <NavItem icon="smart_toy"    label={t('settings.tab.agents')}      active={activeTab === 'agents'}      onClick={() => setActiveTab('agents')} />
+            <NavItem icon="auto_awesome" label={t('settings.tab.skills')}      active={activeTab === 'skills'}      onClick={() => setActiveTab('skills')} />
+            <NavItem icon="extension"    label={t('settings.tab.plugins')}     active={activeTab === 'plugins'}     onClick={() => setActiveTab('plugins')} />
+            <NavItem icon="mouse"        label={t('settings.tab.computerUse')} active={activeTab === 'computerUse'} onClick={() => setActiveTab('computerUse')} />
+          </NavGroup>
+
+          <NavGroup>
+            <NavItem icon="info"         label={t('settings.tab.about')}       active={activeTab === 'about'}       onClick={() => setActiveTab('about')} />
+          </NavGroup>
+        </nav>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-10 py-10">
           {activeTab === 'providers' && <ProviderSettings />}
           {activeTab === 'permissions' && <PermissionSettings />}
           {activeTab === 'general' && <GeneralSettings />}
@@ -86,18 +121,22 @@ export function Settings() {
   )
 }
 
-function TabButton({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) {
+function NavGroup({ children }: { children: ReactNode }) {
+  return <div className="space-y-0.5">{children}</div>
+}
+
+function NavItem({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[11px] uppercase tracking-[0.08em] text-left transition-colors ${
+      className={`w-full flex items-center gap-3 h-10 px-3.5 rounded-md text-[13px] font-medium tracking-[-0.01em] transition-all duration-200 ${
         active
-          ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] font-bold'
-          : 'text-[var(--color-text-secondary)] font-semibold hover:bg-[var(--color-surface-hover)]'
+          ? 'bg-[var(--color-spacex-accent)]/10 text-[var(--color-spacex-accent)]'
+          : 'text-black/65 dark:text-white/65 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black/80 dark:hover:text-white/80'
       }`}
     >
-      <span className="material-symbols-outlined text-[18px]">{icon}</span>
-      {label}
+      <Icon name={icon} size={20} className="shrink-0" />
+      <span className="truncate">{label}</span>
     </button>
   )
 }
@@ -178,53 +217,80 @@ function ProviderSettings() {
   const isOfficialActive = hasLoadedProviders && activeId === null
 
   return (
-    <div className="max-w-2xl">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">{t('settings.providers.title')}</h2>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.description')}</p>
-        </div>
-        <Button size="sm" onClick={() => setShowCreateModal(true)} disabled={isPresetsLoading || presets.length === 0}>
-          <span className="material-symbols-outlined text-[16px]">add</span>
-          {t('settings.providers.addProvider')}
-        </Button>
-      </div>
-
-      {/* Official provider — always visible at top */}
+    <SettingsPage
+      icon="dns"
+      title={t('settings.providers.title')}
+      description={t('settings.providers.description')}
+    >
+      {/* Official provider */}
       <div
-        className={`relative flex flex-col rounded-xl border transition-all mb-2 ${
+        className={`group relative overflow-hidden rounded-lg border-2 transition-all cursor-pointer ${
           isOfficialActive
-            ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
-            : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] cursor-pointer'
+            ? 'border-black dark:border-white bg-black/[0.02] dark:bg-white/[0.02]'
+            : 'border-black/30 dark:border-white/30 hover:border-black dark:hover:border-white'
         }`}
+        onClick={() => !isOfficialActive && handleActivateOfficial()}
       >
-        <div
-          className="flex items-center gap-4 px-4 py-3.5"
-          onClick={() => !isOfficialActive && handleActivateOfficial()}
-        >
-          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isOfficialActive ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
+        <div className="flex items-center gap-5 px-5 py-4">
+          {/* Avatar */}
+          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[17px] font-bold ${
+            isOfficialActive
+              ? 'bg-black dark:bg-white text-white dark:text-black'
+              : 'bg-black/10 dark:bg-white/20 text-black dark:text-white'
+          }`}>
+            A
+          </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-[var(--color-text-primary)]">{t('settings.providers.officialName')}</span>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+                {t('settings.providers.officialName')}
+              </span>
               {isOfficialActive && (
-                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.default')}</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {t('settings.providers.default')}
+                </span>
               )}
             </div>
-            <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.officialDesc')}</div>
+            <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">
+              {t('settings.providers.officialDesc')}
+            </p>
           </div>
+          {!isOfficialActive && (
+            <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); handleActivateOfficial() }}>
+              {t('settings.providers.setDefault')}
+            </Button>
+          )}
         </div>
-
         {isOfficialActive && (
-          <div className="px-4 pb-4 pt-3 border-t border-[var(--color-border-separator)]">
+          <div className="px-5 pb-5 pt-1 border-t border-black/[0.10] dark:border-white/[0.10]">
             <ClaudeOfficialLogin />
           </div>
         )}
       </div>
 
       {/* Saved providers */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        disabled={isPresetsLoading || presets.length === 0}
+        className="w-full flex items-center gap-4 px-5 py-4 rounded-lg border-2 border-dashed border-black/50 dark:border-white/50 text-[var(--color-text-secondary)] hover:border-black dark:hover:border-white hover:text-[var(--color-text-primary)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black/40 dark:border-white/40">
+          <Icon name="add" size={18} />
+        </div>
+        <div className="text-left">
+          <div className="text-[14px] font-semibold tracking-tight">{t('settings.providers.addProvider')}</div>
+          <div className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.description')}</div>
+        </div>
+      </button>
+
       {isLoading && providers.length === 0 ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin w-5 h-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />
+        <div className="flex justify-center py-10">
+          <Icon name="loading" size={24} className="animate-spin text-[var(--color-text-tertiary)]" />
+        </div>
+      ) : providers.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-black/[0.10] dark:border-white/[0.10] py-10 text-center text-[13px] text-[var(--color-text-tertiary)]">
+          {t('settings.providers.addProvider')} →
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -232,60 +298,79 @@ function ProviderSettings() {
             const isActive = activeId === provider.id
             const test = testResults[provider.id]
             const preset = presetMap.get(provider.presetId)
+            const initials = provider.name.slice(0, 2).toUpperCase()
             return (
               <div
                 key={provider.id}
-                className={`relative flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all group ${
+                className={`relative rounded-lg border-2 transition-all ${
                   isActive
-                    ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
-                    : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)]'
+                    ? 'border-black dark:border-white bg-black/[0.02] dark:bg-white/[0.02]'
+                    : 'border-black/30 dark:border-white/30 hover:border-black dark:hover:border-white'
                 }`}
               >
-                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isActive ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{provider.name}</span>
-                    {preset && preset.id !== 'custom' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] leading-none">{preset.name}</span>
-                    )}
-                    {provider.apiFormat && provider.apiFormat !== 'anthropic' && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--color-surface-container-high)] text-[var(--color-warning)] leading-none">
-                        {provider.apiFormat === 'openai_chat' ? 'OpenAI Chat' : 'OpenAI Responses'}
-                      </span>
-                    )}
-                    {isActive && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded border border-[var(--color-brand)]/18 bg-[var(--color-brand)]/14 text-[var(--color-brand)] leading-none">{t('settings.providers.default')}</span>
-                    )}
+                <div className="flex items-center gap-4 px-5 py-4">
+                  {/* Avatar */}
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[13px] font-bold tracking-wider ${
+                    isActive
+                      ? 'bg-black dark:bg-white text-white dark:text-black'
+                      : 'bg-black/10 dark:bg-white/20 text-black dark:text-white'
+                  }`}>
+                    {initials}
                   </div>
-                  <div className="text-xs text-[var(--color-text-tertiary)] truncate mt-0.5">
-                    {provider.baseUrl} &middot; {provider.models.main}
-                  </div>
-                  {test && !test.loading && test.result && (
-                    <div className="text-xs mt-1 flex flex-col gap-0.5">
-                      <span className={test.result.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}>
-                        {test.result.connectivity.success
-                          ? t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })
-                          : t('settings.providers.connectivityFailed', { error: test.result.connectivity.error || '' })}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[14px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+                        {provider.name}
                       </span>
-                      {test.result.proxy && (
-                        <span className={test.result.proxy.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}>
-                          {test.result.proxy.success
-                            ? t('settings.providers.proxyOk', { latency: String(test.result.proxy.latencyMs) })
-                            : t('settings.providers.proxyFailed', { error: test.result.proxy.error || '' })}
+                      {isActive && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {t('settings.providers.default')}
+                        </span>
+                      )}
+                      {preset && preset.id !== 'custom' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.06] text-[var(--color-text-tertiary)]">
+                          {preset.name}
+                        </span>
+                      )}
+                      {provider.apiFormat && provider.apiFormat !== 'anthropic' && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          {provider.apiFormat === 'openai_chat' ? 'OpenAI Chat' : 'OpenAI Responses'}
                         </span>
                       )}
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                  {!isActive && (
-                    <Button variant="ghost" size="sm" onClick={() => handleActivate(provider.id)}>{t('settings.providers.setDefault')}</Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => handleTest(provider)} loading={test?.loading}>{t('settings.providers.test')}</Button>
-                  <Button variant="ghost" size="sm" onClick={() => setEditingProvider(provider)}>{t('settings.providers.edit')}</Button>
-                  {!isActive && (
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(provider)} className="text-[var(--color-error)] hover:text-[var(--color-error)]">{t('common.delete')}</Button>
-                  )}
+                    <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)] truncate">
+                      {provider.baseUrl} · {provider.models.main}
+                    </p>
+                    {test && !test.loading && test.result && (
+                      <p className={`mt-1 text-[11px] ${test.result.connectivity.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-error)]'}`}>
+                        {test.result.connectivity.success
+                          ? t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })
+                          : t('settings.providers.connectivityFailed', { error: test.result.connectivity.error || '' })}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions — always visible */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!isActive && (
+                      <Button variant="secondary" size="sm" onClick={() => handleActivate(provider.id)}>
+                        {t('settings.providers.setDefault')}
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => handleTest(provider)} loading={test?.loading}>
+                      {t('settings.providers.test')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditingProvider(provider)}>
+                      <Icon name="edit" size={14} />
+                    </Button>
+                    {!isActive && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(provider)} className="text-[var(--color-error)]/70 hover:text-[var(--color-error)]">
+                        <Icon name="delete" size={14} />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )
@@ -317,7 +402,7 @@ function ProviderSettings() {
         confirmVariant="danger"
         loading={isDeletingProvider}
       />
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -491,17 +576,17 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
     {
       value: 'anthropic' as const,
       label: t('settings.providers.apiFormatAnthropic'),
-      icon: <span className="material-symbols-outlined text-[17px]">hub</span>,
+      icon: <Icon name="hub" size={17} />,
     },
     {
       value: 'openai_chat' as const,
       label: t('settings.providers.apiFormatOpenaiChat'),
-      icon: <span className="material-symbols-outlined text-[17px]">forum</span>,
+      icon: <Icon name="forum" size={17} />,
     },
     {
       value: 'openai_responses' as const,
       label: t('settings.providers.apiFormatOpenaiResponses'),
-      icon: <span className="material-symbols-outlined text-[17px]">route</span>,
+      icon: <Icon name="route" size={17} />,
     },
   ]
   const selectedApiFormatLabel = apiFormatItems.find((item) => item.value === apiFormat)?.label ?? t('settings.providers.apiFormatAnthropic')
@@ -509,7 +594,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
     <button
       key={preset.id}
       onClick={() => handlePresetChange(preset)}
-      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+      className={`px-3 py-1.5 text-[12px] font-medium rounded-full border transition-all ${
         selectedPreset.id === preset.id
           ? 'border-[var(--color-brand)] bg-[var(--color-surface-container-high)] text-[var(--color-brand)] shadow-[var(--shadow-focus-ring)]'
           : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
@@ -613,7 +698,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
         {/* Preset chips */}
         {mode === 'create' && (
           <div>
-            <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.preset')}</label>
+            <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.preset')}</label>
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap gap-2">
                 {regularPresets.map(renderPresetButton)}
@@ -628,7 +713,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
         )}
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="provider-api-key" className="text-sm font-medium text-[var(--color-text-primary)]">
+          <label htmlFor="provider-api-key" className="text-[14px] font-medium text-[var(--color-text-primary)]">
             {t('settings.providers.apiKey')}
             {mode === 'create' && requiresApiKey && <span className="text-[var(--color-error)] ml-0.5">*</span>}
           </label>
@@ -640,7 +725,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-..."
-                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-sm text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)]"
+                className="h-10 w-full rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-[14px] text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)]"
               />
               <button
                 type="button"
@@ -648,16 +733,14 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                 aria-label={showApiKey ? 'Hide API Key' : 'Show API Key'}
                 className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  {showApiKey ? 'visibility_off' : 'visibility'}
-                </span>
+                <Icon name={showApiKey ? 'visibility_off' : 'visibility'} size={16} />
               </button>
             </div>
             {apiKeyUrl && (
               <button
                 type="button"
                 onClick={() => openExternalUrl(apiKeyUrl)}
-                className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 text-xs font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
+                className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-transparent px-3 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
               >
                 {t('settings.providers.getApiKey')}
               </button>
@@ -666,20 +749,20 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
               type="button"
               onClick={handleTest}
               disabled={isTesting || !baseUrl.trim() || !models.main.trim()}
-              className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border border-[var(--color-border)] bg-transparent px-3 text-xs font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
+              className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-transparent px-3 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
             >
               {isTesting ? `${t('settings.providers.testConnection')}…` : t('settings.providers.testConnection')}
             </button>
           </div>
           {testResult && (
             <div className="flex flex-col gap-0.5 mt-1">
-              <span className={`text-xs ${testResult.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+              <span className={`text-[12px] ${testResult.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                 {testResult.connectivity.success
                   ? t('settings.providers.connectivityOk', { latency: String(testResult.connectivity.latencyMs) })
                   : t('settings.providers.connectivityFailed', { error: testResult.connectivity.error || '' })}
               </span>
               {testResult.proxy && (
-                <span className={`text-xs ${testResult.proxy.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+                <span className={`text-[12px] ${testResult.proxy.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                   {testResult.proxy.success
                     ? t('settings.providers.proxyOk', { latency: String(testResult.proxy.latencyMs) })
                     : t('settings.providers.proxyFailed', { error: testResult.proxy.error || '' })}
@@ -696,10 +779,10 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
             disabled={!apiKeyUrl}
             className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-brand)]/25 bg-[var(--color-brand)]/8 px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand)]/45 hover:bg-[var(--color-brand)]/12 focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:hover:border-[var(--color-brand)]/25 disabled:hover:bg-[var(--color-brand)]/8"
           >
-            <span className="material-symbols-outlined mt-0.5 text-[13px] text-[var(--color-brand)]">tips_and_updates</span>
+            <Icon name="tips_and_updates" size={18} className="mt-0.5 text-[13px] text-[var(--color-brand)]" />
             <span>{promoText}</span>
             {apiKeyUrl && (
-              <span className="material-symbols-outlined ml-auto mt-1 text-[10px] text-[var(--color-brand)] opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">arrow_outward</span>
+              <Icon name="arrow_outward" size={18} className="ml-auto mt-1 text-[10px] text-[var(--color-brand)] opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             )}
           </button>
         )}
@@ -709,9 +792,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="flex w-full cursor-pointer items-center gap-1.5 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus:outline-none"
+            className="flex w-full cursor-pointer items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus:outline-none"
           >
-            <span className="material-symbols-outlined text-[18px] transition-transform" style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)' }}>chevron_right</span>
+            <Icon name="chevron_right" size={18} className="transition-transform shrink-0" style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)' }} />
             {t('settings.providers.advanced')}
           </button>
           {showAdvanced && (
@@ -725,7 +808,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
               {/* API Format */}
               {(isCustom || mode === 'edit') ? (
                 <div>
-                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
+                  <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
                   <Dropdown<ApiFormat>
                     items={apiFormatItems}
                     value={apiFormat}
@@ -735,10 +818,10 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                     trigger={
                       <button
                         type="button"
-                        className="flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-left text-sm text-[var(--color-text-primary)] outline-none transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-container-low)] focus-visible:border-[var(--color-border-focus)] focus-visible:shadow-[var(--shadow-focus-ring)]"
+                        className="flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-left text-[14px] text-[var(--color-text-primary)] outline-none transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-container-low)] focus-visible:border-[var(--color-border-focus)] focus-visible:shadow-[var(--shadow-focus-ring)]"
                       >
                         <span className="min-w-0 flex-1 truncate">{selectedApiFormatLabel}</span>
-                        <span className="material-symbols-outlined flex-shrink-0 text-[18px] text-[var(--color-text-secondary)]">expand_more</span>
+                        <Icon name="expand_more" size={18} className="flex-shrink-0 text-[18px] text-[var(--color-text-secondary)]" />
                       </button>
                     }
                   />
@@ -748,8 +831,8 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                 </div>
               ) : apiFormat !== 'anthropic' ? (
                 <div>
-                  <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
-                  <div className="text-xs text-[var(--color-text-tertiary)] px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border border-[var(--color-border)]">
+                  <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
+                  <div className="text-[12px] text-[var(--color-text-tertiary)] px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border-2 border-[var(--color-border)]">
                     {apiFormat === 'openai_chat' ? t('settings.providers.apiFormatOpenaiChat') : t('settings.providers.apiFormatOpenaiResponses')}
                   </div>
                 </div>
@@ -757,7 +840,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
 
               {/* Model Mapping */}
               <div>
-                <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.modelMapping')}</label>
+                <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.modelMapping')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => setModels({ ...models, main: e.target.value })} placeholder="Model ID" />
                   <Input label={t('settings.providers.haikuModel')} value={models.haiku} onChange={(e) => setModels({ ...models, haiku: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
@@ -768,7 +851,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
 
               {/* Settings JSON — editable, shown for all presets including official */}
               <div>
-                <label className="text-sm font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.settingsJson')}</label>
+                <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.settingsJson')}</label>
                 <textarea
                   value={displayedSettingsJson}
                   onChange={(e) => {
@@ -814,7 +897,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                   }}
                   rows={16}
                   spellCheck={false}
-                  className={`w-full text-xs px-3 py-3 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
+                  className={`w-full text-[12px] px-3 py-3 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
                     settingsJsonError
                       ? 'border-[var(--color-error)] focus:border-[var(--color-error)]'
                       : 'border-[var(--color-border)] focus:border-[var(--color-border-focus)]'
@@ -848,36 +931,36 @@ function PermissionSettings() {
   ]
 
   return (
-    <SettingsPage title={t('settings.permissions.title')} description={t('settings.permissions.description')}>
-      <SettingsSection>
-        <div className="flex flex-col gap-2 py-2">
-          {MODES.map(({ mode, icon, label, desc }) => {
-            const isSelected = permissionMode === mode
-            return (
-              <button
-                key={mode}
-                onClick={() => setPermissionMode(mode)}
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
-                  isSelected
-                    ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-focus-ring)]'
-                    : 'border-[var(--color-border)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[20px] text-[var(--color-text-secondary)]">{icon}</span>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">{label}</div>
-                  <div className="text-xs text-[var(--color-text-tertiary)]">{desc}</div>
-                </div>
-                {isSelected && (
-                  <span className="material-symbols-outlined text-[18px] text-[var(--color-brand)]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    check_circle
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </SettingsSection>
+    <SettingsPage icon="shield" title={t('settings.permissions.title')} description={t('settings.permissions.description')}>
+      <div className="flex flex-col gap-1.5">
+        {MODES.map(({ mode, icon, label, desc }) => {
+          const isSelected = permissionMode === mode
+          return (
+            <button
+              key={mode}
+              onClick={() => setPermissionMode(mode)}
+              className={`flex items-center gap-3 rounded-md border-2 px-4 py-3 text-left transition-all duration-200 ${
+                isSelected
+                  ? 'border-black dark:border-white bg-black/[0.02] dark:bg-white/[0.02]'
+                  : 'border-black/25 dark:border-white/25 hover:border-black dark:hover:border-white'
+              }`}
+            >
+              <Icon
+                name={icon}
+                size={20}
+                className={isSelected ? 'text-black/80 dark:text-white/80' : 'text-black/60 dark:text-white/60'}
+              />
+              <div className="flex-1">
+                <div className={`text-[14px] font-semibold tracking-[-0.01em] ${isSelected ? 'text-black dark:text-white' : 'text-black/85 dark:text-white/85'}`}>{label}</div>
+                <div className={`text-[12px] mt-0.5 ${isSelected ? 'text-black/70 dark:text-white/70' : 'text-black/60 dark:text-white/60'}`}>{desc}</div>
+              </div>
+              {isSelected && (
+                <Icon name="check_circle" size={18} className="text-[var(--color-spacex-accent)]" />
+              )}
+            </button>
+          )
+        })}
+      </div>
     </SettingsPage>
   )
 }
@@ -915,7 +998,7 @@ function GeneralSettings() {
   ]
 
   return (
-    <SettingsPage title={t('settings.tab.general')}>
+    <SettingsPage icon="tune" title={t('settings.tab.general')}>
       <SettingsSection>
         <SettingsRow label={t('settings.general.appearanceTitle')} hint={t('settings.general.appearanceDescription')}>
           <SegmentedControl items={themeItems} value={theme} onChange={(v) => void setTheme(v)} />
@@ -1014,45 +1097,46 @@ function AgentsSettings() {
   }
 
   return (
-    <div className="w-full min-w-0">
+    <SettingsPage
+      icon="smart_toy"
+      title={t('settings.tab.agents')}
+    >
       {isLoading && allAgents.length === 0 ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin w-5 h-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />
         </div>
       ) : error ? (
         <div className="text-center py-12 px-4">
-          <span className="material-symbols-outlined text-[40px] text-[var(--color-error)] mb-3 block">error_outline</span>
-          <p className="text-sm text-[var(--color-error)] mb-2">{error}</p>
+          <Icon name="error_outline" size={40} className="text-[var(--color-error)] mb-3 block" />
+          <p className="text-[14px] text-[var(--color-error)] mb-2">{error}</p>
           <button
             onClick={() => void fetchAgents(currentWorkDir)}
-            className="text-xs text-[var(--color-text-accent)] hover:underline"
+            className="text-[12px] text-[var(--color-text-accent)] hover:underline"
           >
             {t('common.retry')}
           </button>
         </div>
       ) : allAgents.length === 0 ? (
-        <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
-          <span className="material-symbols-outlined text-[40px] text-[var(--color-text-tertiary)] mb-3 block">smart_toy</span>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-1">{t('settings.agents.empty')}</p>
-          <p className="text-xs text-[var(--color-text-tertiary)]">{t('settings.agents.emptyHint')}</p>
+        <div className="text-center py-12 px-4 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+          <Icon name="smart_toy" size={40} className="text-[var(--color-text-tertiary)] mb-3 block" />
+          <p className="text-[14px] text-[var(--color-text-secondary)] mb-1">{t('settings.agents.empty')}</p>
+          <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.agents.emptyHint')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6 min-w-0">
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
+          <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
             <div className="grid gap-4 px-5 py-5 min-w-0 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] xl:items-end">
               <div className="min-w-0">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
                   {t('settings.agents.browserEyebrow')}
                 </div>
                 <div className="flex items-center gap-3 mb-2">
-                  <span className="material-symbols-outlined text-[22px] text-[var(--color-brand)]">
-                    smart_toy
-                  </span>
-                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                  <Icon name="smart_toy" size={22} className="text-[var(--color-brand)]" />
+                  <h3 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
                     {t('settings.agents.browserTitle')}
                   </h3>
                 </div>
-                <p className="text-sm leading-6 text-[var(--color-text-secondary)] max-w-3xl">
+                <p className="text-[14px] leading-6 text-[var(--color-text-secondary)] max-w-3xl">
                   {t('settings.agents.description')}
                 </p>
               </div>
@@ -1087,24 +1171,22 @@ function AgentsSettings() {
               return (
                 <section
                   key={source}
-                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden min-w-0"
+                  className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden min-w-0"
                 >
                   <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${getAgentSourceAccentClass(source)}`}>
-                          <span className="material-symbols-outlined text-[16px]">
-                            {getAgentSourceIcon(source)}
-                          </span>
+                          <Icon name={getAgentSourceIcon(source)} size={16} />
                         </span>
-                        <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                        <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
                           {sourceLabel}
                         </h4>
-                        <span className="text-xs text-[var(--color-text-tertiary)]">
+                        <span className="text-[12px] text-[var(--color-text-tertiary)]">
                           {group.length}
                         </span>
                       </div>
-                      <p className="text-xs leading-5 text-[var(--color-text-tertiary)]">
+                      <p className="text-[12px] leading-5 text-[var(--color-text-tertiary)]">
                         {t('settings.agents.groupHint', {
                           source: sourceLabel,
                           count: String(group.length),
@@ -1118,18 +1200,18 @@ function AgentsSettings() {
                       <button
                         key={`${agent.source}-${agent.agentType}`}
                         onClick={() => selectAgent(agent, 'agents')}
-                        className="group rounded-xl border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+                        className="group rounded-md border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
                       >
                         <div className="flex items-start gap-3">
                           <span
                             className="mt-0.5 flex-shrink-0 inline-flex items-center justify-center"
                             style={{ color: getAgentDotColor(agent.color) }}
                           >
-                            <span className="material-symbols-outlined text-[18px]">smart_toy</span>
+                            <Icon name="smart_toy" size={18} />
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-bold text-[var(--color-text-primary)] break-all">
+                              <span className="text-[14px] font-bold text-[var(--color-text-primary)] break-all">
                                 {agent.agentType}
                               </span>
                               {agent.modelDisplay && (
@@ -1149,7 +1231,7 @@ function AgentsSettings() {
                                 </MetaPill>
                               )}
                             </div>
-                            <div className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)] break-words [&_.prose]:text-xs [&_.prose]:leading-5 [&_.prose]:text-[var(--color-text-secondary)]">
+                            <div className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)] break-words [&_.prose]:text-[12px] [&_.prose]:leading-5 [&_.prose]:text-[var(--color-text-secondary)]">
                               <MarkdownRenderer
                                 content={agent.description || t('settings.agents.noDescription')}
                               />
@@ -1165,9 +1247,7 @@ function AgentsSettings() {
                               )}
                             </div>
                           </div>
-                          <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100">
-                            chevron_right
-                          </span>
+                          <Icon name="chevron_right" size={18} className="text-[var(--color-text-tertiary)] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
                         </div>
                       </button>
                     ))}
@@ -1178,7 +1258,7 @@ function AgentsSettings() {
           </div>
         </div>
       )}
-    </div>
+    </SettingsPage>
   )
 }
 
@@ -1191,14 +1271,14 @@ function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: ()
       <div>
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[14px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
         >
-          <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+          <Icon name="arrow_back" size={16} />
           {t('settings.agents.backToList')}
         </button>
       </div>
 
-      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
+      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
         <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)] lg:items-start">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
@@ -1227,12 +1307,12 @@ function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: ()
                 </MetaPill>
               )}
             </div>
-            <div className="max-w-4xl text-sm leading-6 text-[var(--color-text-secondary)]">
+            <div className="max-w-4xl text-[14px] leading-6 text-[var(--color-text-secondary)]">
               <MarkdownRenderer
                 content={agent.description || t('settings.agents.noDescription')}
               />
             </div>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--color-text-tertiary)]">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-[var(--color-text-tertiary)]">
               <span>
                 {agent.tools?.length
                   ? t('settings.agents.toolCount', { count: String(agent.tools.length) })
@@ -1268,12 +1348,10 @@ function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: ()
       </section>
 
       {agent.tools && agent.tools.length > 0 && (
-        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+        <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">
-              build
-            </span>
-            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            <Icon name="build" size={18} className="text-[var(--color-text-tertiary)]" />
+            <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
               {t('settings.agents.tools')}
             </h4>
           </div>
@@ -1285,12 +1363,12 @@ function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: ()
         </section>
       )}
 
-      <section className="flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <section className="flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-mono text-[var(--color-text-secondary)] break-all">
+                <span className="text-[12px] font-mono text-[var(--color-text-secondary)] break-all">
                   {agent.baseDir || sourceLabel}
                 </span>
               </div>
@@ -1299,7 +1377,7 @@ function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: ()
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] border border-[var(--color-border)]">
+              <span className="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] border-2 border-[var(--color-border)]">
                 {t('settings.agents.systemPrompt')}
               </span>
             </div>
@@ -1316,10 +1394,8 @@ function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: ()
               </div>
             ) : (
               <div className="px-6 py-10 text-center">
-                <span className="material-symbols-outlined text-[32px] text-[var(--color-text-tertiary)] mb-2 block">
-                  article
-                </span>
-                <p className="text-sm text-[var(--color-text-tertiary)]">
+                <Icon name="article" size={32} className="text-[var(--color-text-tertiary)] mb-2 block" />
+                <p className="text-[14px] text-[var(--color-text-tertiary)]">
                   {t('settings.agents.noSystemPrompt')}
                 </p>
               </div>
@@ -1375,7 +1451,7 @@ function getAgentSourceAccentClass(source: AgentSource) {
 
 function MetaPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
+    <span className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
       {children}
     </span>
   )
@@ -1393,12 +1469,12 @@ function SummaryCard({
   className?: string
 }) {
   return (
-    <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 min-w-0 ${className}`}>
+    <div className={`rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 min-w-0 ${className}`}>
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] min-w-0">
-        <span className="material-symbols-outlined text-[14px] flex-shrink-0">{icon}</span>
+        <Icon name={icon} size={14} className="flex-shrink-0" />
         <span className="truncate">{label}</span>
       </div>
-      <div className="mt-2 text-lg font-semibold text-[var(--color-text-primary)] truncate">
+      <div className="mt-2 text-[18px] font-semibold text-[var(--color-text-primary)] truncate">
         {value}
       </div>
     </div>
@@ -1415,12 +1491,12 @@ function DetailStat({
   icon: string
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
+    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
-        <span className="material-symbols-outlined text-[14px]">{icon}</span>
+        <Icon name={icon} size={14} />
         <span>{label}</span>
       </div>
-      <div className="mt-2 text-base font-semibold text-[var(--color-text-primary)] break-all">
+      <div className="mt-2 text-[16px] font-semibold text-[var(--color-text-primary)] break-all">
         {value}
       </div>
     </div>
@@ -1441,7 +1517,7 @@ function SkillSettings() {
   }
 
   return (
-    <SettingsPage title={t('settings.skills.title')} description={t('settings.skills.description')}>
+    <SettingsPage icon="auto_awesome" title={t('settings.skills.title')} description={t('settings.skills.description')}>
       <SkillList />
     </SettingsPage>
   )
@@ -1460,7 +1536,7 @@ function PluginSettings() {
   }
 
   return (
-    <SettingsPage title={t('settings.plugins.title')} description={t('settings.plugins.description')}>
+    <SettingsPage icon="extension" title={t('settings.plugins.title')} description={t('settings.plugins.description')}>
       <PluginList />
     </SettingsPage>
   )
@@ -1543,17 +1619,17 @@ function AboutSettings() {
                 : t('update.idle')
 
   return (
-    <div className="w-full min-w-0 max-w-lg mx-auto flex flex-col items-center py-6">
+    <div className="w-full min-w-0 max-w-[480px] mx-auto flex flex-col items-center py-10">
       {/* Logo + App Name + Version */}
-      <img src="/app-icon.png" alt="CyberCode" className="w-20 h-20 mb-4" />
-      <h1 className="text-xl font-bold text-[var(--color-text-primary)]">CyberCode</h1>
+      <img src="/app-icon.png" alt="CyberCode" className="w-24 h-24 mb-5 rounded-[22px]" />
+      <h1 className="text-[26px] font-semibold tracking-tight text-black/90 dark:text-white/90">CyberCode</h1>
       {version && (
-        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+        <div className="mt-2 flex items-center gap-2 text-[12px] text-black/60 dark:text-white/60">
           <span>{t('settings.about.version')} {version}</span>
-          <span className="text-[var(--color-border)]">·</span>
+          <span className="text-black/60 dark:text-white/60">·</span>
           <button
             onClick={() => openUrl(GITHUB_RELEASES)}
-            className="rounded-[var(--radius-sm)] text-[var(--color-text-accent)] transition-colors hover:text-[var(--color-brand)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+            className="rounded text-[var(--color-spacex-accent)] transition-colors hover:underline focus:outline-none"
           >
             {t('settings.about.changelog')}
           </button>
@@ -1564,21 +1640,21 @@ function AboutSettings() {
       <div className="mt-6 w-full">
         <button
           onClick={() => openUrl(GITHUB_STAR_URL)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-md border-2 border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
         >
           <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5 opacity-70" />
           <div className="flex-1 text-left">
-            <div className="text-sm font-medium text-[var(--color-text-primary)]">wk42worldworld/cybercode</div>
-            <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.starHint')}</div>
+            <div className="text-[14px] font-medium text-[var(--color-text-primary)]">wk42worldworld/cybercode</div>
+            <div className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.about.starHint')}</div>
           </div>
         </button>
       </div>
 
-      <div className="mt-4 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
+      <div className="mt-4 w-full rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.updates')}</div>
-            <div className="text-xs text-[var(--color-text-tertiary)] mt-1">
+            <div className="text-[14px] font-medium text-[var(--color-text-primary)]">{t('settings.about.updates')}</div>
+            <div className="text-[12px] text-[var(--color-text-tertiary)] mt-1">
               {t('settings.about.updatesDesc')}
             </div>
           </div>
@@ -1592,35 +1668,35 @@ function AboutSettings() {
           </Button>
         </div>
 
-        <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
+        <div className="mt-4 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+              <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
                 {t('settings.about.version')}
               </div>
-              <div className="text-sm font-medium text-[var(--color-text-primary)] mt-1">
+              <div className="text-[14px] font-medium text-[var(--color-text-primary)] mt-1">
                 {version || t('update.currentVersionUnknown')}
               </div>
             </div>
 
             {availableVersion && (
               <div className="text-right">
-                <div className="text-xs uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
+                <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
                   {t('update.availableLabel')}
                 </div>
-                <div className="text-sm font-medium text-[var(--color-text-primary)] mt-1">
+                <div className="text-[14px] font-medium text-[var(--color-text-primary)] mt-1">
                   {availableVersion}
                 </div>
               </div>
             )}
           </div>
 
-          <p className={`mt-3 text-sm ${error ? 'text-[var(--color-error)]' : 'text-[var(--color-text-secondary)]'}`}>
+          <p className={`mt-3 text-[14px] ${error ? 'text-[var(--color-error)]' : 'text-[var(--color-text-secondary)]'}`}>
             {updateDescription}
           </p>
 
           {checkedAtText && (
-            <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+            <p className="mt-1 text-[12px] text-[var(--color-text-tertiary)]">
               {t('update.checkedAt', { time: checkedAtText })}
             </p>
           )}
@@ -1638,7 +1714,7 @@ function AboutSettings() {
                 )}
               </div>
               {!hasKnownProgress && updateStatus === 'downloading' && downloadedBytes > 0 && (
-                <p className="mt-1 text-xs text-[var(--color-text-tertiary)]">
+                <p className="mt-1 text-[12px] text-[var(--color-text-tertiary)]">
                   {downloadedText}
                 </p>
               )}
@@ -1653,7 +1729,7 @@ function AboutSettings() {
               <MarkdownRenderer
                 content={releaseNotes}
                 variant="document"
-                className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)] [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_p]:text-[13px] [&_p]:leading-6"
+                className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)] [&_h1]:text-[18px] [&_h2]:text-[16px] [&_h3]:text-[14px] [&_p]:text-[13px] [&_p]:leading-6"
               />
             </div>
           )}
@@ -1676,15 +1752,16 @@ function AboutSettings() {
       <div className="mt-6 w-full">
         <button
           onClick={() => openUrl(GITHUB_ISSUES)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-md border-2 border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[20px] text-[var(--color-text-tertiary)]">feedback</span>
+          <Icon name="feedback" size={20} className="text-[var(--color-text-tertiary)]" />
           <div className="flex-1 text-left">
-            <div className="text-sm font-medium text-[var(--color-text-primary)]">{t('settings.about.feedback')}</div>
-            <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.feedbackDesc')}</div>
+            <div className="text-[14px] font-medium text-[var(--color-text-primary)]">{t('settings.about.feedback')}</div>
+            <div className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.about.feedbackDesc')}</div>
           </div>
         </button>
       </div>
     </div>
   )
 }
+

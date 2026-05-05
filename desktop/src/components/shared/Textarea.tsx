@@ -11,7 +11,7 @@ export function Textarea({ label, error, required, className = '', id, ...props 
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label htmlFor={inputId} className="text-sm font-medium text-[var(--color-text-primary)]">
+        <label htmlFor={inputId} className="text-[14px] font-medium text-[var(--color-text-primary)]">
           {label}
           {required && <span className="text-[var(--color-error)] ml-0.5">*</span>}
         </label>
@@ -19,7 +19,7 @@ export function Textarea({ label, error, required, className = '', id, ...props 
       <textarea
         id={inputId}
         className={`
-          min-h-[120px] px-3 py-2 rounded-[var(--radius-lg)] border text-sm resize-y
+          min-h-[120px] px-3 py-2 rounded-[var(--radius-lg)] border text-[14px] resize-y
           bg-[var(--color-surface)] text-[var(--color-text-primary)]
           placeholder:text-[var(--color-text-tertiary)]
           transition-colors duration-150
@@ -32,7 +32,7 @@ export function Textarea({ label, error, required, className = '', id, ...props 
         `}
         {...props}
       />
-      {error && <p className="text-xs text-[var(--color-error)]">{error}</p>}
+      {error && <p className="text-[12px] text-[var(--color-error)]">{error}</p>}
     </div>
   )
 }

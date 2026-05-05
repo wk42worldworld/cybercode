@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import type { SavedProvider } from '../../types/provider'
 import type { RuntimeSelection } from '../../types/runtime'
 import type { EffortLevel, ModelInfo } from '../../types/settings'
+import { Icon } from '../shared/Icon'
 
 type ProviderChoice = {
   providerId: string | null
@@ -229,10 +230,10 @@ export function ModelSelector({
       <button
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
-        className="flex max-w-[280px] items-center gap-2 rounded-full bg-[var(--color-surface-container-low)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex max-w-[280px] items-center gap-2 rounded-md bg-[var(--color-surface-container-low)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--color-text-primary)]">
+          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--color-text-primary)]">
             {buttonModelLabel}
           </span>
           {buttonProviderLabel && (
@@ -241,11 +242,11 @@ export function ModelSelector({
             </span>
           )}
         </div>
-        <span className="material-symbols-outlined flex-shrink-0 text-[12px]">expand_more</span>
+        <Icon name="expand_more" size={18} className="flex-shrink-0 text-[12px]" />
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-full z-50 mb-2 w-[360px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]">
+        <div className="absolute right-0 bottom-full z-50 mb-2 w-[360px] rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)] overflow-hidden">
           <div className="max-h-[420px] overflow-y-auto p-3">
             <div className="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-[var(--color-outline)]">
               {t('model.configuration')}
@@ -293,7 +294,7 @@ export function ModelSelector({
                               </div>
 
                               <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                                <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">
                                   {model.name}
                                 </div>
                                 {model.description && (
@@ -343,7 +344,7 @@ export function ModelSelector({
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-[var(--color-text-primary)]">{model.name}</div>
+                          <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{model.name}</div>
                           {model.description && (
                             <div className="mt-0.5 truncate text-[10px] text-[var(--color-text-tertiary)]">
                               {model.description}
@@ -374,7 +375,7 @@ export function ModelSelector({
                         setOpen(false)
                       }}
                       className={`
-                        rounded-lg py-2 text-center text-xs font-semibold transition-colors
+                        rounded-lg py-2 text-center text-[12px] font-semibold transition-colors
                         ${isSelected
                           ? 'bg-[var(--color-brand)] text-[var(--color-on-primary)]'
                           : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
@@ -393,3 +394,4 @@ export function ModelSelector({
     </div>
   )
 }
+

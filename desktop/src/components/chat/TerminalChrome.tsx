@@ -12,7 +12,7 @@ type Props = {
  */
 export function TerminalChrome({ title, children, className = '' }: Props) {
   return (
-    <div className={`overflow-hidden rounded-2xl border border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-dim)] ${className}`}>
+    <div className={`overflow-hidden rounded-lg border-2 border-[var(--color-outline-variant)] bg-[var(--color-surface-dim)] ${className}`}>
       {/* Title bar with traffic lights */}
       <div className="flex items-center gap-2 border-b border-[var(--color-terminal-border)] bg-[var(--color-terminal-header)] px-3 py-2">
         <div className="flex gap-1.5">

@@ -3,6 +3,7 @@ import { ApiError } from '../../api/client'
 import { filesystemApi } from '../../api/filesystem'
 import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
+import { Icon } from '../shared/Icon'
 
 type DirEntry = {
   name: string
@@ -147,12 +148,12 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
   return (
     <div
       id="file-search-menu"
-      className="absolute left-0 bottom-full mb-2 z-50 w-full min-w-[480px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]"
+      className="absolute left-0 bottom-full mb-2 z-50 w-full min-w-[480px] overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header with path */}
       <div className="flex items-center gap-1.5 border-b border-[var(--color-border)] px-3 py-2 text-[11px]">
-        <span className="material-symbols-outlined text-[14px] text-[var(--color-text-tertiary)]">folder_open</span>
+        <Icon name="folder_open" size={14} className="text-[var(--color-text-tertiary)]" />
         <span className="text-[var(--color-text-tertiary)] font-mono">{cwd.split('/').pop() || cwd}</span>
         {breadcrumbs.map((seg, i) => (
           <span key={i} className="flex items-center gap-1">
@@ -161,20 +162,20 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
           </span>
         ))}
         {loading && (
-          <span className="material-symbols-outlined text-[12px] text-[var(--color-text-tertiary)] animate-spin ml-1">progress_activity</span>
+          <Icon name="progress_activity" size={12} className="text-[var(--color-text-tertiary)] animate-spin ml-1" />
         )}
       </div>
 
       {/* File list */}
       <div ref={listRef} className="max-h-[300px] overflow-y-auto py-1">
         {loading && entries.length === 0 ? (
-          <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">{t('fileSearch.searching')}</div>
+          <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('fileSearch.searching')}</div>
         ) : (errorKey || errorMessage) ? (
-          <div className="px-4 py-6 text-center text-xs text-[var(--color-error)]">
+          <div className="px-4 py-6 text-center text-[12px] text-[var(--color-error)]">
             {errorKey ? t(errorKey) : errorMessage}
           </div>
         ) : entries.length === 0 ? (
-          <div className="px-4 py-6 text-center text-xs text-[var(--color-text-tertiary)]">
+          <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">
             {filter ? t('fileSearch.noMatch') : t('fileSearch.noFiles')}
           </div>
         ) : (
@@ -192,8 +193,8 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
                   selectedIndex === i ? 'bg-[var(--color-surface-hover)]' : 'hover:bg-[var(--color-surface-hover)]'
                 }`}
               >
-                <span className="material-symbols-outlined text-[16px] text-[var(--color-brand)]">folder</span>
-                <span className="text-sm text-[var(--color-text-primary)] truncate">{entry.name}</span>
+                <Icon name="folder" size={16} className="text-[var(--color-brand)]" />
+                <span className="text-[14px] text-[var(--color-text-primary)] truncate">{entry.name}</span>
               </button>
             ))}
 
@@ -210,8 +211,8 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
                     selectedIndex === idx ? 'bg-[var(--color-surface-hover)]' : 'hover:bg-[var(--color-surface-hover)]'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[16px] text-[var(--color-text-secondary)]">description</span>
-                  <span className="text-sm text-[var(--color-text-primary)] truncate">{entry.name}</span>
+                  <Icon name="description" size={16} className="text-[var(--color-text-secondary)]" />
+                  <span className="text-[14px] text-[var(--color-text-primary)] truncate">{entry.name}</span>
                 </button>
               )
             })}
@@ -221,11 +222,11 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
 
       {/* Footer hint */}
       <div className="flex items-center gap-1.5 border-t border-[var(--color-border)] px-3 py-1.5 text-[10px] text-[var(--color-text-tertiary)]">
-        <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-0.5 font-mono">↑↓</kbd>
+        <kbd className="rounded border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-0.5 font-mono">↑↓</kbd>
         <span>{t('fileSearch.navigate')}</span>
-        <kbd className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-0.5 font-mono">Enter</kbd>
+        <kbd className="ml-2 rounded border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-0.5 font-mono">Enter</kbd>
         <span>{t('fileSearch.attach')}</span>
-        <kbd className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-0.5 font-mono">Esc</kbd>
+        <kbd className="ml-2 rounded border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-0.5 font-mono">Esc</kbd>
         <span>{t('fileSearch.close')}</span>
       </div>
     </div>
@@ -233,3 +234,4 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
 })
 
 FileSearchMenu.displayName = 'FileSearchMenu'
+
