@@ -3,6 +3,7 @@
 export type SessionListItem = {
   id: string
   title: string
+  lastMessage?: string
   createdAt: string
   modifiedAt: string
   messageCount: number

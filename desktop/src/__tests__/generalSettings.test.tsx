@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import { Settings } from '../pages/Settings'
+import { ProviderSettings, Settings } from '../pages/Settings'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useUIStore } from '../stores/uiStore'
 import { useUpdateStore } from '../stores/updateStore'
@@ -165,6 +165,7 @@ describe('Settings > Providers tab', () => {
     MOCK_DELETE_PROVIDER.mockReset()
     MOCK_GET_SETTINGS.mockResolvedValue({})
     MOCK_UPDATE_SETTINGS.mockResolvedValue({})
+    useSettingsStore.setState({ locale: 'en' })
     providerStoreState.providers = [
       {
         id: 'provider-1',
@@ -191,7 +192,7 @@ describe('Settings > Providers tab', () => {
     providerStoreState.activeId = null
     providerStoreState.hasLoadedProviders = false
 
-    render(<Settings />)
+    render(<ProviderSettings />)
 
     expect(screen.queryByTestId('claude-official-login')).not.toBeInTheDocument()
   })
@@ -201,15 +202,15 @@ describe('Settings > Providers tab', () => {
     providerStoreState.activeId = null
     providerStoreState.hasLoadedProviders = true
 
-    render(<Settings />)
+    render(<ProviderSettings />)
 
     expect(screen.getByTestId('claude-official-login')).toBeInTheDocument()
   })
 
   it('requires confirmation before deleting a provider', async () => {
-    render(<Settings />)
+    render(<ProviderSettings />)
 
-    fireEvent.click(screen.getAllByText('Delete')[0]!)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(MOCK_DELETE_PROVIDER).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -239,11 +240,13 @@ describe('Settings > Providers tab', () => {
       },
     ]
 
-    render(<Settings />)
+    render(<ProviderSettings />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Add Provider/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Configure/i })[0]!)
 
     const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Configure Custom')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Custom' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
 
     fireEvent.click(within(dialog).getByRole('button', { name: /Anthropic Messages \(native\)/i }))
@@ -251,6 +254,53 @@ describe('Settings > Providers tab', () => {
 
     expect(within(dialog).getByRole('button', { name: /OpenAI Responses API \(proxy\)/i })).toBeInTheDocument()
     expect(within(dialog).getByText('Requests will be translated via the local proxy')).toBeInTheDocument()
+  })
+
+  it('opens a provider-specific form with base URL and main model prefilled', () => {
+    providerStoreState.providers = []
+    providerStoreState.presets = [
+      {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com/anthropic',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: 'deepseek-v4-pro[1m]',
+          haiku: 'deepseek-v4-flash',
+          sonnet: 'deepseek-v4-pro[1m]',
+          opus: 'deepseek-v4-pro[1m]',
+        },
+        needsApiKey: true,
+        websiteUrl: 'https://platform.deepseek.com',
+        apiKeyUrl: 'https://platform.deepseek.com/api_keys',
+      },
+      {
+        id: 'custom',
+        name: 'Custom',
+        baseUrl: '',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: '',
+          haiku: '',
+          sonnet: '',
+          opus: '',
+        },
+        needsApiKey: true,
+        websiteUrl: '',
+      },
+    ]
+
+    render(<ProviderSettings />)
+
+    expect(screen.getByAltText('DeepSeek logo')).toHaveAttribute('src', '/provider-icons/deepseek.ico')
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Configure/i })[0]!)
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Configure DeepSeek')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'DeepSeek' })).not.toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('https://api.deepseek.com/anthropic')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('deepseek-v4-pro[1m]')).toBeInTheDocument()
   })
 
   it('hides the API key by default and reveals it from the eye button', () => {
@@ -271,9 +321,9 @@ describe('Settings > Providers tab', () => {
       },
     ]
 
-    render(<Settings />)
+    render(<ProviderSettings />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Add Provider/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Configure/i }))
 
     const dialog = screen.getByRole('dialog')
     const apiKeyInput = within(dialog).getByPlaceholderText('sk-...')

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { computerUseApi, type ComputerUseStatus, type SetupResult, type InstalledApp, type AuthorizedApp } from '../api/computerUse'
 import { useTranslation } from '../i18n'
 import { SettingsPage } from '../components/settings/SettingsLayout'
+import { Button } from '../components/shared/Button'
 import { Icon } from '../components/shared/Icon'
 
 type CheckState = 'loading' | 'ready' | 'error'
@@ -15,15 +16,15 @@ function StatusIcon({ ok }: { ok: boolean | null }) {
     return <Icon name="help" size={18} className="text-[var(--color-text-tertiary)]" />
   }
   return ok ? (
-    <span className="material-symbols-outlined text-[18px] text-green-500" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+    <Icon name="check_circle" size={18} className="text-[var(--color-success)]" />
   ) : (
-    <span className="material-symbols-outlined text-[18px] text-red-400" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+    <Icon name="cancel" size={18} className="text-[var(--color-error)]" />
   )
 }
 
 function StatusRow({ label, ok, detail }: { label: string; ok: boolean | null; detail: string }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 rounded-lg bg-[var(--color-surface-container-low)]">
+    <div className="flex items-center gap-3 py-2.5 px-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)]">
       <StatusIcon ok={ok} />
       <div className="flex-1 min-w-0">
         <span className="text-[14px] font-medium text-[var(--color-text-primary)]">{label}</span>
@@ -206,7 +207,7 @@ export function ComputerUseSettings() {
       ) : status ? (
         <>
           {!status.supported && (
-            <div className="px-4 py-3 rounded-lg bg-yellow-500/10 border-2 border-yellow-500/40 text-[14px] text-yellow-600">
+            <div className="px-4 py-3 rounded-lg bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/40 text-[14px] text-[var(--color-warning)]">
               {t('settings.computerUse.notSupported')}
             </div>
           )}
@@ -256,13 +257,13 @@ export function ComputerUseSettings() {
                 }
               />
               {(accessibilityNeedsAttention || screenRecordingNeedsAttention) && (
-                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-yellow-500/5 border-2 border-yellow-500/30">
+                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-[var(--color-warning)]/5 border border-[var(--color-warning)]/30">
                   <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.computerUse.permRestartHint')}</p>
                   <div className="flex gap-2">
                     {accessibilityNeedsAttention && (
                       <button
                         onClick={() => openSystemSettings('Privacy_Accessibility')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-accent)] border-2 border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-brand)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
                       >
                         <Icon name="open_in_new" size={14} />
                         {t('settings.computerUse.openAccessibility')}
@@ -271,7 +272,7 @@ export function ComputerUseSettings() {
                     {screenRecordingNeedsAttention && (
                       <button
                         onClick={() => openSystemSettings('Privacy_ScreenCapture')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-accent)] border-2 border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-brand)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
                       >
                         <Icon name="open_in_new" size={14} />
                         {t('settings.computerUse.openScreenRecording')}
@@ -284,15 +285,15 @@ export function ComputerUseSettings() {
           )}
 
           {allReady && (status.platform !== 'darwin' || (status.permissions.accessibility && screenRecordingReady)) && (
-            <div className="px-4 py-3 rounded-lg bg-green-500/10 border-2 border-green-500/40 text-[14px] text-green-600 flex items-center gap-2">
+            <div className="px-4 py-3 rounded-lg bg-[var(--color-success)]/10 border border-[var(--color-brand)]/40 text-[14px] text-[var(--color-success)] flex items-center gap-2">
               <Icon name="verified" size={18} />
               {t('settings.computerUse.allReady')}
             </div>
           )}
 
           {setupResult && (
-            <div className={`rounded-lg border p-4 space-y-2 ${setupResult.success ? 'bg-green-500/5 border-green-500/30' : 'bg-red-500/5 border-red-500/30'}`}>
-              <div className={`text-[14px] font-medium ${setupResult.success ? 'text-green-600' : 'text-red-400'}`}>
+            <div className={`rounded-lg border p-4 space-y-2 ${setupResult.success ? 'bg-[var(--color-success)]/5 border-[var(--color-success)]/30' : 'bg-[var(--color-error)]/5 border-[var(--color-error)]/30'}`}>
+              <div className={`text-[14px] font-medium ${setupResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                 {setupResult.success ? t('settings.computerUse.setupSuccess') : t('settings.computerUse.setupFail')}
               </div>
               {setupResult.steps.map((step, i) => (
@@ -307,41 +308,42 @@ export function ComputerUseSettings() {
           {/* Action buttons */}
           <div className="flex gap-3">
             {!status.python.installed && (
-              <button
+              <Button
+                type="button"
                 onClick={() => openExternalUrl(pythonDownloadUrl)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-[14px] font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                icon={<Icon name="open_in_new" size={18} />}
               >
-                <Icon name="open_in_new" size={18} />
                 {t('settings.computerUse.downloadPython')}
-              </button>
+              </Button>
             )}
             {!envReady && status.python.installed && (
-              <button
+              <Button
+                type="button"
                 onClick={handleSetup}
                 disabled={setupRunning}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-[14px] font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                icon={<Icon name={setupRunning ? 'hourglass_empty' : 'download'} size={18} />}
               >
-                <span className="material-symbols-outlined text-[18px]">{setupRunning ? 'hourglass_empty' : 'download'}</span>
                 {setupRunning ? t('settings.computerUse.setupRunning') : t('settings.computerUse.setupBtn')}
-              </button>
+              </Button>
             )}
-            <button
+            <Button
+              type="button"
+              variant="secondary"
               onClick={fetchStatus}
-              className="flex items-center gap-2 px-4 py-2.5 text-[14px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] border-2 border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors"
+              icon={<Icon name="refresh" size={18} />}
             >
-              <Icon name="refresh" size={18} />
               {t('settings.computerUse.recheckBtn')}
-            </button>
+            </Button>
           </div>
 
           {/* ─── App Authorization Section ─── */}
           {envReady && (
-            <div className="space-y-4 pt-4 border-t border-[var(--color-border)]">
+            <div className="space-y-4 pt-4 border-t border-[var(--color-border-separator)]">
               <div>
                 <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
                   {t('settings.computerUse.appsTitle')}
                   {appsSaved && (
-                    <span className="text-[12px] font-normal text-green-500 flex items-center gap-1">
+                    <span className="text-[12px] font-normal text-[var(--color-success)] flex items-center gap-1">
                       <Icon name="check" size={14} />
                       {t('settings.computerUse.appsSaved')}
                     </span>
@@ -382,7 +384,7 @@ export function ComputerUseSettings() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={t('settings.computerUse.appsSearch')}
-                  className="w-full pl-9 pr-4 py-2 text-[14px] bg-[var(--color-surface-container-low)] border-2 border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-border-focus)]"
+                  className="w-full pl-9 pr-4 py-2 text-[14px] bg-[var(--color-surface-container-low)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-brand)] focus:shadow-[var(--shadow-accent-glow)]"
                 />
               </div>
 
@@ -396,7 +398,7 @@ export function ComputerUseSettings() {
                   {t('settings.computerUse.appsEmpty')}
                 </div>
               ) : (
-                <div className="max-h-[400px] overflow-y-auto rounded-lg border-2 border-[var(--color-border)]">
+                <div className="max-h-[400px] overflow-y-auto rounded-lg border border-[var(--color-border)]">
                   {sortedApps.map(app => {
                     const isAuthorized = authorizedBundleIds.has(app.bundleId)
                     return (
@@ -404,16 +406,16 @@ export function ComputerUseSettings() {
                         key={app.bundleId}
                         onClick={() => toggleApp(app)}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)] border-b border-[var(--color-border)] last:border-b-0 ${
-                          isAuthorized ? 'bg-[var(--color-brand)]/5' : ''
+                          isAuthorized ? 'bg-[var(--color-accent-glow)]' : ''
                         }`}
                       >
                         <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border ${
                           isAuthorized
-                            ? 'bg-[var(--color-brand)] border-[var(--color-brand)]'
+                            ? 'bg-[var(--color-brand)] border-[var(--color-brand)] shadow-[0_0_0_3px_var(--color-accent-glow)]'
                             : 'border-[var(--color-border)]'
                         }`}>
                           {isAuthorized && (
-                            <span className="material-symbols-outlined text-[14px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>check</span>
+                            <Icon name="check" size={14} className="text-[var(--color-on-primary)]" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -437,4 +439,3 @@ export function ComputerUseSettings() {
     </SettingsPage>
   )
 }
-

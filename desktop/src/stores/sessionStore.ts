@@ -1,7 +1,14 @@
 import { create } from 'zustand'
 import { sessionsApi } from '../api/sessions'
+import { t } from '../i18n'
 import { useSessionRuntimeStore } from './sessionRuntimeStore'
 import type { SessionListItem } from '../types/session'
+import { getDefaultSessionTitle } from '../utils/sessionTitle'
+
+function matchesSessionLocator(session: SessionListItem, id: string, projectPath?: string): boolean {
+  if (session.id !== id) return false
+  return !projectPath || session.projectPath === projectPath
+}
 
 type SessionStore = {
   sessions: SessionListItem[]
@@ -13,8 +20,8 @@ type SessionStore = {
 
   fetchSessions: (project?: string) => Promise<void>
   createSession: (workDir?: string) => Promise<string>
-  deleteSession: (id: string) => Promise<void>
-  renameSession: (id: string, title: string) => Promise<void>
+  deleteSession: (id: string, projectPath?: string) => Promise<void>
+  renameSession: (id: string, title: string, projectPath?: string) => Promise<void>
   updateSessionTitle: (id: string, title: string) => void
   setActiveSession: (id: string | null) => void
   setSelectedProjects: (projects: string[]) => void
@@ -32,15 +39,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const { sessions: raw } = await sessionsApi.list({ project, limit: 100 })
-      // Deduplicate by session ID — keep the most recently modified entry
-      const byId = new Map<string, SessionListItem>()
+      const byLocator = new Map<string, SessionListItem>()
       for (const s of raw) {
-        const existing = byId.get(s.id)
-        if (!existing || new Date(s.modifiedAt) > new Date(existing.modifiedAt)) {
-          byId.set(s.id, s)
-        }
+        byLocator.set(`${s.id}:${s.projectPath}`, s)
       }
-      const sessions = [...byId.values()]
+      const sessions = [...byLocator.values()]
       const availableProjects = [...new Set(sessions.map((s) => s.projectPath).filter(Boolean))].sort()
       set({ sessions, availableProjects, isLoading: false })
     } catch (err) {
@@ -51,13 +54,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   createSession: async (workDir?: string) => {
     const { sessionId: id } = await sessionsApi.create(workDir || undefined)
     const now = new Date().toISOString()
+    // Compute projectPath the same way the server does (sanitizePath)
+    const resolvedWorkDir = workDir || ''
+    const projectPath = resolvedWorkDir
+      .replace(/[^a-zA-Z0-9]/g, '-')
+      .slice(0, 200)
     const optimisticSession: SessionListItem = {
       id,
-      title: 'New Session',
+      title: getDefaultSessionTitle(t),
+      lastMessage: '',
       createdAt: now,
       modifiedAt: now,
       messageCount: 0,
-      projectPath: '',
+      projectPath,
       workDir: workDir ?? null,
       workDirExists: true,
     }
@@ -73,20 +82,23 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     return id
   },
 
-  deleteSession: async (id: string) => {
-    await sessionsApi.delete(id)
+  deleteSession: async (id: string, projectPath?: string) => {
+    await sessionsApi.delete(id, { projectPath })
     useSessionRuntimeStore.getState().clearSelection(id)
     set((s) => ({
-      sessions: s.sessions.filter((session) => session.id !== id),
-      activeSessionId: s.activeSessionId === id ? null : s.activeSessionId,
+      sessions: s.sessions.filter((session) => !matchesSessionLocator(session, id, projectPath)),
+      activeSessionId: s.activeSessionId === id &&
+        !s.sessions.some((session) => session.id === id && !matchesSessionLocator(session, id, projectPath))
+        ? null
+        : s.activeSessionId,
     }))
   },
 
-  renameSession: async (id: string, title: string) => {
-    await sessionsApi.rename(id, title)
+  renameSession: async (id: string, title: string, projectPath?: string) => {
+    await sessionsApi.rename(id, title, { projectPath })
     set((s) => ({
       sessions: s.sessions.map((session) =>
-        session.id === id ? { ...session, title } : session,
+        matchesSessionLocator(session, id, projectPath) ? { ...session, title } : session,
       ),
     }))
   },

@@ -265,9 +265,11 @@ function renderGroup(
             className="group rounded-md border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
           >
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">
-                {plugin.hasErrors ? 'warning' : plugin.enabled ? 'extension' : 'extension_off'}
-              </span>
+              <Icon
+                name={plugin.hasErrors ? 'warning' : plugin.enabled ? 'extension' : 'extension_off'}
+                size={18}
+                className="mt-0.5 text-[var(--color-text-tertiary)]"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[14px] font-semibold text-[var(--color-text-primary)] break-all">
@@ -367,4 +369,3 @@ function ScopePill({ scope }: { scope: PluginSummary['scope'] }) {
     </span>
   )
 }
-

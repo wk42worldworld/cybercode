@@ -148,16 +148,16 @@ export function CodeViewer({ code, language, maxLines = 20, showLineNumbers = fa
   const showExpandToggle = allLines.length > maxLines
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/50 bg-[var(--color-surface-container-low)]">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container)] px-3 py-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-3 py-1.5 text-[11px] text-[var(--color-text-tertiary)]">
         <div className="flex items-center gap-3">
-          <span className="font-semibold uppercase tracking-[0.14em]">{languageLabel}</span>
-          <span>{lineCountLabel}</span>
+          <span className="label-micro text-[var(--color-text-tertiary)]">{languageLabel}</span>
+          <span className="font-[var(--font-mono)] text-[10px]">{lineCountLabel}</span>
         </div>
         <CopyButton
           text={code}
-          className="rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+          className="btn-ghost px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
         />
       </div>
 
@@ -172,7 +172,7 @@ export function CodeViewer({ code, language, maxLines = 20, showLineNumbers = fa
       {showExpandToggle && (
         <button
           onClick={() => setExpanded((value) => !value)}
-          className="w-full border-t border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container)] py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+          className="btn-ghost w-full border-t border-[var(--color-border-separator)] py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
         >
           {expanded ? 'Collapse' : `Show ${allLines.length - maxLines} more lines`}
         </button>

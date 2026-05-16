@@ -2,8 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
+const { getRecentProjectsMock } = vi.hoisted(() => ({
+  getRecentProjectsMock: vi.fn(),
+}))
+
 vi.mock('./ProjectFilter', () => ({
   ProjectFilter: () => <div data-testid="project-filter" />,
+}))
+
+vi.mock('../../api/sessions', () => ({
+  sessionsApi: {
+    getRecentProjects: getRecentProjectsMock,
+  },
 }))
 
 vi.mock('../../i18n', () => ({
@@ -17,6 +27,16 @@ vi.mock('../../i18n', () => ({
       'sidebar.noSessions': 'No sessions',
       'sidebar.noMatching': 'No matching sessions',
       'sidebar.sessionListFailed': 'Session list failed',
+      'session.untitled': 'New Session',
+      'newSession.title': 'New Session',
+      'newSession.currentProject': 'Current project',
+      'newSession.recentProjects': 'Recent projects',
+      'newSession.noRecentProjects': 'No recent projects',
+      'newSession.chooseFolder': 'Choose folder...',
+      'newSession.temporary': 'Temporary Session',
+      'newSession.create': 'Create Session',
+      'newSession.selectedWorkspace': 'Selected workspace',
+      'newSession.sessionCount': '{count} sessions',
       'common.retry': 'Retry',
       'common.cancel': 'Cancel',
       'common.delete': 'Delete',
@@ -44,6 +64,7 @@ import { useUIStore } from '../../stores/uiStore'
 
 describe('Sidebar', () => {
   const connectToSession = vi.fn()
+  const ensureSessionReady = vi.fn()
   const disconnectSession = vi.fn()
   const fetchSessions = vi.fn()
   const createSession = vi.fn()
@@ -52,12 +73,16 @@ describe('Sidebar', () => {
 
   beforeEach(() => {
     connectToSession.mockReset()
+    ensureSessionReady.mockReset()
     disconnectSession.mockReset()
     fetchSessions.mockReset()
     createSession.mockReset()
     deleteSession.mockReset()
     addToast.mockReset()
+    getRecentProjectsMock.mockReset()
+    getRecentProjectsMock.mockResolvedValue({ projects: [] })
 
+    localStorage.clear()
     useTabStore.setState({ tabs: [], activeTabId: null })
     useSessionStore.setState({
       sessions: [],
@@ -72,6 +97,7 @@ describe('Sidebar', () => {
     })
     useChatStore.setState({
       connectToSession,
+      ensureSessionReady,
       disconnectSession,
     } as Partial<ReturnType<typeof useChatStore.getState>>)
     useUIStore.setState({
@@ -82,6 +108,7 @@ describe('Sidebar', () => {
 
   afterEach(() => {
     useTabStore.setState({ tabs: [], activeTabId: null })
+    localStorage.clear()
   })
 
   it('opens a new tab when creating a session from the sidebar', async () => {
@@ -93,36 +120,22 @@ describe('Sidebar', () => {
       fireEvent.click(screen.getByRole('button', { name: 'New Session' }))
     })
 
+    expect(await screen.findByRole('menu', { name: 'New Session' })).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Temporary Session' }))
+    })
+
     await waitFor(() => {
-      expect(createSession).toHaveBeenCalled()
-      expect(connectToSession).toHaveBeenCalledWith('session-new-1')
+      expect(createSession).toHaveBeenCalledWith(undefined)
+      expect(ensureSessionReady).toHaveBeenCalledWith('session-new-1', undefined)
     })
 
     expect(useTabStore.getState().tabs).toEqual([
-      { sessionId: 'session-new-1', title: 'New Session', type: 'session', status: 'idle' },
+      { sessionId: 'session-new-1', projectPath: undefined, title: 'New Session', type: 'session', status: 'idle' },
     ])
     expect(useTabStore.getState().activeTabId).toBe('session-new-1')
     expect(screen.getByRole('complementary')).not.toHaveAttribute('data-tauri-drag-region')
-  })
-
-  it('opens each terminal click as a first-class app tab', () => {
-    render(<Sidebar />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Terminal' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Terminal' }))
-
-    const terminalTabs = useTabStore.getState().tabs.filter((tab) => tab.type === 'terminal')
-    expect(terminalTabs).toHaveLength(2)
-    expect(terminalTabs.map((tab) => tab.title)).toEqual(['Terminal 1', 'Terminal 2'])
-    expect(useTabStore.getState().activeTabId).toBe(terminalTabs[1]!.sessionId)
-
-    useTabStore.getState().closeTab(terminalTabs[0]!.sessionId)
-    useTabStore.getState().openTerminalTab()
-
-    expect(useTabStore.getState().tabs.filter((tab) => tab.type === 'terminal').map((tab) => tab.title)).toEqual([
-      'Terminal 2',
-      'Terminal 3',
-    ])
   })
 
   it('shows a toast when session creation fails', async () => {
@@ -132,6 +145,10 @@ describe('Sidebar', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'New Session' }))
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Temporary Session' }))
     })
 
     await waitFor(() => {
@@ -144,6 +161,45 @@ describe('Sidebar', () => {
     expect(useTabStore.getState().tabs).toEqual([])
   })
 
+  it('offers the selected project workspace first before creating', async () => {
+    createSession.mockResolvedValue('session-new-project')
+    const now = new Date().toISOString()
+    useSessionStore.setState({
+      selectedProjects: ['-workspace-project'],
+      sessions: [
+        {
+          id: 'session-existing',
+          title: 'Existing Session',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+        },
+      ],
+    })
+
+    render(<Sidebar />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'New Session' }))
+    })
+
+    const menu = await screen.findByRole('menu', { name: 'New Session' })
+    expect(createSession).not.toHaveBeenCalled()
+
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole('menuitem', { name: /project/ }))
+    })
+
+    await waitFor(() => {
+      expect(createSession).toHaveBeenCalledWith('/workspace/project')
+      expect(ensureSessionReady).toHaveBeenCalledWith('session-new-project', undefined)
+    })
+    expect(screen.queryByRole('menu', { name: 'New Session' })).not.toBeInTheDocument()
+  })
+
   it('requires confirmation before deleting a session from the sidebar', async () => {
     deleteSession.mockResolvedValue(undefined)
     useSessionStore.setState({
@@ -154,7 +210,7 @@ describe('Sidebar', () => {
           createdAt: new Date().toISOString(),
           modifiedAt: new Date().toISOString(),
           messageCount: 1,
-          projectPath: '/workspace/project',
+          projectPath: '-workspace-project',
           workDir: '/workspace/project',
           workDirExists: true,
         },
@@ -181,7 +237,7 @@ describe('Sidebar', () => {
     })
 
     await waitFor(() => {
-      expect(deleteSession).toHaveBeenCalledWith('session-1')
+      expect(deleteSession).toHaveBeenCalledWith('session-1', '-workspace-project')
       expect(disconnectSession).toHaveBeenCalledWith('session-1')
     })
 
@@ -189,37 +245,81 @@ describe('Sidebar', () => {
     expect(useTabStore.getState().activeTabId).toBeNull()
   })
 
-  it('collapses into an icon rail and expands back', async () => {
-    render(<Sidebar />)
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+  it('passes the selected projectPath locator when opening duplicate session ids', async () => {
+    const now = new Date().toISOString()
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-dup',
+          title: 'Project Alpha',
+          lastMessage: 'alpha transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-project-alpha',
+          workDir: '/workspace/alpha',
+          workDirExists: true,
+        },
+        {
+          id: 'session-dup',
+          title: 'Project Beta',
+          lastMessage: 'beta transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-project-beta',
+          workDir: '/workspace/beta',
+          workDirExists: true,
+        },
+      ],
     })
 
-    expect(useUIStore.getState().sidebarOpen).toBe(false)
-    expect(screen.queryByPlaceholderText('Search sessions')).not.toBeInTheDocument()
-    expect(screen.getByRole('complementary')).toHaveAttribute('data-state', 'closed')
-    expect(screen.getByTestId('sidebar-expand-button')).toHaveClass('sidebar-toggle-button--collapsed')
-
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+      render(<Sidebar />)
     })
 
-    expect(useUIStore.getState().sidebarOpen).toBe(true)
-    expect(screen.getByPlaceholderText('Search sessions')).toBeInTheDocument()
-    expect(screen.getByRole('complementary')).toHaveAttribute('data-state', 'open')
+    const betaRow = screen.getByText('beta transcript').closest('button')
+    expect(betaRow).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(betaRow!)
+    })
+
+    expect(ensureSessionReady).toHaveBeenCalledWith('session-dup', '-project-beta')
+    expect(useTabStore.getState().tabs).toMatchObject([
+      { sessionId: 'session-dup', projectPath: '-project-beta', title: 'Project Beta' },
+    ])
   })
 
-  it('keeps the project filter section overflow visible for dropdown menus', () => {
+  it('does not render when the sidebar is closed', () => {
+    useUIStore.setState({ sidebarOpen: false } as Partial<ReturnType<typeof useUIStore.getState>>)
+
     render(<Sidebar />)
 
-    expect(screen.getByTestId('sidebar-project-filter-section')).toHaveStyle({ overflow: 'visible' })
-    expect(screen.getByTestId('sidebar-project-filter-section')).toHaveClass('relative', 'z-20')
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+  })
+
+  it('renders the embedded project filter when multiple projects are available', () => {
+    useSessionStore.setState({
+      availableProjects: [
+        '-workspace-alpha',
+        '-workspace-beta',
+      ],
+    })
+
+    render(<Sidebar />)
+
+    expect(screen.getByTestId('project-filter')).toBeInTheDocument()
   })
 
   it('keeps the session list section in a constrained flex column for scrolling', () => {
     render(<Sidebar />)
 
-    expect(screen.getByTestId('sidebar-session-list-section')).toHaveClass('flex', 'flex-1', 'min-h-0', 'flex-col')
+    expect(screen.getByTestId('sidebar-session-list-section')).toHaveClass(
+      'flex-1',
+      'overflow-y-auto',
+      'no-scrollbar',
+      'scroll-smooth',
+    )
   })
 })

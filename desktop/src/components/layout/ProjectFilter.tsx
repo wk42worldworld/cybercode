@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { sessionsApi, type RecentProject } from '../../api/sessions'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTranslation } from '../../i18n'
+import { Icon } from '../shared/Icon'
 
 type DropdownPos = {
   top: number
@@ -28,11 +29,26 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
   const { availableProjects, selectedProjects, setSelectedProjects } = useSessionStore()
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<RecentProject[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, _setLoading] = useState(false)
   const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Preload projects on mount, not just when opening
+  useEffect(() => {
+    if (cachedProjects && Date.now() - cacheTimestamp < CACHE_TTL) {
+      setProjects(cachedProjects)
+      return
+    }
+    sessionsApi.getRecentProjects(200)
+      .then(({ projects: nextProjects }) => {
+        cachedProjects = nextProjects
+        cacheTimestamp = Date.now()
+        setProjects(nextProjects)
+      })
+      .catch(() => setProjects([]))
+  }, [])
 
   const updateDropdownPos = useCallback(() => {
     if (!triggerRef.current) return
@@ -59,8 +75,10 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
       setOpen(false)
     }
 
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    // Capture phase so ancestor stopPropagation (e.g. TabBar drag region)
+    // does not prevent the dropdown from closing on outside clicks.
+    document.addEventListener('mousedown', handleClick, true)
+    return () => document.removeEventListener('mousedown', handleClick, true)
   }, [open])
 
   useEffect(() => {
@@ -74,23 +92,25 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
     }
   }, [open, updateDropdownPos])
 
+  // Refresh cache when opening if expired, but don't show loading if we have cached data
   useEffect(() => {
     if (!open) return
     if (cachedProjects && Date.now() - cacheTimestamp < CACHE_TTL) {
-      setProjects(cachedProjects)
+      if (projects.length === 0) setProjects(cachedProjects)
       return
     }
-
-    setLoading(true)
+    if (cachedProjects && projects.length === 0) {
+      setProjects(cachedProjects)
+    }
+    // Refresh in background without loading state
     sessionsApi.getRecentProjects(200)
       .then(({ projects: nextProjects }) => {
         cachedProjects = nextProjects
         cacheTimestamp = Date.now()
         setProjects(nextProjects)
       })
-      .catch(() => setProjects([]))
-      .finally(() => setLoading(false))
-  }, [open])
+      .catch(() => {})
+  }, [open, projects.length])
 
   const isAllSelected = selectedProjects.length === 0
 
@@ -152,8 +172,6 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
     setSelectedProjects(next.length >= availableProjects.length ? [] : next)
   }
 
-  const selectAll = () => setSelectedProjects([])
-
   return (
     <div ref={ref} className="relative">
       <button
@@ -165,68 +183,53 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
         title={triggerLabel}
         className={
           variant === 'embedded'
-            ? `inline-flex h-7 w-7 items-center justify-center rounded-[8px] border transition-colors duration-200 ${
+            ? `inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-200 ${
               isAllSelected
-                ? 'border-transparent text-[var(--color-text-tertiary)] hover:bg-[var(--color-sidebar-item-hover)] hover:text-[var(--color-text-secondary)]'
-                : 'border-[var(--color-sidebar-item-active-border)] bg-[var(--color-sidebar-item-active)] text-[var(--color-text-primary)] hover:bg-[var(--color-sidebar-item-hover)]'
+                ? 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
+                : 'text-[var(--color-text-secondary)] bg-[var(--color-surface-selected)] hover:bg-[var(--color-surface-hover)]'
             }`
-            : 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-[10px] border border-[var(--color-sidebar-filter-border)] bg-[var(--color-sidebar-filter-bg)] px-2 text-left text-[14px] text-[var(--color-text-primary)] transition-colors duration-200 hover:bg-[var(--color-sidebar-item-hover)]'
+            : 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-2 text-left text-[14px] text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-surface-hover)]'
         }
       >
         {variant === 'embedded' ? (
           <span className="relative flex items-center justify-center">
-            <FolderIcon className="h-[14px] w-[14px]" />
+            <Icon name="folder" size={14} />
             {!isAllSelected && (
-              <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--color-brand)]" />
+              <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--color-text-secondary)]" />
             )}
           </span>
         ) : (
           <>
-            <FolderIcon className="h-[14px] w-[14px] text-[var(--color-text-secondary)]" />
+            <Icon name="folder" size={14} className="text-[var(--color-text-secondary)]" />
             <span className="min-w-0">
               <span className="block truncate text-[14px] font-semibold tracking-tight">{label}</span>
             </span>
             <span className="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center text-[var(--color-text-tertiary)] transition-colors">
-              <ChevronIcon open={open} />
+              <Icon name="expand_more" size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
             </span>
           </>
         )}
       </button>
 
-      {open && dropdownPos && createPortal(
+      {/* Keep dropdown in DOM but hidden when closed - avoids re-mounting lag */}
+      {createPortal(
         <div
           ref={dropdownRef}
-          className="w-[360px] max-w-[calc(100vw-32px)] overflow-hidden rounded-[18px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]"
+          className="w-[280px] max-w-[calc(100vw-32px)] overflow-hidden rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
           style={{
             position: 'fixed',
-            left: Math.min(dropdownPos.left, window.innerWidth - Math.min(360, window.innerWidth - 32) - 16),
-            ...(dropdownPos.direction === 'down'
+            left: dropdownPos ? Math.min(dropdownPos.left, window.innerWidth - Math.min(280, window.innerWidth - 32) - 16) : -9999,
+            ...(dropdownPos?.direction === 'down'
               ? { top: dropdownPos.top }
-              : { bottom: window.innerHeight - dropdownPos.top }),
-            boxShadow: 'var(--shadow-dropdown)',
+              : dropdownPos ? { bottom: window.innerHeight - dropdownPos.top } : { top: -9999 }),
             zIndex: 9999,
+            visibility: open ? 'visible' : 'hidden',
+            opacity: open ? 1 : 0,
+            pointerEvents: open ? 'auto' : 'none',
           }}
         >
-          <div className="max-h-[360px] overflow-y-auto p-2">
-            <button
-              type="button"
-              onClick={selectAll}
-              className={`flex w-full items-center gap-3 rounded-[5px] px-3 py-2.5 text-left transition-colors ${
-                isAllSelected
-                  ? 'bg-[var(--color-sidebar-item-active)]'
-                  : 'hover:bg-[var(--color-sidebar-item-hover)]'
-              }`}
-            >
-              <FolderIcon className="text-[var(--color-text-secondary)]" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">{t('sidebar.allProjects')}</div>
-              </div>
-              {isAllSelected && <CheckIcon />}
-            </button>
-
-            <div className="mx-3 my-2 border-t border-[var(--color-border)]" />
-
-            {loading ? (
+          <div className="max-h-[380px] overflow-y-auto py-2 px-1.5">
+            {loading && projects.length === 0 ? (
               <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
             ) : options.length === 0 ? (
               <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
@@ -238,28 +241,32 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                     key={option.projectPath}
                     type="button"
                     onClick={() => toggleProject(option.projectPath)}
-                    className={`flex w-full items-center gap-3 rounded-[5px] px-3 py-2.5 text-left transition-colors ${
+                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left group ${
                       checked
-                        ? 'bg-[var(--color-sidebar-item-active)]'
-                        : 'hover:bg-[var(--color-sidebar-item-hover)]'
+                        ? 'bg-[var(--color-surface-selected)]'
+                        : 'hover:bg-[var(--color-surface-hover)]'
                     }`}
                   >
-                    {option.isGit ? <GitBranchIcon className="text-[var(--color-text-secondary)]" /> : <FolderIcon />}
+                    <Icon name={option.isGit ? 'account_tree' : 'folder'} size={14} className="opacity-50" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">{option.title}</div>
+                      <div className={`truncate text-[13px] ${checked ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                        {option.title}
+                      </div>
                       {option.subtitle && (
-                        <div className="truncate pt-0.5 text-[11px] text-[var(--color-text-tertiary)] font-[var(--font-mono)]">
+                        <div className="truncate mt-px text-[10px] text-[var(--color-text-tertiary)] font-mono">
                           {option.subtitle}
                         </div>
                       )}
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-1.5">
                       {option.branch && (
-                        <span className="max-w-[88px] truncate text-[10px] text-[var(--color-text-tertiary)]">
+                        <span className="max-w-[80px] truncate text-[9px] text-[var(--color-text-tertiary)]">
                           {option.branch}
                         </span>
                       )}
-                      {checked && <CheckIcon />}
+                      {checked && (
+                        <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-tertiary)]" />
+                      )}
                     </div>
                   </button>
                 )
@@ -290,79 +297,4 @@ function fallbackProjectTitle(projectPath: string, fallback: string) {
 
   const segments = projectPath.split('-').filter(Boolean)
   return segments[segments.length - 1] || projectPath || fallback
-}
-
-function ChevronIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`transition-transform ${open ? 'rotate-180' : ''}`}
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  )
-}
-
-function FolderIcon({ className = 'text-[var(--color-text-secondary)]' }: { className?: string }) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`flex-shrink-0 ${className}`}
-    >
-      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-    </svg>
-  )
-}
-
-function GitBranchIcon({ className = 'text-[var(--color-text-secondary)]' }: { className?: string }) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`flex-shrink-0 ${className}`}
-    >
-      <circle cx="18" cy="18" r="3" />
-      <circle cx="6" cy="6" r="3" />
-      <path d="M13 6h3a2 2 0 0 1 2 2v7" />
-      <line x1="6" y1="9" x2="6" y2="21" />
-    </svg>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="var(--color-brand)"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="flex-shrink-0"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )
 }

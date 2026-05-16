@@ -101,6 +101,8 @@ describe('chat blocks', () => {
       sessions: {
         'active-tab': {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',

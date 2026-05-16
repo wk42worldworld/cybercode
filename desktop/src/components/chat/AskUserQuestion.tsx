@@ -138,17 +138,17 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
   return (
     <div className={`mb-4 rounded-[var(--radius-lg)] border overflow-hidden ${
       submitted
-        ? 'border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-low)] opacity-70'
-        : 'border-[var(--color-secondary)] bg-[var(--color-surface-container-lowest)]'
-    }`}>
+        ? 'border-[var(--color-border)] bg-[var(--color-surface-container-low)] opacity-70'
+        : 'border-[var(--color-brand)] bg-[var(--color-surface-container-lowest)]'
+    }`} style={!submitted ? { boxShadow: '0 0 12px var(--color-accent-glow)' } : undefined}>
       {/* Header */}
       <div className={`flex items-center gap-3 px-4 py-3 ${
         submitted
           ? 'bg-[var(--color-surface-container-low)]'
           : 'bg-[var(--color-surface-container)]'
       }`}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] bg-[var(--color-secondary)]/10">
-          <Icon name="help" size={18} className="text-[var(--color-secondary)]" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)] bg-[var(--color-accent-glow)]">
+          <Icon name="help" size={18} className="text-[var(--color-brand)]" />
         </div>
         <div className="flex-1 min-w-0">
           <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
@@ -164,7 +164,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
 
       {/* Question tabs — horizontal tab bar (only show when multiple questions) */}
       {questions.length > 1 && (
-        <div className="flex px-4 border-b border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-low)] overflow-x-auto">
+        <div className="flex px-4 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] overflow-x-auto">
           {questions.map((q, i) => {
             const isActive = safeActiveTab === i
             const isAnswered = selections[i] !== undefined
@@ -175,7 +175,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                 onClick={() => setActiveTab(i)}
                 className={`relative flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-medium whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'text-[var(--color-secondary)]'
+                    ? 'text-[var(--color-brand)]'
                     : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
                 }`}
               >
@@ -184,7 +184,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                 )}
                 {tabLabel}
                 {isActive && (
-                  <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-[var(--color-secondary)] rounded-t" />
+                  <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-[var(--color-brand)] rounded-t" />
                 )}
               </button>
             )
@@ -210,27 +210,25 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                   disabled={submitted}
                   className={`w-full text-left px-4 py-3 rounded-[var(--radius-md)] border transition-all duration-150 cursor-pointer ${
                     isSelected
-                      ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]/8 ring-1 ring-[var(--color-secondary)]/30'
-                      : 'border-[var(--color-outline-variant)]/40 bg-[var(--color-surface)] hover:border-[var(--color-outline-variant)] hover:bg-[var(--color-surface-container-low)]'
+                      ? 'border-[var(--color-brand)] bg-[var(--color-accent-glow)] ring-1 ring-[var(--color-brand)]/30'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-brand)] hover:bg-[var(--color-accent-glow)]'
                   } ${submitted ? 'cursor-default' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Check indicator */}
                     <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${
                       isSelected
-                        ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)]'
-                        : 'border-[var(--color-outline)]'
+                        ? 'border-[var(--color-brand)] bg-[var(--color-brand)]'
+                      : 'border-[var(--color-border)]'
                     }`}>
                       {isSelected && (
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <Icon name="check" size={10} className="text-white" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className={`text-[14px] font-medium ${
                         isSelected
-                          ? 'text-[var(--color-secondary)]'
+                          ? 'text-[var(--color-brand)]'
                           : 'text-[var(--color-text-primary)]'
                       }`}>
                         {opt.label}
@@ -268,7 +266,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                 if (e.key === 'Enter' && allAnswered) handleSubmit()
               }}
               placeholder={t('question.typePlaceholder')}
-              className="w-full px-3 py-2 text-[14px] bg-[var(--color-surface)] border-2 border-[var(--color-outline-variant)]/40 rounded-[var(--radius-md)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-secondary)] focus:ring-1 focus:ring-[var(--color-secondary)]/30"
+              className="w-full px-3 py-2 text-[14px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-brand)] focus:shadow-[var(--shadow-focus-ring)]"
             />
           </div>
         )}
@@ -286,10 +284,11 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
 
       {/* Submit button */}
       {!submitted && (
-        <div className="flex items-center gap-2 px-4 py-3 border-t border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-low)]">
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
           <Button
             variant="primary"
             size="sm"
+            className="!bg-[var(--color-brand)] hover:!bg-[color-mix(in_srgb,var(--color-brand)_85%,white)] !shadow-[0_0_12px_var(--color-accent-glow)]"
             disabled={!allAnswered || !pendingRequest}
             onClick={handleSubmit}
             icon={
@@ -303,4 +302,3 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
     </div>
   )
 }
-

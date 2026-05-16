@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap");
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
 @plugin "@tailwindcss/typography";
@@ -8,7 +7,7 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 
-/* ─── Self-hosted fallbacks (kept so offline / packaged builds still render) */
+/* ─── Self-hosted fonts — Geist (display/body) + JetBrains Mono (code) ─── */
 
 @font-face {
   font-family: 'Geist';
@@ -53,14 +52,6 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-@font-face {
-  font-family: 'Material Symbols Outlined';
-  font-style: normal;
-  font-weight: 100 700;
-  font-display: block;
-  src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
-}
-
 /* ─── Shiki code viewer ───────────────────────────────────────── */
 .code-viewer-area .line {
   display: block;
@@ -73,6 +64,9 @@
 
 .code-viewer-area .line:hover {
   background: rgba(0, 0, 0, 0.03);
+}
+[data-theme="dark"] .code-viewer-area .line:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .code-viewer-area .line-numbers::before {
@@ -95,12 +89,100 @@
 .settings-terminal-host .xterm-viewport {
   scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
 }
+[data-theme="dark"] .settings-terminal-host .xterm-viewport {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
 
 .settings-terminal-host .xterm-screen {
   outline: none;
 }
 
-/* ─── Tailwind Theme — Apple / spacex-codex palette ──────────────── */
+/* ─── Topbar AI activity text shimmer ─────────────────────── */
+.ai-shimmer-text {
+  --ai-shimmer-base: rgba(29, 29, 31, 0.46);
+  --ai-shimmer-sheen: rgba(29, 29, 31, 0.72);
+  --ai-shimmer-glow: rgba(0, 122, 255, 0.24);
+  color: var(--ai-shimmer-base);
+}
+
+[data-theme="dark"] .ai-shimmer-text {
+  --ai-shimmer-base: rgba(255, 255, 255, 0.44);
+  --ai-shimmer-sheen: rgba(255, 255, 255, 0.74);
+  --ai-shimmer-glow: rgba(103, 232, 249, 0.30);
+}
+
+.ai-shimmer-muted {
+  --ai-shimmer-base: rgba(29, 29, 31, 0.28);
+  --ai-shimmer-sheen: rgba(29, 29, 31, 0.52);
+  --ai-shimmer-glow: rgba(0, 122, 255, 0.18);
+}
+
+[data-theme="dark"] .ai-shimmer-muted {
+  --ai-shimmer-base: rgba(255, 255, 255, 0.30);
+  --ai-shimmer-sheen: rgba(255, 255, 255, 0.52);
+  --ai-shimmer-glow: rgba(103, 232, 249, 0.20);
+}
+
+.ai-shimmer-thinking {
+  --ai-shimmer-base: rgba(107, 114, 128, 0.82);
+  --ai-shimmer-sheen: rgba(75, 85, 99, 0.78);
+  --ai-shimmer-glow: rgba(0, 122, 255, 0.22);
+}
+
+[data-theme="dark"] .ai-shimmer-thinking {
+  --ai-shimmer-base: rgba(107, 114, 128, 0.78);
+  --ai-shimmer-sheen: rgba(156, 163, 175, 0.68);
+  --ai-shimmer-glow: rgba(103, 232, 249, 0.24);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .ai-shimmer-text {
+    background-image:
+      linear-gradient(
+        105deg,
+        var(--ai-shimmer-base) 0%,
+        var(--ai-shimmer-base) 42%,
+        var(--ai-shimmer-glow) 48%,
+        var(--ai-shimmer-sheen) 50%,
+        var(--ai-shimmer-glow) 52%,
+        var(--ai-shimmer-base) 58%,
+        var(--ai-shimmer-base) 100%
+      );
+    background-size: 280% 100%;
+    background-position: 140% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: ai-text-shimmer 4.4s linear infinite;
+  }
+
+  .ai-shimmer-muted {
+    animation-duration: 5.2s;
+  }
+
+  .ai-shimmer-thinking {
+    animation-duration: 4.1s;
+  }
+}
+
+@keyframes ai-text-shimmer {
+  0% {
+    background-position: 140% 0;
+  }
+  100% {
+    background-position: -140% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-shimmer-text {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+/* ─── Tailwind Theme — macOS Refined palette ──────────────── */
 @theme {
   /* Neutral grey scale (kept compatible with components that already use it) */
   --color-gray-50: #f9f9f9;
@@ -116,7 +198,7 @@
   --color-gray-900: #171717;
   --color-gray-950: #0d0d0d;
 
-  /* Accent — monochrome */
+  /* Accent — monochrome base (overridden per-theme for brand color) */
   --color-spacex-accent: #1c1c1e;
 
   /* Light-mode default values (overridden in [data-theme="dark"]) */
@@ -129,8 +211,8 @@
   --color-on-surface: #1d1d1f;
   --color-on-surface-variant: rgba(29, 29, 31, 0.72);
 
-  /* Surface scale — switched from M3 solid greys to transparency overlays so
-     all settings sub-panels match the homepage's `bg-black/[0.0X]` layering. */
+  /* Surface scale — transparency overlays so all sub-panels match
+     the homepage's `bg-black/[0.0X]` layering. */
   --color-surface: rgba(0, 0, 0, 0.03);
   --color-surface-bright: rgba(0, 0, 0, 0.04);
   --color-surface-dim: rgba(0, 0, 0, 0.02);
@@ -141,7 +223,7 @@
   --color-surface-container-lowest: #ffffff;
   --color-surface-variant: rgba(0, 0, 0, 0.04);
 
-  --color-background: #f5f5f7;
+  --color-background: #f8f9fa;
 
   --color-outline: #8a8a8e;
   --color-outline-variant: rgba(0, 0, 0, 0.14);
@@ -157,20 +239,20 @@
 
   --color-inverse-surface: #1d1d1f;
   --color-inverse-on-surface: #f5f5f7;
-  --color-inverse-primary: #fafafa;
+  --color-inverse-primary: #f8f9fa;
 
-  --color-success: #28c840;
+  --color-success: #777777;
   --color-warning: #ffbd2e;
 
-  /* Fonts — Inter (sans) + JetBrains Mono (mono), spacex-codex match */
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-headline: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-label: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Fonts — Geist (display/body/label) + JetBrains Mono (code) */
+  --font-sans: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-headline: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-label: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* Type scale — slightly tighter than industrial scale, closer to spacex-codex */
+  /* Type scale — slightly tighter than industrial scale */
   --text-xs: 11px;
   --text-xs--line-height: 1.4;
   --text-sm: 13px;
@@ -189,20 +271,20 @@
   --text-4xl--line-height: 1.1;
 }
 
-/* ─── Semantic Aliases — Light theme (Apple-style) ───────────────── */
+/* ─── Semantic Aliases — Light theme (macOS Refined) ──────── */
 :root,
 [data-theme="light"] {
   color-scheme: light;
 
   /* Layout dimensions */
-  --sidebar-width: 272px;
+  --sidebar-width: 240px;
   --sidebar-rail-width: 72px;
   --titlebar-height: 40px;
   --statusbar-height: 36px;
   --motion-sidebar-duration: 240ms;
   --motion-sidebar-easing: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* mac glass tokens (parallel to spacex-codex --mac-* but namespaced) */
+  /* mac glass tokens */
   --mac-bg: #f5f5f7;
   --mac-text: #1d1d1f;
   --mac-sidebar: rgba(255, 255, 255, 0.6);
@@ -211,7 +293,7 @@
   --mac-shadow: rgba(0, 0, 0, 0.10);
 
   /* Surface aliases */
-  --color-surface-sidebar: #fafafa;
+  --color-surface-sidebar: #f8f9fa;
   --color-surface-hover: rgba(0, 0, 0, 0.04);
   --color-surface-selected: rgba(0, 0, 0, 0.06);
   --color-model-option-selected-bg: rgba(0, 122, 255, 0.10);
@@ -226,39 +308,54 @@
   --color-sidebar-item-active-border: rgba(0, 122, 255, 0.40);
   --sidebar-panel-bg-image: none;
 
-  /* Border aliases — matched to homepage's transparency overlay system. The
-     "focus" border is a darker-neutral, NOT brand blue: hover/focus must read
-     as "slightly darker", not as "you've selected this". Brand blue is reserved
-     for active/selected states only. */
+  /* Border aliases */
   --color-border: rgba(0, 0, 0, 0.22);
   --color-border-focus: rgba(0, 0, 0, 0.55);
   --color-border-separator: rgba(0, 0, 0, 0.12);
 
-  /* Text aliases — rgba overlays so any settings sub-panel feels visually
-     identical to the homepage's `text-black/85`, `text-black/65`, `text-black/52`
-     scale used across the chat/sidebar surfaces. Tertiary lifted from 0.45 to
-     0.52 so 11–12px hint copy clears WCAG AA on light surfaces. */
+  /* Text aliases */
   --color-text-primary: rgba(0, 0, 0, 0.88);
   --color-text-secondary: rgba(0, 0, 0, 0.65);
   --color-text-tertiary: rgba(0, 0, 0, 0.52);
 
   --color-surface-info: var(--color-surface-container-low);
 
-  --color-brand: var(--color-spacex-accent);
-  --color-text-accent: var(--color-spacex-accent);
+  --color-brand: #555555;
+  --color-text-accent: #555555;
+  --color-spacex-accent: #555555;
 
-  /* Shadows — soft, Apple-like (no industrial flatness) */
+  /* WeChat message bubble colors */
+  --color-message-user-bg: #FF5C5C;
+  --color-message-user-fg: #ffffff;
+  --color-message-assistant-bg: #ffffff;
+  --color-chat-bg: #f5f5f5;
+
+  /* Accent glow tokens — macOS blue for light mode */
+  --color-accent-glow: rgba(0, 122, 255, 0.15);
+  --color-accent-glow-strong: rgba(0, 122, 255, 0.30);
+  --shadow-accent-glow: 0 0 20px rgba(0, 122, 255, 0.12);
+
+  /* Scan line effect for loading states */
+  --color-scan-line: rgba(0, 122, 255, 0.08);
+
+  /* Noise texture overlay opacity (off in light mode) */
+  --noise-opacity: 0;
+
+  /* Shadows — soft, refined */
   --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.08);
   --shadow-window: 0 30px 70px -20px rgba(0, 0, 0, 0.30), 0 12px 30px -8px rgba(0, 0, 0, 0.18);
   --shadow-sidebar-filter: none;
-  /* Focus ring — neutral inset, NOT brand blue. Was 0 0 0 2px rgba(0,122,255,0.20). */
-  --shadow-focus-ring: inset 0 0 0 1px rgba(0, 0, 0, 0.10);
+  /* Focus ring — accent glow */
+  --shadow-focus-ring: 0 0 0 1px rgba(0, 122, 255, 0.35), 0 0 12px rgba(0, 122, 255, 0.10);
   --shadow-error-ring: 0 0 0 2px rgba(255, 59, 48, 0.22);
-  --shadow-button-primary: 0 4px 12px rgba(0, 0, 0, 0.18);
+  --shadow-button-primary: 0 4px 12px rgba(0, 122, 255, 0.18);
 
+  --color-btn-primary-bg: var(--color-primary);
+  --color-btn-primary-bg-hover: var(--color-primary-container);
   --color-btn-primary-fg: var(--color-on-primary);
-  --gradient-btn-primary: linear-gradient(135deg, #1c1c1e, #3a3a3c);
-  --gradient-btn-primary-hover: linear-gradient(135deg, #3a3a3c, #1c1c1e);
+  --color-btn-danger-fg: #ffffff;
+  --gradient-btn-primary: linear-gradient(135deg, var(--color-btn-primary-bg), var(--color-btn-primary-bg-hover));
+  --gradient-btn-primary-hover: linear-gradient(135deg, var(--color-btn-primary-bg-hover), var(--color-btn-primary-bg));
 
   /* User message bubble */
   --color-surface-user-msg: rgba(0, 122, 255, 0.08);
@@ -312,20 +409,20 @@
   --color-selection-bg: rgba(0, 122, 255, 0.20);
   --color-selection-fg: inherit;
 
-  /* Compact radii */
-  --radius-sm: 3px;
-  --radius-md: 5px;
-  --radius-lg: 7px;
-  --radius-xl: 9px;
-  --radius-2xl: 12px;
+  /* Rounded radii — macOS aesthetic */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
   --radius-full: 9999px;
 }
 
-/* ─── Semantic Aliases — Dark theme (pure black, spacex-codex) ──── */
+/* ─── Semantic Aliases — Dark theme (macOS Refined, pure black) ── */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-spacex-accent: #e5e5e7;
+  --color-spacex-accent: #007aff;
   --color-primary: #e5e5e7;
   --color-primary-container: #aeaeb2;
   --color-primary-fixed: #1a1a1a;
@@ -335,9 +432,8 @@
   --color-on-surface: #f5f5f7;
   --color-on-surface-variant: rgba(245, 245, 247, 0.74);
 
-  /* Surface scale — switched from solid `#0a0a0a / #1a1a1a` ladder to transparency
-     overlays so settings sub-panels match the homepage's `dark:bg-white/[0.0X]`
-     layering and pick up whatever's behind them. */
+  /* Surface scale — transparency overlays so settings sub-panels match
+     the homepage's `dark:bg-white/[0.0X]` layering. */
   --color-surface: rgba(255, 255, 255, 0.04);
   --color-surface-bright: rgba(255, 255, 255, 0.10);
   --color-surface-dim: rgba(255, 255, 255, 0.04);
@@ -365,7 +461,7 @@
   --color-inverse-on-surface: #000000;
   --color-inverse-primary: #ffffff;
 
-  --color-success: #28c840;
+  --color-success: #777777;
   --color-warning: #ffbd2e;
 
   /* mac glass tokens */
@@ -380,8 +476,8 @@
   --color-surface-sidebar: #0A0A0A;
   --color-surface-hover: rgba(255, 255, 255, 0.05);
   --color-surface-selected: rgba(255, 255, 255, 0.08);
-  --color-model-option-selected-bg: rgba(10, 132, 255, 0.16);
-  --color-model-option-selected-border: rgba(10, 132, 255, 0.40);
+  --color-model-option-selected-bg: rgba(0, 122, 255, 0.10);
+  --color-model-option-selected-border: rgba(0, 122, 255, 0.35);
   --color-sidebar-filter-bg: rgba(255, 255, 255, 0.04);
   --color-sidebar-filter-border: rgba(255, 255, 255, 0.06);
   --color-sidebar-filter-icon-bg: transparent;
@@ -389,40 +485,57 @@
   --color-sidebar-search-border: rgba(255, 255, 255, 0.05);
   --color-sidebar-item-hover: rgba(255, 255, 255, 0.05);
   --color-sidebar-item-active: var(--color-spacex-accent);
-  --color-sidebar-item-active-border: rgba(10, 132, 255, 0.45);
+  --color-sidebar-item-active-border: rgba(0, 122, 255, 0.45);
   --sidebar-panel-bg-image: none;
 
-  /* Borders — matched to homepage `dark:border-white/[0.08]` system. Focus
-     border is neutral whiter, NOT brand blue. */
+  /* Borders */
   --color-border: rgba(255, 255, 255, 0.22);
   --color-border-focus: rgba(255, 255, 255, 0.55);
   --color-border-separator: rgba(255, 255, 255, 0.14);
 
-  /* Text — lifted from /85 /60 /45 → /92 /72 /56 because the previous values
-     were measured failing WCAG AA on the near-black surfaces (especially the
-     11–12px hint/metadata copy). Hierarchy is preserved by font-size + weight,
-     not by sub-AA opacity. */
+  /* Text */
   --color-text-primary: rgba(255, 255, 255, 0.96);
   --color-text-secondary: rgba(255, 255, 255, 0.82);
   --color-text-tertiary: rgba(255, 255, 255, 0.68);
 
   --color-surface-info: rgba(10, 10, 10, 0.92);
-  --color-brand: var(--color-spacex-accent);
-  --color-text-accent: var(--color-spacex-accent);
+  --color-brand: #999999;
+  --color-text-accent: #999999;
 
-  /* Shadows — soft drop, no harsh borders */
+  /* WeChat message bubble colors - dark mode */
+  --color-message-user-bg: #FF5C5C;
+  --color-message-user-fg: #ffffff;
+  --color-message-assistant-bg: #1e1e1e;
+  --color-chat-bg: #111111;
+
+  /* Accent glow tokens — macOS blue for dark mode */
+  --color-accent-glow: rgba(0, 122, 255, 0.15);
+  --color-accent-glow-strong: rgba(0, 122, 255, 0.30);
+  --shadow-accent-glow: 0 0 20px rgba(0, 122, 255, 0.12);
+
+  /* Scan line effect for loading states */
+  --color-scan-line: rgba(0, 122, 255, 0.08);
+
+  /* Noise texture overlay opacity */
+  --noise-opacity: 0.03;
+
+  /* Shadows */
   --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.50), 0 16px 40px rgba(0, 0, 0, 0.60);
   --shadow-window: 0 40px 100px -10px rgba(0, 0, 0, 0.85), 0 20px 50px -8px rgba(0, 0, 0, 0.65);
   --shadow-sidebar-filter: none;
-  /* Focus ring — neutral inset, not brand blue. */
-  --shadow-focus-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  /* Focus ring — accent glow */
+  --shadow-focus-ring: 0 0 0 1px rgba(0, 122, 255, 0.35), 0 0 12px rgba(0, 122, 255, 0.10);
   --shadow-error-ring: 0 0 0 2px rgba(255, 69, 58, 0.40);
-  --shadow-button-primary: 0 4px 12px rgba(0, 0, 0, 0.40);
+  --shadow-button-primary: 0 4px 12px rgba(0, 122, 255, 0.14);
 
-  --gradient-btn-primary: linear-gradient(135deg, #e5e5e7, #aeaeb2);
-  --gradient-btn-primary-hover: linear-gradient(135deg, #aeaeb2, #e5e5e7);
+  --color-btn-primary-bg: var(--color-primary);
+  --color-btn-primary-bg-hover: var(--color-primary-container);
+  --color-btn-primary-fg: var(--color-on-primary);
+  --color-btn-danger-fg: #ffffff;
+  --gradient-btn-primary: linear-gradient(135deg, var(--color-btn-primary-bg), var(--color-btn-primary-bg-hover));
+  --gradient-btn-primary-hover: linear-gradient(135deg, var(--color-btn-primary-bg-hover), var(--color-btn-primary-bg));
 
-  --color-surface-user-msg: rgba(255, 255, 255, 0.06);
+  --color-surface-user-msg: rgba(0, 122, 255, 0.06);
 
   --color-overlay-scrim: rgba(0, 0, 0, 0.65);
   --color-surface-glass: rgba(10, 10, 10, 0.84);
@@ -463,33 +576,16 @@
   --color-terminal-border: #1a1a1a;
   --color-terminal-fg: #f5f5f7;
   --color-terminal-muted: #676767;
-  --color-terminal-accent: #28c840;
+  --color-terminal-accent: #999999;
   --color-terminal-danger: #ff5f57;
   --color-terminal-warning: #ffbd2e;
 
   --color-window-close-hover: #ff5f57;
-  --color-selection-bg: rgba(10, 132, 255, 0.30);
+  --color-selection-bg: rgba(0, 122, 255, 0.25);
   --color-selection-fg: inherit;
 }
 
-/* ─── Material Symbols ─────────────────────────────────────────── */
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-weight: normal;
-  font-style: normal;
-  font-size: 20px;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  vertical-align: middle;
-}
+/* ─── Noise texture overlay — disabled (clean macOS aesthetic) ── */
 
 /* ─── Base styles ──────────────────────────────────────────────── */
 * {
@@ -590,8 +686,7 @@ h6 { font-size: 12px; line-height: 1.4; }
   text-transform: uppercase;
 }
 
-/* Ghost button — translucent surface + subtle border (kept for callsites
-   that already use it; visually consistent with macOS controls now). */
+/* Ghost button — translucent surface + subtle border */
 .btn-ghost {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -619,7 +714,7 @@ h6 { font-size: 12px; line-height: 1.4; }
   border-color: rgba(0, 0, 0, 0.14);
 }
 
-/* ─── Layout primitives — Apple-style restraint, no decorative chrome ──── */
+/* ─── Layout primitives ────────────────────────────────────────── */
 
 .mac-glass {
   background-color: var(--mac-glass-bg);
@@ -817,22 +912,22 @@ button, input, textarea, select, a, [role="button"] {
   color: inherit;
 }
 
-/* ─── Scrollbars — ultra-thin, spacex-codex style ──────────────── */
+/* ─── Scrollbars — symmetric across themes ─── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(125, 125, 125, 0.20);
+  background: rgba(0, 0, 0, 0.14);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(125, 125, 125, 0.40);
+  background: rgba(0, 0, 0, 0.28);
 }
 
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.14);
 }
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -843,11 +938,8 @@ button, input, textarea, select, a, [role="button"] {
   background: rgba(125, 125, 125, 0.20);
 }
 
-/* Sidebar session list — gutter always reserved (so layout doesn't jump and the
-   parent's overflow:hidden can't clip the thumb), but thumb opacity is driven by
-   the `--sidebar-thumb-alpha` custom property set inline by React on mouse
-   enter/leave. CSS custom properties propagate to scrollbar pseudo-elements and
-   trigger reliable repaints in WKWebView, unlike class toggles or `:hover`. */
+/* Sidebar session list — gutter always reserved, thumb opacity driven by
+   `--sidebar-thumb-alpha` custom property set inline by React. */
 .sidebar-scroll-area {
   overflow-y: scroll;
   scrollbar-gutter: stable;
@@ -855,7 +947,7 @@ button, input, textarea, select, a, [role="button"] {
 }
 
 .sidebar-scroll-area::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, calc(0.30 * var(--sidebar-thumb-alpha)));
+  background: rgba(0, 0, 0, calc(0.22 * var(--sidebar-thumb-alpha)));
   transition: background 200ms ease;
 }
 
@@ -863,7 +955,33 @@ button, input, textarea, select, a, [role="button"] {
   background: rgba(255, 255, 255, calc(0.22 * var(--sidebar-thumb-alpha)));
 }
 
-/* Animations — easing matched to spacex-codex's [0.16, 1, 0.3, 1] */
+/* ─── Animations — macOS Refined ──────────────────────────── */
+
+/* Scan line — terminal-style loading indicator */
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* Pulse glow — streaming indicator */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--color-accent-glow); }
+  50% { box-shadow: 0 0 20px var(--color-accent-glow-strong); }
+}
+
+/* Accent border sweep — focus state animation */
+@keyframes border-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+/* Accent pulse line — left-border indicator on tool/thinking blocks */
+@keyframes accent-pulse-line {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Core animations — easing matched to cubic-bezier(0.16, 1, 0.3, 1) */
 @keyframes shimmer {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
@@ -879,6 +997,10 @@ button, input, textarea, select, a, [role="button"] {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @keyframes modal-in {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -887,10 +1009,6 @@ button, input, textarea, select, a, [role="button"] {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes indeterminate-bar {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
-}
 @keyframes bounce-dot {
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
@@ -898,44 +1016,19 @@ button, input, textarea, select, a, [role="button"] {
 .animate-shimmer { animation: shimmer 1.5s ease-in-out infinite; }
 .animate-spin { animation: spin 1s linear infinite; }
 .animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-scan-line { animation: scan-line 2s linear infinite; }
+.animate-accent-pulse-line { animation: accent-pulse-line 1.5s ease-in-out infinite; }
 .animate-fade-in { animation: fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
 .animate-modal-in { animation: modal-in 240ms cubic-bezier(0.16, 1, 0.3, 1); }
 .animate-slide-down { animation: slide-down 200ms cubic-bezier(0.16, 1, 0.3, 1); }
-
-.session-loading-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 30;
-  background: rgba(0, 0, 0, 0.04);
-}
-[data-theme="dark"] .session-loading-bar {
-  background: rgba(255, 255, 255, 0.04);
-}
-.session-loading-bar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 25%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--color-spacex-accent),
-    transparent
-  );
-  animation: indeterminate-bar 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
 
 @keyframes progress-fill {
   from { width: 0%; }
 }
 
 /* Session loading skeleton shimmer */
-@keyframes shimmer {
+@keyframes shimmer-slide {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
@@ -948,16 +1041,133 @@ button, input, textarea, select, a, [role="button"] {
     rgba(0, 0, 0, 0.055) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+  animation: shimmer-slide 1.6s ease-in-out infinite;
 }
 
 [data-theme="dark"] .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.055) 25%,
-    rgba(255, 255, 255, 0.10)  50%,
-    rgba(255, 255, 255, 0.055) 75%
+    rgba(0, 122, 255, 0.03) 25%,
+    rgba(0, 122, 255, 0.07)  50%,
+    rgba(0, 122, 255, 0.03) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+  animation: shimmer-slide 1.6s ease-in-out infinite;
+}
+
+/* ─── WeChat Mac Theme Styles ───────────────────────── */
+
+/* WeChat chat background */
+.wechat-chat-bg {
+  background-color: var(--color-chat-bg);
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Ccircle cx='25' cy='25' r='1'/%3E%3Ccircle cx='75' cy='75' r='1'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* WeChat message bubble */
+.wechat-message-bubble {
+  position: relative;
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Assistant message (left side) */
+.wechat-message-assistant {
+  background-color: var(--color-message-assistant-bg);
+  border-radius: 0 6px 6px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* User message (right side) */
+.wechat-message-user {
+  background-color: var(--color-message-user-bg);
+  border-radius: 6px 0 6px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Bubble tail for assistant */
+.wechat-message-assistant::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 12px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 8px solid var(--color-message-assistant-bg);
+}
+
+/* Bubble tail for user */
+.wechat-message-user::before {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 12px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 8px solid var(--color-message-user-bg);
+}
+
+/* WeChat avatar */
+.wechat-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.wechat-avatar-user {
+  background: linear-gradient(135deg, #555555, #444444);
+  color: white;
+}
+
+.wechat-avatar-assistant {
+  background: linear-gradient(135deg, #5c6bc0, #3f51b5);
+  color: white;
+}
+
+/* WeChat input area */
+.wechat-input-container {
+  background-color: #ffffff;
+}
+
+[data-theme="dark"] .wechat-input-container {
+  background-color: #1e1e1e;
+}
+
+/* WeChat sidebar style */
+.wechat-sidebar {
+  background-color: #f7f7f7;
+  border-right: 1px solid #e0e0e0;
+}
+
+[data-theme="dark"] .wechat-sidebar {
+  background-color: #1e1e1e;
+  border-right-color: #2a2a2a;
+}
+
+/* WeChat scrollbar - thinner */
+.wechat-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wechat-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+[data-theme="dark"] .wechat-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }

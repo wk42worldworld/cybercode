@@ -1,0 +1,908 @@
+$ tauri dev
+     Running BeforeDevCommand (`bun run build:sidecars && bun run dev`)
+$ bun run ./scripts/build-sidecars.ts
+[build-sidecars] scanning for missing imports...
+[scan] scanned 2171 source files
+[scan] missing 0 stub targets
+[scan] created 0 stubs, skipped 0
+[build-sidecars] Claude Code Sidecar -> /Users/wang/Documents/MyProject/cybercode/desktop/src-tauri/binaries/claude-sidecar-aarch64-apple-darwin
+[build-sidecars] ad-hoc signing /Users/wang/Documents/MyProject/cybercode/desktop/src-tauri/binaries/claude-sidecar-aarch64-apple-darwin for macOS ...
+[build-sidecars] ad-hoc signed /Users/wang/Documents/MyProject/cybercode/desktop/src-tauri/binaries/claude-sidecar-aarch64-apple-darwin
+[build-sidecars] Built desktop sidecar for aarch64-apple-darwin (bun-darwin-arm64)
+$ vite
+
+  VITE v6.4.1  ready in 179 ms
+
+  ➜  Local:   http://localhost:1420/
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info Watching /Users/wang/Documents/MyProject/cybercode/desktop/src-tauri for changes...
+[1m[92m   Compiling[0m cybercode-desktop v1.0.0 (/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri)
+[1m[96m    Building[0m [=======================> ] 473/476: cybercode-desktop(build)    [1m[96m    Building[0m [=======================> ] 474/476: cybercode-desktop           [1m[96m    Building[0m [=======================> ] 475/476: cybercode-desktop(bin)      [K[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 6.11s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+[claude-server] [CronScheduler] Starting — checking every 60 s
+[claude-server] [Server] Claude Code API server running at http://127.0.0.1:53227
+[claude-adapters] [claude-sidecar] --feishu requested but FEISHU_APP_ID / FEISHU_APP_SECRET missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] --telegram requested but TELEGRAM_BOT_TOKEN missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] no adapter could be started — check credentials in env or ~/.claude/adapters.json
+[claude-adapters] sidecar exited (code=Some(1), signal=None)
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] resolveSessionWorkDir: sessionId=028c2ee4-e213-4cf9-bcd2-16376cc1e922, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] SDK connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+2:16:33 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx
+2:16:33 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx
+2:16:34 AM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:16:34 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+2:16:34 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:16:34 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+2:16:37 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/pages/ActiveSession.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/controls/ModelSelector.tsx, /src/components/chat/EmptyState.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx
+2:16:37 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:16:37 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+2:17:04 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+2:17:07 AM [vite] (client) hmr update /src/components/chat/EmptyState.tsx, /src/theme/globals.css
+2:17:14 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css, /src/components/layout/TabBar.tsx, /src/components/layout/Sidebar.tsx, /src/pages/ActiveSession.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/controls/ModelSelector.tsx, /src/components/chat/EmptyState.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/tasks/TaskRunsPanel.tsx
+2:17:14 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:17:14 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+2:17:21 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css, /src/components/layout/IconRail.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/TabBar.tsx, /src/components/layout/Sidebar.tsx, /src/pages/ActiveSession.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/controls/ModelSelector.tsx, /src/components/chat/EmptyState.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/tasks/TaskRunsPanel.tsx
+2:17:21 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:17:21 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+2:17:29 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css, /src/components/layout/IconRail.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/TabBar.tsx, /src/components/layout/Sidebar.tsx, /src/pages/ActiveSession.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/controls/ModelSelector.tsx, /src/components/chat/EmptyState.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/tasks/TaskRunsPanel.tsx
+2:17:29 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:17:29 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [WS] Prewarmed session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1000: )
+[claude-server] [ConversationService] CLI process for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 exited with code 143
+2:17:42 AM [vite] (client) page reload src/stores/sessionStore.test.ts
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] resolveSessionWorkDir: sessionId=028c2ee4-e213-4cf9-bcd2-16376cc1e922, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+2:17:45 AM [vite] (client) page reload src/components/layout/Sidebar.test.tsx
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [ConversationService] CLI started successfully for 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] SDK connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+2:17:57 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/layout/Sidebar.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/pages/ActiveSession.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/controls/ModelSelector.tsx, /src/components/chat/EmptyState.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/layout/IconRail.tsx, /src/components/layout/ContentRouter.tsx
+2:17:57 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:17:57 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [SessionService] createSession: requested workDir=undefined, resolved=/Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri)
+[claude-server] [WS] Client connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] resolveSessionWorkDir: sessionId=b15a1f22-6bd1-4ba5-9441-acc26a947659, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] SDK connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] Session 99f46293-881d-49e9-a0ac-7fcbba471fd0 not reconnected after 30s, stopping CLI subprocess
+2:18:13 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/layout/Sidebar.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/pages/ActiveSession.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/controls/ModelSelector.tsx, /src/components/chat/EmptyState.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/layout/IconRail.tsx, /src/components/layout/ContentRouter.tsx
+2:18:13 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:18:13 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Prewarmed session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1000: )
+[claude-server] [ConversationService] CLI process for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 exited with code 143
+[claude-server] [WS] Prewarmed session b15a1f22-6bd1-4ba5-9441-acc26a947659 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1000: )
+[claude-server] [ConversationService] CLI process for b15a1f22-6bd1-4ba5-9441-acc26a947659 exited with code 143
+2:24:16 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+2:24:23 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionDialog.tsx
+2:24:23 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionDialog.tsx
+2:24:23 AM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:24:23 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+2:24:23 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:24:23 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+2:24:43 AM [vite] (client) page reload src/components/layout/Sidebar.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1001: )
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Client connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] resolveSessionWorkDir: sessionId=b15a1f22-6bd1-4ba5-9441-acc26a947659, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] resolveSessionWorkDir: sessionId=028c2ee4-e213-4cf9-bcd2-16376cc1e922, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] SDK connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [ConversationService] CLI started successfully for 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] SDK connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [SessionService] createSession: requested workDir=undefined, resolved=/Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri)
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+[claude-server] [WS] Prewarmed session b15a1f22-6bd1-4ba5-9441-acc26a947659 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1000: )
+[claude-server] [ConversationService] CLI process for b15a1f22-6bd1-4ba5-9441-acc26a947659 exited with code 143
+[claude-server] [WS] Prewarmed session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1000: )
+[claude-server] [ConversationService] CLI process for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 exited with code 143
+[claude-server] [WS] Prewarmed session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+2:35:13 AM [vite] (client) hmr update /src/components/layout/NewSessionDialog.tsx, /src/theme/globals.css
+2:36:03 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+2:36:12 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+2:36:19 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+2:36:19 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+2:36:19 AM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:36:19 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+2:36:19 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:36:19 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+2:36:30 AM [vite] (client) page reload src/components/layout/Sidebar.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1001: )
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+2:36:36 AM [vite] (client) page reload src/components/layout/Sidebar.test.tsx
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Session 99f46293-881d-49e9-a0ac-7fcbba471fd0 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session b15a1f22-6bd1-4ba5-9441-acc26a947659 not reconnected after 30s, stopping CLI subprocess
+2:40:22 AM [vite] (client) page reload package.json
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+2:40:24 AM [vite] (client) page reload package.json
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] resolveSessionWorkDir: sessionId=b15a1f22-6bd1-4ba5-9441-acc26a947659, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] resolveSessionWorkDir: sessionId=028c2ee4-e213-4cf9-bcd2-16376cc1e922, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [ConversationService] CLI started successfully for b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] SDK connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [ConversationService] CLI started successfully for 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] Prewarmed session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+2:42:39 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+2:42:50 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+2:43:11 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+[claude-server] [WS] Prewarmed session b15a1f22-6bd1-4ba5-9441-acc26a947659 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1000: )
+[claude-server] [ConversationService] CLI process for b15a1f22-6bd1-4ba5-9441-acc26a947659 exited with code 143
+[claude-server] [WS] Prewarmed session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1000: )
+[claude-server] [ConversationService] CLI process for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 exited with code 143
+2:47:39 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+2:48:29 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css
+2:48:37 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+2:51:38 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+2:51:39 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh (new export)
+2:51:39 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx
+2:51:39 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:51:39 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+2:51:54 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+2:52:28 AM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+2:52:57 AM [vite] (client) hmr update /src/components/chat/MessageExecutionLog.tsx, /src/theme/globals.css
+2:53:02 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+2:53:02 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("getCodiconName" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:53:02 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx
+2:53:02 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:53:02 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+2:53:25 AM [vite] (client) hmr update /src/components/controls/ModelSelector.tsx, /src/theme/globals.css
+2:53:33 AM [vite] (client) hmr update /src/components/controls/PermissionModeSelector.tsx, /src/theme/globals.css
+2:53:48 AM [vite] (client) hmr update /src/components/layout/ProjectFilter.tsx, /src/theme/globals.css
+2:53:55 AM [vite] (client) hmr update /src/components/shared/Dropdown.tsx, /src/theme/globals.css
+2:54:19 AM [vite] (client) hmr update /src/components/shared/DirectoryPicker.tsx, /src/theme/globals.css
+2:54:25 AM [vite] (client) hmr update /src/components/shared/DirectoryPicker.tsx, /src/theme/globals.css
+2:54:51 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+2:54:51 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("getCodiconName" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:54:51 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx
+2:54:52 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:54:52 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+2:54:58 AM [vite] (client) hmr update /src/components/layout/ProjectFilter.tsx, /src/theme/globals.css
+2:55:09 AM [vite] (client) page reload src/components/shared/ProjectContextChip.tsx
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1001: )
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+2:55:15 AM [vite] (client) hmr update /src/components/chat/AskUserQuestion.tsx, /src/theme/globals.css
+2:55:24 AM [vite] (client) page reload src/components/layout/TitleBar.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session b15a1f22-6bd1-4ba5-9441-acc26a947659 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 not reconnected after 30s, stopping CLI subprocess
+2:55:57 AM [vite] (client) hmr update /src/components/chat/SessionTaskBar.tsx, /src/theme/globals.css
+2:56:04 AM [vite] (client) hmr update /src/components/chat/MessageList.tsx, /src/theme/globals.css
+2:56:04 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+2:56:04 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+2:56:08 AM [vite] (client) hmr update /src/components/chat/EmptyState.tsx, /src/theme/globals.css
+2:56:14 AM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+3:04:49 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+3:04:49 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("getCodiconName" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:04:49 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/EmptyState.tsx
+3:04:50 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:04:50 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+3:04:50 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:04:50 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+3:04:55 AM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+2026-05-14 03:06:37.754 cybercode-desktop[4426:23612753] error messaging the mach port for IMKCFRunLoopWakeUpReliable
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to user_message
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Client connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] resolveSessionWorkDir: sessionId=b15a1f22-6bd1-4ba5-9441-acc26a947659, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] SDK connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] resolveSessionWorkDir: sessionId=028c2ee4-e213-4cf9-bcd2-16376cc1e922, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [ConversationService] CLI started successfully for 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+3:10:26 AM [vite] (client) hmr update /src/components/controls/ModelSelector.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Prewarmed session b15a1f22-6bd1-4ba5-9441-acc26a947659 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1000: )
+[claude-server] [ConversationService] CLI process for b15a1f22-6bd1-4ba5-9441-acc26a947659 exited with code 143
+[claude-server] [WS] Prewarmed session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1000: )
+[claude-server] [ConversationService] CLI process for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 exited with code 143
+[claude-server] [WS] Prewarmed session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+3:14:47 AM [vite] (client) hmr update /src/components/controls/ModelSelector.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+3:20:28 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css
+3:21:24 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+3:21:24 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("getCodiconName" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:21:24 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/EmptyState.tsx
+3:21:25 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:21:25 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+3:21:25 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:21:25 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+3:30:16 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+3:30:16 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh (new export)
+3:30:16 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/EmptyState.tsx
+3:30:17 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:30:17 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+3:30:17 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:30:17 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+3:30:30 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+3:30:30 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("ICONS" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:30:30 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/EmptyState.tsx
+3:30:31 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:30:31 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+3:30:31 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:30:31 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+3:30:33 AM [vite] (client) hmr update /src/components/settings/SettingsLayout.tsx, /src/theme/globals.css
+3:30:48 AM [vite] (client) page reload src/pages/AgentTeams.tsx
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:30:51 AM [vite] (client) hmr update /src/components/skills/SkillList.tsx, /src/theme/globals.css
+3:30:54 AM [vite] (client) hmr update /src/components/plugins/PluginList.tsx, /src/theme/globals.css
+3:31:00 AM [vite] (client) hmr update /src/pages/ComputerUseSettings.tsx, /src/theme/globals.css
+3:31:05 AM [vite] (client) hmr update /src/components/teams/TeamStatusBar.tsx, /src/theme/globals.css
+3:31:10 AM [vite] (client) hmr update /src/components/tasks/TaskRunsPanel.tsx, /src/theme/globals.css
+3:31:13 AM [vite] (client) hmr update /src/components/tasks/TaskRow.tsx, /src/theme/globals.css
+3:31:17 AM [vite] (client) page reload src/pages/ToolInspection.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session b15a1f22-6bd1-4ba5-9441-acc26a947659 not reconnected after 30s, stopping CLI subprocess
+3:31:22 AM [vite] (client) page reload src/pages/NewTaskModal.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:31:30 AM [vite] (client) page reload src/pages/ScheduledTasksEmpty.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:31:38 AM [vite] (client) page reload src/pages/SessionControls.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+3:31:46 AM [vite] (client) page reload src/pages/SessionControls.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:31:58 AM [vite] (client) page reload src/pages/ScheduledTasksList.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:32:05 AM [vite] (client) page reload src/pages/ScheduledTasksList.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:32:11 AM [vite] (client) page reload src/pages/ScheduledTasksList.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:32:29 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+3:32:30 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("ICONS" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:32:30 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/EmptyState.tsx
+3:32:30 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:32:30 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+3:32:30 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:32:30 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+3:32:33 AM [vite] (client) hmr update /src/components/shared/Button.tsx, /src/theme/globals.css
+3:32:38 AM [vite] (client) hmr update /src/components/tasks/TaskEmptyState.tsx, /src/theme/globals.css
+3:32:44 AM [vite] (client) hmr update /src/components/layout/WindowControls.tsx, /src/theme/globals.css
+3:32:52 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+3:32:54 AM [vite] (client) hmr update /src/components/shared/LegacyMaterialIconAdapter.tsx, /src/theme/globals.css
+3:32:59 AM [vite] (client) hmr update /src/theme/globals.css
+3:33:01 AM [vite] (client) hmr update /src/components/chat/PermissionDialog.tsx, /src/theme/globals.css
+3:33:06 AM [vite] (client) page reload package.json
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:33:21 AM [vite] (client) page reload src/__tests__/pages.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:33:45 AM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+3:34:36 AM [vite] (client) page reload src/__tests__/pages.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:35:24 AM [vite] (client) hmr update /src/components/layout/StartupErrorView.tsx, /src/theme/globals.css
+3:35:24 AM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:35:24 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+3:35:26 AM [vite] (client) page reload package.json
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+3:36:03 AM [vite] (client) hmr update /src/components/shared/Icon.tsx, /src/theme/globals.css
+3:36:03 AM [vite] (client) hmr invalidate /src/components/shared/Icon.tsx Could not Fast Refresh ("ICONS" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:36:03 AM [vite] (client) hmr update /src/pages/ScheduledTasks.tsx, /src/theme/globals.css, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/shared/Modal.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/settings/SettingsLayout.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/shared/Avatar.tsx, /src/components/chat/MermaidRenderer.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AttachmentGallery.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/chat/InlineImageGallery.tsx, /src/components/chat/MessageActionBar.tsx, /src/components/chat/ImageGalleryModal.tsx, /src/components/layout/NewSessionMenu.tsx, /src/components/layout/Sidebar.tsx, /src/components/layout/IconRail.tsx, /src/components/chat/ChatInput.tsx, /src/components/chat/MessageExecutionLog.tsx, /src/components/layout/ProjectFilter.tsx, /src/components/shared/Dropdown.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/EmptyState.tsx, /src/components/shared/Button.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/layout/WindowControls.tsx, /src/components/layout/StartupErrorView.tsx
+3:36:04 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:36:04 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+3:36:04 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:36:04 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+3:36:04 AM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+3:36:04 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+3:40:11 AM [vite] (client) hmr update /src/theme/globals.css
+        Info File src-tauri/app-icon.svg changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.92s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+[claude-server] [CronScheduler] Starting — checking every 60 s
+[claude-server] [Server] Claude Code API server running at http://127.0.0.1:58854
+[claude-adapters] [claude-sidecar] --feishu requested but FEISHU_APP_ID / FEISHU_APP_SECRET missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] --telegram requested but TELEGRAM_BOT_TOKEN missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] no adapter could be started — check credentials in env or ~/.claude/adapters.json
+[claude-adapters] sidecar exited (code=Some(1), signal=None)
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+        Info File src-tauri/app-icon-macos.svg changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.90s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+[claude-server] [CronScheduler] Starting — checking every 60 s
+[claude-server] [Server] Claude Code API server running at http://127.0.0.1:58928
+[claude-adapters] [claude-sidecar] --feishu requested but FEISHU_APP_ID / FEISHU_APP_SECRET missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] --telegram requested but TELEGRAM_BOT_TOKEN missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] no adapter could be started — check credentials in env or ~/.claude/adapters.json
+[claude-adapters] sidecar exited (code=Some(1), signal=None)
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+        Info File src-tauri/icons/StoreLogo.png changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.86s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+        Info File src-tauri/icons/icon.icns changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info File src-tauri/icons/128x128@2x.png changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info File src-tauri/icons/ios/AppIcon-20x20@2x-1.png changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+        Info File src-tauri/icons/ios/AppIcon-60x60@2x.png changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+        Info File src-tauri/icons/ios/AppIcon-512@2x.png changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info File src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png changed. Rebuilding application...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
+[1m[92m     Running[0m `target/debug/cybercode-desktop`
+[claude-server] [CronScheduler] Starting — checking every 60 s
+[claude-server] [Server] Claude Code API server running at http://127.0.0.1:59026
+[claude-adapters] [claude-sidecar] --feishu requested but FEISHU_APP_ID / FEISHU_APP_SECRET missing in env or ~/.claude/adapters.json — skipping
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-adapters] [claude-sidecar] --telegram requested but TELEGRAM_BOT_TOKEN missing in env or ~/.claude/adapters.json — skipping
+[claude-adapters] [claude-sidecar] no adapter could be started — check credentials in env or ~/.claude/adapters.json
+[claude-adapters] sidecar exited (code=Some(1), signal=None)
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] resolveSessionWorkDir: sessionId=028c2ee4-e213-4cf9-bcd2-16376cc1e922, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 028c2ee4-e213-4cf9-bcd2-16376cc1e922, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [ConversationService] CLI started successfully for 028c2ee4-e213-4cf9-bcd2-16376cc1e922
+[claude-server] [WS] Client connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] resolveSessionWorkDir: sessionId=b15a1f22-6bd1-4ba5-9441-acc26a947659, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for b15a1f22-6bd1-4ba5-9441-acc26a947659, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK connected for session: b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [ConversationService] CLI started successfully for b15a1f22-6bd1-4ba5-9441-acc26a947659
+[claude-server] [WS] Prewarmed session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] Prewarmed session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1000: )
+[claude-server] [ConversationService] CLI process for 028c2ee4-e213-4cf9-bcd2-16376cc1e922 exited with code 143
+[claude-server] [WS] Prewarmed session b15a1f22-6bd1-4ba5-9441-acc26a947659 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1000: )
+[claude-server] [ConversationService] CLI process for b15a1f22-6bd1-4ba5-9441-acc26a947659 exited with code 143
+2026-05-16 18:44:01.363 cybercode-desktop[54268:23810406] error messaging the mach port for IMKCFRunLoopWakeUpReliable
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to user_message
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+7:47:41 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+7:48:03 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+7:48:47 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+7:49:53 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:04:46 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:04:46 PM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+8:05:13 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:05:33 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: b15a1f22-6bd1-4ba5-9441-acc26a947659 (1001: )
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client disconnected from session: 028c2ee4-e213-4cf9-bcd2-16376cc1e922 (1001: )
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:05:59 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Session b15a1f22-6bd1-4ba5-9441-acc26a947659 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 028c2ee4-e213-4cf9-bcd2-16376cc1e922 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:11:42 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:12:34 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:13:22 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:18:06 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:18:12 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:19:24 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:19:24 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:20:35 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:20:35 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:29:24 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:29:46 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:30:00 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:30:28 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:30:56 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:37:12 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:37:30 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:38:08 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:46:01 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:46:19 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:46:51 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+8:52:07 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+8:52:16 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+8:52:42 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:11:50 PM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+9:13:18 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:14:15 PM [vite] (client) page reload src/pages/ActiveSession.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+9:15:03 PM [vite] (client) page reload src/pages/ActiveSession.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:23:37 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+9:23:43 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+9:23:54 PM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+9:24:01 PM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:24:11 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+9:24:33 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+9:24:39 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+9:24:52 PM [vite] (client) page reload src/pages/ActiveSession.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+9:25:15 PM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:32:06 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+9:32:20 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:36:36 PM [vite] (client) hmr update /src/theme/globals.css
+9:36:44 PM [vite] (client) hmr update /src/components/chat/StreamingIndicator.tsx, /src/theme/globals.css
+9:36:51 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+2026-05-16 21:42:40.257 cybercode-desktop[54268:26664353] NSSpellServer dataFromGeneratingCandidatesForSelectedRange timed out, index is 0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:44:11 PM [vite] (client) hmr update /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:53:11 PM [vite] (client) page reload src/stores/uiStore.ts
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+9:53:33 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css
+9:54:03 PM [vite] (client) hmr update /src/components/layout/SettingsPanel.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+9:54:19 PM [vite] (client) hmr update /src/components/layout/ContentRouter.tsx, /src/theme/globals.css
+9:56:17 PM [vite] (client) page reload src/stores/uiStore.ts
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:06:01 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+10:06:10 PM [vite] (client) hmr update /src/components/chat/StreamingIndicator.tsx, /src/theme/globals.css
+10:06:34 PM [vite] (client) hmr update /src/theme/globals.css
+10:06:41 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:07:14 PM [vite] (client) page reload src/components/chat/ThinkingIndicator.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:08:57 PM [vite] (client) hmr update /src/components/layout/TabBar.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:09:22 PM [vite] (client) hmr update /src/components/layout/TabBar.tsx, /src/theme/globals.css
+10:10:38 PM [vite] (client) hmr update /src/theme/globals.css
+10:10:50 PM [vite] (client) hmr update /src/components/chat/StreamingIndicator.tsx, /src/theme/globals.css
+10:10:58 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:10:59 PM [vite] (client) hmr update /src/components/chat/ThinkingIndicator.tsx, /src/theme/globals.css
+10:11:08 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:11:12 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:11:14 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:11:14 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:11:14 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:11:14 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:11:18 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:11:23 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:11:23 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:11:23 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:11:23 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:12:16 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:12:22 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+10:12:22 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:12:35 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:12:56 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:13:00 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:13:37 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:16:01 PM [vite] (client) hmr update /src/components/skills/SkillList.tsx, /src/theme/globals.css
+10:16:07 PM [vite] (client) page reload src/__tests__/skillsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:16:33 PM [vite] (client) page reload src/__tests__/skillsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:17:03 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:17:46 PM [vite] (client) hmr update /src/components/skills/SkillList.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:42:41 PM [vite] (client) hmr update /src/components/skills/SkillList.tsx, /src/theme/globals.css
+10:43:03 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:43:10 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:43:16 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:43:36 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:43:41 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:43:45 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:43:47 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:43:47 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:43:47 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:47 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:43:47 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:47 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:43:54 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:43:54 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:54 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:43:54 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:54 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:43:59 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:43:59 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:59 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:43:59 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:59 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:44:18 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:45:07 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:46:21 PM [vite] (client) hmr update /src/theme/globals.css, /src/pages/Settings.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/chat/LocalSlashCommandPanel.tsx
+10:46:29 PM [vite] (client) hmr update /src/components/settings/SettingsLayout.tsx, /src/theme/globals.css
+10:46:31 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:46:32 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:46:38 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:46:38 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:46:38 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:46:38 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:46:38 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:46:38 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:46:39 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:46:57 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:47:52 PM [vite] (client) page reload src/__tests__/skillsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:49:45 PM [vite] (client) hmr update /src/pages/AdapterSettings.tsx, /src/theme/globals.css
+10:50:36 PM [vite] (client) hmr update /src/components/shared/DirectoryPicker.tsx, /src/theme/globals.css
+10:51:19 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+10:53:29 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:54:53 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:55:24 PM [vite] (client) page reload src/__tests__/generalSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:56:56 PM [vite] (client) hmr update /src/components/shared/Button.tsx, /src/theme/globals.css
+10:57:05 PM [vite] (client) hmr update /src/theme/globals.css
+10:57:14 PM [vite] (client) page reload src/types/skill.ts
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:57:17 PM [vite] (client) hmr update /src/theme/globals.css, /src/pages/Settings.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/chat/LocalSlashCommandPanel.tsx
+10:57:24 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/chat/LocalSlashCommandPanel.tsx
+10:57:24 PM [vite] (client) hmr update /src/components/settings/ClaudeOfficialLogin.tsx, /src/theme/globals.css
+10:57:40 PM [vite] (client) hmr update /src/pages/ComputerUseSettings.tsx, /src/theme/globals.css
+10:57:50 PM [vite] (client) hmr update /src/components/shared/UpdateChecker.tsx, /src/theme/globals.css
+10:57:50 PM [vite] (client) hmr update /src/components/skills/SkillList.tsx, /src/theme/globals.css
+10:57:57 PM [vite] (client) hmr update /src/components/shared/Toast.tsx, /src/theme/globals.css
+10:58:02 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:58:03 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:03 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:58:03 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:03 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:58:06 PM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css, /src/components/layout/SettingsPanel.tsx, /src/components/layout/StartupErrorView.tsx, /src/components/layout/Sidebar.tsx, /src/components/shared/UpdateChecker.tsx, /src/components/layout/ProjectFilter.tsx, /src/pages/ScheduledTasks.tsx, /src/pages/ActiveSession.tsx, /src/pages/TerminalSettings.tsx, /src/pages/AdapterSettings.tsx, /src/components/controls/ModelSelector.tsx, /src/pages/ComputerUseSettings.tsx, /src/pages/McpSettings.tsx, /src/pages/Settings.tsx, /src/components/chat/SessionTaskBar.tsx, /src/components/tasks/TaskList.tsx, /src/components/shared/DirectoryPicker.tsx, /src/components/chat/EmptyState.tsx, /src/components/tasks/TaskEmptyState.tsx, /src/components/teams/TeamStatusBar.tsx, /src/components/chat/ComputerUsePermissionModal.tsx, /src/components/chat/MessageList.tsx, /src/components/chat/ChatInput.tsx, /src/components/tasks/NewTaskModal.tsx, /src/components/settings/ClaudeOfficialLogin.tsx, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/tasks/TaskRow.tsx, /src/components/chat/PermissionDialog.tsx, /src/components/chat/AskUserQuestion.tsx, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/InlineTaskSummary.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/FileSearchMenu.tsx, /src/components/controls/PermissionModeSelector.tsx, /src/components/chat/LocalSlashCommandPanel.tsx, /src/components/tasks/PromptEditor.tsx, /src/components/tasks/DayOfWeekPicker.tsx, /src/components/tasks/TaskRunsPanel.tsx, /src/components/layout/AppShell.tsx, /src/components/layout/TabBar.tsx, /src/components/chat/StreamingIndicator.tsx, /src/components/layout/ContentRouter.tsx, /src/components/layout/NewSessionMenu.tsx
+10:58:06 PM [vite] (client) hmr invalidate /src/components/layout/StartupErrorView.tsx Could not Fast Refresh ("splitStartupError" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:06 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+10:58:06 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:06 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+10:58:08 PM [vite] (client) hmr update /src/components/shared/Modal.tsx, /src/theme/globals.css
+10:58:09 PM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+10:58:22 PM [vite] (client) hmr update /src/components/shared/Dropdown.tsx, /src/theme/globals.css
+10:58:36 PM [vite] (client) page reload src/__tests__/skillsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:58:49 PM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+10:59:03 PM [vite] (client) hmr update /src/components/chat/PermissionDialog.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+10:59:19 PM [vite] (client) hmr update /src/components/shared/DirectoryPicker.tsx, /src/theme/globals.css
+10:59:25 PM [vite] (client) page reload src/__tests__/pages.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+10:59:25 PM [vite] (client) page reload src/pages/ToolInspection.tsx
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:59:30 PM [vite] (client) page reload src/__tests__/agentsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:59:32 PM [vite] (client) page reload src/pages/ScheduledTasksList.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:59:37 PM [vite] (client) page reload src/components/skills/SkillDetail.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:59:39 PM [vite] (client) page reload src/pages/ScheduledTasksEmpty.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:59:45 PM [vite] (client) page reload src/pages/SessionControls.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+10:59:59 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:00:37 PM [vite] (client) page reload src/__tests__/skillsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:00:49 PM [vite] (client) hmr update /src/components/controls/ModelSelector.tsx, /src/theme/globals.css
+11:01:18 PM [vite] (client) hmr update /src/components/controls/PermissionModeSelector.tsx, /src/theme/globals.css
+11:01:48 PM [vite] (client) hmr update /src/components/chat/FileSearchMenu.tsx, /src/theme/globals.css
+11:01:56 PM [vite] (client) hmr update /src/components/chat/FileSearchMenu.tsx, /src/theme/globals.css
+11:02:20 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:02:21 PM [vite] (client) hmr update /src/components/layout/ProjectFilter.tsx, /src/theme/globals.css
+11:02:41 PM [vite] (client) hmr update /src/components/layout/NewSessionMenu.tsx, /src/theme/globals.css
+11:02:53 PM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+11:02:59 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:03:13 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+11:03:32 PM [vite] (client) hmr update /src/pages/ComputerUseSettings.tsx, /src/theme/globals.css
+11:03:33 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:03:48 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:04:00 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+11:04:09 PM [vite] (client) page reload src/pages/SessionControls.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:04:16 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/chat/LocalSlashCommandPanel.tsx
+11:04:21 PM [vite] (client) page reload src/__tests__/agentsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:04:32 PM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+11:04:40 PM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+11:04:46 PM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+11:04:59 PM [vite] (client) page reload src/__tests__/agentsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:05:01 PM [vite] (client) hmr update /src/theme/globals.css
+11:05:10 PM [vite] (client) hmr update /src/components/chat/UserMessage.tsx, /src/theme/globals.css
+11:05:21 PM [vite] (client) hmr update /src/components/chat/AssistantMessage.tsx, /src/theme/globals.css
+11:05:30 PM [vite] (client) hmr update /src/components/chat/MessageList.tsx, /src/theme/globals.css
+11:05:30 PM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:05:30 PM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+11:05:46 PM [vite] (client) page reload src/pages/AgentTeams.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:05:53 PM [vite] (client) hmr update /src/pages/McpSettings.tsx, /src/theme/globals.css
+11:05:53 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:06:02 PM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+11:06:41 PM [vite] (client) page reload src/components/shared/UpdateChecker.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:07:05 PM [vite] (client) page reload src/components/shared/UpdateChecker.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+11:09:53 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+11:09:57 PM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css, /src/components/skills/SkillDetail.tsx, /src/components/skills/SkillList.tsx, /src/components/plugins/PluginDetail.tsx, /src/components/chat/LocalSlashCommandPanel.tsx
+11:10:04 PM [vite] (client) hmr update /src/components/skills/SkillList.tsx, /src/theme/globals.css
+11:10:07 PM [vite] (client) hmr update /src/components/chat/LocalSlashCommandPanel.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+11:22:41 PM [vite] (client) page reload src/types/skill.ts
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:22:46 PM [vite] (client) page reload src/__tests__/agentsSettings.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:22:49 PM [vite] (client) page reload src/__tests__/pages.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+11:22:52 PM [vite] (client) page reload src/components/skills/SkillDetail.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}

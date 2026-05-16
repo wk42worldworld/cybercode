@@ -55,7 +55,7 @@ export default function NewTaskModal() {
           {/* project selector */}
           <div className="flex items-center gap-3 px-2 py-3 mb-2">
             <div className="w-8 h-8 rounded bg-[var(--color-surface-dim)] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[var(--color-outline)]">filter</span>
+              <Icon name="filter" size={20} className="text-[var(--color-outline)]" />
             </div>
             <div>
               <div className="text-[var(--color-on-surface)] font-semibold text-[12px]">All projects</div>
@@ -113,9 +113,7 @@ export default function NewTaskModal() {
                 <h2 className="font-[var(--font-headline)] font-bold text-[18px] text-[var(--color-on-surface)]">
                   New Scheduled Task
                 </h2>
-                <span className="material-symbols-outlined text-[var(--color-outline)] cursor-pointer hover:text-[var(--color-on-surface)] transition-colors">
-                  close
-                </span>
+                <Icon name="close" size={20} className="text-[var(--color-outline)] cursor-pointer hover:text-[var(--color-on-surface)] transition-colors" />
               </div>
 
               {/* ── Modal Body ───────────────────────────────────── */}
@@ -129,9 +127,7 @@ export default function NewTaskModal() {
               >
                 {/* Info Banner */}
                 <div className="bg-[var(--color-surface-container-high)]/50 rounded-lg p-3 flex gap-3 items-start">
-                  <span className="material-symbols-outlined text-[var(--color-primary)] text-[14px] mt-0.5">
-                    info
-                  </span>
+                  <Icon name="info" size={14} className="text-[var(--color-primary)] mt-0.5" />
                   <p className="text-[12px] text-[var(--color-on-surface-variant)] font-medium">
                     Local tasks only run while your computer is awake.
                   </p>
@@ -242,9 +238,7 @@ export default function NewTaskModal() {
                         className="flex-1 bg-[var(--color-surface-container)] rounded-lg border-none focus:ring-1 focus:ring-[var(--color-primary)] text-[14px] placeholder:text-[var(--color-outline)]/50 px-4 py-2.5 transition-all outline-none"
                       />
                       <button className="bg-[var(--color-surface-container-high)] px-3 rounded-lg flex items-center justify-center hover:bg-[var(--color-surface-variant)] transition-colors">
-                        <span className="material-symbols-outlined text-[var(--color-on-surface-variant)] text-[14px]">
-                          folder_open
-                        </span>
+                        <Icon name="folder_open" size={14} className="text-[var(--color-on-surface-variant)]" />
                       </button>
                     </div>
                   </div>
@@ -339,4 +333,3 @@ export default function NewTaskModal() {
     </div>
   )
 }
-

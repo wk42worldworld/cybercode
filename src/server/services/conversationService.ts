@@ -76,6 +76,7 @@ export class ConversationService {
     sessionId: string,
     sdkUrl: string,
     shouldResume: boolean,
+    resumePath: string | undefined,
     options?: SessionStartOptions,
   ): string[] {
     const dangerousMode = process.env.CLAUDE_DANGEROUS_MODE === '1'
@@ -93,6 +94,11 @@ export class ConversationService {
       // server only sees the completed assistant message at turn end.
       '--include-partial-messages',
       ...(shouldResume ? ['--resume', sessionId] : ['--session-id', sessionId]),
+      // Pass the explicit transcript path so the CLI can find the session file
+      // even when the project directory doesn't match the current workDir.
+      // Without this, loadSessionFile() only looks in getProjectDir(getOriginalCwd())
+      // and misses sessions stored under a different project directory.
+      ...(shouldResume && resumePath ? ['--resume-path', resumePath] : []),
       '--replay-user-messages',
       ...this.getRuntimeArgs(options),
       ...this.getPermissionArgs(options?.permissionMode, dangerousMode),
@@ -113,7 +119,7 @@ export class ConversationService {
       !!launchInfo && launchInfo.transcriptMessageCount === 0
 
     if (shouldReplacePlaceholder) {
-      await sessionService.deleteSessionFile(sessionId)
+      await sessionService.moveSessionFileAsideForLaunch(sessionId)
     }
 
     if (!fs.existsSync(workDir) || !fs.statSync(workDir).isDirectory()) {
@@ -127,6 +133,7 @@ export class ConversationService {
       sessionId,
       sdkUrl,
       shouldResume,
+      shouldResume ? launchInfo?.filePath : undefined,
       options,
     )
 

@@ -21,7 +21,7 @@ export function ConfirmDialog({
   body,
   confirmLabel,
   cancelLabel,
-  confirmVariant = 'danger',
+  confirmVariant = 'primary',
   loading = false,
 }: ConfirmDialogProps) {
   return (
@@ -32,7 +32,7 @@ export function ConfirmDialog({
       width={460}
       footer={(
         <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
             {cancelLabel}
           </Button>
           <Button variant={confirmVariant} onClick={() => void onConfirm()} loading={loading}>

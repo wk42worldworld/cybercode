@@ -5,16 +5,18 @@ import { useChatStore } from '../../stores/chatStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useSessionStore } from '../../stores/sessionStore'
-import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
 import { useTeamStore } from '../../stores/teamStore'
 import { sessionsApi } from '../../api/sessions'
 import { PermissionModeSelector } from '../controls/PermissionModeSelector'
 import { ModelSelector } from '../controls/ModelSelector'
+import { DirectoryPicker } from '../shared/DirectoryPicker'
+import { Icon } from '../shared/Icon'
 import type { AttachmentRef } from '../../types/chat'
 import { AttachmentGallery } from './AttachmentGallery'
-import { DirectoryPicker } from '../shared/DirectoryPicker'
 import { FileSearchMenu, type FileSearchMenuHandle } from './FileSearchMenu'
 import { LocalSlashCommandPanel, type LocalSlashCommandName } from './LocalSlashCommandPanel'
+import { ThinkingIndicator } from './ThinkingIndicator'
+import { StreamingIndicator } from './StreamingIndicator'
 import {
   FALLBACK_SLASH_COMMANDS,
   findSlashTrigger,
@@ -22,7 +24,6 @@ import {
   replaceSlashToken,
   resolveSlashUiAction,
 } from './composerUtils'
-import { Icon } from '../shared/Icon'
 
 type GitInfo = { branch: string | null; repoName: string | null; workDir: string; changedFiles: number }
 
@@ -37,9 +38,18 @@ type Attachment = {
 
 type ChatInputProps = {
   variant?: 'default' | 'hero'
+  sessionId?: string
+  projectPath?: string
+  onSubmit?: (text: string, attachments: AttachmentRef[]) => void
+  workDir?: string
+  onWorkDirChange?: (dir: string) => void
+  runtimeKey?: string
+  thinkingContent?: string
 }
 
-export function ChatInput({ variant = 'default' }: ChatInputProps) {
+const THINKING_DISPLAY_GRACE_MS = 3200
+
+export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey, thinkingContent }: ChatInputProps) {
   const t = useTranslation()
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -58,23 +68,76 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
   const slashMenuRef = useRef<HTMLDivElement>(null)
   const fileSearchRef = useRef<FileSearchMenuHandle>(null)
   const slashItemRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [cachedThinkingContent, setCachedThinkingContent] = useState('')
+  const thinkingClearTimerRef = useRef<number | null>(null)
   const { sendMessage, stopGeneration } = useChatStore()
-  const activeTabId = useTabStore((s) => s.activeTabId)
+  const globalActiveTabId = useTabStore((s) => s.activeTabId)
+  const activeTabId = sessionIdProp ?? globalActiveTabId
   const sessionState = useChatStore((s) => activeTabId ? s.sessions[activeTabId] : undefined)
   const chatState = sessionState?.chatState ?? 'idle'
   const slashCommands = sessionState?.slashCommands ?? []
   const composerPrefill = sessionState?.composerPrefill ?? null
-  const activeSession = useSessionStore((state) => activeTabId ? state.sessions.find((session) => session.id === activeTabId) ?? null : null)
+  const activeSession = useSessionStore((state) =>
+    activeTabId
+      ? state.sessions.find((session) =>
+          session.id === activeTabId && (!projectPath || session.projectPath === projectPath),
+        ) ?? null
+      : null,
+  )
   const memberInfo = useTeamStore((s) => activeTabId ? s.getMemberBySessionId(activeTabId) : null)
   const [gitInfo, setGitInfo] = useState<GitInfo | null>(null)
-  const hasMessages = useChatStore((s) => activeTabId ? (s.sessions[activeTabId]?.messages?.length ?? 0) > 0 : false)
-
   const isMemberSession = !!memberInfo
   const isActive = chatState !== 'idle'
   const isWorkspaceMissing = activeSession?.workDirExists === false
   const canSubmit = !isWorkspaceMissing && (input.trim().length > 0 || (!isMemberSession && attachments.length > 0))
   const isHeroComposer = variant === 'hero' && !isMemberSession
-  const resolvedWorkDir = activeSession?.workDir || gitInfo?.workDir || undefined
+  const resolvedWorkDir = workDirProp ?? (activeSession?.workDir || gitInfo?.workDir || undefined)
+  const hasIncomingThinkingContent = !!thinkingContent?.trim()
+  const liveThinkingContent = isActive && hasIncomingThinkingContent ? thinkingContent : ''
+  const visibleThinkingContent = liveThinkingContent || cachedThinkingContent
+
+  const clearThinkingCacheTimer = useCallback(() => {
+    if (thinkingClearTimerRef.current === null) return
+    window.clearTimeout(thinkingClearTimerRef.current)
+    thinkingClearTimerRef.current = null
+  }, [])
+
+  const scheduleThinkingCacheClear = useCallback(() => {
+    if (thinkingClearTimerRef.current !== null) return
+    thinkingClearTimerRef.current = window.setTimeout(() => {
+      setCachedThinkingContent('')
+      thinkingClearTimerRef.current = null
+    }, THINKING_DISPLAY_GRACE_MS)
+  }, [])
+
+  useEffect(() => {
+    clearThinkingCacheTimer()
+    setCachedThinkingContent('')
+  }, [activeTabId, clearThinkingCacheTimer])
+
+  useEffect(() => {
+    if (!thinkingContent?.trim()) return
+    setCachedThinkingContent(thinkingContent)
+
+    if (isActive) {
+      clearThinkingCacheTimer()
+      return
+    }
+
+    scheduleThinkingCacheClear()
+  }, [
+    thinkingContent,
+    isActive,
+    clearThinkingCacheTimer,
+    scheduleThinkingCacheClear,
+  ])
+
+  useEffect(() => {
+    if (hasIncomingThinkingContent || !cachedThinkingContent) return
+    scheduleThinkingCacheClear()
+  }, [hasIncomingThinkingContent, cachedThinkingContent, scheduleThinkingCacheClear])
+
+  useEffect(() => clearThinkingCacheTimer, [clearThinkingCacheTimer])
 
   useEffect(() => {
     textareaRef.current?.focus()
@@ -120,8 +183,8 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
       setGitInfo(null)
       return
     }
-    sessionsApi.getGitInfo(activeTabId).then(setGitInfo).catch(() => setGitInfo(null))
-  }, [activeTabId, isMemberSession])
+    sessionsApi.getGitInfo(activeTabId, { projectPath }).then(setGitInfo).catch(() => setGitInfo(null))
+  }, [activeTabId, projectPath, isMemberSession])
 
   useEffect(() => {
     if (!isMemberSession) return
@@ -135,7 +198,9 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+    const minHeight = 100
+    const maxHeight = 160
+    el.style.height = `${Math.max(Math.min(el.scrollHeight, maxHeight), minHeight)}px`
   }, [input])
 
   useEffect(() => {
@@ -242,7 +307,6 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
     setSlashMenuOpen(true)
   }, [])
 
-  // Detect @ trigger (file search)
   const detectAtTrigger = useCallback((value: string, cursorPos: number) => {
     const textBeforeCursor = value.slice(0, cursorPos)
     let pos = -1
@@ -268,7 +332,6 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
       return
     }
 
-    // Extract filter text after @
     const filter = textBeforeCursor.slice(pos + 1)
     setAtFilter(filter)
     setAtCursorPos(cursorPos)
@@ -331,7 +394,11 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
       mimeType: attachment.mimeType,
     }))
 
-    sendMessage(activeTabId!, text, attachmentPayload)
+    if (onSubmitProp) {
+      onSubmitProp(text, attachmentPayload)
+    } else {
+      sendMessage(activeTabId!, text, attachmentPayload)
+    }
     setInput('')
     setAttachments([])
     setPlusMenuOpen(false)
@@ -341,10 +408,15 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
   }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    // Ignore key events during IME composition (e.g. Chinese input method)
     if (composingRef.current || event.nativeEvent.isComposing || event.keyCode === 229) return
 
-    // Route file search navigation keys to FileSearchMenu
+    // Escape stops generation when active
+    if (event.key === 'Escape' && isActive && activeTabId) {
+      event.preventDefault()
+      stopGeneration(activeTabId)
+      return
+    }
+
     if (fileSearchOpen) {
       const key = event.key
       if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Enter' || key === 'Tab' || key === 'Escape') {
@@ -358,7 +430,6 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
         fileSearchRef.current?.handleKeyDown(event.nativeEvent)
         return
       }
-      // Other keys (typing) should go to the textarea - let it propagate
       return
     }
 
@@ -504,6 +575,23 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
     })
   }
 
+  const insertAtTrigger = () => {
+    if (isMemberSession) return
+    const el = textareaRef.current
+    const cursorPos = el?.selectionStart ?? input.length
+    const newValue = `${input.slice(0, cursorPos)}@${input.slice(cursorPos)}`
+    const newCursorPos = cursorPos + 1
+    setInput(newValue)
+    setPlusMenuOpen(false)
+    setAtFilter('')
+    setAtCursorPos(newCursorPos)
+    setFileSearchOpen(true)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
+    })
+  }
+
   const composerPlaceholder =
     isHeroComposer
       ? t('empty.placeholder')
@@ -517,325 +605,260 @@ export function ChatInput({ variant = 'default' }: ChatInputProps) {
   const slashCommandsLabel = isHeroComposer ? t('empty.slashCommands') : t('chat.slashCommands')
 
   return (
-    <div className={isHeroComposer ? '' : 'px-4 md:px-8 pt-3 pb-8'}>
-      <div className={isHeroComposer ? 'w-full' : 'mx-auto w-full max-w-3xl flex flex-col'}>
-        {/* Input area */}
-        <div
-          className="relative"
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={handleDrop}
-        >
-          {!isMemberSession && fileSearchOpen && (
-            <FileSearchMenu
-              ref={fileSearchRef}
-              cwd={resolvedWorkDir || ''}
-              filter={atFilter}
-              onSelect={(_path, name) => {
-                if (atCursorPos >= 0) {
-                  const newValue = `${input.slice(0, atCursorPos)}${name}${input.slice(atCursorPos)}`
-                  const newCursorPos = atCursorPos + name.length
-                  setInput(newValue)
-                  setFileSearchOpen(false)
-                  setAtFilter('')
-                  setAtCursorPos(-1)
-                  void textareaRef.current?.focus()
-                  requestAnimationFrame(() => {
-                    textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
-                  })
-                }
-              }}
+    <div className={isHeroComposer ? '' : 'shrink-0 wechat-input-container'}>
+      <div className="w-full relative" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+        {/* Slash / file search menus positioned above the input */}
+        {!isMemberSession && fileSearchOpen && (
+          <FileSearchMenu
+            ref={fileSearchRef}
+            cwd={resolvedWorkDir || ''}
+            filter={atFilter}
+            onSelect={(_path, name) => {
+              if (atCursorPos >= 0) {
+                const newValue = `${input.slice(0, atCursorPos)}${name}${input.slice(atCursorPos)}`
+                const newCursorPos = atCursorPos + name.length
+                setInput(newValue)
+                setFileSearchOpen(false)
+                setAtFilter('')
+                setAtCursorPos(-1)
+                void textareaRef.current?.focus()
+                requestAnimationFrame(() => {
+                  textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos)
+                })
+              }
+            }}
+          />
+        )}
+
+        {!isMemberSession && localSlashPanel && (
+          <div ref={slashMenuRef}>
+            <LocalSlashCommandPanel
+              command={localSlashPanel}
+              sessionId={activeTabId ?? undefined}
+              projectPath={projectPath}
+              cwd={resolvedWorkDir}
+              commands={allSlashCommands}
+              onClose={() => setLocalSlashPanel(null)}
             />
-          )}
+          </div>
+        )}
 
-          {!isMemberSession && localSlashPanel && (
-            <div ref={slashMenuRef}>
-              <LocalSlashCommandPanel
-                command={localSlashPanel}
-                sessionId={activeTabId ?? undefined}
-                cwd={resolvedWorkDir}
-                commands={allSlashCommands}
-                onClose={() => setLocalSlashPanel(null)}
-              />
+        {!isMemberSession && slashMenuOpen && filteredCommands.length > 0 && (
+          <div
+            ref={slashMenuRef}
+            className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-white/50 dark:border-white/10 bg-white/80 dark:bg-black/80 shadow-[0_8px_30px_rgba(0,0,0,0.1)]"
+          >
+            <div className="max-h-[300px] overflow-y-auto py-1">
+              {filteredCommands.map((command, index) => (
+                <button
+                  key={command.name}
+                  ref={(el) => { slashItemRefs.current[index] = el }}
+                  onClick={() => selectSlashCommand(command.name)}
+                  onMouseEnter={() => setSlashSelectedIndex(index)}
+                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                    index === slashSelectedIndex
+                      ? 'bg-black/5 dark:bg-white/5'
+                      : 'hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <span className="shrink-0 text-[13px] font-semibold text-black/70 dark:text-white/70 font-mono">
+                    /{command.name}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-black/50 dark:text-white/50">
+                    {command.description}
+                  </span>
+                </button>
+              ))}
             </div>
-          )}
+            <div className="flex items-center gap-1.5 border-t border-black/5 dark:border-white/10 px-4 py-2 text-[10px] text-black/40 dark:text-white/40">
+              <kbd className="rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Up/Down</kbd>
+              <span>{t('chat.navigate')}</span>
+              <kbd className="ml-2 rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Enter</kbd>
+              <span>{t('chat.select')}</span>
+              <kbd className="ml-2 rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Esc</kbd>
+              <span>{t('chat.dismiss')}</span>
+            </div>
+          </div>
+        )}
 
-          {!isMemberSession && slashMenuOpen && filteredCommands.length > 0 && (
-            <div
-              ref={slashMenuRef}
-              className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur"
-              style={{ boxShadow: 'var(--shadow-dropdown)' }}
-            >
-              <div className="max-h-[300px] overflow-y-auto py-1">
-                {filteredCommands.map((command, index) => (
+        {/* ── WeChat Style Input ── */}
+        <div className="flex flex-col bg-[var(--color-background)]">
+          {/* Top Toolbar — grid layout keeps center truly centered regardless of left/right content */}
+          <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem] px-3 h-12">
+            {/* Left: + button (slash commands & @) */}
+            <div className="relative flex items-center" ref={plusMenuRef}>
+              {!isMemberSession && !isHeroComposer && (
+                <>
                   <button
-                    key={command.name}
-                    ref={(el) => { slashItemRefs.current[index] = el }}
-                    onClick={() => selectSlashCommand(command.name)}
-                    onMouseEnter={() => setSlashSelectedIndex(index)}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                      index === slashSelectedIndex
-                        ? 'bg-black/5 dark:bg-white/5'
-                        : 'hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
+                    onClick={() => setPlusMenuOpen((v) => !v)}
+                    aria-label="Open composer tools"
+                    className="group relative w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--color-surface-hover)] transition-all text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
                   >
-                    <span className="shrink-0 text-[13px] font-semibold text-black/90 dark:text-white/90 font-mono">
-                      /{command.name}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-black/60 dark:text-white/60">
-                      {command.description}
+                    <Icon name="add" size={18} />
+                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                      {slashCommandsLabel}
                     </span>
                   </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5 border-t border-black/[0.10] dark:border-white/[0.10] px-4 py-2 text-[10px] text-black/60 dark:text-white/60">
-                <kbd className="rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Up/Down</kbd>
-                <span>{t('chat.navigate')}</span>
-                <kbd className="ml-2 rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Enter</kbd>
-                <span>{t('chat.select')}</span>
-                <kbd className="ml-2 rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Esc</kbd>
-                <span>{t('chat.dismiss')}</span>
-              </div>
-            </div>
-          )}
 
+                  {plusMenuOpen && (
+                    <div className="absolute bottom-full left-0 z-50 mb-2 w-[220px] rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-dropdown)]">
+                      <button
+                        onClick={insertSlashCommand}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+                      >
+                        <span className="text-[14px] font-bold text-[var(--color-text-secondary)] font-mono">/</span>
+                        <span className="text-[13px] text-[var(--color-text-primary)]">{slashCommandsLabel}</span>
+                      </button>
+                      <button
+                        onClick={insertAtTrigger}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+                      >
+                        <span className="text-[14px] font-bold text-[var(--color-text-secondary)] font-mono">@</span>
+                        <span className="text-[13px] text-[var(--color-text-primary)]">{t('chat.addFileRef')}</span>
+                      </button>
+                      <div className="px-3 py-2 border-t border-[var(--color-border-separator)]">
+                        <PermissionModeSelector />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Attach file button */}
+            <div className="relative flex items-center">
+              {!isMemberSession && !isHeroComposer && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label={addFilesLabel}
+                  className="group relative w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--color-surface-hover)] transition-all text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+                >
+                  <Icon name="attach_file" size={16} />
+                  <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                    {addFilesLabel}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Center: Thinking / Streaming indicator */}
+            <div className="flex min-w-0 items-center justify-center gap-2 overflow-hidden py-2">
+              <StreamingIndicator sessionId={activeTabId ?? undefined} />
+              {visibleThinkingContent && (
+                <>
+                  {isActive && (
+                    <span className="h-3 w-px shrink-0 bg-[var(--color-border-separator)]" />
+                  )}
+                  <ThinkingIndicator content={visibleThinkingContent} showDot={false} />
+                </>
+              )}
+            </div>
+
+            {/* Right: empty placeholder to balance the grid */}
+            <div />
+          </div>
+
+          {/* Textarea area */}
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onCompositionStart={() => { composingRef.current = true }}
+            onCompositionEnd={() => { composingRef.current = false }}
+            onPaste={handlePaste}
+            placeholder={composerPlaceholder}
+            disabled={isWorkspaceMissing}
+            rows={3}
+            className="w-full flex-1 resize-none bg-transparent outline-none text-[15px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] px-4 py-3 leading-relaxed disabled:opacity-50 min-h-[100px]"
+          />
+
+          {/* Attachments inline */}
           {attachments.length > 0 && (
-            <div className="mb-2">
+            <div className="px-4 pb-2">
               <AttachmentGallery attachments={attachments} variant="composer" onRemove={removeAttachment} />
             </div>
           )}
 
-          {/* === Glass pill (default variant) === */}
-          {!isHeroComposer && (
-            <div className="flex flex-col bg-white dark:bg-[#111] rounded-lg p-4 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.55)] border-2 border-black/15 dark:border-white/25 focus-within:border-black/30 dark:focus-within:border-white/40 transition-all relative">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onCompositionStart={() => { composingRef.current = true }}
-                onCompositionEnd={() => { composingRef.current = false }}
-                onPaste={handlePaste}
-                placeholder={composerPlaceholder}
-                disabled={isWorkspaceMissing}
-                rows={2}
-                className="w-full resize-none bg-transparent outline-none text-[13px] font-medium text-black/90 dark:text-white/90 placeholder:text-black/55 dark:placeholder:text-white/70 placeholder:text-[13px] leading-relaxed tracking-tight disabled:opacity-50"
-              />
+          {/* ── Bottom Toolbar ── */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center gap-2">
+              {isHeroComposer && onWorkDirChange && (
+                <DirectoryPicker value={workDirProp || ''} onChange={onWorkDirChange} />
+              )}
+              {runtimeKey && !isMemberSession && (
+                <ModelSelector runtimeKey={runtimeKey} placement="top" align="left" compact />
+              )}
+            </div>
 
+            {/* Right: Send / Stop */}
+            <div className="flex items-center">
               {!isMemberSession && (
-                <div className="flex items-center justify-between gap-2 mt-3">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <div ref={plusMenuRef} className="relative shrink-0">
-                      <button
-                        onClick={() => setPlusMenuOpen((value) => !value)}
-                        aria-label="Open composer tools"
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-black/65 dark:text-white/65 hover:bg-black/[0.05] dark:hover:bg-white/[0.07] hover:text-black/80 dark:hover:text-white/80 transition-colors"
-                      >
-                        <Icon name="add" size={18} />
-                      </button>
-
-                      {plusMenuOpen && (
-                        <div className="absolute bottom-full left-0 z-50 mb-2 w-[240px] rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-white/90 dark:bg-[#0A0A0A]/90 backdrop-blur py-1" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
-                          <button
-                            onClick={() => { fileInputRef.current?.click(); setPlusMenuOpen(false) }}
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                          >
-                            <Icon name="attach_file" size={18} className="text-black/60 dark:text-white/60" />
-                            <span className="text-[13px] text-black/90 dark:text-white/90">{addFilesLabel}</span>
-                          </button>
-                          <button
-                            onClick={insertSlashCommand}
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                          >
-                            <span className="w-[24px] text-center text-[18px] font-bold text-black/60 dark:text-white/60 font-mono">/</span>
-                            <span className="text-[13px] text-black/90 dark:text-white/90">{slashCommandsLabel}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <PermissionModeSelector />
-                    <div className="w-px h-3.5 bg-black/10 dark:bg-white/10 mx-0.5 shrink-0" />
-                    <DirectoryPicker
-                      value={resolvedWorkDir || ''}
-                      onChange={async (newWorkDir) => {
-                        if (!activeTabId) return
-                        if (newWorkDir === resolvedWorkDir) return
-                        const oldId = activeTabId
-                        const { createSession, deleteSession } = useSessionStore.getState()
-                        const { openTab, setActiveTab, replaceTabSession } = useTabStore.getState()
-                        const { disconnectSession, connectToSession } = useChatStore.getState()
-                        const newId = await createSession(newWorkDir)
-                        if (hasMessages) {
-                          const folderName = newWorkDir.split('/').pop() || newWorkDir
-                          openTab(newId, folderName)
-                          setActiveTab(newId)
-                          connectToSession(newId)
-                        } else {
-                          useSessionRuntimeStore.getState().moveSelection(oldId, newId)
-                          disconnectSession(oldId)
-                          replaceTabSession(oldId, newId)
-                          connectToSession(newId)
-                          deleteSession(oldId).catch(() => {})
-                        }
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {activeTabId && (
-                      <ModelSelector runtimeKey={activeTabId} disabled={isActive} />
-                    )}
+                <>
+                  {isActive ? (
                     <button
                       type="button"
-                      onClick={isActive ? () => stopGeneration(activeTabId!) : handleSubmit}
-                      disabled={isActive ? false : !canSubmit}
-                      title={isActive ? t('chat.stopTitle') : undefined}
-                      aria-label={isActive ? undefined : t('common.run')}
-                      className={`h-8 w-8 flex items-center justify-center rounded-full border transition-all disabled:opacity-40 ${
-                        isActive
-                          ? 'bg-red-500/12 text-red-600 dark:text-red-400 border-red-500/25'
-                          : 'bg-black/[0.06] dark:bg-white/[0.08] text-black/70 dark:text-white/70 border-transparent hover:bg-black/80 hover:text-white dark:hover:bg-white/80 dark:hover:text-black'
+                      onClick={() => stopGeneration(activeTabId!)}
+                      title={t('chat.stopTitle')}
+                      aria-label={t('chat.stopTitle')}
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)] transition-all"
+                    >
+                      <Icon name="stop_circle" size={16} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={!canSubmit}
+                      aria-label={t('common.run')}
+                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                        canSubmit
+                          ? 'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)]'
+                          : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
                       }`}
                     >
-                      {isActive ? (
-                        <Icon name="stop" size={15} className="leading-none" />
-                      ) : <SendIcon />}
+                      <Icon name="arrow_upward" size={14} />
                     </button>
-                  </div>
-                </div>
+                  )}
+                </>
               )}
-
               {isMemberSession && (
                 <button
                   type="button"
                   onClick={handleSubmit}
                   disabled={!canSubmit}
                   aria-label={t('common.run')}
-                  className="absolute right-4 bottom-4 p-2 rounded-md shadow-md bg-black text-white dark:bg-white dark:text-black disabled:opacity-20 transition-all"
+                  className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
+                    canSubmit
+                      ? 'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)]'
+                      : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
+                  }`}
                 >
-                  <SendIcon />
+                  <Icon name="arrow_upward" size={14} />
                 </button>
               )}
             </div>
-          )}
-
-          {/* === Hero variant (unchanged) === */}
-          {isHeroComposer && (
-            <>
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onCompositionStart={() => { composingRef.current = true }}
-                onCompositionEnd={() => { composingRef.current = false }}
-                onPaste={handlePaste}
-                placeholder={composerPlaceholder}
-                disabled={isWorkspaceMissing}
-                rows={3}
-                className="w-full bg-black/[0.04] dark:bg-white/[0.04] border-2 border-black/[0.10] dark:border-white/[0.12] hover:border-black/20 dark:hover:border-white/25 focus:border-black/30 dark:focus:border-white/40 rounded-lg px-5 py-4 pr-14 text-[13px] leading-[1.6] text-black/90 dark:text-white outline-none placeholder:text-black/55 dark:placeholder:text-white/65 disabled:opacity-50 transition-all resize-none"
-              />
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                aria-label={t('common.run')}
-                className="absolute right-3 bottom-3 p-2 rounded-md shadow-md bg-black text-white dark:bg-white dark:text-black disabled:opacity-20 transition-all"
-              >
-                <SendIcon />
-              </button>
-            </>
-          )}
+          </div>
         </div>
 
-        {/* Tools row — hero variant only (default has tools inside the glass pill) */}
+        {/* Hero variant: hints below input */}
         {isHeroComposer && !isMemberSession && (
-          <div className="mt-3 flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-1">
-              <div ref={plusMenuRef} className="relative">
-                <button
-                  onClick={() => setPlusMenuOpen((value) => !value)}
-                  aria-label="Open composer tools"
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-black/70 dark:text-white/70 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-black/90 dark:hover:text-white/90 transition-colors"
-                >
-                  <Icon name="add" size={18} />
-                </button>
-
-                {plusMenuOpen && (
-                  <div className="absolute bottom-full left-0 z-50 mb-2 w-[240px] rounded-lg border border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#0A0A0A] py-1" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
-                    <button
-                      onClick={() => {
-                        fileInputRef.current?.click()
-                        setPlusMenuOpen(false)
-                      }}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                    >
-                      <Icon name="attach_file" size={18} className="text-black/60 dark:text-white/60" />
-                      <span className="text-[13px] text-black/90 dark:text-white/90">{addFilesLabel}</span>
-                    </button>
-                    <button
-                      onClick={insertSlashCommand}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                    >
-                      <span className="w-[24px] text-center text-[18px] font-bold text-black/60 dark:text-white/60 font-mono">/</span>
-                      <span className="text-[13px] text-black/90 dark:text-white/90">{slashCommandsLabel}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <PermissionModeSelector />
+          <div className="mt-2 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2 text-[11px] text-black/40 dark:text-white/40">
+              <span className="font-mono font-semibold">/</span>
+              <span>{t('chat.hintCommand')}</span>
+              <span className="text-black/20 dark:text-white/20 mx-1">&middot;</span>
+              <span className="font-mono font-semibold">@</span>
+              <span>{t('chat.hintFile')}</span>
+              <span className="text-black/20 dark:text-white/20 mx-1">&middot;</span>
+              <span className="font-mono font-semibold">&#8984;K</span>
+              <span>{t('chat.hintSettings')}</span>
             </div>
-
-            {activeTabId && (
-              <ModelSelector runtimeKey={activeTabId} disabled={isActive} />
-            )}
-          </div>
-        )}
-
-        <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
-
-        {/* Directory picker for hero variant only — default pill has it inline above */}
-        {isHeroComposer && !isMemberSession && (
-          <div className="px-1">
-            <DirectoryPicker
-              value={resolvedWorkDir || ''}
-              onChange={async (newWorkDir) => {
-                if (!activeTabId) return
-                if (newWorkDir === resolvedWorkDir) return
-
-                const oldId = activeTabId
-                const { createSession, deleteSession } = useSessionStore.getState()
-                const { openTab, setActiveTab, replaceTabSession } = useTabStore.getState()
-                const { disconnectSession, connectToSession } = useChatStore.getState()
-                const newId = await createSession(newWorkDir)
-
-                if (hasMessages) {
-                  const folderName = newWorkDir.split('/').pop() || newWorkDir
-                  openTab(newId, folderName)
-                  setActiveTab(newId)
-                  connectToSession(newId)
-                } else {
-                  useSessionRuntimeStore.getState().moveSelection(oldId, newId)
-                  disconnectSession(oldId)
-                  replaceTabSession(oldId, newId)
-                  connectToSession(newId)
-                  deleteSession(oldId).catch(() => {})
-                }
-              }}
-            />
           </div>
         )}
       </div>
+
+      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
     </div>
   )
 }
-
-function SendIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="19" x2="12" y2="5" />
-      <polyline points="5 12 12 5 19 12" />
-    </svg>
-  )
-}
-

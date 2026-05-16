@@ -50,59 +50,75 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
   const hasResultDetails = Boolean(result && extractTextContent(result.content))
   const expandable = toolName === 'Edit' || toolName === 'Write' || hasResultDetails
 
-  return (
-    <div className={`overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] ${
-      compact ? 'mb-0' : 'mb-2'
-    }`}>
-      <button
-        type="button"
-        onClick={() => {
-          if (expandable) {
-            setExpanded((value) => !value)
-          }
-        }}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
-      >
-        <Icon name={icon} size={14} className="text-[var(--color-outline)]" />
-        <span className="text-[11px] font-semibold text-[var(--color-text-secondary)]">
-          {toolName}
-        </span>
-        {filePath ? (
-          <span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
-            {filePath.split('/').pop()}
-          </span>
-        ) : summary ? (
-          <span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
-            {summary}
-          </span>
-        ) : (
-          <span className="flex-1" />
-        )}
-        {result && outputSummary && (
-          <span
-            className={`shrink-0 text-[10px] ${
-              result.isError
-                ? 'text-[var(--color-error)]'
-                : 'text-[var(--color-outline)]'
-            }`}
-          >
-            {outputSummary}
-          </span>
-        )}
-        {result?.isError && (
-          <Icon name="error" size={18} className="shrink-0 text-[14px] text-[var(--color-error)]" />
-        )}
-        {expandable && (
-          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)]" />
-        )}
-      </button>
+  // Left accent line removed — cleaner design
 
-      {expandable && expanded && (
-        <div className="space-y-2.5 border-t border-[var(--color-border)]/60 px-3 py-3">
-          {preview}
-          {details}
-        </div>
-      )}
+  return (
+    <div
+      className={`overflow-hidden rounded-[10px] bg-black/[0.03] dark:bg-white/[0.04] ${
+        compact ? 'mb-0' : 'mb-1.5'
+      }`}
+    >
+      <div className="min-w-0">
+        <button
+          type="button"
+          onClick={() => {
+            if (expandable) {
+              setExpanded((value) => !value)
+            }
+          }}
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+        >
+          <Icon name={icon} size={12} className="text-black/30 dark:text-white/30" />
+          <span className="text-[11px] font-medium text-black/50 dark:text-white/50">
+            {toolName}
+          </span>
+          {filePath ? (
+            <span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
+              {filePath.split('/').pop()}
+            </span>
+          ) : summary ? (
+            <span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
+              {summary}
+            </span>
+          ) : (
+            <span className="flex-1" />
+          )}
+          {result && outputSummary && (
+            <span
+              className={`shrink-0 text-[10px] ${
+                result.isError
+                  ? 'text-[var(--color-error)]'
+                  : 'text-[var(--color-outline)]'
+              }`}
+            >
+              {outputSummary}
+            </span>
+          )}
+          {result?.isError && (
+            <Icon name="error" size={18} className="shrink-0 text-[14px] text-[var(--color-error)]" />
+          )}
+          {expandable && (
+            <Icon
+              name={expanded ? 'expand_less' : 'expand_more'}
+              size={14}
+              className="text-[var(--color-outline)] transition-transform duration-200"
+              style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+            />
+          )}
+        </button>
+
+        {expandable && expanded && (
+          <div
+            className="space-y-2 border-t border-black/[0.04] dark:border-white/[0.06] px-3 py-2.5"
+            style={{
+              animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {preview}
+            {details}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -127,7 +143,7 @@ function renderPreview(
     return (
       <TerminalChrome title={typeof obj.description === 'string' ? obj.description : filePath}>
         <div className="px-3 py-2.5 font-[var(--font-mono)] text-[11px] leading-[1.3] text-[var(--color-terminal-fg)]">
-          <span className="text-[var(--color-terminal-accent)]">$</span> {obj.command}
+          <span className="text-[var(--color-brand)]">$</span> {obj.command}
         </div>
       </TerminalChrome>
     )
@@ -146,13 +162,15 @@ function renderPreview(
           <div className={`overflow-hidden rounded-lg border-2 ${
             result.isError
               ? 'border-[var(--color-error)]/40 bg-[var(--color-error-container)]/60'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]'
+              : 'border-[var(--color-border)] bg-[var(--color-code-bg)]'
           }`}>
-            <div className="flex items-center justify-between border-b border-[var(--color-border)]/60 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-outline)]">
-              <span>{result.isError ? t?.('tool.errorOutput') ?? 'Error Output' : t?.('tool.toolOutput') ?? 'Tool Output'}</span>
+            <div className="flex items-center justify-between border-b border-[var(--color-border-separator)] px-3 py-2">
+              <span className="label-micro text-[var(--color-outline)]">
+                {result.isError ? t?.('tool.errorOutput') ?? 'Error Output' : t?.('tool.toolOutput') ?? 'Tool Output'}
+              </span>
               <CopyButton
                 text={text}
-                className="rounded-md border border-[var(--color-border)] px-2 py-1 text-[10px] normal-case tracking-normal text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
+                className="btn-ghost px-2 py-1 text-[10px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
               />
             </div>
             <CodeViewer code={text} language="plaintext" maxLines={18} />
@@ -172,12 +190,14 @@ function renderDetails(toolName: string, obj: Record<string, unknown>, t?: (key:
 
   const text = JSON.stringify(obj, null, 2)
   return (
-    <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--color-border)] px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-[var(--color-outline)]">
-        <span>{t?.('tool.toolInput') ?? 'Tool Input'}</span>
+    <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-code-bg)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-separator)] px-3 py-2">
+        <span className="label-micro text-[var(--color-outline)]">
+          {t?.('tool.toolInput') ?? 'Tool Input'}
+        </span>
         <CopyButton
           text={text}
-          className="rounded-md border border-[var(--color-border)] px-2 py-1 text-[10px] normal-case tracking-normal text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
+          className="btn-ghost px-2 py-1 text-[10px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
         />
       </div>
       <CodeViewer code={text} language="json" maxLines={18} />
@@ -277,4 +297,3 @@ function changedLineSummary(oldString: string, newString: string, t?: (key: Tran
 
   return t?.('tool.linesChanged', { count: changed }) ?? `${changed} lines changed`
 }
-

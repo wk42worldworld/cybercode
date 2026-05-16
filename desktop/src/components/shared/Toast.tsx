@@ -1,10 +1,10 @@
 import { useUIStore, type Toast as ToastType } from '../../stores/uiStore'
 
 const typeStyles: Record<ToastType['type'], string> = {
-  success: 'border-l-4 border-l-[var(--color-success)]',
-  error: 'border-l-4 border-l-[var(--color-error)]',
-  warning: 'border-l-4 border-l-[var(--color-warning)]',
-  info: 'border-l-4 border-l-[var(--color-text-accent)]',
+  success: 'border-l-[3px] border-l-[var(--color-success)]',
+  error: 'border-l-[3px] border-l-[var(--color-error)]',
+  warning: 'border-l-[3px] border-l-[var(--color-warning)]',
+  info: 'border-l-[3px] border-l-[var(--color-brand)]',
 }
 
 function ToastItem({ toast }: { toast: ToastType }) {
@@ -13,13 +13,14 @@ function ToastItem({ toast }: { toast: ToastType }) {
   return (
     <div
       className={`
-        bg-[var(--color-surface-container-lowest)] rounded-[6px]
-        px-4 py-3 text-[13px] text-[var(--color-text-primary)] backdrop-blur-xl
-        border-2 border-[var(--color-border)]
+        bg-[var(--color-background)] rounded-xl
+        px-4 py-3 text-[12px]
+        text-[var(--color-text-primary)]
+        border border-[var(--color-border-separator)]
+        shadow-[var(--shadow-dropdown)]
         ${typeStyles[toast.type]}
-        animate-in slide-in-from-right fade-in duration-200
+        animate-slide-down
       `}
-      style={{ boxShadow: 'var(--shadow-dropdown)' }}
     >
       <div className="flex items-center justify-between gap-3">
         <span className="leading-relaxed">{toast.message}</span>

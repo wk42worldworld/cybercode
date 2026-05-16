@@ -5,6 +5,7 @@ import { useChatStore } from '../stores/chatStore'
 import { useCLITaskStore } from '../stores/cliTaskStore'
 import { useTeamStore } from '../stores/teamStore'
 import { useTranslation } from '../i18n'
+import type { UIMessage } from '../types/chat'
 import { MessageList } from '../components/chat/MessageList'
 import { ChatInput } from '../components/chat/ChatInput'
 import { ComputerUsePermissionModal } from '../components/chat/ComputerUsePermissionModal'
@@ -12,50 +13,61 @@ import { TeamStatusBar } from '../components/teams/TeamStatusBar'
 import { SessionTaskBar } from '../components/chat/SessionTaskBar'
 
 const TASK_POLL_INTERVAL_MS = 1000
+const THINKING_RECENT_GRACE_MS = 3200
 
-export function ActiveSession() {
+type ActiveSessionProps = {
+  sessionId?: string
+  projectPath?: string
+  isActive?: boolean
+}
+
+export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive = true }: ActiveSessionProps = {}) {
   const activeTabId = useTabStore((s) => s.activeTabId)
+  const tabs = useTabStore((s) => s.tabs)
+  const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
+  const sessionId = sessionIdProp ?? activeTabId
+  const resolvedProjectPath = projectPath ?? activeTab?.projectPath
   const sessions = useSessionStore((s) => s.sessions)
-  const connectToSession = useChatStore((s) => s.connectToSession)
-  const sessionState = useChatStore((s) => activeTabId ? s.sessions[activeTabId] : undefined)
+  const ensureSessionReady = useChatStore((s) => s.ensureSessionReady)
+  const sessionState = useChatStore((s) => sessionId ? s.sessions[sessionId] : undefined)
   const pendingComputerUsePermission = sessionState?.pendingComputerUsePermission ?? null
   const fetchSessionTasks = useCLITaskStore((s) => s.fetchSessionTasks)
   const trackedTaskSessionId = useCLITaskStore((s) => s.sessionId)
   const hasIncompleteTasks = useCLITaskStore((s) => s.tasks.some((task) => task.status !== 'completed'))
   const chatState = sessionState?.chatState ?? 'idle'
 
-  const session = sessions.find((s) => s.id === activeTabId)
-  const memberInfo = useTeamStore((s) => activeTabId ? s.getMemberBySessionId(activeTabId) : null)
+  const session = sessions.find((s) =>
+    s.id === sessionId && (!resolvedProjectPath || s.projectPath === resolvedProjectPath),
+  )
+  const memberInfo = useTeamStore((s) => sessionId ? s.getMemberBySessionId(sessionId) : null)
   const activeTeam = useTeamStore((s) => s.activeTeam)
   const isMemberSession = !!memberInfo
-  const isReconnecting = !isMemberSession &&
-    sessionState !== undefined &&
-    sessionState.connectionState !== 'connected'
 
   useEffect(() => {
-    if (activeTabId && !isMemberSession) {
-      connectToSession(activeTabId)
+    if (sessionId && !isMemberSession) {
+      void ensureSessionReady(sessionId, resolvedProjectPath)
     }
-  }, [activeTabId, isMemberSession, connectToSession])
+  }, [sessionId, resolvedProjectPath, isMemberSession, ensureSessionReady])
 
   useEffect(() => {
-    if (!activeTabId || isMemberSession) return
+    if (!sessionId || isMemberSession || !isActive) return
 
     const shouldPollTasks =
       chatState !== 'idle' ||
-      (trackedTaskSessionId === activeTabId && hasIncompleteTasks)
+      (trackedTaskSessionId === sessionId && hasIncompleteTasks)
 
     if (!shouldPollTasks) return
 
-    void fetchSessionTasks(activeTabId)
+    void fetchSessionTasks(sessionId)
 
     const timer = setInterval(() => {
-      void fetchSessionTasks(activeTabId)
+      void fetchSessionTasks(sessionId)
     }, TASK_POLL_INTERVAL_MS)
 
     return () => clearInterval(timer)
   }, [
-    activeTabId,
+    sessionId,
+    isActive,
     isMemberSession,
     chatState,
     trackedTaskSessionId,
@@ -65,32 +77,36 @@ export function ActiveSession() {
 
   const t = useTranslation()
   const messages = sessionState?.messages ?? []
-  const streamingText = sessionState?.streamingText ?? ''
-  const isEmpty = messages.length === 0 && !streamingText
+  const activeThinkingId = sessionState?.activeThinkingId ?? null
 
-  if (!activeTabId) return null
+  const latestThinking = [...messages].reverse().find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking') ?? null
+  const latestThinkingIsFresh = latestThinking
+    ? Date.now() - latestThinking.timestamp <= THINKING_RECENT_GRACE_MS
+    : false
+  const fallbackThinking = chatState !== 'idle' || latestThinkingIsFresh ? latestThinking : null
+
+  // Active thinking content for the floating indicator. The id can be cleared
+  // by later stream events before the UI has had a chance to render it.
+  const activeThinking = activeThinkingId
+    ? messages.find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking' && m.id === activeThinkingId) ?? fallbackThinking
+    : fallbackThinking
+
+  if (!sessionId) return null
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden bg-background text-on-surface">
-      {/* Persistent drag strip so the top of the chat area can move the window */}
-      <div className="h-8 shrink-0" data-tauri-drag-region />
-
-      {/* Indeterminate top loading bar — visible whenever the session is
-          (re)connecting, so users see "something is loading" instead of a frozen UI */}
-      {isReconnecting && <div className="session-loading-bar" aria-hidden="true" />}
+    <div className="flex-1 flex flex-col relative overflow-hidden bg-[var(--color-background)] text-on-surface transition-colors duration-300">
 
       {isMemberSession && (
-        <div className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface-container)]">
+        <div className="shrink-0 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
           <div className="mx-auto max-w-[860px] flex items-center justify-between gap-4 px-8 py-2">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
                 {memberInfo?.status === 'running' && (
-                  <span className="flex h-2 w-2 rounded-full bg-[var(--color-warning)] animate-pulse-dot" />
+                  <span className="flex h-2 w-2 rounded-full bg-[var(--color-brand)] animate-pulse" />
                 )}
                 {memberInfo?.status === 'completed' && (
-                  <span className="material-symbols-outlined text-[14px] text-[var(--color-success)]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                  <span className="text-[14px] text-[var(--color-success)]">✓</span>
                 )}
-                <span className="material-symbols-outlined text-[14px] text-[var(--color-text-tertiary)]">smart_toy</span>
                 <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                   {memberInfo?.role}
                 </span>
@@ -115,66 +131,46 @@ export function ActiveSession() {
                 }
               }}
               disabled={!activeTeam?.leadSessionId}
-              className="flex shrink-0 items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50 disabled:hover:text-[var(--color-text-secondary)]"
+              className="flex shrink-0 items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[14px]">arrow_back</span>
-              {t('teams.backToLeader')}
+              ← {t('teams.backToLeader')}
             </button>
           </div>
         </div>
       )}
 
-      {isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center p-8 pb-32">
-          <div className="flex max-w-md flex-col items-center text-center">
-            {isMemberSession ? (
-              <>
-                <span className="material-symbols-outlined text-[48px] mb-4 text-[var(--color-text-tertiary)]">smart_toy</span>
-                <p className="text-[var(--color-text-secondary)]">
-                  {memberInfo?.status === 'running'
-                    ? `${memberInfo.role} ${t('teams.working')}`
-                    : t('teams.noMessages')}
-                </p>
-              </>
-            ) : (
-              <>
-                <img src="/app-icon.png" alt="CyberCode" className="mb-6 h-24 w-24" />
-                <h1 className="mb-2 text-3xl font-extrabold tracking-tight text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)' }}>
-                  {t('empty.title')}
-                </h1>
-                <p className="mx-auto max-w-xs text-[var(--color-text-secondary)]" style={{ fontFamily: 'var(--font-body)' }}>
-                  {t('empty.subtitle')}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {!isMemberSession && session?.workDirExists === false && (
-            <div className="mx-auto w-full max-w-[860px] px-8 py-2" data-tauri-drag-region>
-              <div className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error)]/8 px-3 py-1.5 text-[11px] text-[var(--color-error)]">
-                <span className="material-symbols-outlined text-[14px]">warning</span>
-                <span className="truncate">
-                  {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
-                </span>
-              </div>
+      {/* MessageList is ALWAYS mounted — never conditionally unmounted.
+          Unmounting + remounting it causes a burst of 500+ DOM nodes which
+          crashes the WKWebView GPU compositor (white screen).
+          EmptyState is a lightweight overlay on top; it appears/disappears
+          without touching the MessageList DOM tree. */}
+      <div className="flex-1 relative flex flex-col overflow-hidden min-h-0">
+        {!isMemberSession && session?.workDirExists === false && (
+          <div className="mx-auto w-full max-w-[860px] px-8 py-2 shrink-0">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-600">
+              <span>⚠</span>
+              <span className="truncate">
+                {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
+              </span>
             </div>
-          )}
+          </div>
+        )}
 
-          <MessageList />
-        </>
-      )}
+        <MessageList sessionId={sessionId} projectPath={resolvedProjectPath} isActive={isActive} />
 
-      {!isMemberSession && <SessionTaskBar />}
+      </div>
+
+      {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
 
       <TeamStatusBar />
 
-      <ChatInput variant={isEmpty && !isMemberSession ? 'hero' : 'default'} />
+      <div className="shrink-0 z-20">
+        <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" thinkingContent={activeThinking?.content} />
+      </div>
 
-      {!isMemberSession && activeTabId ? (
+      {!isMemberSession && sessionId ? (
         <ComputerUsePermissionModal
-          sessionId={activeTabId}
+          sessionId={sessionId}
           request={pendingComputerUsePermission?.request ?? null}
         />
       ) : null}

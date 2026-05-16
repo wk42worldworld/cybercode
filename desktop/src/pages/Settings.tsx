@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useProviderStore } from '../stores/providerStore'
 import { useTranslation } from '../i18n'
@@ -11,7 +11,6 @@ import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
 import type { Locale } from '../i18n'
 import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat } from '../types/provider'
 import type { ProviderPreset } from '../types/providerPreset'
-import { AdapterSettings } from './AdapterSettings'
 import { useAgentStore } from '../stores/agentStore'
 import { useSessionStore } from '../stores/sessionStore'
 import type { AgentDefinition, AgentSource } from '../api/agents'
@@ -23,9 +22,6 @@ import { SkillDetail } from '../components/skills/SkillDetail'
 import { usePluginStore } from '../stores/pluginStore'
 import { PluginList } from '../components/plugins/PluginList'
 import { PluginDetail } from '../components/plugins/PluginDetail'
-import { ComputerUseSettings } from './ComputerUseSettings'
-import { McpSettings } from './McpSettings'
-import { TerminalSettings } from './TerminalSettings'
 import { useUIStore, type SettingsTab } from '../stores/uiStore'
 import { ClaudeOfficialLogin } from '../components/settings/ClaudeOfficialLogin'
 import { SettingsPage, SettingsSection, SettingsRow, SegmentedControl, Switch } from '../components/settings/SettingsLayout'
@@ -34,8 +30,10 @@ import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
 import { Icon } from '../components/shared/Icon'
 
+const SETTINGS_TABS: SettingsTab[] = ['general', 'permissions', 'agents', 'about']
+
 export function Settings() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('providers')
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const pendingSettingsTab = useUIStore((s) => s.pendingSettingsTab)
   const t = useTranslation()
 
@@ -45,30 +43,13 @@ export function Settings() {
     useUIStore.getState().setPendingSettingsTab(null)
   }, [pendingSettingsTab])
 
-  const tabTitle = t(`settings.tab.${activeTab}` as never) as string
-
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#050505]">
-      {/* Top toolbar — title on the left, close affordance on the right */}
-      <header className="h-12 flex items-center justify-between px-5 border-b border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#050505] shrink-0 z-10">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <button
-            onClick={() => useUIStore.getState().closeSettings()}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-black/65 dark:text-white/65 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            aria-label={t('settings.back')}
-            title={t('settings.back')}
-          >
-            <Icon name="arrow_back" size={20} />
-          </button>
-          <span className="text-[13px] font-semibold tracking-tight text-black/90 dark:text-white/90 truncate">
-            {t('sidebar.settings')}
-            <span className="mx-2 opacity-30">/</span>
-            <span className="text-black/70 dark:text-white/70 font-normal">{tabTitle}</span>
-          </span>
-        </div>
+    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-background)]">
+      {/* Top header — close button */}
+      <header className="flex items-center justify-end py-[18px] px-[18px] bg-[var(--color-background)] shrink-0 z-10">
         <button
           onClick={() => useUIStore.getState().closeSettings()}
-          className="flex h-7 w-7 items-center justify-center rounded-full text-black/65 dark:text-white/65 hover:text-black/90 dark:hover:text-white/90 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
           aria-label="Close"
           title="Esc"
         >
@@ -76,45 +57,32 @@ export function Settings() {
         </button>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar nav — grouped, Apple-style */}
-        <nav className="w-[228px] shrink-0 overflow-y-auto bg-black/[0.02] dark:bg-white/[0.02] border-r border-black/[0.12] dark:border-white/[0.12] py-4 px-3 space-y-5">
-          <NavGroup>
-            <NavItem icon="dns"          label={t('settings.tab.providers')}   active={activeTab === 'providers'}   onClick={() => setActiveTab('providers')} />
-            <NavItem icon="shield"       label={t('settings.tab.permissions')} active={activeTab === 'permissions'} onClick={() => setActiveTab('permissions')} />
-          </NavGroup>
-
-          <NavGroup>
-            <NavItem icon="tune"         label={t('settings.tab.general')}     active={activeTab === 'general'}     onClick={() => setActiveTab('general')} />
-            <NavItem icon="terminal"     label={t('settings.tab.terminal')}    active={activeTab === 'terminal'}    onClick={() => setActiveTab('terminal')} />
-          </NavGroup>
-
-          <NavGroup>
-            <NavItem icon="chat"         label={t('settings.tab.adapters')}    active={activeTab === 'adapters'}    onClick={() => setActiveTab('adapters')} />
-            <NavItem icon="hub"          label={t('settings.tab.mcp')}         active={activeTab === 'mcp'}         onClick={() => setActiveTab('mcp')} />
-            <NavItem icon="smart_toy"    label={t('settings.tab.agents')}      active={activeTab === 'agents'}      onClick={() => setActiveTab('agents')} />
-            <NavItem icon="auto_awesome" label={t('settings.tab.skills')}      active={activeTab === 'skills'}      onClick={() => setActiveTab('skills')} />
-            <NavItem icon="extension"    label={t('settings.tab.plugins')}     active={activeTab === 'plugins'}     onClick={() => setActiveTab('plugins')} />
-            <NavItem icon="mouse"        label={t('settings.tab.computerUse')} active={activeTab === 'computerUse'} onClick={() => setActiveTab('computerUse')} />
-          </NavGroup>
-
-          <NavGroup>
-            <NavItem icon="info"         label={t('settings.tab.about')}       active={activeTab === 'about'}       onClick={() => setActiveTab('about')} />
-          </NavGroup>
-        </nav>
-
-        {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-10 py-10">
-          {activeTab === 'providers' && <ProviderSettings />}
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto bg-[var(--color-background)]">
+        {/* Centered tabs */}
+        <div className="flex items-center justify-center gap-1 pt-8 pb-4 px-4">
+          {SETTINGS_TABS.map((key) => {
+            const isActive = activeTab === key
+            const label = t(`settings.tab.${key}` as never) as string
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center px-4 py-2 text-[13px] font-medium tracking-tight whitespace-nowrap transition-colors rounded-full ${
+                  isActive
+                    ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10'
+                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+        <div className="px-6 pb-10">
           {activeTab === 'permissions' && <PermissionSettings />}
           {activeTab === 'general' && <GeneralSettings />}
-          {activeTab === 'adapters' && <AdapterSettings />}
-          {activeTab === 'terminal' && <TerminalSettings />}
-          {activeTab === 'mcp' && <McpSettings />}
           {activeTab === 'agents' && <AgentsSettings />}
-          {activeTab === 'skills' && <SkillSettings />}
-          {activeTab === 'plugins' && <PluginSettings />}
-          {activeTab === 'computerUse' && <ComputerUseSettings />}
           {activeTab === 'about' && <AboutSettings />}
         </div>
       </div>
@@ -122,29 +90,10 @@ export function Settings() {
   )
 }
 
-function NavGroup({ children }: { children: ReactNode }) {
-  return <div className="space-y-0.5">{children}</div>
-}
-
-function NavItem({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 h-10 px-3.5 rounded-md text-[13px] font-medium tracking-[-0.01em] transition-all duration-200 ${
-        active
-          ? 'bg-[var(--color-spacex-accent)]/10 text-[var(--color-spacex-accent)]'
-          : 'text-black/65 dark:text-white/65 hover:bg-black/[0.04] dark:hover:bg-white/[0.05] hover:text-black/80 dark:hover:text-white/80'
-      }`}
-    >
-      <Icon name={icon} size={20} className="shrink-0" />
-      <span className="truncate">{label}</span>
-    </button>
-  )
-}
 
 // ─── Provider Settings ──────────────────────────────────────
 
-function ProviderSettings() {
+export function ProviderSettings() {
   const {
     providers,
     activeId,
@@ -162,7 +111,7 @@ function ProviderSettings() {
   const fetchSettings = useSettingsStore((s) => s.fetchAll)
   const t = useTranslation()
   const [editingProvider, setEditingProvider] = useState<SavedProvider | null>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [creatingPresetId, setCreatingPresetId] = useState<string | null>(null)
   const [pendingDeleteProvider, setPendingDeleteProvider] = useState<SavedProvider | null>(null)
   const [isDeletingProvider, setIsDeletingProvider] = useState(false)
   const [testResults, setTestResults] = useState<Record<string, { loading: boolean; result?: ProviderTestResult }>>({})
@@ -172,9 +121,9 @@ function ProviderSettings() {
     void fetchPresets()
   }, [fetchPresets, fetchProviders])
 
-  const presetMap = useMemo(
-    () => new Map(presets.map((preset) => [preset.id, preset])),
-    [presets],
+  const providerRows = useMemo(
+    () => buildProviderCatalogRows(providers, presets),
+    [providers, presets],
   )
 
   const handleDelete = async (provider: SavedProvider) => {
@@ -216,6 +165,7 @@ function ProviderSettings() {
   }
 
   const isOfficialActive = hasLoadedProviders && activeId === null
+  const isInitialLoading = (isLoading && !hasLoadedProviders) || (isPresetsLoading && presets.length === 0)
 
   return (
     <SettingsPage
@@ -223,138 +173,69 @@ function ProviderSettings() {
       title={t('settings.providers.title')}
       description={t('settings.providers.description')}
     >
-      {/* Official provider */}
-      <div
-        className={`group relative overflow-hidden rounded-lg border-2 transition-all cursor-pointer ${
-          isOfficialActive
-            ? 'border-black dark:border-white bg-black/[0.02] dark:bg-white/[0.02]'
-            : 'border-black/30 dark:border-white/30 hover:border-black dark:hover:border-white'
-        }`}
-        onClick={() => !isOfficialActive && handleActivateOfficial()}
-      >
-        <div className="flex items-center gap-5 px-5 py-4">
-          {/* Avatar */}
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[17px] font-bold ${
-            isOfficialActive
-              ? 'bg-black dark:bg-white text-white dark:text-black'
-              : 'bg-black/10 dark:bg-white/20 text-black dark:text-white'
-          }`}>
-            A
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)]">
-                {t('settings.providers.officialName')}
-              </span>
-              {isOfficialActive && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  {t('settings.providers.default')}
-                </span>
-              )}
-            </div>
-            <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">
-              {t('settings.providers.officialDesc')}
-            </p>
-          </div>
-          {!isOfficialActive && (
-            <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); handleActivateOfficial() }}>
-              {t('settings.providers.setDefault')}
-            </Button>
-          )}
-        </div>
-        {isOfficialActive && (
-          <div className="px-5 pb-5 pt-1 border-t border-black/[0.10] dark:border-white/[0.10]">
-            <ClaudeOfficialLogin />
-          </div>
-        )}
-      </div>
-
-      {/* Saved providers */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        disabled={isPresetsLoading || presets.length === 0}
-        className="w-full flex items-center gap-4 px-5 py-4 rounded-lg border-2 border-dashed border-black/50 dark:border-white/50 text-[var(--color-text-secondary)] hover:border-black dark:hover:border-white hover:text-[var(--color-text-primary)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black/40 dark:border-white/40">
-          <Icon name="add" size={18} />
-        </div>
-        <div className="text-left">
-          <div className="text-[14px] font-semibold tracking-tight">{t('settings.providers.addProvider')}</div>
-          <div className="text-[12px] text-[var(--color-text-tertiary)] mt-0.5">{t('settings.providers.description')}</div>
-        </div>
-      </button>
-
-      {isLoading && providers.length === 0 ? (
+      {isInitialLoading ? (
         <div className="flex justify-center py-10">
           <Icon name="loading" size={24} className="animate-spin text-[var(--color-text-tertiary)]" />
         </div>
-      ) : providers.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-black/[0.10] dark:border-white/[0.10] py-10 text-center text-[13px] text-[var(--color-text-tertiary)]">
-          {t('settings.providers.addProvider')} →
-        </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {providers.map((provider) => {
-            const isActive = activeId === provider.id
-            const test = testResults[provider.id]
-            const preset = presetMap.get(provider.presetId)
-            const initials = provider.name.slice(0, 2).toUpperCase()
+          <ProviderCatalogItem
+            name={t('settings.providers.officialName')}
+            description={t('settings.providers.officialDesc')}
+            detail="claude-opus-4-7 · claude-sonnet-4-6 · claude-haiku-4-5"
+            logoUrl={getProviderLogoUrl({ id: 'official' })}
+            isActive={isOfficialActive}
+            isConfigured={true}
+            badges={[
+              t('settings.providers.officialBadge'),
+              isOfficialActive ? t('settings.providers.default') : null,
+            ]}
+            actions={!isOfficialActive ? (
+              <Button variant="secondary" size="sm" onClick={handleActivateOfficial}>
+                {t('settings.providers.setDefault')}
+              </Button>
+            ) : null}
+          >
+            {isOfficialActive && (
+              <div className="border-t border-[var(--color-border-separator)] px-5 pb-5 pt-3">
+                <ClaudeOfficialLogin />
+              </div>
+            )}
+          </ProviderCatalogItem>
+
+          {providerRows.map(({ key, preset, provider }) => {
+            const isConfigured = Boolean(provider)
+            const isActive = Boolean(provider && activeId === provider.id)
+            const test = provider ? testResults[provider.id] : undefined
+            const name = provider && preset.id === 'custom' ? provider.name : preset.name
+            const description = provider && provider.name !== preset.name
+              ? provider.name
+              : getPresetDescription(preset, t)
+            const detail = provider
+              ? `${provider.baseUrl} · ${provider.models.main}`
+              : getPresetDetail(preset, t)
+            const apiFormat = provider?.apiFormat ?? preset.apiFormat
+            const badges = [
+              isConfigured ? t('settings.providers.configured') : t('settings.providers.notConfigured'),
+              isActive ? t('settings.providers.default') : null,
+              apiFormat !== 'anthropic'
+                ? (apiFormat === 'openai_chat' ? 'OpenAI Chat' : 'OpenAI Responses')
+                : null,
+            ]
+
             return (
-              <div
-                key={provider.id}
-                className={`relative rounded-lg border-2 transition-all ${
-                  isActive
-                    ? 'border-black dark:border-white bg-black/[0.02] dark:bg-white/[0.02]'
-                    : 'border-black/30 dark:border-white/30 hover:border-black dark:hover:border-white'
-                }`}
-              >
-                <div className="flex items-center gap-4 px-5 py-4">
-                  {/* Avatar */}
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[13px] font-bold tracking-wider ${
-                    isActive
-                      ? 'bg-black dark:bg-white text-white dark:text-black'
-                      : 'bg-black/10 dark:bg-white/20 text-black dark:text-white'
-                  }`}>
-                    {initials}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[14px] font-semibold tracking-tight text-[var(--color-text-primary)]">
-                        {provider.name}
-                      </span>
-                      {isActive && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-600 dark:text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          {t('settings.providers.default')}
-                        </span>
-                      )}
-                      {preset && preset.id !== 'custom' && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-black/[0.05] dark:bg-white/[0.06] text-[var(--color-text-tertiary)]">
-                          {preset.name}
-                        </span>
-                      )}
-                      {provider.apiFormat && provider.apiFormat !== 'anthropic' && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                          {provider.apiFormat === 'openai_chat' ? 'OpenAI Chat' : 'OpenAI Responses'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)] truncate">
-                      {provider.baseUrl} · {provider.models.main}
-                    </p>
-                    {test && !test.loading && test.result && (
-                      <p className={`mt-1 text-[11px] ${test.result.connectivity.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--color-error)]'}`}>
-                        {test.result.connectivity.success
-                          ? t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })
-                          : t('settings.providers.connectivityFailed', { error: test.result.connectivity.error || '' })}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Actions — always visible */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+              <ProviderCatalogItem
+                key={key}
+                name={name}
+                description={description}
+                detail={detail}
+                logoUrl={getProviderLogoUrl(preset)}
+                isActive={isActive}
+                isConfigured={isConfigured}
+                badges={badges}
+                test={test}
+                actions={provider ? (
+                  <>
                     {!isActive && (
                       <Button variant="secondary" size="sm" onClick={() => handleActivate(provider.id)}>
                         {t('settings.providers.setDefault')}
@@ -363,25 +244,35 @@ function ProviderSettings() {
                     <Button variant="ghost" size="sm" onClick={() => handleTest(provider)} loading={test?.loading}>
                       {t('settings.providers.test')}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setEditingProvider(provider)}>
+                    <Button variant="ghost" size="sm" onClick={() => setEditingProvider(provider)} aria-label={t('settings.providers.edit')}>
                       <Icon name="edit" size={14} />
                     </Button>
                     {!isActive && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(provider)} className="text-[var(--color-error)]/70 hover:text-[var(--color-error)]">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(provider)} className="text-[var(--color-error)]/70 hover:text-[var(--color-error)]" aria-label={t('common.delete')}>
                         <Icon name="delete" size={14} />
                       </Button>
                     )}
-                  </div>
-                </div>
-              </div>
+                  </>
+                ) : (
+                  <Button variant="secondary" size="sm" onClick={() => setCreatingPresetId(preset.id)}>
+                    {t('settings.providers.configure')}
+                  </Button>
+                )}
+              />
             )
           })}
         </div>
       )}
 
       {/* Create Modal — conditionally rendered so state resets on close */}
-      {showCreateModal && (
-        <ProviderFormModal open={true} onClose={() => setShowCreateModal(false)} mode="create" presets={presets} />
+      {creatingPresetId && (
+        <ProviderFormModal
+          open={true}
+          onClose={() => setCreatingPresetId(null)}
+          mode="create"
+          presets={presets}
+          initialPresetId={creatingPresetId}
+        />
       )}
 
       {/* Edit Modal */}
@@ -407,6 +298,248 @@ function ProviderSettings() {
   )
 }
 
+type ProviderCatalogRow = {
+  key: string
+  preset: ProviderPreset
+  provider?: SavedProvider
+}
+
+function buildProviderCatalogRows(
+  providers: SavedProvider[],
+  presets: ProviderPreset[],
+): ProviderCatalogRow[] {
+  const rows: ProviderCatalogRow[] = []
+  const presetById = new Map(presets.map((preset) => [preset.id, preset]))
+
+  for (const preset of presets) {
+    if (preset.id === 'official' || preset.id === 'custom') continue
+    const configured = providers.filter((provider) => provider.presetId === preset.id)
+    if (configured.length === 0) {
+      rows.push({ key: `preset:${preset.id}`, preset })
+      continue
+    }
+    for (const provider of configured) {
+      rows.push({ key: `provider:${provider.id}`, preset, provider })
+    }
+  }
+
+  for (const provider of providers) {
+    if (
+      presetById.has(provider.presetId) ||
+      provider.presetId === 'official' ||
+      provider.presetId === 'custom'
+    ) continue
+    rows.push({
+      key: `provider:${provider.id}`,
+      preset: buildFallbackPreset(provider),
+      provider,
+    })
+  }
+
+  const customPreset = presetById.get('custom')
+  for (const provider of providers.filter((item) => item.presetId === 'custom')) {
+    rows.push({
+      key: `provider:${provider.id}`,
+      preset: customPreset ?? buildFallbackPreset(provider),
+      provider,
+    })
+  }
+  if (customPreset) {
+    rows.push({ key: 'preset:custom', preset: customPreset })
+  }
+
+  return rows
+}
+
+function ProviderCatalogItem({
+  name,
+  description,
+  detail,
+  logoUrl,
+  isActive,
+  isConfigured,
+  badges,
+  test,
+  actions,
+  children,
+}: {
+  name: string
+  description: string
+  detail: string
+  logoUrl?: string
+  isActive: boolean
+  isConfigured: boolean
+  badges: Array<string | null>
+  test?: { loading: boolean; result?: ProviderTestResult }
+  actions: ReactNode
+  children?: ReactNode
+}) {
+  const t = useTranslation()
+  return (
+    <div
+      className={`relative overflow-hidden rounded-lg border transition-all ${
+        isActive
+          ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-accent-glow)]'
+          : 'border-[var(--color-border)] bg-[var(--color-surface-container)] hover:border-[var(--color-border-focus)]'
+      }`}
+    >
+      {isActive && (
+        <span className="absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg bg-[var(--color-brand)]" />
+      )}
+      <div className="flex items-center gap-4 px-5 py-4">
+        <ProviderLogo name={name} logoUrl={logoUrl} active={isActive} />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[14px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+              {name}
+            </span>
+            {badges.filter((badge): badge is string => Boolean(badge)).map((badge) => (
+              <ProviderBadge
+                key={badge}
+                active={badge === t('settings.providers.default')}
+                muted={badge === t('settings.providers.notConfigured')}
+                warning={badge.startsWith('OpenAI')}
+              >
+                {badge}
+              </ProviderBadge>
+            ))}
+          </div>
+          <p className="mt-0.5 text-[12px] text-[var(--color-text-secondary)] truncate">
+            {description}
+          </p>
+          <p className="mt-0.5 text-[11px] text-[var(--color-text-tertiary)] truncate">
+            {detail}
+          </p>
+          {test && !test.loading && test.result && (
+            <p className={`mt-1 text-[11px] ${test.result.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+              {test.result.connectivity.success
+                ? t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })
+                : t('settings.providers.connectivityFailed', { error: test.result.connectivity.error || '' })}
+            </p>
+          )}
+        </div>
+
+        <div className={`flex shrink-0 items-center gap-1.5 ${isConfigured ? '' : 'opacity-95'}`}>
+          {actions}
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function ProviderBadge({
+  active,
+  muted,
+  warning,
+  children,
+}: {
+  active?: boolean
+  muted?: boolean
+  warning?: boolean
+  children: ReactNode
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+        active
+          ? 'bg-[var(--color-brand)]/12 text-[var(--color-brand)]'
+          : warning
+            ? 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]'
+            : muted
+              ? 'bg-[var(--color-surface-container-low)] text-[var(--color-text-tertiary)]'
+              : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)]'
+      }`}
+    >
+      {active && <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)]" />}
+      {children}
+    </span>
+  )
+}
+
+function ProviderLogo({
+  name,
+  logoUrl,
+  active,
+}: {
+  name: string
+  logoUrl?: string
+  active: boolean
+}) {
+  const [failed, setFailed] = useState(false)
+  const initials = getProviderInitials(name)
+
+  return (
+    <div
+      className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border ${
+        active
+          ? 'border-[var(--color-brand)]/40 bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-accent-glow)]'
+          : 'border-[var(--color-border)] bg-[var(--color-surface-container-high)]'
+      }`}
+    >
+      {logoUrl && !failed ? (
+        <img
+          src={logoUrl}
+          alt={`${name} logo`}
+          className="h-7 w-7 object-contain"
+          loading="eager"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="text-[13px] font-bold text-[var(--color-text-primary)]">
+          {initials}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function getProviderInitials(name: string): string {
+  const trimmed = name.trim()
+  if (!trimmed) return 'AI'
+  const asciiParts = trimmed.match(/[A-Za-z0-9]+/g)
+  if (asciiParts?.length) {
+    return asciiParts.slice(0, 2).map((part) => part[0]).join('').toUpperCase()
+  }
+  return Array.from(trimmed).slice(0, 2).join('')
+}
+
+const PROVIDER_LOGO_URLS: Record<string, string> = {
+  official: '/provider-icons/anthropic.ico',
+  deepseek: '/provider-icons/deepseek.ico',
+  zhipuglm: '/provider-icons/zhipuglm.png',
+  kimi: '/provider-icons/kimi.ico',
+  minimax: '/provider-icons/minimax.ico',
+  xiaomimimo: '/provider-icons/xiaomimimo.png',
+  lmstudio: '/provider-icons/lmstudio.ico',
+  ollama: '/provider-icons/ollama.png',
+}
+
+function getProviderLogoUrl(
+  preset: Pick<ProviderPreset, 'id'>,
+): string | undefined {
+  return PROVIDER_LOGO_URLS[preset.id]
+}
+
+function getPresetDescription(
+  preset: ProviderPreset,
+  t: ReturnType<typeof useTranslation>,
+): string {
+  if (preset.id === 'custom') return t('settings.providers.customDesc')
+  if (preset.promoText) return preset.promoText
+  return preset.websiteUrl || preset.baseUrl || t('settings.providers.description')
+}
+
+function getPresetDetail(
+  preset: ProviderPreset,
+  t: ReturnType<typeof useTranslation>,
+): string {
+  const model = preset.defaultModels.main || t('settings.providers.modelPending')
+  const baseUrl = preset.baseUrl || t('settings.providers.baseUrlPending')
+  return `${baseUrl} · ${model}`
+}
+
 // ─── Provider Form Modal ──────────────────────────────────────
 
 type ProviderFormProps = {
@@ -415,13 +548,7 @@ type ProviderFormProps = {
   mode: 'create' | 'edit'
   provider?: SavedProvider
   presets: ProviderPreset[]
-}
-
-function requirePreset(preset: ProviderPreset | undefined): ProviderPreset {
-  if (!preset) {
-    throw new Error('Provider presets are not configured')
-  }
-  return preset
+  initialPresetId?: string
 }
 
 function buildFallbackPreset(provider?: SavedProvider): ProviderPreset {
@@ -480,28 +607,24 @@ function restoreSettingsJsonSecrets<T>(settings: T, apiKey: string): T {
   return settings
 }
 
-function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderFormProps) {
+function ProviderFormModal({ open, onClose, mode, provider, presets, initialPresetId }: ProviderFormProps) {
   const { createProvider, updateProvider, testConfig } = useProviderStore()
   const fetchSettings = useSettingsStore((s) => s.fetchAll)
   const t = useTranslation()
 
   const availablePresets = presets.filter((p) => p.id !== 'official')
-  const regularPresets = availablePresets.filter((p) => !p.featured)
-  const featuredPresets = availablePresets.filter((p) => p.featured)
   const presetDefaultEnvKeys = useMemo(
     () => new Set(presets.flatMap((preset) => Object.keys(preset.defaultEnv ?? {}))),
     [presets],
   )
   const fallbackPreset = provider
     ? buildFallbackPreset(provider)
-    : requirePreset(availablePresets[availablePresets.length - 1])
-  const initialPreset = requirePreset(
-    provider
-      ? availablePresets.find((p) => p.id === provider.presetId) ?? fallbackPreset
-      : availablePresets[0] ?? fallbackPreset,
-  )
+    : availablePresets.find((p) => p.id === 'custom') ?? buildFallbackPreset()
+  const initialPreset = provider
+    ? availablePresets.find((p) => p.id === provider.presetId) ?? fallbackPreset
+    : availablePresets.find((p) => p.id === initialPresetId) ?? availablePresets[0] ?? fallbackPreset
 
-  const [selectedPreset, setSelectedPreset] = useState<ProviderPreset>(initialPreset)
+  const selectedPreset = initialPreset
   const [name, setName] = useState(provider?.name ?? initialPreset.name)
   const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? initialPreset.baseUrl)
   const [apiFormat, setApiFormat] = useState<ApiFormat>(provider?.apiFormat ?? initialPreset.apiFormat ?? 'anthropic')
@@ -515,17 +638,13 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
   const [settingsJson, setSettingsJson] = useState('')
   const [settingsJsonError, setSettingsJsonError] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(initialPreset.id === 'custom')
-  const jsonPastedRef = useRef(false)
 
   // Load current settings.json and merge provider env vars
   useEffect(() => {
-    // Skip if JSON was just populated by user paste
-    if (jsonPastedRef.current) {
-      jsonPastedRef.current = false
-      return
-    }
+    let cancelled = false
     import('../api/providers').then(({ providersApi }) => {
       providersApi.getSettings().then((settings) => {
+        if (cancelled) return
         const needsProxy = apiFormat !== 'anthropic'
         const existingEnv = (settings.env as Record<string, string>) || {}
         const cleanedEnv = Object.fromEntries(
@@ -549,21 +668,26 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
         }
         setSettingsJson(JSON.stringify(merged, null, 2))
       }).catch(() => {
+        if (cancelled) return
         setSettingsJson(JSON.stringify({}, null, 2))
       })
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPreset.id])
-
-  const handlePresetChange = (preset: ProviderPreset) => {
-    setSelectedPreset(preset)
-    setName(preset.name)
-    setBaseUrl(preset.baseUrl)
-    setApiFormat(preset.apiFormat ?? 'anthropic')
-    setModels({ ...preset.defaultModels })
-    setTestResult(null)
-    if (preset.id === 'custom') setShowAdvanced(true)
-  }
+    return () => {
+      cancelled = true
+    }
+  }, [
+    apiFormat,
+    apiKey,
+    baseUrl,
+    models.haiku,
+    models.main,
+    models.opus,
+    models.sonnet,
+    presetDefaultEnvKeys,
+    selectedPreset.defaultEnv,
+    selectedPreset.id,
+    selectedPreset.needsApiKey,
+  ])
 
   const isCustom = selectedPreset.id === 'custom'
   const requiresApiKey = selectedPreset.needsApiKey !== false
@@ -591,19 +715,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
     },
   ]
   const selectedApiFormatLabel = apiFormatItems.find((item) => item.value === apiFormat)?.label ?? t('settings.providers.apiFormatAnthropic')
-  const renderPresetButton = (preset: ProviderPreset) => (
-    <button
-      key={preset.id}
-      onClick={() => handlePresetChange(preset)}
-      className={`px-3 py-1.5 text-[12px] font-medium rounded-full border transition-all ${
-        selectedPreset.id === preset.id
-          ? 'border-[var(--color-brand)] bg-[var(--color-surface-container-high)] text-[var(--color-brand)] shadow-[var(--shadow-focus-ring)]'
-          : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
-      }`}
-    >
-      {preset.name}
-    </button>
-  )
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -684,7 +795,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
     <Modal
       open={open}
       onClose={onClose}
-      title={mode === 'create' ? t('settings.providers.addTitle') : t('settings.providers.editTitle')}
+      title={mode === 'create'
+        ? t('settings.providers.configureTitle', { name: selectedPreset.name })
+        : t('settings.providers.editTitle')}
       width={720}
       footer={
         <>
@@ -696,22 +809,37 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
       }
     >
       <div className="flex flex-col gap-4">
-        {/* Preset chips */}
-        {mode === 'create' && (
-          <div>
-            <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.preset')}</label>
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap gap-2">
-                {regularPresets.map(renderPresetButton)}
-              </div>
-              {featuredPresets.length > 0 && (
-                <div className="flex flex-wrap gap-2 border-t border-[var(--color-border)]/60 pt-2">
-                  {featuredPresets.map(renderPresetButton)}
-                </div>
-              )}
+        <div className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
+          <ProviderLogo name={selectedPreset.name} logoUrl={getProviderLogoUrl(selectedPreset)} active={false} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 truncate text-[14px] font-semibold text-[var(--color-text-primary)]">
+                {selectedPreset.name}
+              </span>
+              <ProviderBadge warning={apiFormat !== 'anthropic'}>
+                {selectedApiFormatLabel}
+              </ProviderBadge>
             </div>
+            <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--color-text-secondary)]">
+              {getPresetDescription(selectedPreset, t)}
+            </p>
           </div>
-        )}
+          {selectedPreset.websiteUrl && (
+            <button
+              type="button"
+              onClick={() => openExternalUrl(selectedPreset.websiteUrl)}
+              aria-label={t('settings.providers.openProviderSite')}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+            >
+              <Icon name="arrow_outward" size={16} />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label={t('settings.providers.baseUrl')} required value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('settings.providers.baseUrlPlaceholder')} />
+          <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => setModels({ ...models, main: e.target.value })} placeholder="Model ID" />
+        </div>
 
         <div className="flex flex-col gap-1">
           <label htmlFor="provider-api-key" className="text-[14px] font-medium text-[var(--color-text-primary)]">
@@ -726,7 +854,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-..."
-                className="h-10 w-full rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-[14px] text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)]"
+                className="h-10 w-full rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-[14px] text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-brand)] focus:shadow-[var(--shadow-accent-glow)]"
               />
               <button
                 type="button"
@@ -778,12 +906,12 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
             type="button"
             onClick={() => apiKeyUrl && openExternalUrl(apiKeyUrl)}
             disabled={!apiKeyUrl}
-            className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-brand)]/25 bg-[var(--color-brand)]/8 px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand)]/45 hover:bg-[var(--color-brand)]/12 focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:hover:border-[var(--color-brand)]/25 disabled:hover:bg-[var(--color-brand)]/8"
+            className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-brand)]/30 bg-[var(--color-accent-glow)] px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand)]/55 hover:bg-[var(--color-accent-glow)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:hover:border-[var(--color-brand)]/30 disabled:hover:bg-[var(--color-accent-glow)]"
           >
             <Icon name="tips_and_updates" size={18} className="mt-0.5 text-[13px] text-[var(--color-brand)]" />
             <span>{promoText}</span>
             {apiKeyUrl && (
-              <Icon name="arrow_outward" size={18} className="ml-auto mt-1 text-[10px] text-[var(--color-brand)] opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              <Icon name="arrow_outward" size={18} className="ml-auto mt-1 text-[10px] text-[var(--color-text-accent)] opacity-45 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             )}
           </button>
         )}
@@ -803,8 +931,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
               <Input label={t('settings.providers.name')} required value={name} onChange={(e) => setName(e.target.value)} placeholder={t('settings.providers.namePlaceholder')} />
 
               <Input label={t('settings.providers.notes')} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('settings.providers.notesPlaceholder')} />
-
-              <Input label={t('settings.providers.baseUrl')} required value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('settings.providers.baseUrlPlaceholder')} />
 
               {/* API Format */}
               {(isCustom || mode === 'edit') ? (
@@ -842,8 +968,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
               {/* Model Mapping */}
               <div>
                 <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.modelMapping')}</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => setModels({ ...models, main: e.target.value })} placeholder="Model ID" />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <Input label={t('settings.providers.haikuModel')} value={models.haiku} onChange={(e) => setModels({ ...models, haiku: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
                   <Input label={t('settings.providers.sonnetModel')} value={models.sonnet} onChange={(e) => setModels({ ...models, sonnet: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
                   <Input label={t('settings.providers.opusModel')} value={models.opus} onChange={(e) => setModels({ ...models, opus: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
@@ -866,17 +991,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
                       if (env) {
                         if (env.ANTHROPIC_BASE_URL) {
                           setBaseUrl(env.ANTHROPIC_BASE_URL)
-                          // Auto-switch to matching preset or Custom
-                          if (mode === 'create') {
-                            const matchedPreset = availablePresets.find((p) => p.id !== 'custom' && p.baseUrl === env.ANTHROPIC_BASE_URL)
-                            const targetPreset = requirePreset(
-                              matchedPreset ?? availablePresets.find((p) => p.id === 'custom'),
-                            )
-                            if (targetPreset.id !== selectedPreset.id) {
-                              jsonPastedRef.current = true
-                              setSelectedPreset(targetPreset)
-                            }
-                          }
                         }
                         const nextApiKey = env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY
                         if (nextApiKey && nextApiKey !== '(your API key)' && nextApiKey !== API_KEY_JSON_PLACEHOLDER) {
@@ -920,7 +1034,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
 
 // ─── Permission Settings ──────────────────────────────────────
 
-function PermissionSettings() {
+export function PermissionSettings() {
   const { permissionMode, setPermissionMode } = useSettingsStore()
   const t = useTranslation()
 
@@ -932,7 +1046,7 @@ function PermissionSettings() {
   ]
 
   return (
-    <SettingsPage icon="shield" title={t('settings.permissions.title')} description={t('settings.permissions.description')}>
+    <SettingsPage>
       <div className="flex flex-col gap-1.5">
         {MODES.map(({ mode, icon, label, desc }) => {
           const isSelected = permissionMode === mode
@@ -942,21 +1056,21 @@ function PermissionSettings() {
               onClick={() => setPermissionMode(mode)}
               className={`flex items-center gap-3 rounded-md border-2 px-4 py-3 text-left transition-all duration-200 ${
                 isSelected
-                  ? 'border-black dark:border-white bg-black/[0.02] dark:bg-white/[0.02]'
-                  : 'border-black/25 dark:border-white/25 hover:border-black dark:hover:border-white'
+                  ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-accent-glow)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-container)] hover:border-[var(--color-border-focus)]'
               }`}
             >
               <Icon
                 name={icon}
                 size={20}
-                className={isSelected ? 'text-black/80 dark:text-white/80' : 'text-black/60 dark:text-white/60'}
+                className={isSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-tertiary)]'}
               />
               <div className="flex-1">
-                <div className={`text-[14px] font-semibold tracking-[-0.01em] ${isSelected ? 'text-black dark:text-white' : 'text-black/85 dark:text-white/85'}`}>{label}</div>
-                <div className={`text-[12px] mt-0.5 ${isSelected ? 'text-black/70 dark:text-white/70' : 'text-black/60 dark:text-white/60'}`}>{desc}</div>
+                <div className={`text-[14px] font-semibold tracking-[-0.01em] ${isSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-primary)]'}`}>{label}</div>
+                <div className={`text-[12px] mt-0.5 ${isSelected ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-tertiary)]'}`}>{desc}</div>
               </div>
               {isSelected && (
-                <Icon name="check_circle" size={18} className="text-[var(--color-spacex-accent)]" />
+                <Icon name="check_circle" size={18} className="text-[var(--color-brand)]" />
               )}
             </button>
           )
@@ -968,7 +1082,7 @@ function PermissionSettings() {
 
 // ─── General Settings ──────────────────────────────────────
 
-function GeneralSettings() {
+export function GeneralSettings() {
   const {
     effortLevel,
     setEffort,
@@ -999,7 +1113,7 @@ function GeneralSettings() {
   ]
 
   return (
-    <SettingsPage icon="tune" title={t('settings.tab.general')}>
+    <SettingsPage>
       <SettingsSection>
         <SettingsRow label={t('settings.general.appearanceTitle')} hint={t('settings.general.appearanceDescription')}>
           <SegmentedControl items={themeItems} value={theme} onChange={(v) => void setTheme(v)} />
@@ -1049,16 +1163,13 @@ const AGENT_SOURCE_ORDER: AgentSource[] = [
   'built-in',
 ]
 
-function AgentsSettings() {
+export function AgentsSettings() {
   const {
-    activeAgents,
     allAgents,
     isLoading,
     error,
     selectedAgent,
-    selectedAgentReturnTab,
     fetchAgents,
-    selectAgent,
   } = useAgentStore()
   const sessions = useSessionStore((s) => s.sessions)
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
@@ -1071,37 +1182,22 @@ function AgentsSettings() {
     void fetchAgents(currentWorkDir)
   }, [fetchAgents, currentWorkDir])
 
-  const groupedAgents = useMemo(() => {
-    const groups: Partial<Record<AgentSource, AgentDefinition[]>> = {}
-    for (const agent of allAgents) {
-      ;(groups[agent.source] ??= []).push(agent)
-    }
-    return groups
-  }, [allAgents])
+  const listedAgents = useMemo(
+    () =>
+      [...allAgents].sort((a, b) => {
+        const selectedRank = Number(isSameAgent(b, selectedAgent)) - Number(isSameAgent(a, selectedAgent))
+        if (selectedRank !== 0) return selectedRank
 
-  const sourceCount = AGENT_SOURCE_ORDER.filter((source) => (groupedAgents[source] ?? []).length > 0).length
+        const sourceRank = getAgentSourceRank(a.source) - getAgentSourceRank(b.source)
+        if (sourceRank !== 0) return sourceRank
 
-  const handleAgentBack = () => {
-    const returnTab = selectedAgentReturnTab
-    selectAgent(null)
-    if (returnTab === 'plugins') {
-      useUIStore.getState().setPendingSettingsTab('plugins')
-    }
-  }
-
-  if (selectedAgent) {
-    return (
-      <div className="w-full min-w-0">
-        <AgentDetailView agent={selectedAgent} onBack={handleAgentBack} />
-      </div>
-    )
-  }
+        return a.agentType.localeCompare(b.agentType)
+      }),
+    [allAgents, selectedAgent],
+  )
 
   return (
-    <SettingsPage
-      icon="smart_toy"
-      title={t('settings.tab.agents')}
-    >
+    <SettingsPage>
       {isLoading && allAgents.length === 0 ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin w-5 h-5 border-2 border-[var(--color-brand)] border-t-transparent rounded-full" />
@@ -1117,294 +1213,87 @@ function AgentsSettings() {
             {t('common.retry')}
           </button>
         </div>
-      ) : allAgents.length === 0 ? (
+      ) : listedAgents.length === 0 ? (
         <div className="text-center py-12 px-4 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
-          <Icon name="smart_toy" size={40} className="text-[var(--color-text-tertiary)] mb-3 block" />
+          <Icon name="account_tree" size={40} className="text-[var(--color-text-tertiary)] mb-3 block" />
           <p className="text-[14px] text-[var(--color-text-secondary)] mb-1">{t('settings.agents.empty')}</p>
           <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.agents.emptyHint')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6 min-w-0">
-          <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-            <div className="grid gap-4 px-5 py-5 min-w-0 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] xl:items-end">
-              <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
-                  {t('settings.agents.browserEyebrow')}
-                </div>
-                <div className="flex items-center gap-3 mb-2">
-                  <Icon name="smart_toy" size={22} className="text-[var(--color-brand)]" />
-                  <h3 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
-                    {t('settings.agents.browserTitle')}
-                  </h3>
-                </div>
-                <p className="text-[14px] leading-6 text-[var(--color-text-secondary)] max-w-3xl">
-                  {t('settings.agents.description')}
-                </p>
-              </div>
+        <div className="flex flex-col gap-2 min-w-0">
+          {listedAgents.map((agent) => {
+            const sourceLabel = t(`settings.agents.source.${agent.source}`)
+            const isSelected = isSameAgent(agent, selectedAgent)
 
-              <div className="grid grid-cols-2 gap-3 min-w-0 sm:grid-cols-3">
-                <SummaryCard
-                  label={t('settings.agents.summary.totalAgents')}
-                  value={String(allAgents.length)}
-                  icon="smart_toy"
-                />
-                <SummaryCard
-                  label={t('settings.agents.summary.activeAgents')}
-                  value={String(activeAgents.length)}
-                  icon="bolt"
-                />
-                <SummaryCard
-                  label={t('settings.agents.summary.sources')}
-                  value={String(sourceCount)}
-                  icon="layers"
-                  className="col-span-2 sm:col-span-1"
-                />
-              </div>
-            </div>
-          </section>
+            return (
+              <article
+                key={`${agent.source}-${agent.agentType}`}
+                aria-current={isSelected ? 'true' : undefined}
+                className={`rounded-lg border px-4 py-3 transition-colors min-w-0 ${
+                  isSelected
+                    ? 'border-[var(--color-border-focus)] bg-[var(--color-brand)]/5'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface)]'
+                }`}
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <span className="relative mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+                    <Icon
+                      name="account_tree"
+                      size={17}
+                      style={{ color: getAgentDotColor(agent.color) }}
+                    />
+                    {agent.isActive && (
+                      <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--color-surface)] bg-[var(--color-success)]" />
+                    )}
+                  </span>
 
-          <div className={`grid gap-4 ${sourceCount >= 2 ? 'xl:grid-cols-2' : ''}`}>
-            {AGENT_SOURCE_ORDER.map((source) => {
-              const group = groupedAgents[source]
-              if (!group?.length) return null
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[14px] font-semibold text-[var(--color-text-primary)] break-all">
+                        {agent.agentType}
+                      </span>
+                      {agent.modelDisplay && (
+                        <MetaPill>{agent.modelDisplay}</MetaPill>
+                      )}
+                      <MetaPill>{sourceLabel}</MetaPill>
+                      <MetaPill>
+                        {agent.isActive
+                          ? t('settings.agents.status.active')
+                          : t('settings.agents.status.available')}
+                      </MetaPill>
+                      {agent.overriddenBy && (
+                        <MetaPill>
+                          {t('settings.agents.overriddenBy', {
+                            source: t(`settings.agents.source.${agent.overriddenBy}`),
+                          })}
+                        </MetaPill>
+                      )}
+                    </div>
 
-              const sourceLabel = t(`settings.agents.source.${source}`)
-              return (
-                <section
-                  key={source}
-                  className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden min-w-0"
-                >
-                  <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${getAgentSourceAccentClass(source)}`}>
-                          <Icon name={getAgentSourceIcon(source)} size={16} />
-                        </span>
-                        <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
-                          {sourceLabel}
-                        </h4>
-                        <span className="text-[12px] text-[var(--color-text-tertiary)]">
-                          {group.length}
-                        </span>
-                      </div>
-                      <p className="text-[12px] leading-5 text-[var(--color-text-tertiary)]">
-                        {t('settings.agents.groupHint', {
-                          source: sourceLabel,
-                          count: String(group.length),
-                        })}
-                      </p>
+                    <div className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)] break-words [&_.prose]:text-[12px] [&_.prose]:leading-5 [&_.prose]:text-[var(--color-text-secondary)]">
+                      <MarkdownRenderer
+                        content={agent.description || t('settings.agents.noDescription')}
+                      />
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
+                      <span>
+                        {agent.tools?.length
+                          ? t('settings.agents.toolCount', { count: String(agent.tools.length) })
+                          : t('settings.agents.noTools')}
+                      </span>
+                      {agent.baseDir && (
+                        <span className="break-all">{agent.baseDir}</span>
+                      )}
                     </div>
                   </div>
-
-                  <div className="flex flex-col p-2">
-                    {group.map((agent) => (
-                      <button
-                        key={`${agent.source}-${agent.agentType}`}
-                        onClick={() => selectAgent(agent, 'agents')}
-                        className="group rounded-md border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
-                      >
-                        <div className="flex items-start gap-3">
-                          <span
-                            className="mt-0.5 flex-shrink-0 inline-flex items-center justify-center"
-                            style={{ color: getAgentDotColor(agent.color) }}
-                          >
-                            <Icon name="smart_toy" size={18} />
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[14px] font-bold text-[var(--color-text-primary)] break-all">
-                                {agent.agentType}
-                              </span>
-                              {agent.modelDisplay && (
-                                <MetaPill>{agent.modelDisplay}</MetaPill>
-                              )}
-                              <MetaPill>{sourceLabel}</MetaPill>
-                              <MetaPill>
-                                {agent.isActive
-                                  ? t('settings.agents.status.active')
-                                  : t('settings.agents.status.available')}
-                              </MetaPill>
-                              {agent.overriddenBy && (
-                                <MetaPill>
-                                  {t('settings.agents.overriddenBy', {
-                                    source: t(`settings.agents.source.${agent.overriddenBy}`),
-                                  })}
-                                </MetaPill>
-                              )}
-                            </div>
-                            <div className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)] break-words [&_.prose]:text-[12px] [&_.prose]:leading-5 [&_.prose]:text-[var(--color-text-secondary)]">
-                              <MarkdownRenderer
-                                content={agent.description || t('settings.agents.noDescription')}
-                              />
-                            </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
-                              <span>
-                                {agent.tools?.length
-                                  ? t('settings.agents.toolCount', { count: String(agent.tools.length) })
-                                  : t('settings.agents.noTools')}
-                              </span>
-                              {agent.baseDir && (
-                                <span className="break-all">{agent.baseDir}</span>
-                              )}
-                            </div>
-                          </div>
-                          <Icon name="chevron_right" size={18} className="text-[var(--color-text-tertiary)] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )
-            })}
-          </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
     </SettingsPage>
-  )
-}
-
-function AgentDetailView({ agent, onBack }: { agent: AgentDefinition; onBack: () => void }) {
-  const t = useTranslation()
-  const sourceLabel = t(`settings.agents.source.${agent.source}`)
-
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4 min-w-0">
-      <div>
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[14px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
-        >
-          <Icon name="arrow_back" size={16} />
-          {t('settings.agents.backToList')}
-        </button>
-      </div>
-
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-        <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)] lg:items-start">
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
-              {t('settings.agents.entryEyebrow')}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span
-                className="h-3 w-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: getAgentDotColor(agent.color) }}
-              />
-              <h3 className="text-[22px] font-semibold leading-tight text-[var(--color-text-primary)] break-all">
-                {agent.agentType}
-              </h3>
-              <MetaPill>{sourceLabel}</MetaPill>
-              {agent.modelDisplay && <MetaPill>{agent.modelDisplay}</MetaPill>}
-              <MetaPill>
-                {agent.isActive
-                  ? t('settings.agents.status.active')
-                  : t('settings.agents.status.available')}
-              </MetaPill>
-              {agent.overriddenBy && (
-                <MetaPill>
-                  {t('settings.agents.overriddenByShort', {
-                    source: t(`settings.agents.source.${agent.overriddenBy}`),
-                  })}
-                </MetaPill>
-              )}
-            </div>
-            <div className="max-w-4xl text-[14px] leading-6 text-[var(--color-text-secondary)]">
-              <MarkdownRenderer
-                content={agent.description || t('settings.agents.noDescription')}
-              />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-[12px] text-[var(--color-text-tertiary)]">
-              <span>
-                {agent.tools?.length
-                  ? t('settings.agents.toolCount', { count: String(agent.tools.length) })
-                  : t('settings.agents.noTools')}
-              </span>
-              {agent.baseDir && <span className="break-all">{agent.baseDir}</span>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
-            <DetailStat
-              label={t('settings.agents.summary.source')}
-              value={sourceLabel}
-              icon="layers"
-            />
-            <DetailStat
-              label={t('settings.agents.summary.model')}
-              value={agent.modelDisplay || '—'}
-              icon="psychology"
-            />
-            <DetailStat
-              label={t('settings.agents.summary.tools')}
-              value={String(agent.tools?.length ?? 0)}
-              icon="build"
-            />
-            <DetailStat
-              label={t('settings.agents.summary.status')}
-              value={agent.isActive ? t('settings.agents.status.active') : t('settings.agents.status.available')}
-              icon="bolt"
-            />
-          </div>
-        </div>
-      </section>
-
-      {agent.tools && agent.tools.length > 0 && (
-        <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Icon name="build" size={18} className="text-[var(--color-text-tertiary)]" />
-            <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
-              {t('settings.agents.tools')}
-            </h4>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {agent.tools.map((tool) => (
-              <MetaPill key={tool}>{tool}</MetaPill>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[12px] font-mono text-[var(--color-text-secondary)] break-all">
-                  {agent.baseDir || sourceLabel}
-                </span>
-              </div>
-              <div className="mt-1 text-[11px] text-[var(--color-text-tertiary)]">
-                {t('settings.agents.promptHint')}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] border-2 border-[var(--color-border)]">
-                {t('settings.agents.systemPrompt')}
-              </span>
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-surface-container-lowest)]">
-            {agent.systemPrompt ? (
-              <div className="px-6 py-5 lg:px-8">
-                <MarkdownRenderer
-                  content={agent.systemPrompt}
-                  variant="document"
-                  className="mx-auto max-w-[72ch]"
-                />
-              </div>
-            ) : (
-              <div className="px-6 py-10 text-center">
-                <Icon name="article" size={32} className="text-[var(--color-text-tertiary)] mb-2 block" />
-                <p className="text-[14px] text-[var(--color-text-tertiary)]">
-                  {t('settings.agents.noSystemPrompt')}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-    </div>
   )
 }
 
@@ -1412,42 +1301,13 @@ function getAgentDotColor(color?: string) {
   return color && AGENT_COLORS[color] ? AGENT_COLORS[color] : 'var(--color-text-tertiary)'
 }
 
-function getAgentSourceIcon(source: AgentSource) {
-  switch (source) {
-    case 'userSettings':
-      return 'person'
-    case 'projectSettings':
-      return 'folder'
-    case 'localSettings':
-      return 'folder_lock'
-    case 'policySettings':
-      return 'shield'
-    case 'plugin':
-      return 'extension'
-    case 'flagSettings':
-      return 'terminal'
-    case 'built-in':
-      return 'inventory_2'
-  }
+function isSameAgent(agent: AgentDefinition, selectedAgent: AgentDefinition | null) {
+  return !!selectedAgent && agent.agentType === selectedAgent.agentType && agent.source === selectedAgent.source
 }
 
-function getAgentSourceAccentClass(source: AgentSource) {
-  switch (source) {
-    case 'userSettings':
-      return 'bg-[var(--color-primary-fixed)] text-[var(--color-brand)]'
-    case 'projectSettings':
-      return 'bg-[var(--color-success-container)] text-[var(--color-success)]'
-    case 'localSettings':
-      return 'bg-[var(--color-info-container)] text-[var(--color-info)]'
-    case 'policySettings':
-      return 'bg-[var(--color-warning-container)] text-[var(--color-warning)]'
-    case 'plugin':
-      return 'bg-[var(--color-warning-container)] text-[var(--color-warning)]'
-    case 'flagSettings':
-      return 'bg-[var(--color-error)]/10 text-[var(--color-error)]'
-    case 'built-in':
-      return 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]'
-  }
+function getAgentSourceRank(source: AgentSource) {
+  const rank = AGENT_SOURCE_ORDER.indexOf(source)
+  return rank === -1 ? AGENT_SOURCE_ORDER.length : rank
 }
 
 function MetaPill({ children }: { children: ReactNode }) {
@@ -1455,52 +1315,6 @@ function MetaPill({ children }: { children: ReactNode }) {
     <span className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
       {children}
     </span>
-  )
-}
-
-function SummaryCard({
-  label,
-  value,
-  icon,
-  className = '',
-}: {
-  label: string
-  value: string
-  icon: string
-  className?: string
-}) {
-  return (
-    <div className={`rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 min-w-0 ${className}`}>
-      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] min-w-0">
-        <Icon name={icon} size={14} className="flex-shrink-0" />
-        <span className="truncate">{label}</span>
-      </div>
-      <div className="mt-2 text-[18px] font-semibold text-[var(--color-text-primary)] truncate">
-        {value}
-      </div>
-    </div>
-  )
-}
-
-function DetailStat({
-  label,
-  value,
-  icon,
-}: {
-  label: string
-  value: string
-  icon: string
-}) {
-  return (
-    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
-        <Icon name={icon} size={14} />
-        <span>{label}</span>
-      </div>
-      <div className="mt-2 text-[16px] font-semibold text-[var(--color-text-primary)] break-all">
-        {value}
-      </div>
-    </div>
   )
 }
 // ─── Skill Settings ──────────────────────────────────────
@@ -1575,7 +1389,7 @@ export function SkillSettings() {
   )
 }
 
-function PluginSettings() {
+export function PluginSettings() {
   const selectedPlugin = usePluginStore((s) => s.selectedPlugin)
   const t = useTranslation()
 
@@ -1601,7 +1415,7 @@ const GITHUB_STAR_URL = 'https://github.com/login?return_to=%2Fwk42worldworld%2F
 const GITHUB_ISSUES = `${GITHUB_REPO}/issues`
 const GITHUB_RELEASES = `${GITHUB_REPO}/releases`
 
-function AboutSettings() {
+export function AboutSettings() {
   const t = useTranslation()
   const [version, setVersion] = useState('')
   const updateStatus = useUpdateStore((s) => s.status)
@@ -1674,14 +1488,14 @@ function AboutSettings() {
     <div className="w-full min-w-0 max-w-[480px] mx-auto flex flex-col items-center py-10">
       {/* Logo + App Name + Version */}
       <img src="/app-icon.png" alt="CyberCode" className="w-24 h-24 mb-5 rounded-[22px]" />
-      <h1 className="text-[26px] font-semibold tracking-tight text-black/90 dark:text-white/90">CyberCode</h1>
+      <h1 className="text-[26px] font-semibold tracking-tight text-[var(--color-text-primary)]">CyberCode</h1>
       {version && (
-        <div className="mt-2 flex items-center gap-2 text-[12px] text-black/60 dark:text-white/60">
+        <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--color-text-secondary)]">
           <span>{t('settings.about.version')} {version}</span>
-          <span className="text-black/60 dark:text-white/60">·</span>
+          <span className="text-[var(--color-text-tertiary)]">·</span>
           <button
             onClick={() => openUrl(GITHUB_RELEASES)}
-            className="rounded text-[var(--color-spacex-accent)] transition-colors hover:underline focus:outline-none"
+            className="rounded text-[var(--color-brand)] transition-colors hover:underline focus:outline-none"
           >
             {t('settings.about.changelog')}
           </button>
@@ -1816,4 +1630,3 @@ function AboutSettings() {
     </div>
   )
 }
-

@@ -1,7 +1,7 @@
-import { Copy, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from '../../i18n'
 import { Button } from '../shared/Button'
+import { Icon } from '../shared/Icon'
 
 const LOG_MARKER = '\n\nRecent server logs:\n'
 
@@ -77,7 +77,7 @@ export function StartupErrorView({ error }: StartupErrorViewProps) {
               type="button"
               variant="secondary"
               size="sm"
-              icon={<Copy className="h-4 w-4" aria-hidden="true" />}
+              icon={<Icon name="content_copy" size={16} />}
               onClick={handleCopy}
             >
               {copied ? t('app.copiedDiagnostics') : t('app.copyDiagnostics')}
@@ -86,7 +86,7 @@ export function StartupErrorView({ error }: StartupErrorViewProps) {
               type="button"
               variant="ghost"
               size="sm"
-              icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
+              icon={<Icon name="refresh" size={16} />}
               onClick={() => window.location.reload()}
             >
               {t('common.retry')}

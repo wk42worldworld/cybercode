@@ -36,8 +36,8 @@ export function ScheduledTasks() {
         </div>
 
         {/* Desktop-online notice */}
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-md)] bg-[var(--color-warning)]/8 border border-[var(--color-warning)]/15 mb-6">
-          <Icon name="schedule" size={18} className="text-[var(--color-warning)]" />
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] border-l-2 border-[var(--color-brand)] mb-6">
+          <Icon name="schedule" size={18} className="text-[var(--color-brand)]" />
           <span className="text-[12px] text-[var(--color-text-secondary)]">
             {t('scheduledPage.desktopNotice')}
           </span>

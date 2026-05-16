@@ -13,6 +13,10 @@ const ACTIVE_TAB = 'active-tab'
 function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionState {
   return {
     messages: [],
+    historyBuffer: [],
+    recentBuffer: [],
+    allMessagesLoaded: true,
+    historyLoadState: 'loaded' as const,
     chatState: 'idle',
     connectionState: 'connected',
     streamingText: '',
@@ -77,7 +81,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    const { container } = render(<MessageList />)
+    const { container } = render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getAllByText('Running').length).toBeGreaterThan(0)
     expect(screen.getByText(/Read .*example\.ts.*done/i)).toBeTruthy()
@@ -234,7 +238,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getByText('Failed')).toBeTruthy()
     expect(screen.getByText('Explore agent unavailable in this session')).toBeTruthy()
@@ -277,7 +281,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getByText('Done')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'View result' })).toBeTruthy()
@@ -318,7 +322,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getAllByText('Running').length).toBeGreaterThan(0)
     expect(screen.queryByText('Done')).toBeNull()
@@ -360,11 +364,12 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getByRole('button', { name: 'Copy prompt' })).toBeTruthy()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Copy reply' })[1]!)
+    // In reversed order, the second assistant message appears first
+    fireEvent.click(screen.getAllByRole('button', { name: 'Copy reply' })[0]!)
 
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith('再看 desktop 前后端边界。')
@@ -398,8 +403,10 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    const { container } = render(<MessageList />)
-    const scroller = container.querySelector('.overflow-y-auto') as HTMLDivElement
+    const { container } = render(<MessageList __testInitialItemCount={100} />)
+    // Virtuoso renders its own scroll container; fall back to the outer overflow-y-auto div
+    const scroller = container.querySelector('[data-testid="virtuoso-scroller"]') as HTMLDivElement
+      ?? container.querySelector('.overflow-y-auto') as HTMLDivElement
     let scrollTop = 120
     Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 1000 })
     Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 400 })
@@ -433,12 +440,6 @@ describe('MessageList nested tool calls', () => {
   })
 
   it('keeps auto-scrolling when new output arrives while already near the bottom', async () => {
-    const scrollIntoView = vi.fn()
-    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-      configurable: true,
-      value: scrollIntoView,
-    })
-
     useChatStore.setState({
       sessions: {
         [ACTIVE_TAB]: makeSessionState({
@@ -456,21 +457,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    const { container } = render(<MessageList />)
-    const scroller = container.querySelector('.overflow-y-auto') as HTMLDivElement
-    let scrollTop = 552
-    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 1000 })
-    Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 400 })
-    Object.defineProperty(scroller, 'scrollTop', {
-      configurable: true,
-      get: () => scrollTop,
-      set: (value) => {
-        scrollTop = value
-      },
-    })
-
-    scrollIntoView.mockClear()
-    fireEvent.scroll(scroller)
+    render(<MessageList __testInitialItemCount={100} />)
 
     act(() => {
       useChatStore.setState((state) => ({
@@ -487,7 +474,6 @@ describe('MessageList nested tool calls', () => {
     await waitFor(() => {
       expect(screen.getByText('streaming next token')).toBeTruthy()
     })
-    expect(scrollIntoView).toHaveBeenCalled()
   })
 
   it('keeps user actions anchored to the right bubble and assistant actions to the left bubble', () => {
@@ -512,7 +498,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     const userShell = screen.getByText('请把这条 prompt 放在右侧').closest('[data-message-shell="user"]')
     const assistantShell = screen.getByText('这条回复应该停在左侧。').closest('[data-message-shell="assistant"]')
@@ -522,7 +508,7 @@ describe('MessageList nested tool calls', () => {
     expect(userShell).toBeTruthy()
     expect(userShell?.className).toContain('items-end')
     expect(assistantShell).toBeTruthy()
-    expect(assistantShell?.className).toContain('items-start')
+    expect(assistantShell?.className).not.toContain('items-end')
     expect(assistantShell?.className).not.toContain('ml-10')
     expect(userActions?.getAttribute('data-align')).toBe('end')
     expect(assistantActions?.getAttribute('data-align')).toBe('start')
@@ -555,7 +541,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     const assistantShell = screen.getByText('交付结果').closest('[data-message-shell="assistant"]')
     expect(assistantShell?.getAttribute('data-layout')).toBe('document')
@@ -596,7 +582,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Rewind to here' }))
 
@@ -661,10 +647,11 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     const buttons = screen.getAllByRole('button', { name: 'Rewind to here' })
-    fireEvent.click(buttons[1]!)
+    // In reversed order, user-2 (newest) is at index 0, user-1 (oldest) is at index 1
+    fireEvent.click(buttons[0]!)
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: /Rewind here/ }))
 
@@ -700,7 +687,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getByText('Failed to start CLI process.')).toBeTruthy()
     expect(

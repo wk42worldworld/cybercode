@@ -113,6 +113,8 @@ describe('Content-only pages render without errors', () => {
       sessions: {
         [SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -157,6 +159,8 @@ describe('Content-only pages render without errors', () => {
             content: 'hello',
             timestamp: Date.now(),
           }],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -207,6 +211,8 @@ describe('Content-only pages render without errors', () => {
       sessions: {
         'active-tab': {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'thinking',
           connectionState: 'connected',
           streamingText: '',
@@ -274,6 +280,8 @@ describe('Content-only pages render without errors', () => {
       sessions: {
         [SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -346,6 +354,8 @@ describe('Content-only pages render without errors', () => {
       sessions: {
         [SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -404,6 +414,8 @@ describe('Content-only pages render without errors', () => {
       sessions: {
         [SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -462,6 +474,8 @@ describe('Content-only pages render without errors', () => {
       sessions: {
         [SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -509,7 +523,7 @@ describe('Content-only pages render without errors', () => {
     const { container } = render(<AgentTeams />)
     expect(container.innerHTML).toContain('Architect')
     expect(container.innerHTML).toContain('session-dev')
-    expect(container.innerHTML).toContain('groups')
+    expect(container.querySelector('.codicon-organization')).toBeInTheDocument()
   })
 
   it('ScheduledTasks renders (store-connected)', async () => {
@@ -557,11 +571,11 @@ describe('AppShell layout renders chrome', () => {
 })
 
 describe('Design system compliance', () => {
-  it('Pages use Material Symbols Outlined icons', () => {
+  it('Pages use Codicons through the shared icon system', () => {
     const pages = [EmptySession, AgentTeams, ToolInspection]
     for (const Page of pages) {
       const { container, unmount } = render(<Page />)
-      const icons = container.querySelectorAll('.material-symbols-outlined')
+      const icons = container.querySelectorAll('.codicon')
       expect(icons.length).toBeGreaterThan(0)
       unmount()
     }

@@ -20,6 +20,7 @@ export const en = {
   'sidebar.scheduled': 'Scheduled',
   'sidebar.terminal': 'Terminal',
   'sidebar.settings': 'Settings',
+  'sidebar.githubTooltip': 'Star this project',
   'sidebar.searchPlaceholder': 'Search sessions...',
   'sidebar.noSessions': 'No sessions yet',
   'sidebar.noMatching': 'No matching sessions',
@@ -38,6 +39,17 @@ export const en = {
   'sidebar.collapse': 'Collapse sidebar',
   'sidebar.expand': 'Expand sidebar',
 
+  // ─── New Session ──────────────────────────────────────
+  'newSession.title': 'New session',
+  'newSession.currentProject': 'Current project',
+  'newSession.recentProjects': 'Recent projects',
+  'newSession.noRecentProjects': 'No recent projects',
+  'newSession.chooseFolder': 'Choose folder...',
+  'newSession.temporary': 'Temporary session',
+  'newSession.create': 'Create session',
+  'newSession.selectedWorkspace': 'Selected workspace',
+  'newSession.sessionCount': '{count} sessions',
+
   // ─── Title Bar ──────────────────────────────────────
   'titlebar.code': 'Code',
   'titlebar.terminal': 'Terminal',
@@ -51,6 +63,10 @@ export const en = {
 
   // ─── Settings ──────────────────────────────────────
   'settings.title': 'Settings',
+  'settings.nav.account': 'Account',
+  'settings.nav.system': 'System',
+  'settings.nav.tools': 'Tools',
+  'settings.nav.info': 'Info',
   'settings.tab.providers': 'Providers',
   'settings.tab.permissions': 'Permissions',
   'settings.tab.general': 'General',
@@ -92,6 +108,13 @@ export const en = {
   'settings.providers.addProvider': 'Add Provider',
   'settings.providers.officialName': 'Claude Official',
   'settings.providers.officialDesc': 'Anthropic native — no API key required',
+  'settings.providers.officialBadge': 'Official',
+  'settings.providers.configured': 'Configured',
+  'settings.providers.notConfigured': 'Not configured',
+  'settings.providers.configure': 'Configure',
+  'settings.providers.customDesc': 'Connect any compatible API endpoint.',
+  'settings.providers.modelPending': 'model not set',
+  'settings.providers.baseUrlPending': 'base URL not set',
   'settings.providers.connected': 'Connected ({latency}ms)',
   'settings.providers.failed': 'Failed: {error}',
   'settings.providers.connectivityOk': '① Connectivity ({latency}ms)',
@@ -106,6 +129,7 @@ export const en = {
   'settings.providers.edit': 'Edit',
   'settings.providers.requestFailed': 'Request failed',
   'settings.providers.addTitle': 'Add Provider',
+  'settings.providers.configureTitle': 'Configure {name}',
   'settings.providers.editTitle': 'Edit Provider',
   'settings.providers.preset': 'Preset',
   'settings.providers.name': 'Name',
@@ -117,6 +141,7 @@ export const en = {
   'settings.providers.apiKey': 'API Key',
   'settings.providers.apiKeyKeep': 'API Key (leave blank to keep current)',
   'settings.providers.getApiKey': 'Get API Key',
+  'settings.providers.openProviderSite': 'Open provider site',
   'settings.providers.modelMapping': 'Model Mapping',
   'settings.providers.mainModel': 'Main Model',
   'settings.providers.haikuModel': 'Haiku Model',
@@ -613,6 +638,10 @@ export const en = {
   'chat.rewindFilesMore': '+{count} more',
   'chat.rewindSuccessWithCode': 'Rewound {count} messages and restored tracked files.',
   'chat.rewindSuccessConversationOnly': 'Rewound {count} messages. No file checkpoint was available for this turn.',
+  'chat.addFileRef': 'Add file reference',
+  'chat.hintCommand': 'Commands',
+  'chat.hintFile': 'Files',
+  'chat.hintSettings': 'Settings',
 
   // ─── Streaming Indicator ──────────────────────────────────────
   'streaming.thinking': 'Thinking',
@@ -921,7 +950,7 @@ export const en = {
   'update.failed': 'Update failed: {error}',
 
   // ─── Active Session ──────────────────────────────────────
-  'session.untitled': 'Untitled Session',
+  'session.untitled': 'New Session',
   'session.active': 'session active',
   'session.lastUpdated': 'last updated {time}',
   'session.messages': '{count} messages',

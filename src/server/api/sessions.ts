@@ -66,7 +66,7 @@ export async function handleSessionsApi(
           { status: 405 }
         )
       }
-      return await getSessionMessages(sessionId)
+      return await getSessionMessages(sessionId, url)
     }
 
     if (subResource === 'git-info') {
@@ -76,7 +76,7 @@ export async function handleSessionsApi(
           { status: 405 }
         )
       }
-      return await getGitInfo(sessionId)
+      return await getGitInfo(sessionId, url)
     }
 
     if (subResource === 'rewind') {
@@ -86,7 +86,7 @@ export async function handleSessionsApi(
           { status: 405 }
         )
       }
-      return await rewindSession(req, sessionId)
+      return await rewindSession(req, sessionId, url)
     }
 
     if (subResource === 'slash-commands') {
@@ -96,7 +96,7 @@ export async function handleSessionsApi(
           { status: 405 }
         )
       }
-      return await getSessionSlashCommands(sessionId)
+      return await getSessionSlashCommands(sessionId, url)
     }
 
     if (subResource === 'inspection') {
@@ -125,11 +125,11 @@ export async function handleSessionsApi(
     // -----------------------------------------------------------------------
     switch (req.method) {
       case 'GET':
-        return await getSession(sessionId)
+        return await getSession(sessionId, url)
       case 'DELETE':
-        return await deleteSession(sessionId)
+        return await deleteSession(sessionId, url)
       case 'PATCH':
-        return await patchSession(req, sessionId)
+        return await patchSession(req, sessionId, url)
       default:
         return Response.json(
           { error: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` },
@@ -161,17 +161,30 @@ async function listSessions(url: URL): Promise<Response> {
   return Response.json(result)
 }
 
-async function getSession(sessionId: string): Promise<Response> {
-  const detail = await sessionService.getSession(sessionId)
+function getProjectPath(url: URL): string | undefined {
+  return url.searchParams.get('projectPath') || undefined
+}
+
+async function getSession(sessionId: string, url: URL): Promise<Response> {
+  const detail = await sessionService.getSession(sessionId, { projectPath: getProjectPath(url) })
   if (!detail) {
     throw ApiError.notFound(`Session not found: ${sessionId}`)
   }
   return Response.json(detail)
 }
 
-async function getSessionMessages(sessionId: string): Promise<Response> {
-  const messages = await sessionService.getSessionMessages(sessionId)
-  return Response.json({ messages })
+async function getSessionMessages(sessionId: string, url: URL): Promise<Response> {
+  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+  const before = url.searchParams.get('before') || undefined
+  const after = url.searchParams.get('after') || undefined
+  const projectPath = getProjectPath(url)
+
+  if (isNaN(limit) || limit < 1) {
+    throw ApiError.badRequest('Invalid limit parameter')
+  }
+
+  const result = await sessionService.getSessionMessages(sessionId, { limit, before, after, projectPath })
+  return Response.json({ messages: result.messages, hasMore: result.hasMore })
 }
 
 async function createSession(req: Request): Promise<Response> {
@@ -190,18 +203,18 @@ async function createSession(req: Request): Promise<Response> {
   return Response.json(result, { status: 201 })
 }
 
-async function deleteSession(sessionId: string): Promise<Response> {
-  await sessionService.deleteSession(sessionId)
+async function deleteSession(sessionId: string, url: URL): Promise<Response> {
+  await sessionService.deleteSession(sessionId, { projectPath: getProjectPath(url) })
   return Response.json({ ok: true })
 }
 
-async function getSessionSlashCommands(sessionId: string): Promise<Response> {
+async function getSessionSlashCommands(sessionId: string, url: URL): Promise<Response> {
   const cachedCommands = getSlashCommands(sessionId)
   if (cachedCommands.length > 0) {
     return Response.json({ commands: cachedCommands })
   }
 
-  const workDir = await sessionService.getSessionWorkDir(sessionId)
+  const workDir = await sessionService.getSessionWorkDir(sessionId, { projectPath: getProjectPath(url) })
   if (!workDir) {
     throw ApiError.notFound(`Session not found: ${sessionId}`)
   }
@@ -219,9 +232,10 @@ async function getSessionSlashCommands(sessionId: string): Promise<Response> {
 
 async function getSessionInspection(sessionId: string, url: URL): Promise<Response> {
   const includeContext = url.searchParams.get('includeContext') !== '0'
+  const projectPath = getProjectPath(url)
   const workDir =
     conversationService.getSessionWorkDir(sessionId) ||
-    await sessionService.getSessionWorkDir(sessionId)
+    await sessionService.getSessionWorkDir(sessionId, { projectPath })
 
   if (!workDir) {
     throw ApiError.notFound(`Session not found: ${sessionId}`)
@@ -232,7 +246,7 @@ async function getSessionInspection(sessionId: string, url: URL): Promise<Respon
     [...conversationService.getRecentSdkMessages(sessionId)]
     .reverse()
     .find((message) => message?.type === 'system' && message.subtype === 'init')
-  const transcriptMetadata = await sessionService.getTranscriptMetadata(sessionId)
+  const transcriptMetadata = await sessionService.getTranscriptMetadata(sessionId, { projectPath })
   const cachedSlashCommands = getSlashCommands(sessionId)
   const fallbackSlashCommands = cachedSlashCommands.length > 0
     ? cachedSlashCommands
@@ -264,8 +278,8 @@ async function getSessionInspection(sessionId: string, url: URL): Promise<Respon
     },
     errors: {},
   }
-  const transcriptUsage = await sessionService.getTranscriptUsage(sessionId)
-  const transcriptContextEstimate = await sessionService.getTranscriptContextEstimate(sessionId)
+  const transcriptUsage = await sessionService.getTranscriptUsage(sessionId, { projectPath })
+  const transcriptContextEstimate = await sessionService.getTranscriptContextEstimate(sessionId, { projectPath })
   if (transcriptContextEstimate) {
     response.contextEstimate = transcriptContextEstimate
   }
@@ -349,8 +363,8 @@ function chooseRicherUsage(
     : currentUsage
 }
 
-async function getGitInfo(sessionId: string): Promise<Response> {
-  const workDir = await sessionService.getSessionWorkDir(sessionId)
+async function getGitInfo(sessionId: string, url: URL): Promise<Response> {
+  const workDir = await sessionService.getSessionWorkDir(sessionId, { projectPath: getProjectPath(url) })
   if (!workDir) {
     throw ApiError.notFound(`Session not found: ${sessionId}`)
   }
@@ -410,7 +424,7 @@ async function getGitInfo(sessionId: string): Promise<Response> {
   }
 }
 
-async function rewindSession(req: Request, sessionId: string): Promise<Response> {
+async function rewindSession(req: Request, sessionId: string, url: URL): Promise<Response> {
   let body: RewindTargetSelector & { dryRun?: boolean }
   try {
     body = (await req.json()) as RewindTargetSelector & { dryRun?: boolean }
@@ -426,13 +440,13 @@ async function rewindSession(req: Request, sessionId: string): Promise<Response>
   }
 
   const result = body.dryRun
-    ? await previewSessionRewind(sessionId, body)
-    : await executeSessionRewind(sessionId, body)
+    ? await previewSessionRewind(sessionId, body, { projectPath: getProjectPath(url) })
+    : await executeSessionRewind(sessionId, body, { projectPath: getProjectPath(url) })
 
   return Response.json(result)
 }
 
-async function patchSession(req: Request, sessionId: string): Promise<Response> {
+async function patchSession(req: Request, sessionId: string, url: URL): Promise<Response> {
   let body: { title?: string }
   try {
     body = (await req.json()) as { title?: string }
@@ -444,7 +458,7 @@ async function patchSession(req: Request, sessionId: string): Promise<Response> 
     throw ApiError.badRequest('title (string) is required in request body')
   }
 
-  await sessionService.renameSession(sessionId, body.title)
+  await sessionService.renameSession(sessionId, body.title, { projectPath: getProjectPath(url) })
   return Response.json({ ok: true })
 }
 
@@ -479,7 +493,7 @@ async function getRecentProjects(url: URL): Promise<Response> {
   for (const s of validSessions) {
     let realPath: string
     try {
-      const workDir = await sessionService.getSessionWorkDir(s.id)
+      const workDir = await sessionService.getSessionWorkDir(s.id, { projectPath: s.projectPath })
       realPath = workDir || sessionService.desanitizePath(s.projectPath)
     } catch {
       realPath = sessionService.desanitizePath(s.projectPath)

@@ -1,38 +1,40 @@
 import type { ReactNode } from 'react'
-import { Icon } from '../shared/Icon'
 
 /* ── Settings primitives ──────────────────────────────────────────────
- * Calibrated against macOS Ventura System Settings + Linear settings.
- * Density, rounded corners, hierarchy and motion all match those two refs. */
+ * Cyberpunk-Refined: deep space black + electric cyan (#00f0ff) accent.
+ * Terminal / space-capsule console feel. Geist font. No Inter.
+ * No backdrop-blur. CSS variables throughout. */
 
 export function SettingsPage({
   title,
   description,
-  icon,
   children,
 }: {
-  title: string
+  title?: string
   description?: string
+  /** Kept for existing callsites; settings page headers intentionally render text only. */
   icon?: string
   children: ReactNode
 }) {
+  const hasHeader = !!(title || description)
   return (
     <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
-      <header className="flex flex-col gap-1.5 pb-2">
-        <div className="flex items-center gap-3">
-          {icon && (
-            <Icon name={icon} size={24} className="text-black/60 dark:text-white/60" />
+      {hasHeader && (
+        <header className="flex flex-col gap-1.5 pb-2">
+          <div className="flex items-center">
+            {title && (
+              <h1 className="text-[24px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+                {title}
+              </h1>
+            )}
+          </div>
+          {description && (
+            <p className="text-[13px] leading-[1.6] text-[var(--color-text-secondary)]">
+              {description}
+            </p>
           )}
-          <h1 className="text-[26px] font-semibold tracking-tight text-black/90 dark:text-white/90">
-            {title}
-          </h1>
-        </div>
-        {description && (
-          <p className="text-[13px] leading-[1.6] text-black/70 dark:text-white/70">
-            {description}
-          </p>
-        )}
-      </header>
+        </header>
+      )}
       {children}
     </div>
   )
@@ -51,17 +53,17 @@ export function SettingsSection({
 }) {
   const hasHeader = !!(title || description || action)
   return (
-    <section className="overflow-hidden rounded-lg border-2 border-black/30 dark:border-white/30 bg-white dark:bg-white/[0.03]">
+    <section className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)]">
       {hasHeader && (
-        <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 border-b border-black/[0.10] dark:border-white/[0.10]">
+        <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 border-b border-[var(--color-border-separator)]">
           <div className="min-w-0">
             {title && (
-              <h2 className="text-[13px] font-semibold tracking-tight text-black/90 dark:text-white/90">
+              <h2 className="text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]">
                 {title}
               </h2>
             )}
             {description && (
-              <p className="mt-1 text-[12px] leading-[1.5] text-black/65 dark:text-white/65">
+              <p className="mt-1 text-[12px] leading-[1.5] text-[var(--color-text-tertiary)]">
                 {description}
               </p>
             )}
@@ -69,7 +71,7 @@ export function SettingsSection({
           {action && <div className="flex-shrink-0">{action}</div>}
         </header>
       )}
-      <div className="divide-y divide-black/[0.10] dark:divide-white/[0.10]">
+      <div className="divide-y divide-[var(--color-border-separator)]">
         {children}
       </div>
     </section>
@@ -95,12 +97,12 @@ export function SettingsRow({
       {hasLabel && (
         <div className="min-w-0 flex-1">
           {label && (
-            <div className="text-[13px] font-medium tracking-tight text-black/85 dark:text-white/85">
+            <div className="text-[13px] font-medium tracking-tight text-[var(--color-text-primary)]">
               {label}
             </div>
           )}
           {hint && (
-            <p className="mt-1 text-[11px] leading-[1.6] text-black/60 dark:text-white/60">
+            <p className="mt-1 text-[11px] leading-[1.6] text-[var(--color-text-tertiary)]">
               {hint}
             </p>
           )}
@@ -121,7 +123,7 @@ export function SegmentedControl<T extends string>({
   onChange: (next: T) => void
 }) {
   return (
-    <div className="inline-flex rounded-lg bg-black/5 dark:bg-white/[0.06] p-0.5">
+    <div className="inline-flex rounded-lg bg-[var(--color-surface-container-low)] p-0.5">
       {items.map((item) => {
         const isActive = item.value === value
         return (
@@ -131,8 +133,8 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(item.value)}
             className={`min-w-[56px] cursor-pointer rounded-[7px] px-3.5 py-1 text-[12px] font-medium tracking-tight transition-all duration-150 ${
               isActive
-                ? 'bg-white dark:bg-white/15 text-black/90 dark:text-white/95 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
-                : 'text-black/70 dark:text-white/70 hover:text-black/80 dark:hover:text-white/85'
+                ? 'bg-[var(--color-surface-container-high)] text-[var(--color-brand)] shadow-[var(--shadow-focus-ring)]'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
             }`}
           >
             {item.label}
@@ -159,8 +161,8 @@ export function Switch({
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-[26px] w-[44px] cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-[#050505] ${
-        checked ? 'bg-emerald-500' : 'bg-black/25 dark:bg-white/25'
+      className={`relative inline-flex h-[26px] w-[44px] cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:shadow-[var(--shadow-focus-ring)] ${
+        checked ? 'bg-[var(--color-brand)]' : 'bg-black/25 dark:bg-white/25'
       }`}
     >
       <span

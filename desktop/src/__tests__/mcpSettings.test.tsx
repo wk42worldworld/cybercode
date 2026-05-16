@@ -15,6 +15,7 @@ describe('McpSettings', () => {
         {
           id: 'session-1',
           title: 'Test Session',
+          lastMessage: '',
           createdAt: '',
           modifiedAt: '',
           messageCount: 0,

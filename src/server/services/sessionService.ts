@@ -26,6 +26,7 @@ import { getCanonicalName } from '../../utils/model/model.js'
 export type SessionListItem = {
   id: string
   title: string
+  lastMessage: string
   createdAt: string
   modifiedAt: string
   messageCount: number
@@ -168,6 +169,14 @@ type RawEntry = {
 }
 
 type ContentBlock = Record<string, unknown>
+type SessionFileLocator = { projectPath?: string }
+type HistoryLogEntry = {
+  display?: string
+  pastedContents?: Record<string, unknown>
+  timestamp?: number | string
+  project?: string
+  sessionId?: string
+}
 
 const USER_INTERRUPTION_TEXTS = new Set([
   '[Request interrupted by user]',
@@ -624,6 +633,23 @@ export class SessionService {
     return 'Untitled Session'
   }
 
+  private extractLastMessage(entries: RawEntry[]): string {
+    // Walk backward from the end to find the latest user or assistant message
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i]!
+      if (e.isMeta || !e.message?.role) continue
+      if (e.type !== 'user' && e.type !== 'assistant') continue
+      if (this.shouldHideTranscriptEntry(e)) continue
+
+      const text = this.extractTextFromContent(e.message.content)
+      if (text) {
+        return text.length > 80 ? text.slice(0, 80) + '...' : text
+      }
+    }
+
+    return ''
+  }
+
   // --------------------------------------------------------------------------
   // Session file discovery
   // --------------------------------------------------------------------------
@@ -650,7 +676,10 @@ export class SessionService {
       projectDirs = projectDirs.filter((d) => d === sanitized)
     }
 
-    const results: Array<{ filePath: string; projectDir: string; sessionId: string }> = []
+    const results = new Map<
+      string,
+      { filePath: string; projectDir: string; sessionId: string; isPlaceholderBackup: boolean }
+    >()
 
     for (const dir of projectDirs) {
       const dirPath = path.join(projectsDir, dir)
@@ -671,17 +700,106 @@ export class SessionService {
       }
 
       for (const file of files) {
-        if (!file.endsWith('.jsonl')) continue
-        const sessionId = file.replace('.jsonl', '')
-        results.push({
+        const isPlaceholderBackup = file.endsWith('.jsonl.placeholder')
+        if (!file.endsWith('.jsonl') && !isPlaceholderBackup) continue
+        const sessionId = isPlaceholderBackup
+          ? file.slice(0, -'.jsonl.placeholder'.length)
+          : file.slice(0, -'.jsonl'.length)
+        const key = `${dir}:${sessionId}`
+        const existing = results.get(key)
+        if (existing && !existing.isPlaceholderBackup) continue
+        results.set(key, {
           filePath: path.join(dirPath, file),
           projectDir: dir,
           sessionId,
+          isPlaceholderBackup,
         })
       }
     }
 
-    return results
+    return [...results.values()].map(({ isPlaceholderBackup: _, ...result }) => result)
+  }
+
+  private activeSessionFilePath(filePath: string): string {
+    return filePath.endsWith('.jsonl.placeholder')
+      ? filePath.slice(0, -'.placeholder'.length)
+      : filePath
+  }
+
+  private placeholderBackupPath(filePath: string): string {
+    return `${this.activeSessionFilePath(filePath)}.placeholder`
+  }
+
+  private historyLogPath(): string {
+    return path.join(this.getConfigDir(), 'history.jsonl')
+  }
+
+  private async removeHistoryLogEntries(sessionId: string, projectPath?: string): Promise<void> {
+    let content: string
+    try {
+      content = await fs.readFile(this.historyLogPath(), 'utf-8')
+    } catch {
+      return
+    }
+
+    let changed = false
+    const keptLines: string[] = []
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      try {
+        const parsed = JSON.parse(trimmed) as HistoryLogEntry
+        const entryProjectPath =
+          typeof parsed.project === 'string' ? this.sanitizePath(parsed.project) : undefined
+        if (parsed.sessionId === sessionId && (!projectPath || entryProjectPath === projectPath)) {
+          changed = true
+          continue
+        }
+      } catch {
+        // Keep malformed history lines untouched.
+      }
+
+      keptLines.push(line)
+    }
+
+    if (changed) {
+      await fs.writeFile(
+        this.historyLogPath(),
+        keptLines.length > 0 ? `${keptLines.join('\n')}\n` : '',
+        'utf-8',
+      )
+    }
+  }
+
+  private paginateMessages(
+    allMessages: MessageEntry[],
+    options?: { limit?: number; before?: string; after?: string },
+  ): { messages: MessageEntry[]; hasMore: boolean } {
+    const limit = Math.min(Math.max(options?.limit ?? 50, 1), 1000)
+
+    if (options?.before) {
+      const cursorIndex = allMessages.findIndex((m) => m.id === options.before)
+      if (cursorIndex < 0) {
+        return { messages: [], hasMore: false }
+      }
+      const sliceStart = Math.max(0, cursorIndex - limit)
+      const slice = allMessages.slice(sliceStart, cursorIndex)
+      return { messages: slice, hasMore: sliceStart > 0 }
+    }
+
+    if (options?.after) {
+      const cursorIndex = allMessages.findIndex((m) => m.id === options.after)
+      if (cursorIndex < 0) {
+        return { messages: [], hasMore: false }
+      }
+      const sliceEnd = Math.min(allMessages.length, cursorIndex + 1 + limit)
+      const slice = allMessages.slice(cursorIndex + 1, sliceEnd)
+      return { messages: slice, hasMore: sliceEnd < allMessages.length }
+    }
+
+    const sliceStart = Math.max(0, allMessages.length - limit)
+    const slice = allMessages.slice(sliceStart)
+    return { messages: slice, hasMore: sliceStart > 0 }
   }
 
   /**
@@ -701,7 +819,8 @@ export class SessionService {
    * Searches across all project directories since sessions may belong to any project.
    */
   async findSessionFile(
-    sessionId: string
+    sessionId: string,
+    locator?: SessionFileLocator,
   ): Promise<{ filePath: string; projectDir: string } | null> {
     // Validate sessionId format to prevent path traversal
     if (!this.isValidSessionId(sessionId)) {
@@ -709,6 +828,24 @@ export class SessionService {
     }
 
     const projectsDir = this.getProjectsDir()
+
+    if (locator?.projectPath) {
+      if (!this.isValidProjectPath(locator.projectPath)) {
+        return null
+      }
+      const filePath = path.join(projectsDir, locator.projectPath, `${sessionId}.jsonl`)
+      for (const candidate of [filePath, this.placeholderBackupPath(filePath)]) {
+        try {
+          const stat = await fs.stat(candidate)
+          if (!stat.isFile() || stat.size <= 0) continue
+          return { filePath: candidate, projectDir: locator.projectPath }
+        } catch {
+          continue
+        }
+      }
+      return null
+    }
+
     let projectDirs: string[]
 
     try {
@@ -717,22 +854,33 @@ export class SessionService {
       return null
     }
 
+    let latest: { filePath: string; projectDir: string; mtimeMs: number } | null = null
+
     for (const dir of projectDirs) {
       const filePath = path.join(projectsDir, dir, `${sessionId}.jsonl`)
-      try {
-        await fs.access(filePath)
-        return { filePath, projectDir: dir }
-      } catch {
-        continue
+      for (const candidate of [filePath, this.placeholderBackupPath(filePath)]) {
+        try {
+          const stat = await fs.stat(candidate)
+          if (!stat.isFile() || stat.size <= 0) continue
+          if (!latest || stat.mtimeMs > latest.mtimeMs) {
+            latest = { filePath: candidate, projectDir: dir, mtimeMs: stat.mtimeMs }
+          }
+        } catch {
+          continue
+        }
       }
     }
 
-    return null
+    return latest ? { filePath: latest.filePath, projectDir: latest.projectDir } : null
   }
 
   private isValidSessionId(id: string): boolean {
     // UUID v4 format
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  }
+
+  private isValidProjectPath(projectPath: string): boolean {
+    return /^[A-Za-z0-9-]+$/.test(projectPath) && !projectPath.includes('..')
   }
 
   private formatCost(cost: number): string {
@@ -753,8 +901,8 @@ export class SessionService {
     }
   }
 
-  async getTranscriptMetadata(sessionId: string): Promise<TranscriptMetadataSnapshot | null> {
-    const found = await this.findSessionFile(sessionId)
+  async getTranscriptMetadata(sessionId: string, locator?: SessionFileLocator): Promise<TranscriptMetadataSnapshot | null> {
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) return null
 
     const entries = await this.readJsonlFile(found.filePath)
@@ -777,8 +925,8 @@ export class SessionService {
     return metadata
   }
 
-  async getTranscriptContextEstimate(sessionId: string): Promise<TranscriptContextEstimate | null> {
-    const found = await this.findSessionFile(sessionId)
+  async getTranscriptContextEstimate(sessionId: string, locator?: SessionFileLocator): Promise<TranscriptContextEstimate | null> {
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) return null
 
     const entries = await this.readJsonlFile(found.filePath)
@@ -859,8 +1007,8 @@ export class SessionService {
     }
   }
 
-  async getTranscriptUsage(sessionId: string): Promise<TranscriptUsageSnapshot | null> {
-    const found = await this.findSessionFile(sessionId)
+  async getTranscriptUsage(sessionId: string, locator?: SessionFileLocator): Promise<TranscriptUsageSnapshot | null> {
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) return null
 
     const entries = await this.readJsonlFile(found.filePath)
@@ -1008,6 +1156,7 @@ export class SessionService {
         ).length
 
         const title = this.extractTitle(entries)
+        const lastMessage = this.extractLastMessage(entries)
 
         // Find the earliest timestamp from entries, fallback to file birthtime
         let createdAt = stat.birthtime.toISOString()
@@ -1021,6 +1170,7 @@ export class SessionService {
         items.push({
           id: sessionId,
           title,
+          lastMessage,
           createdAt,
           modifiedAt: stat.mtime.toISOString(),
           messageCount,
@@ -1047,8 +1197,8 @@ export class SessionService {
   /**
    * Get full session detail including all messages.
    */
-  async getSession(sessionId: string): Promise<SessionDetail | null> {
-    const found = await this.findSessionFile(sessionId)
+  async getSession(sessionId: string, locator?: SessionFileLocator): Promise<SessionDetail | null> {
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) return null
 
     const { filePath, projectDir } = found
@@ -1061,6 +1211,7 @@ export class SessionService {
       this.entriesToMessages(entries),
     )
     const title = this.extractTitle(entries)
+    const lastMessage = this.extractLastMessage(entries)
     const workDir = this.resolveWorkDirFromEntries(entries, projectDir)
     const workDirExists = await this.pathExists(workDir)
 
@@ -1075,6 +1226,7 @@ export class SessionService {
     return {
       id: sessionId,
       title,
+      lastMessage,
       createdAt,
       modifiedAt: stat.mtime.toISOString(),
       messageCount: messages.length,
@@ -1086,20 +1238,35 @@ export class SessionService {
   }
 
   /**
-   * Get only the messages for a session (lighter than full detail).
+   * Get messages for a session with optional cursor-based pagination.
+   *
+   * @param sessionId  Session UUID
+   * @param options.limit  Max messages to return (default 50, capped at 200)
+   * @param options.before  Return messages older than this message ID (cursor)
+   * @param options.after   Return messages newer than this message ID (cursor)
+   *
+   * When neither `before` nor `after` is given, returns the most recent messages
+   * (tail of the transcript). When `before` is given, returns messages older than
+   * that cursor. When `after` is given, returns messages newer than that cursor.
+   *
+   * Returns `{ messages, hasMore }` so the caller knows whether another page exists.
    */
-  async getSessionMessages(sessionId: string): Promise<MessageEntry[]> {
-    const found = await this.findSessionFile(sessionId)
+  async getSessionMessages(
+    sessionId: string,
+    options?: { limit?: number; before?: string; after?: string; projectPath?: string },
+  ): Promise<{ messages: MessageEntry[]; hasMore: boolean }> {
+    const found = await this.findSessionFile(sessionId, { projectPath: options?.projectPath })
     if (!found) {
       throw ApiError.notFound(`Session not found: ${sessionId}`)
     }
 
     const entries = await this.readJsonlFile(found.filePath)
-    return await this.appendSubagentToolMessages(
+    const allMessages = await this.appendSubagentToolMessages(
       found.projectDir,
       sessionId,
       this.entriesToMessages(entries),
     )
+    return this.paginateMessages(allMessages, options)
   }
 
   /**
@@ -1167,24 +1334,30 @@ export class SessionService {
   /**
    * Delete a session's JSONL file.
    */
-  async deleteSession(sessionId: string): Promise<void> {
-    const found = await this.findSessionFile(sessionId)
+  async deleteSession(sessionId: string, locator?: SessionFileLocator): Promise<void> {
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) {
       throw ApiError.notFound(`Session not found: ${sessionId}`)
     }
 
-    await fs.unlink(found.filePath)
+    await fs.rm(this.activeSessionFilePath(found.filePath), { force: true })
+    await fs.rm(this.placeholderBackupPath(found.filePath), { force: true }).catch(() => {})
+    await fs.rm(path.join(this.getProjectsDir(), found.projectDir, sessionId), {
+      recursive: true,
+      force: true,
+    }).catch(() => {})
+    await this.removeHistoryLogEntries(sessionId, found.projectDir).catch(() => {})
   }
 
   /**
    * Rename a session by appending a custom-title entry to its JSONL file.
    */
-  async renameSession(sessionId: string, title: string): Promise<void> {
+  async renameSession(sessionId: string, title: string, locator?: SessionFileLocator): Promise<void> {
     if (!title || typeof title !== 'string') {
       throw ApiError.badRequest('title is required')
     }
 
-    const found = await this.findSessionFile(sessionId)
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) {
       throw ApiError.notFound(`Session not found: ${sessionId}`)
     }
@@ -1216,8 +1389,8 @@ export class SessionService {
    * Get the actual working directory for a session.
    * First checks for stored session-meta entry, then falls back to desanitizePath.
    */
-  async getSessionWorkDir(sessionId: string): Promise<string | null> {
-    const found = await this.findSessionFile(sessionId)
+  async getSessionWorkDir(sessionId: string, locator?: SessionFileLocator): Promise<string | null> {
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) return null
 
     const entries = await this.readJsonlFile(found.filePath)
@@ -1262,7 +1435,19 @@ export class SessionService {
   async deleteSessionFile(sessionId: string): Promise<void> {
     const found = await this.findSessionFile(sessionId)
     if (!found) return
-    await fs.unlink(found.filePath)
+    await fs.rm(this.activeSessionFilePath(found.filePath), { force: true })
+    await fs.rm(this.placeholderBackupPath(found.filePath), { force: true })
+  }
+
+  async moveSessionFileAsideForLaunch(sessionId: string): Promise<void> {
+    const found = await this.findSessionFile(sessionId)
+    if (!found) return
+    const activePath = this.activeSessionFilePath(found.filePath)
+    const backupPath = this.placeholderBackupPath(found.filePath)
+    if (found.filePath === backupPath) return
+
+    await fs.rm(backupPath, { force: true }).catch(() => {})
+    await fs.rename(activePath, backupPath)
   }
 
   async clearSessionTranscript(sessionId: string, fallbackWorkDir?: string): Promise<void> {
@@ -1313,8 +1498,45 @@ export class SessionService {
     sessionId: string,
     metadata: { workDir: string; customTitle?: string | null }
   ): Promise<void> {
-    const found = await this.findSessionFile(sessionId)
-    if (!found) return
+    let found = await this.findSessionFile(sessionId)
+    if (!found) {
+      if (!this.isValidSessionId(sessionId)) return
+
+      const absWorkDir = path.resolve(metadata.workDir || os.homedir())
+      const projectDir = this.sanitizePath(absWorkDir)
+      const dirPath = path.join(this.getProjectsDir(), projectDir)
+      const filePath = path.join(dirPath, `${sessionId}.jsonl`)
+      const now = new Date().toISOString()
+      const initialEntry = {
+        type: 'file-history-snapshot',
+        messageId: crypto.randomUUID(),
+        snapshot: {
+          messageId: crypto.randomUUID(),
+          trackedFileBackups: {},
+          timestamp: now,
+        },
+        isSnapshotUpdate: false,
+      }
+
+      await fs.mkdir(dirPath, { recursive: true })
+      try {
+        await fs.writeFile(filePath, `${JSON.stringify(initialEntry)}\n`, {
+          encoding: 'utf-8',
+          flag: 'wx',
+        })
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+      }
+      found = { filePath, projectDir }
+    } else if (found.filePath.endsWith('.jsonl.placeholder')) {
+      const activePath = this.activeSessionFilePath(found.filePath)
+      try {
+        await fs.rename(found.filePath, activePath)
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+      }
+      found = { filePath: activePath, projectDir: found.projectDir }
+    }
 
     await this.appendJsonlEntry(found.filePath, {
       type: 'session-meta',
@@ -1330,13 +1552,16 @@ export class SessionService {
         timestamp: new Date().toISOString(),
       })
     }
+
+    await fs.rm(this.placeholderBackupPath(found.filePath), { force: true }).catch(() => {})
   }
 
   async trimSessionMessagesFrom(
     sessionId: string,
     startMessageId: string,
+    locator?: SessionFileLocator,
   ): Promise<TrimSessionResult> {
-    const found = await this.findSessionFile(sessionId)
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) {
       throw ApiError.notFound(`Session not found: ${sessionId}`)
     }
@@ -1376,8 +1601,9 @@ export class SessionService {
 
   async getSessionFileHistorySnapshots(
     sessionId: string,
+    locator?: SessionFileLocator,
   ): Promise<FileHistorySnapshot[]> {
-    const found = await this.findSessionFile(sessionId)
+    const found = await this.findSessionFile(sessionId, locator)
     if (!found) {
       throw ApiError.notFound(`Session not found: ${sessionId}`)
     }

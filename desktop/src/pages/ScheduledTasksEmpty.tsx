@@ -1,5 +1,6 @@
 import { useTranslation } from '../i18n'
 import { mockStatusBar } from '../mocks/data'
+import { Button } from '../components/shared/Button'
 import { Icon } from '../components/shared/Icon'
 
 export function ScheduledTasksEmpty() {
@@ -10,7 +11,7 @@ export function ScheduledTasksEmpty() {
       <aside className="fixed left-0 top-0 h-full w-[280px] bg-[var(--color-surface-container-low)] flex flex-col p-4 gap-2 text-[14px] font-medium z-40">
         <div className="flex items-center gap-3 px-2 mb-6 mt-12">
           <div className="w-8 h-8 rounded bg-[var(--color-surface-container-high)] flex items-center justify-center">
-            <span className="material-symbols-outlined text-[var(--color-text-secondary)]">filter_list</span>
+            <Icon name="filter_list" size={20} className="text-[var(--color-text-secondary)]" />
           </div>
           <div>
             <div className="text-[var(--color-text-primary)] font-bold">{t('sidebar.allProjects')}</div>
@@ -24,7 +25,7 @@ export function ScheduledTasksEmpty() {
             <span>{t('sidebar.newSession')}</span>
           </div>
           {/* Active State: Scheduled */}
-          <div className="px-3 py-2 bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg relative before:content-[''] before:absolute before:left-[-8px] before:w-1 before:h-4 before:bg-[var(--color-primary)] before:rounded-full cursor-pointer duration-200 ease-in-out flex items-center gap-3">
+          <div className="px-3 py-2 bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg relative before:content-[''] before:absolute before:left-[-8px] before:w-1 before:h-4 before:bg-[var(--color-brand)] before:rounded-full cursor-pointer duration-200 ease-in-out flex items-center gap-3">
             <Icon name="calendar_today" size={18} />
             <span>{t('sidebar.scheduled')}</span>
           </div>
@@ -69,8 +70,8 @@ export function ScheduledTasksEmpty() {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-[var(--color-text-secondary)] text-[14px] cursor-pointer">arrow_back_ios</span>
-              <span className="material-symbols-outlined text-[var(--color-text-secondary)] text-[14px] cursor-pointer">arrow_forward_ios</span>
+              <Icon name="arrow_back_ios" size={14} className="text-[var(--color-text-secondary)] cursor-pointer" />
+              <Icon name="arrow_forward_ios" size={14} className="text-[var(--color-text-secondary)] cursor-pointer" />
             </div>
             <div className="h-4 w-[1px] bg-[var(--color-text-secondary)]/20"></div>
             <div className="text-[var(--color-text-secondary)] hover:text-[var(--color-primary)] transition-colors cursor-pointer text-[12px] font-semibold uppercase tracking-wider">{t('sidebar.settings')}</div>
@@ -84,42 +85,43 @@ export function ScheduledTasksEmpty() {
 
             {/* Empty State Illustration/Card */}
             <div className="relative group">
-              {/* Architectural Background Detail */}
+              {/* Background Detail */}
               <div className="absolute -inset-4 bg-[var(--color-surface-container-low)] rounded-[13px] -z-10 transition-all"></div>
               <div className="flex flex-col items-center py-20 px-8">
-                <div className="w-32 h-32 rounded-full bg-[var(--color-surface-container-high)] flex items-center justify-center mb-10 shadow-sm">
-                  <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center border-2 border-[var(--color-border)]/10">
-                    <span
-                      className="material-symbols-outlined text-[var(--color-primary)] text-5xl"
-                      style={{ fontVariationSettings: "'wght' 300" }}
-                    >
-                      schedule
-                    </span>
+                {/* Large icon with accent glow */}
+                <div className="relative mb-10">
+                  <div className="w-32 h-32 rounded-full bg-[var(--color-surface-container-high)] flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-[var(--color-surface-container-lowest)] flex items-center justify-center border-2 border-[var(--color-accent-glow)]">
+                      <Icon name="schedule" size={48} className="text-[var(--color-brand)]" />
+                    </div>
                   </div>
+                  <div
+                    className="absolute -inset-3 rounded-full pointer-events-none"
+                    style={{ boxShadow: '0 0 32px 8px var(--color-accent-glow)' }}
+                    aria-hidden="true"
+                  />
                 </div>
-                <p className="text-[var(--color-text-secondary)] font-[var(--font-body)] text-[18px] max-w-sm mx-auto leading-relaxed mb-12">
+                <p className="text-[var(--color-text-secondary)] text-[18px] max-w-sm mx-auto leading-relaxed mb-12">
                   {t('tasks.emptyTitle')} {t('tasks.emptyDesc')}
                 </p>
-                <button className="group relative px-8 py-4 bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded-md font-[var(--font-headline)] font-bold text-[14px] tracking-wide shadow-lg hover:shadow-[var(--color-primary)]/20 transition-all flex items-center gap-3 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent opacity-30"></div>
-                  <span className="material-symbols-outlined text-[18px]">add_task</span>
+                <Button type="button" size="lg" icon={<Icon name="add_task" size={18} />}>
                   <span>{t('tasks.newTask')}</span>
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Subtle Decorative Bento Elements */}
             <div className="grid grid-cols-3 gap-4 mt-20 opacity-40">
               <div className="h-24 bg-[var(--color-surface-container-low)] rounded-md border-2 border-[var(--color-border)]/10 flex flex-col items-center justify-center p-4">
-                <span className="material-symbols-outlined text-[var(--color-text-secondary)] mb-2">commit</span>
+                <Icon name="commit" size={20} className="text-[var(--color-text-secondary)] mb-2" />
                 <div className="w-12 h-1 bg-[var(--color-border)]/30 rounded-full"></div>
               </div>
               <div className="h-24 bg-[var(--color-surface-container-low)] rounded-md border-2 border-[var(--color-border)]/10 flex flex-col items-center justify-center p-4">
-                <span className="material-symbols-outlined text-[var(--color-text-secondary)] mb-2">terminal</span>
+                <Icon name="terminal" size={20} className="text-[var(--color-text-secondary)] mb-2" />
                 <div className="w-8 h-1 bg-[var(--color-border)]/30 rounded-full"></div>
               </div>
               <div className="h-24 bg-[var(--color-surface-container-low)] rounded-md border-2 border-[var(--color-border)]/10 flex flex-col items-center justify-center p-4">
-                <span className="material-symbols-outlined text-[var(--color-text-secondary)] mb-2">code_blocks</span>
+                <Icon name="code_blocks" size={20} className="text-[var(--color-text-secondary)] mb-2" />
                 <div className="w-10 h-1 bg-[var(--color-border)]/30 rounded-full"></div>
               </div>
             </div>
@@ -151,4 +153,3 @@ export function ScheduledTasksEmpty() {
     </div>
   )
 }
-

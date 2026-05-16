@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { Icon } from './Icon'
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 
@@ -11,22 +12,22 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   stencil?: boolean
 }
 
+// Cyberpunk-refined: accent gradient CTA, terminal console glow.
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-black text-white dark:bg-white dark:text-black hover:opacity-90 active:opacity-95 shadow-md',
+    'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)] hover:shadow-[var(--shadow-accent-glow)] active:opacity-90 shadow-[var(--shadow-button-primary)]',
   secondary:
-    'bg-transparent text-[var(--color-text-primary)] border-2 border-[var(--color-border)] hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)]',
+    'bg-[var(--color-surface-container)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:border-[var(--color-border-focus)]',
   danger:
-    'bg-[var(--color-error)] text-white hover:opacity-90',
-  // spacex-codex ghost: translucent surface + subtle border
+    'bg-[var(--color-error)] text-[var(--color-btn-danger-fg)] hover:opacity-90 shadow-[0_4px_14px_rgba(255,59,48,0.30)]',
   ghost:
-    'btn-ghost',
+    'bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]',
 }
 
 const sizeStyles = {
-  sm: 'h-7 px-3 text-[12px]',
-  md: 'h-8 px-4 text-[13px]',
-  lg: 'h-9 px-5 text-[13px]',
+  sm: 'h-8 px-3.5 text-[12px]',
+  md: 'h-9 px-5 text-[13px]',
+  lg: 'h-11 px-6 text-[14px]',
 }
 
 export function Button({
@@ -42,16 +43,18 @@ export function Button({
 }: ButtonProps) {
   const stencilClass = stencil
     ? 'uppercase tracking-[0.10em] font-bold font-mono'
-    : 'font-semibold tracking-tight'
+    : 'font-semibold tracking-[-0.01em]'
   return (
     <button
       disabled={disabled || loading}
       className={`
-        inline-flex items-center justify-center gap-1.5 rounded-md
+        inline-flex items-center justify-center gap-1.5 rounded-[8px]
         ${stencilClass} transition-all duration-200 cursor-pointer
-        disabled:opacity-40 disabled:cursor-not-allowed
+        focus:shadow-[var(--shadow-focus-ring)]
+        disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
         ${variantStyles[variant]} ${sizeStyles[size]} ${className}
       `}
+      style={{ fontFamily: 'var(--font-body)' }}
       {...props}
     >
       {loading ? <Spinner /> : icon}
@@ -61,10 +64,5 @@ export function Button({
 }
 
 function Spinner() {
-  return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-    </svg>
-  )
+  return <Icon name="loading" size={16} className="animate-spin" />
 }

@@ -2,10 +2,13 @@ import type { ClientMessage, ServerMessage } from '../types/chat'
 import { getBaseUrl } from './client'
 
 type MessageHandler = (msg: ServerMessage) => void
+export type WsState = 'connecting' | 'open' | 'closed'
+type StateHandler = (state: WsState) => void
 
 type Connection = {
   ws: WebSocket
   handlers: Set<MessageHandler>
+  stateHandlers: Set<StateHandler>
   reconnectTimer: ReturnType<typeof setTimeout> | null
   reconnectAttempt: number
   pingInterval: ReturnType<typeof setInterval> | null
@@ -45,6 +48,7 @@ class WebSocketManager {
     const conn: Connection = {
       ws,
       handlers: existing?.handlers ?? new Set(),
+      stateHandlers: existing?.stateHandlers ?? new Set(),
       reconnectTimer: null,
       reconnectAttempt: existing?.reconnectAttempt ?? 0,
       pingInterval: null,
@@ -52,10 +56,12 @@ class WebSocketManager {
       pendingMessages: existing?.pendingMessages ?? [],
     }
     this.connections.set(sessionId, conn)
+    this.notifyState(conn, 'connecting')
 
     ws.onopen = () => {
       conn.reconnectAttempt = 0
       this.startPingLoop(sessionId)
+      this.notifyState(conn, 'open')
       while (conn.pendingMessages.length > 0) {
         const msg = conn.pendingMessages.shift()!
         ws.send(JSON.stringify(msg))
@@ -75,6 +81,7 @@ class WebSocketManager {
 
     ws.onclose = () => {
       this.stopPingLoop(sessionId)
+      this.notifyState(conn, 'closed')
       if (!conn.intentionalClose && this.connections.get(sessionId) === conn) {
         this.scheduleReconnect(sessionId, conn)
       }
@@ -141,7 +148,27 @@ class WebSocketManager {
 
   clearHandlers(sessionId: string) {
     const conn = this.connections.get(sessionId)
-    if (conn) conn.handlers.clear()
+    if (conn) {
+      conn.handlers.clear()
+      conn.stateHandlers.clear()
+    }
+  }
+
+  /** Subscribe to socket-level state transitions. Returns an unsubscribe fn.
+   * Used by chatStore to keep `connectionState` synced with reality, so a
+   * dropped socket doesn't leave the UI permanently "connecting".
+   * Must be called AFTER connect() has set up the connection record. */
+  onStateChange(sessionId: string, handler: StateHandler): () => void {
+    const conn = this.connections.get(sessionId)
+    if (!conn) return () => {}
+    conn.stateHandlers.add(handler)
+    return () => { conn.stateHandlers.delete(handler) }
+  }
+
+  private notifyState(conn: Connection, state: WsState) {
+    for (const h of conn.stateHandlers) {
+      try { h(state) } catch { /* swallow */ }
+    }
   }
 
   private startPingLoop(sessionId: string) {

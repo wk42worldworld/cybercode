@@ -21,6 +21,7 @@ export type LocalSlashCommandName = 'mcp' | 'skills' | 'help' | 'status' | 'cost
 type Props = {
   command: LocalSlashCommandName
   sessionId?: string
+  projectPath?: string
   cwd?: string
   commands?: SlashCommandOption[]
   onClose: () => void
@@ -32,7 +33,7 @@ type Translate = ReturnType<typeof useTranslation>
 function toneForStatus(status: McpServerRecord['status']) {
   switch (status) {
     case 'connected':
-      return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+      return 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20'
     case 'needs-auth':
       return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
     case 'failed':
@@ -75,18 +76,18 @@ function PanelShell({
   onClose: () => void
 }) {
   return (
-    <div className="absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]">
-      <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4">
+    <div className="absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]">
+      <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-separator)] px-5 py-4">
         <div>
-          <h3 className="text-[18px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
-          <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">{subtitle}</p>
+          <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
+          <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{subtitle}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
-          <Icon name="close" size={18} />
+          <Icon name="close" size={16} />
         </button>
       </div>
       <div className="max-h-[min(620px,72vh)] overflow-y-auto px-5 py-4">{children}</div>
@@ -118,19 +119,6 @@ function ErrorState({ message }: { message: string }) {
       {message}
     </div>
   )
-}
-
-const inspector = {
-  bg: '#fbfaf6',
-  panel: '#f6f4ee',
-  line: '#d8b3a8',
-  rust: '#8f3217',
-  ink: '#1f1713',
-  muted: '#7b665f',
-  green: '#25451b',
-  greenBg: '#d8f2b6',
-  red: '#c51616',
-  redBg: '#ffd9d3',
 }
 
 function formatNumber(value: number | undefined) {
@@ -450,11 +438,7 @@ function InspectorStatusBadge({ status, t }: { status: string; t: Translate }) {
 function McpServerIcon({ status }: { status: string }) {
   const isFailed = status === 'failed'
   const icon = isFailed ? 'power_off' : 'dns'
-  return (
-    <span className={`material-symbols-outlined text-[20px] ${isFailed ? 'text-[#c51616]' : 'text-[#25451b]'}`}>
-      {icon}
-    </span>
-  )
+  return <Icon name={icon} size={20} className={isFailed ? 'text-[#c51616]' : 'text-[#25451b]'} />
 }
 
 function ContextOverview({ context, categories, t }: { context: SessionContextSnapshot; categories: ContextCategory[]; t: Translate }) {
@@ -628,23 +612,22 @@ function SessionInspectorShell({
 }) {
   return (
     <div
-      className="absolute bottom-full left-0 right-0 z-50 mb-4 overflow-hidden rounded-[10px] border bg-[var(--color-surface-container-lowest)] shadow-[0_28px_80px_rgba(65,54,48,0.22)]"
-      style={{ borderColor: inspector.line, color: inspector.ink }}
+      className="absolute bottom-full left-0 right-0 z-50 mb-4 overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
     >
-      <div className="grid min-h-[64px] grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-6">
-        <div className="font-mono text-[16px] font-semibold uppercase text-[#8f3217]">{t('slash.inspector.title')}</div>
-        <div className="flex items-center gap-8">
+      <div className="grid min-h-[52px] grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border-separator)] px-5">
+        <div className="font-mono text-[13px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">{t('slash.inspector.title')}</div>
+        <div className="flex items-center gap-6">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => onSelectTab(tab.id)}
-              className={`relative h-10 px-0 font-sans text-[14px] transition-colors ${
-                selectedTab === tab.id ? 'text-[#8f3217]' : 'text-[#5f514c] hover:text-[#8f3217]'
+              className={`relative h-10 px-0 text-[13px] font-medium transition-colors ${
+                selectedTab === tab.id ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
               }`}
             >
               {tab.label}
-              {selectedTab === tab.id && <span className="absolute bottom-1 left-0 right-0 h-[2px] bg-[#8f3217]" />}
+              {selectedTab === tab.id && <span className="absolute bottom-1 left-0 right-0 h-[2px] rounded-full bg-[var(--color-text-secondary)] opacity-[0.45]" />}
             </button>
           ))}
         </div>
@@ -653,13 +636,13 @@ function SessionInspectorShell({
             type="button"
             onClick={onClose}
             aria-label={t('slash.inspector.close')}
-            className="flex h-10 w-10 items-center justify-center text-[#8f3217] transition-colors hover:text-[#5b1e0d]"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
           >
-            <Icon name="close" size={24} />
+            <Icon name="close" size={16} />
           </button>
         </div>
       </div>
-      <div className="max-h-[min(540px,58vh)] overflow-y-auto bg-[var(--color-surface-container-lowest)] px-6 py-6">{children}</div>
+      <div className="max-h-[min(540px,58vh)] overflow-y-auto px-5 py-5">{children}</div>
     </div>
   )
 }
@@ -667,11 +650,13 @@ function SessionInspectorShell({
 function SessionInspectorPanel({
   command,
   sessionId,
+  projectPath,
   commands,
   onClose,
 }: {
   command: LocalSlashCommandName
   sessionId?: string
+  projectPath?: string
   commands?: SlashCommandOption[]
   onClose: () => void
 }) {
@@ -699,7 +684,7 @@ function SessionInspectorPanel({
     setContextLoading(false)
     setContextError(null)
     contextRequestSessionRef.current = null
-    sessionsApi.getInspection(sessionId, { includeContext: false })
+    sessionsApi.getInspection(sessionId, { includeContext: false, projectPath })
       .then((response) => {
         if (!cancelled) setData(assertSessionInspectionResponse(response, t))
       })
@@ -709,16 +694,17 @@ function SessionInspectorPanel({
     return () => {
       cancelled = true
     }
-  }, [sessionId, t])
+  }, [sessionId, projectPath, t])
 
   useEffect(() => {
     if (!sessionId || selectedTab !== 'context' || data === null || data.context) return
-    if (contextRequestSessionRef.current === sessionId) return
-    contextRequestSessionRef.current = sessionId
+    const requestKey = `${sessionId}:${projectPath ?? ''}`
+    if (contextRequestSessionRef.current === requestKey) return
+    contextRequestSessionRef.current = requestKey
     let cancelled = false
     setContextLoading(true)
     setContextError(null)
-    sessionsApi.getInspection(sessionId, { includeContext: true, timeout: 45_000 })
+    sessionsApi.getInspection(sessionId, { includeContext: true, timeout: 45_000, projectPath })
       .then((response) => {
         if (cancelled) return
         const inspected = assertSessionInspectionResponse(response, t)
@@ -743,7 +729,7 @@ function SessionInspectorPanel({
     return () => {
       cancelled = true
     }
-  }, [data, selectedTab, sessionId, t])
+  }, [data, selectedTab, sessionId, projectPath, t])
 
   const tabs: Array<{ id: SessionInspectorTab; label: string }> = [
     { id: 'status', label: t('slash.inspector.tab.status') },
@@ -988,8 +974,8 @@ function HelpPanel({
 
   const renderCommand = (command: SlashCommandOption) => (
     <div key={command.name} className="flex min-w-0 items-start gap-3 border-t border-[var(--color-border)] px-4 py-3 first:border-t-0">
-      <div className="shrink-0 font-mono text-[14px] font-semibold text-[var(--color-text-primary)]">/{command.name}</div>
-      <div className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--color-text-tertiary)]">{command.description}</div>
+      <div className="shrink-0 font-[var(--font-mono)] text-[14px] font-semibold text-[var(--color-brand)]">/{command.name}</div>
+      <div className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">{command.description}</div>
     </div>
   )
 
@@ -1033,12 +1019,11 @@ function HelpPanel({
   )
 }
 
-export function LocalSlashCommandPanel({ command, sessionId, cwd, commands, onClose }: Props) {
+export function LocalSlashCommandPanel({ command, sessionId, projectPath, cwd, commands, onClose }: Props) {
   if (command === 'mcp') return <McpPanel cwd={cwd} onClose={onClose} />
   if (command === 'skills') return <SkillsPanel cwd={cwd} onClose={onClose} />
   if (command === 'status' || command === 'cost' || command === 'context') {
-    return <SessionInspectorPanel command={command} sessionId={sessionId} commands={commands} onClose={onClose} />
+    return <SessionInspectorPanel command={command} sessionId={sessionId} projectPath={projectPath} commands={commands} onClose={onClose} />
   }
   return <HelpPanel commands={commands} onClose={onClose} />
 }
-

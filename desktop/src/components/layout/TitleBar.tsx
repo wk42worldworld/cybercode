@@ -8,7 +8,7 @@ export function TitleBar() {
 
   return (
     <div
-      className="h-[var(--titlebar-height)] flex items-center border-b border-[var(--color-border)] bg-[var(--color-surface)] select-none"
+      className="h-[var(--titlebar-height)] flex items-center border-b border-[var(--color-border-separator)] bg-transparent select-none"
       data-tauri-drag-region
     >
       {/* macOS traffic light spacer */}
@@ -16,20 +16,16 @@ export function TitleBar() {
 
       {/* Logo */}
       <div className="flex items-center gap-2 mr-4" data-tauri-drag-region>
-        <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-primary)]">CYBERCODE</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-brand)]">CYBERCODE</span>
       </div>
 
       {/* Navigation arrows */}
       <div className="flex items-center gap-1 mr-4">
-        <button className="p-1 rounded-full text-[var(--color-text-primary)] opacity-50 hover:opacity-100 transition-opacity duration-150">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+        <button className="p-1 rounded-full text-[var(--color-text-tertiary)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] transition-opacity duration-150">
+          <Icon name="chevron_left" size={14} />
         </button>
-        <button className="p-1 rounded-full text-[var(--color-text-primary)] opacity-50 hover:opacity-100 transition-opacity duration-150">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
+        <button className="p-1 rounded-full text-[var(--color-text-tertiary)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] transition-opacity duration-150">
+          <Icon name="chevron_right" size={14} />
         </button>
       </div>
 
@@ -60,7 +56,7 @@ export function TitleBar() {
 
       {/* Right: Settings */}
       <div className="flex items-center gap-2 mr-4">
-        <button className="p-1.5 rounded-full text-[var(--color-text-primary)] opacity-50 hover:opacity-100 transition-opacity duration-150">
+        <button className="p-1.5 rounded-full text-[var(--color-text-tertiary)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] transition-opacity duration-150">
           <Icon name="settings" size={16} />
         </button>
       </div>
@@ -85,8 +81,8 @@ function TabButton({
       className={`
         flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.10em] rounded-full transition-all duration-150
         ${active
-          ? 'bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]'
-          : 'text-[var(--color-text-primary)] opacity-50 hover:opacity-100'
+          ? 'bg-[var(--color-accent-glow)] text-[var(--color-brand)]'
+          : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]'
         }
       `}
     >
@@ -95,4 +91,3 @@ function TabButton({
     </button>
   )
 }
-

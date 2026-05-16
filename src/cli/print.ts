@@ -464,6 +464,7 @@ export async function runHeadless(
   options: {
     continue: boolean | undefined
     resume: string | boolean | undefined
+    resumePath: string | undefined
     resumeSessionAt: string | undefined
     verbose: boolean | undefined
     outputFormat: string | undefined
@@ -688,6 +689,7 @@ export async function runHeadless(
     continue: options.continue,
     teleport: options.teleport,
     resume: options.resume,
+    resumePath: options.resumePath,
     resumeSessionAt: options.resumeSessionAt,
     forkSession: options.forkSession,
     outputFormat: options.outputFormat,
@@ -4900,6 +4902,7 @@ async function loadInitialMessages(
     continue: boolean | undefined
     teleport: string | true | null | undefined
     resume: string | boolean | undefined
+    resumePath: string | undefined
     resumeSessionAt: string | undefined
     forkSession: boolean | undefined
     outputFormat: string | undefined
@@ -5075,10 +5078,14 @@ async function loadInitialMessages(
         )
       }
 
-      // Load the conversation with the specified session ID
+      // Load the conversation with the specified session ID.
+      // When --resume-path is provided, use it as the explicit .jsonl path
+      // to skip directory-based file lookup (fixes cross-project resume where
+      // the transcript lives outside the current project dir).
+      const sourceJsonlFile = options.resumePath || parsedSessionId.jsonlFile || undefined
       const result = await loadConversationForResume(
         parsedSessionId.sessionId,
-        parsedSessionId.jsonlFile || undefined,
+        sourceJsonlFile,
       )
 
       // hydrateFromCCRv2InternalEvents writes an empty transcript file for

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { mockToolInspection } from '../mocks/data'
 import { Icon } from '../components/shared/Icon'
+import { Button } from '../components/shared/Button'
 
 export function ToolInspection() {
   const [activeDiffTab, setActiveDiffTab] = useState<'split' | 'unified'>('split')
@@ -30,12 +31,12 @@ export function ToolInspection() {
               <p className="text-[var(--color-on-surface-variant)] font-medium">{description}</p>
             </div>
             <div className="flex gap-2">
-              <button className="px-4 py-2 bg-[var(--color-surface-container-high)] rounded-lg text-[14px] font-semibold hover:bg-[var(--color-surface-variant)] transition-all">
+              <Button type="button" variant="secondary">
                 Revert Change
-              </button>
-              <button className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-on-primary)] rounded-lg text-[14px] font-semibold shadow-sm hover:opacity-90 transition-all">
+              </Button>
+              <Button type="button">
                 Apply to All
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -194,22 +195,16 @@ export function ToolInspection() {
                   <div className="absolute inset-0 flex items-center justify-center gap-4">
                     <div className="flex flex-col items-center gap-1">
                       <div className="p-2 bg-[var(--color-surface)] rounded-lg shadow-sm">
-                        <span className="material-symbols-outlined text-[var(--color-outline)]">
-                          description
-                        </span>
+                        <Icon name="description" size={20} className="text-[var(--color-outline)]" />
                       </div>
                       <span className="text-[9px] font-bold text-[var(--color-outline)]">
                         auth.ts
                       </span>
                     </div>
-                    <span className="material-symbols-outlined text-[var(--color-outline)] animate-pulse">
-                      keyboard_double_arrow_right
-                    </span>
+                    <Icon name="keyboard_double_arrow_right" size={20} className="text-[var(--color-outline)] animate-pulse" />
                     <div className="flex flex-col items-center gap-1">
                       <div className="p-2 bg-[var(--color-surface)] rounded-lg shadow-sm border border-[var(--color-tertiary)]/20">
-                        <span className="material-symbols-outlined text-[var(--color-tertiary)]">
-                          check_circle
-                        </span>
+                        <Icon name="check_circle" size={20} className="text-[var(--color-tertiary)]" />
                       </div>
                       <span className="text-[9px] font-bold text-[var(--color-tertiary)]">
                         Verified
@@ -225,4 +220,3 @@ export function ToolInspection() {
     </div>
   )
 }
-

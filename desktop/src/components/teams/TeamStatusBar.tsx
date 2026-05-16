@@ -82,12 +82,12 @@ export function TeamStatusBar() {
             </span>
           )}
 
-          <span
-            className="material-symbols-outlined text-[14px] text-[var(--color-text-tertiary)] transition-transform duration-200"
+          <Icon
+            name="expand_less"
+            size={14}
+            className="text-[var(--color-text-tertiary)] transition-transform duration-200"
             style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-          >
-            expand_less
-          </span>
+          />
         </button>
 
         {/* Expanded member list */}
@@ -111,12 +111,12 @@ function MemberRow({ member, onView }: { member: TeamMember; onView: () => void 
       onClick={onView}
       className="w-full flex items-center gap-2 py-1.5 px-1 rounded-md text-left hover:bg-[var(--color-surface-container-low)] transition-colors group"
     >
-      <span
-        className={`material-symbols-outlined text-[16px] shrink-0 ${config.pulse ? 'animate-pulse-dot' : ''}`}
-        style={{ color: config.color, fontVariationSettings: "'FILL' 1" }}
-      >
-        {config.icon}
-      </span>
+      <Icon
+        name={config.icon}
+        size={16}
+        className={`shrink-0 ${config.pulse ? 'animate-pulse-dot' : ''}`}
+        style={{ color: config.color }}
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -144,4 +144,3 @@ function MemberRow({ member, onView }: { member: TeamMember; onView: () => void 
     </button>
   )
 }
-

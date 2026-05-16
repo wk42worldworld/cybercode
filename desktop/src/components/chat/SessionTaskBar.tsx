@@ -21,15 +21,21 @@ const statusConfig = {
   },
 } as const
 
-export function SessionTaskBar() {
+export function SessionTaskBar({ sessionId }: { sessionId?: string } = {}) {
   const {
     tasks,
     expanded,
     toggleExpanded,
     completedAndDismissed,
     resetCompletedTasks,
+    sessionId: trackedSessionId,
   } = useCLITaskStore()
   const t = useTranslation()
+
+  // Only render for the panel whose session the cli-task store is currently
+  // tracking. Without this gate, every cached panel would show the foreground
+  // session's tasks (the store only holds one session at a time).
+  if (sessionId && trackedSessionId && sessionId !== trackedSessionId) return null
 
   if (tasks.length === 0) return null
 
@@ -41,67 +47,88 @@ export function SessionTaskBar() {
   const totalCount = tasks.length
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
+  // Find the first in-progress task for the compact label
+  const activeTask = tasks.find((tk) => tk.status === 'in_progress')
+  const taskLabel = activeTask
+    ? activeTask.subject
+    : allCompleted
+      ? t('tasks.completed')
+      : t('tasks.title')
+
   return (
     <div className="shrink-0 px-8">
-      <div className="mx-auto max-w-[860px] rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
-        {/* Header — always visible, clickable to toggle */}
-        <div className="flex items-center gap-2 bg-[var(--color-surface-container)] px-2 py-1.5">
-          <button
-            type="button"
-            onClick={toggleExpanded}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-md)] px-2 py-1 hover:bg-[var(--color-surface-container-low)] transition-colors"
-          >
-            <div className="flex items-center justify-center w-6 h-6 rounded-[var(--radius-md)] bg-[var(--color-secondary)]/10">
-              <Icon name="checklist" size={14} className="text-[var(--color-secondary)]" />
-            </div>
+      <div
+        className="mx-auto max-w-[860px] overflow-hidden mb-1 rounded-[var(--radius-md)]"
+        style={{ backgroundColor: 'var(--color-surface-container-low)' }}
+      >
+        <div className="flex items-stretch">
+          {/* Left accent vertical line */}
+          <div
+            className="w-0.5 shrink-0"
+            style={{
+              backgroundColor: allCompleted
+                ? 'var(--color-success)'
+                : 'var(--color-brand)',
+            }}
+          />
 
-            <span className="text-[11px] font-semibold tracking-[-0.01em] text-[var(--color-text-primary)]">
-              {t('tasks.title')}
-            </span>
-
-            {/* Progress bar */}
-            <div className="flex-1 h-1.5 rounded-full bg-[var(--color-border)] overflow-hidden max-w-[200px]">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width: `${progressPercent}%`,
-                  backgroundColor: completedCount === totalCount
-                    ? 'var(--color-success)'
-                    : 'var(--color-brand)',
-                }}
-              />
-            </div>
-
-            <span className="text-[9px] font-mono text-[var(--color-text-tertiary)] tabular-nums">
-              {completedCount}/{totalCount}
-            </span>
-
-            <span
-              className="material-symbols-outlined text-[14px] text-[var(--color-text-tertiary)] transition-transform duration-200"
-              style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-            >
-              expand_less
-            </span>
-          </button>
-
-          {allCompleted && (
+          {/* Compact status bar — 28px tall */}
+          <div className="flex-1 flex items-center gap-2 px-2" style={{ height: 28 }}>
             <button
               type="button"
-              aria-label={t('tasks.dismissCompleted')}
-              onClick={() => { void resetCompletedTasks() }}
-              className="flex shrink-0 items-center justify-center rounded-[var(--radius-md)] p-1.5 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-container-low)] hover:text-[var(--color-text-primary)] transition-colors"
+              onClick={toggleExpanded}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 hover:bg-[var(--color-surface-hover)] transition-colors"
             >
-              <Icon name="close" size={16} />
+              {/* Task status icon */}
+              <Icon
+                name={allCompleted ? 'check_circle' : activeTask ? 'pending' : 'checklist'}
+                size={14}
+                className={allCompleted ? 'text-[var(--color-success)]' : activeTask ? 'text-[var(--color-warning)]' : 'text-[var(--color-brand)]'}
+              />
+
+              {/* Task name — truncated */}
+              <span className="text-[11px] font-medium tracking-[-0.01em] text-[var(--color-text-primary)] truncate">
+                {taskLabel}
+              </span>
+
+              {/* Progress percentage */}
+              <span className="text-[10px] font-mono text-[var(--color-text-tertiary)] tabular-nums shrink-0">
+                {progressPercent}%
+              </span>
+
+              {/* Expand arrow */}
+              <Icon
+                name="expand_less"
+                size={12}
+                className="text-[var(--color-text-tertiary)] shrink-0 transition-transform duration-200"
+                style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
             </button>
-          )}
+
+            {allCompleted && (
+              <button
+                type="button"
+                aria-label={t('tasks.dismissCompleted')}
+                onClick={() => { void resetCompletedTasks() }}
+                className="flex shrink-0 items-center justify-center rounded-[var(--radius-sm)] p-1 text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors"
+              >
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Expanded task list */}
         {expanded && (
-          <div className="px-4 pb-2 pt-1 flex flex-col gap-0.5 max-h-[240px] overflow-y-auto border-t border-[var(--color-outline-variant)]/20">
-            {tasks.map((task) => (
-              <TaskItem key={task.id} task={task} />
-            ))}
+          <div className="flex items-stretch">
+            {/* Left accent line continues into expanded area */}
+            <div className="w-0.5 shrink-0 bg-[var(--color-border-separator)]" />
+
+            <div className="flex-1 px-3 pb-2 pt-1 flex flex-col gap-0.5 max-h-[240px] overflow-y-auto border-t border-[var(--color-border-separator)]">
+              {tasks.map((task) => (
+                <TaskItem key={task.id} task={task} />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -113,13 +140,8 @@ function TaskItem({ task }: { task: CLITask }) {
   const config = statusConfig[task.status]
 
   return (
-    <div className="flex items-start gap-2 py-1.5 px-1 rounded-md">
-      <span
-        className="material-symbols-outlined text-[16px] mt-px shrink-0"
-        style={{ color: config.color, fontVariationSettings: "'FILL' 1" }}
-      >
-        {config.icon}
-      </span>
+    <div className="flex items-start gap-2 py-1 px-1 rounded-md">
+      <Icon name={config.icon} size={14} className="mt-px shrink-0" style={{ color: config.color }} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
@@ -137,8 +159,8 @@ function TaskItem({ task }: { task: CLITask }) {
 
         {task.status === 'in_progress' && task.activeForm && (
           <div className="flex items-center gap-1 mt-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse" />
-            <span className="text-[10px] text-[var(--color-warning)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-glow" />
+            <span className="text-[10px] font-mono text-[var(--color-brand)]">
               {task.activeForm}
             </span>
           </div>
@@ -154,4 +176,3 @@ function TaskItem({ task }: { task: CLITask }) {
     </div>
   )
 }
-

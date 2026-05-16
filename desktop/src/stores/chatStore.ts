@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import { wsManager } from '../api/websocket'
 import { sessionsApi } from '../api/sessions'
+import { ApiError } from '../api/client'
 import { useTeamStore } from './teamStore'
 import { useSessionStore } from './sessionStore'
 import { useCLITaskStore } from './cliTaskStore'
 import { useSessionRuntimeStore } from './sessionRuntimeStore'
 import { useTabStore } from './tabStore'
+import { t } from '../i18n'
 import { randomSpinnerVerb } from '../config/spinnerVerbs'
+import { getDefaultSessionTitle } from '../utils/sessionTitle'
 import type { MessageEntry } from '../types/session'
 import {
   mapHistoryMessages as mapHistoryMessagesImpl,
@@ -30,14 +33,35 @@ import type {
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
+/** How many messages to request when loading older history via loadMoreHistory. */
 export const HISTORY_PAGE_SIZE = 50
-export const MAX_VISIBLE_MESSAGES = 100
+/** How many messages to request on initial history load (loadHistory / reloadHistory). */
+export const HISTORY_LOAD_LIMIT = 200
+/** Max messages kept in the visible window. Sliding window trims beyond this. */
+export const WINDOW_SIZE = 200
 
 export type PerSessionState = {
+  projectPath?: string
   messages: UIMessage[]
+  /** Whether all historical messages have been loaded into `messages`.
+   * When false, server-side pagination may provide more via loadMoreHistory. */
+  allMessagesLoaded?: boolean
+  /** Older messages that were trimmed from the head of `messages` when the
+   *  user scrolled down (loadMoreRecent).  Restored by loadMoreHistory. */
   historyBuffer: UIMessage[]
-  hasMoreHistory: boolean
-  isLoadingMoreHistory: boolean
+  /** Newer messages that were trimmed from the tail of `messages` when the
+   *  user scrolled up (loadMoreHistory).  Restored by loadMoreRecent. */
+  recentBuffer: UIMessage[]
+  /** Initial-history fetch state machine.
+   * - idle:    not yet attempted (or was reset)
+   * - loading: HTTP request in flight; re-entry guarded
+   * - loaded:  history is in memory (could be empty for a brand-new session)
+   * - error:   last attempt failed; user can retry
+   * Decouples history loading from WS connection: the previous code conflated
+   * the two and silently swallowed errors, so a transient network blip during
+   * tab-switch left the session permanently empty until the user navigated
+   * away+back several times. */
+  historyLoadState?: 'idle' | 'loading' | 'loaded' | 'error'
   chatState: ChatState
   connectionState: ConnectionState
   streamingText: string
@@ -72,8 +96,9 @@ export type PerSessionState = {
 const DEFAULT_SESSION_STATE: PerSessionState = {
   messages: [],
   historyBuffer: [],
-  hasMoreHistory: false,
-  isLoadingMoreHistory: false,
+  recentBuffer: [],
+  allMessagesLoaded: false,
+  historyLoadState: 'idle',
   chatState: 'idle',
   connectionState: 'disconnected',
   streamingText: '',
@@ -100,8 +125,9 @@ type ChatStore = {
   sessions: Record<string, PerSessionState>
 
   getSession: (sessionId: string) => PerSessionState
-  connectToSession: (sessionId: string) => void
+  connectToSession: (sessionId: string, projectPath?: string) => void
   disconnectSession: (sessionId: string) => void
+  ensureSessionReady: (sessionId: string, projectPath?: string) => Promise<void>
   sendMessage: (
     sessionId: string,
     content: string,
@@ -125,9 +151,12 @@ type ChatStore = {
   setSessionRuntime: (sessionId: string, selection: RuntimeSelection) => void
   setSessionPermissionMode: (sessionId: string, mode: PermissionMode) => void
   stopGeneration: (sessionId: string) => void
-  loadHistory: (sessionId: string) => Promise<void>
-  loadMoreHistory: (sessionId: string) => void
-  reloadHistory: (sessionId: string) => Promise<void>
+  loadHistory: (sessionId: string, projectPath?: string) => Promise<void>
+  /** Load older messages via server-side pagination. No-op if all messages are loaded. */
+  loadMoreHistory: (sessionId: string) => Promise<void>
+  /** Restore newer messages that were trimmed from the tail of `messages`. */
+  loadMoreRecent: (sessionId: string) => void
+  reloadHistory: (sessionId: string, projectPath?: string) => Promise<void>
   queueComposerPrefill: (
     sessionId: string,
     prefill: { text: string; attachments?: UIAttachment[] },
@@ -143,17 +172,55 @@ let msgCounter = 0
 const nextId = () => `msg-${++msgCounter}-${Date.now()}`
 
 // Streaming throttle for content_delta
-let pendingDelta = ''
-let flushTimer: ReturnType<typeof setTimeout> | null = null
+const pendingDeltas = new Map<string, string>()
+const flushTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const historyLoadTokens = new Map<string, symbol>()
 
-function consumePendingDelta(): string {
-  if (flushTimer) {
-    clearTimeout(flushTimer)
-    flushTimer = null
+function consumePendingDelta(sessionId: string): string {
+  const timer = flushTimers.get(sessionId)
+  if (timer) {
+    clearTimeout(timer)
+    flushTimers.delete(sessionId)
   }
-  const text = pendingDelta
-  pendingDelta = ''
+  const text = pendingDeltas.get(sessionId) ?? ''
+  pendingDeltas.delete(sessionId)
   return text
+}
+
+function clearPendingDelta(sessionId: string) {
+  const timer = flushTimers.get(sessionId)
+  if (timer) clearTimeout(timer)
+  flushTimers.delete(sessionId)
+  pendingDeltas.delete(sessionId)
+}
+
+function beginHistoryLoad(sessionId: string) {
+  const token = Symbol(sessionId)
+  historyLoadTokens.set(sessionId, token)
+  return token
+}
+
+function isCurrentHistoryLoad(sessionId: string, token: symbol) {
+  return historyLoadTokens.get(sessionId) === token
+}
+
+function finishHistoryLoad(sessionId: string, token: symbol) {
+  if (isCurrentHistoryLoad(sessionId, token)) {
+    historyLoadTokens.delete(sessionId)
+  }
+}
+
+function isEmptyHistoryState(session?: PerSessionState) {
+  return (
+    !session ||
+    (session.messages.length === 0 &&
+      session.historyBuffer.length === 0 &&
+      session.recentBuffer.length === 0)
+  )
+}
+
+function isNotFoundError(error: unknown) {
+  return error instanceof ApiError && error.status === 404
 }
 
 function appendAssistantTextMessage(
@@ -197,8 +264,11 @@ function updateSessionIn(
   return { ...sessions, [sessionId]: { ...session, ...updater(session) } }
 }
 
-async function fetchAndMapSessionHistory(sessionId: string) {
-  const { messages } = await sessionsApi.getMessages(sessionId)
+async function fetchAndMapSessionHistory(
+  sessionId: string,
+  params?: { limit?: number; before?: string; after?: string; projectPath?: string },
+) {
+  const { messages, hasMore } = await sessionsApi.getMessages(sessionId, params)
   const parsed = parseHistory(messages, nextId)
   return {
     rawMessages: messages,
@@ -206,6 +276,7 @@ async function fetchAndMapSessionHistory(sessionId: string) {
     restoredNotifications: parsed.restoredNotifications,
     lastTodos: parsed.lastTodos,
     hasMessagesAfterTaskCompletion: parsed.hasMessagesAfterTaskCompletion,
+    hasMore,
   }
 }
 
@@ -214,64 +285,138 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   getSession: (sessionId) => get().sessions[sessionId] ?? createDefaultSessionState(),
 
-  connectToSession: (sessionId) => {
+  connectToSession: (sessionId, projectPath) => {
     void useCLITaskStore.getState().fetchSessionTasks(sessionId)
 
     const existing = get().sessions[sessionId]
-    if (existing && existing.connectionState !== 'disconnected') return
+    const locatorChanged = !!projectPath && !!existing?.projectPath && existing.projectPath !== projectPath
+    if (locatorChanged) {
+      historyLoadTokens.delete(sessionId)
+      clearPendingDelta(sessionId)
+      set((s) => ({
+        sessions: updateSessionIn(s.sessions, sessionId, (session) => ({
+          ...session,
+          projectPath,
+          messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          allMessagesLoaded: false,
+          historyLoadState: 'idle',
+          streamingText: '',
+          streamingToolInput: '',
+          activeThinkingId: null,
+          activeToolUseId: null,
+          activeToolName: null,
+        })),
+      }))
+    } else if (projectPath && existing?.projectPath !== projectPath) {
+      set((s) => ({
+        sessions: updateSessionIn(s.sessions, sessionId, () => ({ projectPath })),
+      }))
+    }
+    // Only `'connected'` counts as "WS already active". The previous code
+    // treated `'connecting'` as active too, which left the UI stuck in
+    // connecting forever if the initial WS handshake failed (since
+    // `connectionState` was never written back to `'disconnected'` from
+    // ws.onclose). Now `'connecting'` triggers a re-init, which is safe
+    // because wsManager.connect() is idempotent for live sockets.
+    const wsAlreadyActive = !!existing && existing.connectionState === 'connected'
 
-    set((s) => ({
-      sessions: {
-        ...s.sessions,
-        [sessionId]: {
-          ...createDefaultSessionState(),
-          connectionState: 'connecting',
-          messages: existing?.messages ?? [],
+    // 1) WS layer — only (re)connect when not actively connected
+    if (!wsAlreadyActive) {
+      set((s) => ({
+        sessions: {
+          ...s.sessions,
+          [sessionId]: {
+            ...createDefaultSessionState(),
+            projectPath: projectPath ?? existing?.projectPath,
+            connectionState: 'connecting',
+            messages: locatorChanged ? [] : existing?.messages ?? [],
+            historyBuffer: locatorChanged ? [] : existing?.historyBuffer ?? [],
+            recentBuffer: locatorChanged ? [] : existing?.recentBuffer ?? [],
+            allMessagesLoaded: locatorChanged ? false : existing?.allMessagesLoaded ?? false,
+            historyLoadState: locatorChanged ? 'idle' : existing?.historyLoadState ?? 'idle',
+          },
         },
-      },
-    }))
+      }))
 
-    wsManager.clearHandlers(sessionId)
-    wsManager.connect(sessionId)
-    wsManager.onMessage(sessionId, (msg) => {
-      if (msg.type === 'connected') {
-        set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ connectionState: 'connected' })) }))
+      wsManager.clearHandlers(sessionId)
+      wsManager.connect(sessionId)
+      // Bridge socket-level state into chatStore so a dropped/closed socket
+      // unsticks the UI from `'connecting'`. Without this the only path to
+      // `'connected'` was a server-sent `{type:'connected'}` message, which
+      // never arrives if the handshake itself failed.
+      wsManager.onStateChange(sessionId, (state) => {
+        set((s) => {
+          const sess = s.sessions[sessionId]
+          if (!sess) return s
+          if (state === 'open') {
+            // Server `connected` message will set the formal 'connected'.
+            // Until then we stay in 'connecting' to suppress message-send.
+            return s
+          }
+          if (state === 'closed') {
+            // Show as disconnected so connectToSession() will re-init on
+            // the next focus instead of short-circuiting.
+            return { sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              connectionState: 'disconnected',
+            }))}
+          }
+          return s
+        })
+      })
+      wsManager.onMessage(sessionId, (msg) => {
+        if (msg.type === 'connected') {
+          set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ connectionState: 'connected' })) }))
+        }
+        get().handleServerMessage(sessionId, msg)
+      })
+
+      const runtimeSelection = useSessionRuntimeStore.getState().selections[sessionId]
+      if (runtimeSelection) {
+        wsManager.send(sessionId, { type: 'set_runtime_config', ...runtimeSelection })
       }
-      get().handleServerMessage(sessionId, msg)
-    })
-
-    const runtimeSelection = useSessionRuntimeStore.getState().selections[sessionId]
-    if (runtimeSelection) {
-      wsManager.send(sessionId, { type: 'set_runtime_config', ...runtimeSelection })
-    }
-    if (!sessionId.startsWith('__') && !useTeamStore.getState().getMemberBySessionId(sessionId)) {
-      wsManager.send(sessionId, { type: 'prewarm_session' })
+      if (!sessionId.startsWith('__') && !useTeamStore.getState().getMemberBySessionId(sessionId)) {
+        wsManager.send(sessionId, { type: 'prewarm_session' })
+      }
     }
 
-    if (!existing?.messages?.length) {
-      get().loadHistory(sessionId)
+    // 2) History layer — driven by AppShell bootstrap (explicit await before
+    // setReady). connectToSession no longer auto-triggers loadHistory so the
+    // caller controls when data is ready vs when the UI is revealed.
+
+    // 3) Slash commands — independent fetch
+    if (!wsAlreadyActive) {
+      sessionsApi.getSlashCommands(sessionId, { projectPath: projectPath ?? existing?.projectPath })
+        .then(({ commands }) => {
+          if (get().sessions[sessionId]) {
+            set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ slashCommands: commands })) }))
+          }
+        })
+        .catch(() => {
+          if (get().sessions[sessionId]) {
+            set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ slashCommands: [] })) }))
+          }
+        })
     }
-    sessionsApi.getSlashCommands(sessionId)
-      .then(({ commands }) => {
-        if (get().sessions[sessionId]) {
-          set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ slashCommands: commands })) }))
-        }
-      })
-      .catch(() => {
-        if (get().sessions[sessionId]) {
-          set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ slashCommands: [] })) }))
-        }
-      })
+  },
+
+  ensureSessionReady: async (sessionId, projectPath) => {
+    get().connectToSession(sessionId, projectPath)
+    await get().loadHistory(sessionId, projectPath)
   },
 
   disconnectSession: (sessionId) => {
     const session = get().sessions[sessionId]
     if (session?.elapsedTimer) clearInterval(session.elapsedTimer)
-    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null }
+    const pendingDelta = pendingDeltas.get(sessionId)
     if (pendingDelta) {
-      const text = consumePendingDelta()
+      const text = consumePendingDelta(sessionId)
       set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, (sess) => ({ streamingText: sess.streamingText + text })) }))
+    } else {
+      clearPendingDelta(sessionId)
     }
+    historyLoadTokens.delete(sessionId)
     wsManager.disconnect(sessionId)
     set((s) => {
       const { [sessionId]: _, ...rest } = s.sessions
@@ -305,11 +450,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     set((s) => {
       const session = s.sessions[sessionId] ?? createDefaultSessionState()
-      if (flushTimer) {
-        clearTimeout(flushTimer)
-        flushTimer = null
-      }
-      const bufferedDelta = consumePendingDelta()
+      const bufferedDelta = consumePendingDelta(sessionId)
       const pendingAssistantText = `${session.streamingText}${bufferedDelta}`
 
       const newMessages = pendingAssistantText.trim()
@@ -421,10 +562,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   stopGeneration: (sessionId) => {
     wsManager.send(sessionId, { type: 'stop_generation' })
-    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null }
+    const pendingDelta = pendingDeltas.get(sessionId)
     if (pendingDelta) {
-      const text = consumePendingDelta()
+      const text = consumePendingDelta(sessionId)
       set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, (sess) => ({ streamingText: sess.streamingText + text })) }))
+    } else {
+      clearPendingDelta(sessionId)
     }
     set((s) => {
       const session = s.sessions[sessionId]
@@ -445,76 +588,296 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     })
   },
 
-  loadMoreHistory: (sessionId) => {
+  loadMoreHistory: async (sessionId) => {
     const session = get().sessions[sessionId]
-    if (!session || !session.hasMoreHistory || session.isLoadingMoreHistory) return
+    if (!session) return
+    if (session.allMessagesLoaded && session.historyBuffer.length === 0) return
 
-    const { historyBuffer, messages } = session
-    const chunk = historyBuffer.slice(-HISTORY_PAGE_SIZE)
-    const remaining = historyBuffer.slice(0, -HISTORY_PAGE_SIZE)
+    let olderMessages: UIMessage[] = []
+    let fetchedFromServer = false
+    let serverHasMore = false
 
-    // Simply prepend — Virtuoso handles DOM virtualization, no need to trim
+    // 1. First try historyBuffer (local, instant)
+    if (session.historyBuffer.length > 0) {
+      const takeCount = Math.min(HISTORY_PAGE_SIZE, session.historyBuffer.length)
+      olderMessages = session.historyBuffer.slice(-takeCount)
+    } else if (!session.allMessagesLoaded) {
+      // 2. Fetch older messages from server using before cursor
+      const firstMsgWithServerId = session.messages.find((m) => 'serverId' in m && m.serverId)
+      const cursor = firstMsgWithServerId?.serverId
+      if (!cursor) {
+        // Can't paginate without a server-side cursor — mark done
+        set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ allMessagesLoaded: true })) }))
+        return
+      }
+      try {
+        const result = await fetchAndMapSessionHistory(sessionId, {
+          limit: HISTORY_PAGE_SIZE,
+          before: cursor,
+          projectPath: session.projectPath,
+        })
+        olderMessages = result.uiMessages
+        serverHasMore = result.hasMore
+        fetchedFromServer = true
+      } catch (err) {
+        console.error('[chatStore] loadMoreHistory failed', err)
+        return
+      }
+    }
+
+    if (olderMessages.length === 0) return
+
+    set((s) => {
+      const sess = s.sessions[sessionId]
+      if (!sess) return s
+
+      // If we took from historyBuffer, remove those items
+      let historyBuffer = sess.historyBuffer
+      if (!fetchedFromServer && historyBuffer.length > 0) {
+        const takenCount = Math.min(HISTORY_PAGE_SIZE, historyBuffer.length)
+        historyBuffer = historyBuffer.slice(0, -takenCount)
+      }
+
+      // Prepend older messages
+      let messages = [...olderMessages, ...sess.messages]
+      let recentBuffer = sess.recentBuffer
+
+      // Trim tail (newest) into recentBuffer if window exceeds WINDOW_SIZE
+      if (messages.length > WINDOW_SIZE) {
+        const trimCount = messages.length - WINDOW_SIZE
+        recentBuffer = [...messages.slice(-trimCount), ...recentBuffer]
+        messages = messages.slice(0, WINDOW_SIZE)
+      }
+
+      const allLoaded = (fetchedFromServer ? !serverHasMore : sess.allMessagesLoaded) && historyBuffer.length === 0
+
+      return {
+        sessions: updateSessionIn(s.sessions, sessionId, () => ({
+          messages,
+          historyBuffer,
+          recentBuffer,
+          allMessagesLoaded: allLoaded,
+        })),
+      }
+    })
+  },
+
+  loadMoreRecent: (sessionId) => {
+    const session = get().sessions[sessionId]
+    if (!session || session.recentBuffer.length === 0) return
+
+    const takeCount = Math.min(HISTORY_PAGE_SIZE, session.recentBuffer.length)
+    const newerMessages = session.recentBuffer.slice(0, takeCount)
+    const remainingRecentBuffer = session.recentBuffer.slice(takeCount)
+
+    // Insert recentBuffer messages at the correct chronological position.
+    // They were trimmed from the tail before any WS-pushed messages arrived,
+    // so they should go before any messages with a later timestamp.
+    const lastRecentTimestamp = newerMessages[newerMessages.length - 1]!.timestamp
+    let insertIndex = session.messages.length
+    for (let i = 0; i < session.messages.length; i++) {
+      if (session.messages[i]!.timestamp > lastRecentTimestamp) {
+        insertIndex = i
+        break
+      }
+    }
+
+    let messages = [
+      ...session.messages.slice(0, insertIndex),
+      ...newerMessages,
+      ...session.messages.slice(insertIndex),
+    ]
+
+    // Trim head (oldest) into historyBuffer if window exceeds WINDOW_SIZE
+    let historyBuffer = session.historyBuffer
+    if (messages.length > WINDOW_SIZE) {
+      const trimCount = messages.length - WINDOW_SIZE
+      historyBuffer = [...messages.slice(0, trimCount), ...historyBuffer]
+      messages = messages.slice(trimCount)
+    }
+
     set((s) => ({
       sessions: updateSessionIn(s.sessions, sessionId, () => ({
-        messages: [...chunk, ...messages],
-        historyBuffer: remaining,
-        hasMoreHistory: remaining.length > 0,
-        isLoadingMoreHistory: false,
+        messages,
+        historyBuffer,
+        recentBuffer: remainingRecentBuffer,
+        allMessagesLoaded: session.allMessagesLoaded && historyBuffer.length === 0,
       })),
     }))
   },
 
-  loadHistory: async (sessionId) => {
+  loadHistory: async (sessionId, projectPath) => {
+    const current = get().sessions[sessionId]
+    if (!current) return
+    const locatorChanged = !!projectPath && !!current.projectPath && current.projectPath !== projectPath
+    const effectiveProjectPath = projectPath ?? current.projectPath
+    // Re-entry guard: an in-flight fetch is in progress
+    if (current.historyLoadState === 'loading' && !locatorChanged) return
+    // Already-loaded guard: an empty transcript is still a successfully loaded
+    // transcript. Brand-new sessions can legitimately have zero messages, so
+    // don't keep refetching them on every tab switch and risk turning a brief
+    // locator/server race into a visible error state.
+    if (!locatorChanged && current.historyLoadState === 'loaded') return
+
+    const historyToken = beginHistoryLoad(sessionId)
+
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, () => ({
+        projectPath: effectiveProjectPath,
+        ...(locatorChanged ? {
+          messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          allMessagesLoaded: false,
+        } : {}),
+        historyLoadState: 'loading',
+      })),
+    }))
+
     try {
       const {
         uiMessages,
         restoredNotifications,
         lastTodos,
         hasMessagesAfterTaskCompletion,
-      } = await fetchAndMapSessionHistory(sessionId)
-      const displayMessages = uiMessages.slice(-HISTORY_PAGE_SIZE)
-      const historyBuffer = uiMessages.slice(0, -HISTORY_PAGE_SIZE)
+        hasMore,
+      } = await fetchAndMapSessionHistory(sessionId, { limit: HISTORY_LOAD_LIMIT, projectPath: effectiveProjectPath })
+      if (!isCurrentHistoryLoad(sessionId, historyToken)) return
+
       set((state) => {
+        if (!isCurrentHistoryLoad(sessionId, historyToken)) return state
         const session = state.sessions[sessionId]
-        if (!session || session.messages.length > 0) return state
+        if (!session) return state
+        if (state.sessions[sessionId] !== undefined && session.historyLoadState !== 'loading') {
+          return state
+        }
+        // Merge server history with any WS-pushed messages that arrived
+        // during the fetch.  Deduplicate by serverId.
+        const serverIds = new Set(
+          uiMessages
+            .filter((m) => 'serverId' in m && m.serverId)
+            .map((m) => (m as { serverId: string }).serverId),
+        )
+        const localOnly = session.messages.filter(
+          (m) => !('serverId' in m && m.serverId && serverIds.has(m.serverId)),
+        )
+        const merged = [...uiMessages, ...localOnly]
+
+        // Apply sliding window: if merged exceeds WINDOW_SIZE, trim from head
+        // (oldest) into historyBuffer.
+        let messages = merged
+        let historyBuffer = session.historyBuffer
+        if (messages.length > WINDOW_SIZE) {
+          const trimCount = messages.length - WINDOW_SIZE
+          historyBuffer = [...messages.slice(0, trimCount), ...historyBuffer]
+          messages = messages.slice(trimCount)
+        }
+
         return { sessions: updateSessionIn(state.sessions, sessionId, (s) => ({
-          messages: displayMessages,
+          messages,
           historyBuffer,
-          hasMoreHistory: historyBuffer.length > 0,
+          recentBuffer: [],
+          allMessagesLoaded: !hasMore && historyBuffer.length === 0,
+          historyLoadState: 'loaded',
+          projectPath: effectiveProjectPath,
           agentTaskNotifications: { ...s.agentTaskNotifications, ...restoredNotifications },
         })) }
       })
-      if (lastTodos && lastTodos.length > 0) {
-        const taskStore = useCLITaskStore.getState()
-        if (taskStore.tasks.length === 0) taskStore.setTasksFromTodos(lastTodos)
-      } else {
-        useCLITaskStore.getState().setTasksFromTodos([])
+      if (isCurrentHistoryLoad(sessionId, historyToken) && get().sessions[sessionId]?.historyLoadState === 'loaded') {
+        finishHistoryLoad(sessionId, historyToken)
+        if (lastTodos && lastTodos.length > 0) {
+          const taskStore = useCLITaskStore.getState()
+          if (taskStore.tasks.length === 0) taskStore.setTasksFromTodos(lastTodos)
+        } else {
+          useCLITaskStore.getState().setTasksFromTodos([])
+        }
+        if (hasMessagesAfterTaskCompletion) {
+          useCLITaskStore.getState().markCompletedAndDismissed()
+        }
       }
-      if (hasMessagesAfterTaskCompletion) {
-        useCLITaskStore.getState().markCompletedAndDismissed()
+    } catch (err) {
+      if (!isCurrentHistoryLoad(sessionId, historyToken)) return
+      const currentSession = get().sessions[sessionId]
+      if (isNotFoundError(err) && isEmptyHistoryState(currentSession)) {
+        set((s) => {
+          const session = s.sessions[sessionId]
+          if (!session || session.historyLoadState !== 'loading') return s
+          return {
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              messages: [],
+              historyBuffer: [],
+              recentBuffer: [],
+              allMessagesLoaded: true,
+              historyLoadState: 'loaded',
+              projectPath: effectiveProjectPath,
+            })),
+          }
+        })
+        if (get().sessions[sessionId]?.historyLoadState === 'loaded') {
+          useCLITaskStore.getState().setTasksFromTodos([])
+        }
+        finishHistoryLoad(sessionId, historyToken)
+        return
       }
-    } catch {
-      // Session may not have messages yet
+
+      console.error('[chatStore] loadHistory failed for', sessionId, err)
+      // Only mark error if the session is still in 'loading' (still ours).
+      set((s) => {
+        const session = s.sessions[sessionId]
+        if (!session || session.historyLoadState !== 'loading') return s
+        return {
+          sessions: updateSessionIn(s.sessions, sessionId, () => ({
+            historyLoadState: 'error',
+          })),
+        }
+      })
+      finishHistoryLoad(sessionId, historyToken)
     }
   },
 
-  reloadHistory: async (sessionId) => {
+  reloadHistory: async (sessionId, projectPath) => {
+    const effectiveProjectPath = projectPath ?? get().sessions[sessionId]?.projectPath
+    const historyToken = beginHistoryLoad(sessionId)
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, () => ({
+        projectPath: effectiveProjectPath,
+        historyLoadState: 'loading',
+      })),
+    }))
     try {
       const {
         uiMessages,
         restoredNotifications,
         lastTodos,
         hasMessagesAfterTaskCompletion,
-      } = await fetchAndMapSessionHistory(sessionId)
+        hasMore,
+      } = await fetchAndMapSessionHistory(sessionId, { limit: HISTORY_LOAD_LIMIT, projectPath: effectiveProjectPath })
+      if (!isCurrentHistoryLoad(sessionId, historyToken)) return
 
       set((state) => {
+        if (!isCurrentHistoryLoad(sessionId, historyToken)) return state
         const session = state.sessions[sessionId]
         if (!session) return state
         if (session.elapsedTimer) clearInterval(session.elapsedTimer)
+
+        // Apply sliding window: trim head into historyBuffer if exceeds WINDOW_SIZE
+        let messages = uiMessages
+        let historyBuffer: UIMessage[] = []
+        if (messages.length > WINDOW_SIZE) {
+          const trimCount = messages.length - WINDOW_SIZE
+          historyBuffer = messages.slice(0, trimCount)
+          messages = messages.slice(trimCount)
+        }
+
         return {
           sessions: updateSessionIn(state.sessions, sessionId, () => ({
-            messages: uiMessages,
+            messages,
+            historyBuffer,
+            recentBuffer: [],
+            allMessagesLoaded: !hasMore && historyBuffer.length === 0,
             agentTaskNotifications: restoredNotifications,
+            historyLoadState: 'loaded',
+            projectPath: effectiveProjectPath,
             chatState: 'idle',
             activeThinkingId: null,
             activeToolUseId: null,
@@ -529,16 +892,46 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       })
 
-      if (lastTodos && lastTodos.length > 0) {
-        useCLITaskStore.getState().setTasksFromTodos(lastTodos)
-      } else {
-        useCLITaskStore.getState().setTasksFromTodos([])
+      if (isCurrentHistoryLoad(sessionId, historyToken) && get().sessions[sessionId]?.historyLoadState === 'loaded') {
+        finishHistoryLoad(sessionId, historyToken)
+        if (lastTodos && lastTodos.length > 0) {
+          useCLITaskStore.getState().setTasksFromTodos(lastTodos)
+        } else {
+          useCLITaskStore.getState().setTasksFromTodos([])
+        }
+        if (hasMessagesAfterTaskCompletion) {
+          useCLITaskStore.getState().markCompletedAndDismissed()
+        }
       }
-      if (hasMessagesAfterTaskCompletion) {
-        useCLITaskStore.getState().markCompletedAndDismissed()
+    } catch (err) {
+      if (!isCurrentHistoryLoad(sessionId, historyToken)) return
+      const currentSession = get().sessions[sessionId]
+      if (isNotFoundError(err) && isEmptyHistoryState(currentSession)) {
+        set((s) => ({
+          sessions: updateSessionIn(s.sessions, sessionId, () => ({
+            messages: [],
+            historyBuffer: [],
+            recentBuffer: [],
+            allMessagesLoaded: true,
+            historyLoadState: 'loaded',
+            projectPath: effectiveProjectPath,
+            agentTaskNotifications: {},
+          })),
+        }))
+        if (get().sessions[sessionId]?.historyLoadState === 'loaded') {
+          useCLITaskStore.getState().setTasksFromTodos([])
+        }
+        finishHistoryLoad(sessionId, historyToken)
+        return
       }
-    } catch {
-      // Session may not have messages yet
+
+      console.error('[chatStore] reloadHistory failed for', sessionId, err)
+      set((s) => ({
+        sessions: updateSessionIn(s.sessions, sessionId, () => ({
+          historyLoadState: 'error',
+        })),
+      }))
+      finishHistoryLoad(sessionId, historyToken)
     }
   },
 
@@ -569,7 +962,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'status':
         update((session) => {
-          const pendingText = `${session.streamingText}${consumePendingDelta()}`
+          const pendingText = `${session.streamingText}${consumePendingDelta(sessionId)}`
           const hasPendingStreamText =
             session.chatState === 'streaming' && pendingText.trim().length > 0
           // Background task progress can arrive while the assistant is still
@@ -603,7 +996,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'content_start': {
         const session = get().sessions[sessionId]
         if (!session) break
-        const pendingText = `${session.streamingText}${consumePendingDelta()}`
+        const pendingText = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (msg.blockType !== 'text' && pendingText.trim()) {
           update((s) => ({
             messages: appendAssistantTextMessage(s.messages, pendingText, Date.now()),
@@ -630,22 +1023,25 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'content_delta':
         if (msg.text !== undefined) {
-          pendingDelta += msg.text
-          if (!flushTimer) {
-            flushTimer = setTimeout(() => {
-              const text = pendingDelta
-              pendingDelta = ''
-              flushTimer = null
+          pendingDeltas.set(sessionId, `${pendingDeltas.get(sessionId) ?? ''}${msg.text}`)
+          if (!flushTimers.has(sessionId)) {
+            const timer = setTimeout(() => {
+              const text = pendingDeltas.get(sessionId) ?? ''
+              pendingDeltas.delete(sessionId)
+              flushTimers.delete(sessionId)
               update((s) => ({ streamingText: s.streamingText + text }))
             }, 50)
+            flushTimers.set(sessionId, timer)
           }
         }
         if (msg.toolInput !== undefined) update((s) => ({ streamingToolInput: s.streamingToolInput + msg.toolInput }))
         break
 
       case 'thinking':
+        // Debug: log thinking to window
+        try { (window as any).__thinking_log = (window as any).__thinking_log || []; (window as any).__thinking_log.push({ ts: Date.now(), text: msg.text?.slice(0, 60) }); } catch {}
         update((s) => {
-          const pendingText = `${s.streamingText}${consumePendingDelta()}`
+          const pendingText = `${s.streamingText}${consumePendingDelta(sessionId)}`
           const base = pendingText.trim()
             ? appendAssistantTextMessage(s.messages, pendingText, Date.now())
             : s.messages
@@ -742,7 +1138,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'message_complete': {
         const session = get().sessions[sessionId]
         if (!session) break
-        const text = `${session.streamingText}${consumePendingDelta()}`
+        const text = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (text.trim()) {
           update((s) => ({
             messages: appendAssistantTextMessage(s.messages, text, Date.now()),
@@ -765,7 +1161,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'error':
         update((s) => {
-          const pendingText = `${s.streamingText}${consumePendingDelta()}`
+          const pendingText = `${s.streamingText}${consumePendingDelta(sessionId)}`
           let newMessages = s.messages
           if (pendingText.trim()) {
             newMessages = appendAssistantTextMessage(newMessages, pendingText, Date.now())
@@ -814,6 +1210,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           if (session?.elapsedTimer) clearInterval(session.elapsedTimer)
           update(() => ({
             messages: [],
+            allMessagesLoaded: false,
+            // Set to 'idle' (not 'loaded') so the next focus on this session
+            // re-fetches from server and we don't trust a possibly-stale
+            // local clear when server-side state could differ.
+            historyLoadState: 'idle',
             streamingText: '',
             streamingToolInput: '',
             activeToolUseId: null,
@@ -829,8 +1230,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             slashCommands: [],
           }))
           useCLITaskStore.getState().clearTasks()
-          useSessionStore.getState().updateSessionTitle(sessionId, 'New Session')
-          useTabStore.getState().updateTabTitle(sessionId, 'New Session')
+          const defaultTitle = getDefaultSessionTitle(t)
+          useSessionStore.getState().updateSessionTitle(sessionId, defaultTitle)
+          useTabStore.getState().updateTabTitle(sessionId, defaultTitle)
           useTabStore.getState().updateTabStatus(sessionId, 'idle')
         }
         if (msg.subtype === 'compact_boundary') {

@@ -32,6 +32,15 @@ async function cleanupTmpDir(): Promise<void> {
   delete process.env.CLAUDE_CONFIG_DIR
 }
 
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.stat(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Write a JSONL session file with given entries. */
 async function writeSessionFile(
   projectDir: string,
@@ -56,6 +65,13 @@ async function writeSubagentTranscriptFile(
   await fs.mkdir(dir, { recursive: true })
   const normalizedAgentId = agentId.startsWith('agent-') ? agentId : `agent-${agentId}`
   const filePath = path.join(dir, `${normalizedAgentId}.jsonl`)
+  const content = entries.map((e) => JSON.stringify(e)).join('\n') + '\n'
+  await fs.writeFile(filePath, content, 'utf-8')
+  return filePath
+}
+
+async function writeHistoryLog(entries: Record<string, unknown>[]): Promise<string> {
+  const filePath = path.join(tmpDir, 'history.jsonl')
   const content = entries.map((e) => JSON.stringify(e)).join('\n') + '\n'
   await fs.writeFile(filePath, content, 'utf-8')
   return filePath
@@ -300,8 +316,30 @@ describe('SessionService', () => {
       makeAssistantEntry('World'),
     ])
 
-    const messages = await service.getSessionMessages(sessionId)
+    const messages = await service.getSessionMessages(sessionId).then(r => r.messages)
     expect(messages).toHaveLength(2)
+  })
+
+  it('should load messages from the requested projectPath when duplicate session ids exist', async () => {
+    const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const olderPath = await writeSessionFile('-project-old', sessionId, [
+      makeSnapshotEntry(),
+      makeUserEntry('old transcript'),
+    ])
+    const newerPath = await writeSessionFile('-project-new', sessionId, [
+      makeSnapshotEntry(),
+      makeUserEntry('new transcript'),
+    ])
+    const oldDate = new Date('2026-01-01T00:00:00.000Z')
+    const newDate = new Date('2026-01-02T00:00:00.000Z')
+    await fs.utimes(olderPath, oldDate, oldDate)
+    await fs.utimes(newerPath, newDate, newDate)
+
+    const precise = await service.getSessionMessages(sessionId, { projectPath: '-project-old' })
+    expect(precise.messages[0]!.content).toBe('old transcript')
+
+    const fallback = await service.getSessionMessages(sessionId)
+    expect(fallback.messages[0]!.content).toBe('new transcript')
   })
 
   it('should append subagent tool calls under their parent agent tool result', async () => {
@@ -383,7 +421,7 @@ describe('SessionService', () => {
       },
     ])
 
-    const messages = await service.getSessionMessages(sessionId)
+    const messages = await service.getSessionMessages(sessionId).then(r => r.messages)
     const childToolUse = messages.find(
       (message) => message.type === 'tool_use' && message.parentToolUseId === 'Agent:0',
     )
@@ -444,7 +482,7 @@ describe('SessionService', () => {
       makeAssistantEntry('正常助手消息', crypto.randomUUID()),
     ])
 
-    const messages = await service.getSessionMessages(sessionId)
+    const messages = await service.getSessionMessages(sessionId).then(r => r.messages)
 
     expect(messages).toHaveLength(2)
     expect(messages[0]).toMatchObject({ type: 'user', content: '正常用户消息' })
@@ -528,7 +566,7 @@ describe('SessionService', () => {
       },
     ])
 
-    const messages = await service.getSessionMessages(sessionId)
+    const messages = await service.getSessionMessages(sessionId).then(r => r.messages)
 
     expect(messages[1]).toMatchObject({
       type: 'tool_use',
@@ -632,12 +670,35 @@ describe('SessionService', () => {
 
   it('should delete an existing session', async () => {
     const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const otherSessionId = 'bbbbbbbb-bbbb-cccc-dddd-eeeeeeeeeeee'
     const filePath = await writeSessionFile('-tmp-project', sessionId, [makeSnapshotEntry()])
+    const auxDir = path.join(tmpDir, 'projects', '-tmp-project', sessionId, 'tool-results')
+    await fs.mkdir(auxDir, { recursive: true })
+    await fs.writeFile(path.join(auxDir, 'result.txt'), 'tool output', 'utf-8')
+    await writeHistoryLog([
+      {
+        display: 'Deleted prompt',
+        timestamp: 1778000000000,
+        project: '/tmp/project',
+        sessionId,
+      },
+      {
+        display: 'Other prompt',
+        timestamp: 1778000001000,
+        project: '/tmp/project',
+        sessionId: otherSessionId,
+      },
+    ])
 
     await service.deleteSession(sessionId)
 
     // File should no longer exist
-    expect(fs.access(filePath)).rejects.toThrow()
+    await expect(fs.access(filePath)).rejects.toThrow()
+    await expect(fs.access(path.join(tmpDir, 'projects', '-tmp-project', sessionId))).rejects.toThrow()
+
+    const history = await fs.readFile(path.join(tmpDir, 'history.jsonl'), 'utf-8')
+    expect(history).not.toContain(sessionId)
+    expect(history).toContain(otherSessionId)
   })
 
   it('should throw when deleting non-existent session', async () => {
@@ -722,6 +783,61 @@ describe('SessionService', () => {
     expect(launchInfo!.workDir).toBe(os.tmpdir())
     expect(launchInfo!.transcriptMessageCount).toBe(0)
     expect(launchInfo!.customTitle).toBeNull()
+  })
+
+  it('should recreate placeholder metadata after a zero-message placeholder is replaced', async () => {
+    const workDir = os.tmpdir()
+    const { sessionId } = await service.createSession(workDir)
+
+    await service.deleteSessionFile(sessionId)
+    expect(await service.findSessionFile(sessionId)).toBeNull()
+
+    await service.appendSessionMetadata(sessionId, { workDir })
+
+    const projectPath = sanitizePath(path.resolve(workDir))
+    const list = await service.listSessions()
+    const restored = list.sessions.find((session) => session.id === sessionId)
+    expect(restored).toMatchObject({
+      id: sessionId,
+      title: 'Untitled Session',
+      lastMessage: '',
+      messageCount: 0,
+      projectPath,
+      workDir: path.resolve(workDir),
+    })
+
+    const messages = await service.getSessionMessages(sessionId, { projectPath })
+    expect(messages).toEqual({ messages: [], hasMore: false })
+  })
+
+  it('should keep zero-message placeholders discoverable while moved aside for launch', async () => {
+    const workDir = os.tmpdir()
+    const { sessionId } = await service.createSession(workDir)
+    const projectPath = sanitizePath(path.resolve(workDir))
+    const activePath = path.join(tmpDir, 'projects', projectPath, `${sessionId}.jsonl`)
+    const backupPath = `${activePath}.placeholder`
+
+    await service.moveSessionFileAsideForLaunch(sessionId)
+
+    expect(await pathExists(activePath)).toBe(false)
+    expect(await pathExists(backupPath)).toBe(true)
+
+    const list = await service.listSessions()
+    expect(list.sessions.find((session) => session.id === sessionId)).toMatchObject({
+      id: sessionId,
+      title: 'Untitled Session',
+      messageCount: 0,
+      projectPath,
+    })
+    expect(await service.getSessionMessages(sessionId, { projectPath })).toEqual({
+      messages: [],
+      hasMore: false,
+    })
+
+    await service.appendSessionMetadata(sessionId, { workDir })
+
+    expect(await pathExists(activePath)).toBe(true)
+    expect(await pathExists(backupPath)).toBe(false)
   })
 
   it('should detect resumable launch info for transcript sessions', async () => {
@@ -1021,7 +1137,7 @@ describe('Sessions API', () => {
       secondAssistantId,
     ])
 
-    const remainingMessages = await service.getSessionMessages(sessionId)
+    const remainingMessages = await service.getSessionMessages(sessionId).then(r => r.messages)
     expect(remainingMessages.map((message) => message.id)).toEqual([
       firstUserId,
       firstAssistantId,
@@ -1077,7 +1193,7 @@ describe('Sessions API', () => {
       targetAssistantId,
     ])
 
-    const remainingMessages = await service.getSessionMessages(sessionId)
+    const remainingMessages = await service.getSessionMessages(sessionId).then(r => r.messages)
     expect(remainingMessages.map((message) => message.id)).toEqual([
       firstUserId,
       firstAssistantId,
@@ -1114,7 +1230,7 @@ describe('Sessions API', () => {
     const body = await executeRes.json() as { message: string }
     expect(body.message).toContain('does not match the selected prompt')
 
-    const remainingMessages = await service.getSessionMessages(sessionId)
+    const remainingMessages = await service.getSessionMessages(sessionId).then(r => r.messages)
     expect(remainingMessages.map((message) => message.id)).toEqual([
       firstUserId,
       hiddenUserId,
@@ -1184,7 +1300,7 @@ describe('Sessions API', () => {
       "export const ORIGINAL_VALUE = 'before-rewind'\n",
     )
 
-    const remainingMessages = await service.getSessionMessages(sessionId)
+    const remainingMessages = await service.getSessionMessages(sessionId).then(r => r.messages)
     expect(remainingMessages).toHaveLength(0)
   })
 
@@ -1313,7 +1429,7 @@ describe('Sessions API', () => {
     expect(executeRes.status).toBe(200)
     expect(await fs.readFile(targetFile, 'utf-8')).toBe("export const STEP = 'v1'\n")
 
-    const remainingMessages = await service.getSessionMessages(sessionId)
+    const remainingMessages = await service.getSessionMessages(sessionId).then(r => r.messages)
     expect(remainingMessages.map((message) => message.id)).toHaveLength(2)
     expect(remainingMessages[0]?.id).toBe(firstUserId)
   })

@@ -16,13 +16,12 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@icon-park/react": "^1.4.2",
     "@tailwindcss/typography": "^0.5.19",
     "@types/dompurify": "^3.2.0",
+    "@vscode/codicons": "^0.0.45",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dompurify": "^3.3.3",
-    "lucide-react": "^0.469.0",
     "marked": "^15.0.7",
     "mermaid": "^11.14.0",
     "motion": "^12.38.0",

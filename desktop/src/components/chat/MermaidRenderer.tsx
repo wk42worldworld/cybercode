@@ -230,10 +230,10 @@ export function MermaidRenderer({ code }: Props) {
 
   if (error) {
     return (
-      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-error)]/50">
-        <div className="flex items-center gap-2 border-b border-[var(--color-error)]/20 bg-[var(--color-error-container)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-error)]">
-          <Icon name="error" size={14} />
-          Mermaid Error
+      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-error)]/50">
+        <div className="flex items-center gap-2 border-b border-[var(--color-error)]/20 bg-[var(--color-error-container)] px-3 py-1.5">
+          <Icon name="error" size={14} className="text-[var(--color-error)]" />
+          <span className="label-micro text-[var(--color-error)]">Mermaid Error</span>
         </div>
         <div className="bg-[var(--color-error-container)]/30 px-3 py-2 font-[var(--font-mono)] text-[11px] text-[var(--color-error)]">
           {error}
@@ -244,7 +244,7 @@ export function MermaidRenderer({ code }: Props) {
 
   if (!svg) {
     return (
-      <div className="my-4 flex items-center justify-center rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] py-8">
+      <div className="my-4 flex items-center justify-center rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] py-8">
         <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-tertiary)]">
           <Icon name="progress_activity" size={18} className="animate-spin text-[16px]" />
           Rendering diagram...
@@ -255,24 +255,24 @@ export function MermaidRenderer({ code }: Props) {
 
   return (
     <>
-      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)] bg-[var(--color-surface-container-low)]">
+      <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container)] px-3 py-1.5 text-[11px] text-[var(--color-text-tertiary)]">
+        <div className="flex items-center justify-between border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-3 py-1.5 text-[11px] text-[var(--color-text-tertiary)]">
           <div className="flex items-center gap-2">
-            <Icon name="account_tree" size={14} />
-            <span className="font-semibold uppercase tracking-[0.14em]">Mermaid</span>
+            <Icon name="account_tree" size={14} className="text-[var(--color-brand)]" />
+            <span className="label-micro text-[var(--color-text-tertiary)]">Mermaid</span>
           </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={handlePreview}
-              className="flex items-center gap-1 rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+              className="btn-ghost flex items-center gap-1 px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
             >
               <Icon name="fullscreen" size={12} />
               Preview
             </button>
             <CopyButton
               text={code}
-              className="rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+              className="btn-ghost px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
             />
           </div>
         </div>
@@ -280,7 +280,7 @@ export function MermaidRenderer({ code }: Props) {
         {/* Diagram */}
         <div
           ref={containerRef}
-          className="flex items-center justify-center overflow-auto bg-white p-4 cursor-pointer"
+          className="flex items-center justify-center overflow-auto bg-[var(--color-surface-container-low)] p-4 cursor-pointer"
           style={{ maxHeight: 400 }}
           onClick={handlePreview}
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true } }) }}
@@ -292,23 +292,23 @@ export function MermaidRenderer({ code }: Props) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--color-text-primary)]">
-              <Icon name="account_tree" size={18} />
+              <Icon name="account_tree" size={18} className="text-[var(--color-brand)]" />
               Mermaid Diagram
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-1">
+              <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-1 py-1">
                 <button
                   type="button"
                   onClick={zoomOut}
                   aria-label="Zoom out"
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                  className="btn-ghost flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-brand)]"
                 >
                   <Icon name="remove" size={16} />
                 </button>
                 <button
                   type="button"
                   onClick={resetZoom}
-                  className="min-w-[68px] rounded-md px-2 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                  className="min-w-[68px] rounded-md px-2 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-brand)]"
                 >
                   {Math.round(previewZoom * 100)}%
                 </button>
@@ -316,21 +316,21 @@ export function MermaidRenderer({ code }: Props) {
                   type="button"
                   onClick={zoomIn}
                   aria-label="Zoom in"
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                  className="btn-ghost flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-brand)]"
                 >
                   <Icon name="add" size={16} />
                 </button>
               </div>
               <CopyButton
                 text={code}
-                className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
+                className="btn-ghost px-2.5 py-1 text-[11px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
               />
             </div>
           </div>
           <div
             ref={previewViewportRef}
             data-testid="mermaid-preview-viewport"
-            className="overflow-auto rounded-md bg-white"
+            className="overflow-auto rounded-md bg-[var(--color-surface-container-low)]"
             style={{
               maxHeight: '75vh',
               cursor: isDraggingPreview ? 'grabbing' : 'grab',
@@ -361,4 +361,3 @@ export function MermaidRenderer({ code }: Props) {
     </>
   )
 }
-

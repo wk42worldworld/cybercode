@@ -8,6 +8,7 @@ import { useEffect } from 'react'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { useCybercodeOAuthStore } from '../../stores/cybercodeOAuthStore'
 import { useTranslation } from '../../i18n'
+import { Button } from '../shared/Button'
 
 export function ClaudeOfficialLogin() {
   const t = useTranslation()
@@ -65,19 +66,15 @@ export function ClaudeOfficialLogin() {
       : t('settings.claudeOfficialLogin.subTypeUnknown')
     return (
       <div className="flex items-center gap-3 text-[14px]">
-        <span className="text-[var(--color-success)]">
-          ✓ {t('settings.claudeOfficialLogin.loggedInPrefix')} {subTypeLabel})
+        <span className="text-[var(--color-brand)] flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
+          {t('settings.claudeOfficialLogin.loggedInPrefix')} {subTypeLabel})
         </span>
-        <button
-          type="button"
-          onClick={logout}
-          disabled={isLoading}
-          className="px-3 py-1 text-[12px] rounded-md border border-[var(--color-border-separator)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-colors"
-        >
+        <Button type="button" variant="secondary" size="sm" onClick={logout} disabled={isLoading}>
           {isLoading
             ? t('settings.claudeOfficialLogin.logoutProcessing')
             : t('settings.claudeOfficialLogin.logoutButton')}
-        </button>
+        </Button>
       </div>
     )
   }
@@ -87,16 +84,16 @@ export function ClaudeOfficialLogin() {
       <div className="text-[14px] text-[var(--color-text-secondary)]">
         {t('settings.claudeOfficialLogin.intro')}
       </div>
-      <button
+      <Button
         type="button"
         onClick={handleLogin}
         disabled={isLoading}
-        className="self-start rounded-md bg-[var(--color-primary)] px-4 py-2 text-[14px] text-[var(--color-btn-primary-fg)] hover:opacity-85 disabled:opacity-50 transition-opacity"
+        className="self-start"
       >
         {isLoading
           ? t('settings.claudeOfficialLogin.loginStarting')
           : t('settings.claudeOfficialLogin.loginButton')}
-      </button>
+      </Button>
       {error && (
         <div className="text-[12px] text-[var(--color-error)]">
           {t('settings.claudeOfficialLogin.errorPrefix')}{error}

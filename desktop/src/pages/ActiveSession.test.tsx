@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { act } from 'react'
 
@@ -8,7 +8,9 @@ vi.mock('../components/chat/MessageList', () => ({
 }))
 
 vi.mock('../components/chat/ChatInput', () => ({
-  ChatInput: () => <div data-testid="chat-input" />,
+  ChatInput: ({ thinkingContent }: { thinkingContent?: string }) => (
+    <div data-testid="chat-input" data-thinking-content={thinkingContent ?? ''} />
+  ),
 }))
 
 vi.mock('../components/teams/TeamStatusBar', () => ({
@@ -26,11 +28,13 @@ import { useSessionStore } from '../stores/sessionStore'
 import { useTabStore } from '../stores/tabStore'
 import { useTeamStore } from '../stores/teamStore'
 
+const originalEnsureSessionReady = useChatStore.getState().ensureSessionReady
+
 afterEach(() => {
   vi.useRealTimers()
   useTabStore.setState({ tabs: [], activeTabId: null })
   useSessionStore.setState({ sessions: [], activeSessionId: null, isLoading: false, error: null })
-  useChatStore.setState({ sessions: {} })
+  useChatStore.setState({ sessions: {}, ensureSessionReady: originalEnsureSessionReady })
   useTeamStore.setState({ teams: [], activeTeam: null, memberColors: new Map(), error: null })
 })
 
@@ -68,9 +72,12 @@ describe('ActiveSession task polling', () => {
       activeTabId: sessionId,
     })
     useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
       sessions: {
         [sessionId]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'thinking',
           connectionState: 'connected',
           streamingText: '',
@@ -90,7 +97,7 @@ describe('ActiveSession task polling', () => {
       },
     })
 
-    const { unmount } = render(<ActiveSession sessionId="test-session" isActive={true} />)
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
 
     expect(fetchSessionTasks).toHaveBeenCalledWith(sessionId)
 
@@ -100,7 +107,7 @@ describe('ActiveSession task polling', () => {
 
     expect(
       fetchSessionTasks.mock.calls.filter(([currentSessionId]) => currentSessionId === sessionId),
-    ).toHaveLength(4)
+    ).toHaveLength(3)
 
     unmount()
     useCLITaskStore.setState(originalCliTaskState)
@@ -147,9 +154,12 @@ describe('ActiveSession task polling', () => {
     })
 
     useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
       sessions: {
         [memberSessionId]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'thinking',
           connectionState: 'connected',
           streamingText: '',
@@ -169,7 +179,7 @@ describe('ActiveSession task polling', () => {
       },
     })
 
-    const { queryByTestId, unmount } = render(<ActiveSession sessionId="test-session" isActive={true} />)
+    const { queryByTestId, unmount } = render(<ActiveSession sessionId={memberSessionId} isActive={true} />)
 
     expect(queryByTestId('chat-input')).toBeInTheDocument()
     expect(queryByTestId('session-task-bar')).not.toBeInTheDocument()
@@ -177,5 +187,120 @@ describe('ActiveSession task polling', () => {
 
     unmount()
     useCLITaskStore.setState(originalCliTaskState)
+  })
+
+  it('passes the latest thinking message while a turn is active after activeThinkingId clears', () => {
+    const sessionId = 'thinking-fallback-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Thinking Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 1,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Thinking Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: 'thinking-1', type: 'thinking', content: 'Reading recent context', timestamp: 1 },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'streaming',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('chat-input')).toHaveAttribute('data-thinking-content', 'Reading recent context')
+
+    unmount()
+  })
+
+  it('passes fresh thinking once even if a fast turn has already returned to idle', () => {
+    const sessionId = 'fast-thinking-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Fast Thinking Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 2,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Fast Thinking Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: 'thinking-1', type: 'thinking', content: 'Brief reasoning burst', timestamp: Date.now() },
+            { id: 'assistant-1', type: 'assistant_text', content: 'Done', timestamp: Date.now() },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'idle',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('chat-input')).toHaveAttribute('data-thinking-content', 'Brief reasoning burst')
+
+    unmount()
   })
 })

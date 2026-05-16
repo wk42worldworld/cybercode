@@ -1,65 +1,48 @@
 
-import type { UIAttachment } from '../../types/chat'
-import { AttachmentGallery } from './AttachmentGallery'
-import { MessageActionBar } from './MessageActionBar'
+import type { UIAttachment } from '../../types/chat';
+import { AttachmentGallery } from './AttachmentGallery';
+import { MessageActionBar } from './MessageActionBar';
 
 type Props = {
-  content: string
-  timestamp?: number | string | Date
-  attachments?: UIAttachment[]
-  onRewind?: () => void
-  rewindLabel?: string
-}
+  content: string;
+  timestamp?: number | string | Date;
+  attachments?: UIAttachment[];
+  onRewind?: () => void;
+  rewindLabel?: string;
+};
 
-function formatTime(value: Props['timestamp']) {
-  if (!value) return ''
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })
-}
-
-export function UserMessage({ content, attachments, timestamp, onRewind, rewindLabel }: Props) {
-  const hasText = content.trim().length > 0
-  const time = formatTime(timestamp)
+export function UserMessage({ content, attachments, onRewind, rewindLabel }: Props) {
+  const hasText = content.trim().length > 0;
 
   return (
-    <div className="group/msg">
-      <div className="flex justify-end w-full">
-        <div
-          data-message-shell="user"
-          className="flex flex-col items-end max-w-[72%] min-w-0"
-        >
-          {time && (
-            <span className="text-[10px] font-mono text-black/45 dark:text-white/55 tabular-nums mb-1 pr-1">
-              {time}
-            </span>
-          )}
+    <div className="flex justify-end w-full px-8 py-1 group/msg">
+      <div className="flex flex-col items-end max-w-[75%]">
+        {attachments && attachments.length > 0 && (
+          <div className="mb-2">
+            <AttachmentGallery attachments={attachments} variant="message" />
+          </div>
+        )}
 
-          {attachments && attachments.length > 0 && (
-            <div className="mb-2 self-stretch">
-              <AttachmentGallery attachments={attachments} variant="message" />
-            </div>
-          )}
-
-          {hasText && (
-            <div className="bg-black/[0.06] dark:bg-white/[0.08] rounded-[10px] rounded-tr-[3px] px-4 py-2.5 text-[14px] leading-[1.7] font-medium text-black/85 dark:text-white/85 whitespace-pre-wrap break-words tracking-[-0.005em]">
+        {hasText && (
+          <div className="bg-[var(--color-message-user-bg)] text-[var(--color-message-user-fg)] rounded-[20px] rounded-br-[6px] px-4 py-2.5 shadow-sm shadow-black/20">
+            <div className="text-[16px] font-semibold leading-[1.55] tracking-[0.01em] whitespace-pre-wrap break-words">
               {content}
             </div>
-          )}
+          </div>
+        )}
 
-          {hasText && (
-            <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity mt-1.5">
-              <MessageActionBar
-                copyText={content}
-                copyLabel="Copy prompt"
-                onRewind={onRewind}
-                rewindLabel={rewindLabel}
-                align="end"
-              />
-            </div>
-          )}
-        </div>
+        {hasText && (
+          <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity mt-0.5">
+            <MessageActionBar
+              copyText={content}
+              copyLabel="Copy prompt"
+              onRewind={onRewind}
+              rewindLabel={rewindLabel}
+              align="end"
+            />
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

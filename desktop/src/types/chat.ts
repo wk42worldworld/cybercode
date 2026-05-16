@@ -157,12 +157,12 @@ export type TaskSummaryItem = {
 }
 
 export type UIMessage =
-  | { id: string; type: 'user_text'; content: string; timestamp: number; attachments?: UIAttachment[]; pending?: boolean }
-  | { id: string; type: 'assistant_text'; content: string; timestamp: number; model?: string }
-  | { id: string; type: 'thinking'; content: string; timestamp: number }
-  | { id: string; type: 'tool_use'; toolName: string; toolUseId: string; input: unknown; timestamp: number; parentToolUseId?: string }
-  | { id: string; type: 'tool_result'; toolUseId: string; content: unknown; isError: boolean; timestamp: number; parentToolUseId?: string }
-  | { id: string; type: 'system'; content: string; timestamp: number }
+  | { id: string; type: 'user_text'; content: string; timestamp: number; attachments?: UIAttachment[]; pending?: boolean; serverId?: string }
+  | { id: string; type: 'assistant_text'; content: string; timestamp: number; model?: string; serverId?: string }
+  | { id: string; type: 'thinking'; content: string; timestamp: number; serverId?: string }
+  | { id: string; type: 'tool_use'; toolName: string; toolUseId: string; input: unknown; timestamp: number; parentToolUseId?: string; serverId?: string }
+  | { id: string; type: 'tool_result'; toolUseId: string; content: unknown; isError: boolean; timestamp: number; parentToolUseId?: string; serverId?: string }
+  | { id: string; type: 'system'; content: string; timestamp: number; serverId?: string }
   | {
       id: string
       type: 'permission_request'
@@ -172,6 +172,7 @@ export type UIMessage =
       input: unknown
       description?: string
       timestamp: number
+      serverId?: string
     }
-  | { id: string; type: 'error'; message: string; code: string; timestamp: number }
-  | { id: string; type: 'task_summary'; tasks: TaskSummaryItem[]; timestamp: number }
+  | { id: string; type: 'error'; message: string; code: string; timestamp: number; serverId?: string }
+  | { id: string; type: 'task_summary'; tasks: TaskSummaryItem[]; timestamp: number; serverId?: string }

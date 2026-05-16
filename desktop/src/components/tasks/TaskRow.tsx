@@ -71,11 +71,22 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
   const iconBtn = 'p-1.5 rounded-[var(--radius-sm)] transition-colors'
   const menuItem = 'flex items-center gap-2.5 w-full px-3 py-2 text-[12px] text-left rounded-[var(--radius-sm)] transition-colors'
 
+  // Determine status line color:
+  // completed = green, running = accent + pulse, pending/disabled = gray
+  const statusLineClass = isRunning
+    ? 'bg-[var(--color-brand)] animate-pulse-dot'
+    : task.enabled
+      ? 'bg-[var(--color-success)]'
+      : 'bg-[var(--color-text-tertiary)]'
+
   return (
-    <div className="border-b border-[var(--color-border-separator)]">
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-hover)] transition-colors group">
-        {/* Left: status + info */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+    <div className="border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)]">
+      <div className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-hover)] transition-colors group relative">
+        {/* Left status vertical line */}
+        <div className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${statusLineClass}`} />
+
+        {/* Left: info */}
+        <div className="flex items-center gap-3 min-w-0 flex-1 pl-2">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${task.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
           <div className="min-w-0">
             <div className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">{task.name}</div>
@@ -106,9 +117,11 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
                 className={`${iconBtn} ${task.enabled ? 'text-[var(--color-brand)] hover:bg-[var(--color-surface-selected)]' : 'text-[var(--color-text-tertiary)] cursor-not-allowed'} disabled:opacity-50`}
                 title={task.enabled ? t('tasks.runNow') : undefined}
               >
-                <span className={`material-symbols-outlined text-[18px] ${isRunning ? 'animate-spin' : ''}`}>
-                  {isRunning ? 'sync' : 'play_arrow'}
-                </span>
+                <Icon
+                  name={isRunning ? 'sync' : 'play_arrow'}
+                  size={18}
+                  className={isRunning ? 'animate-spin' : ''}
+                />
               </button>
               {confirmAction === 'run' && (
                 <ConfirmPopover
@@ -238,10 +251,10 @@ function ConfirmPopover({ message, confirmLabel, onConfirm, onCancel, cancelLabe
         </button>
         <button
           onClick={onConfirm}
-          className={`px-2.5 py-1 text-[12px] rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity ${
+          className={`px-3 py-1 text-[12px] font-bold tracking-tight rounded-[6px] transition-all ${
             variant === 'error'
-              ? 'bg-[var(--color-error-container)] text-[var(--color-on-error-container)]'
-              : 'bg-[var(--color-primary)] text-[var(--color-btn-primary-fg)]'
+              ? 'bg-[#FE2C55] text-white shadow-[0_2px_8px_rgba(254,44,85,0.30)] hover:bg-[#E91E45]'
+              : 'bg-[#FE2C55] text-white shadow-[0_2px_8px_rgba(254,44,85,0.30)] hover:bg-[#E91E45]'
           }`}
         >
           {confirmLabel}
@@ -250,4 +263,3 @@ function ConfirmPopover({ message, confirmLabel, onConfirm, onCancel, cancelLabe
     </div>
   )
 }
-

@@ -1,2 +1,76 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240"></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">CyberCode Logo</title>
+  <desc id="desc">An original vector-style cyberpunk female avatar for the CyberCode desktop app.</desc>
+  <defs>
+    <linearGradient id="bg" x1="80" y1="80" x2="944" y2="944" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#17181c"/>
+      <stop offset=".52" stop-color="#08090d"/>
+      <stop offset="1" stop-color="#20101c"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="258" y1="134" x2="790" y2="816" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff15a"/>
+      <stop offset=".45" stop-color="#ffd02c"/>
+      <stop offset="1" stop-color="#ff7a1a"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="414" y1="300" x2="666" y2="786" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd6b6"/>
+      <stop offset=".7" stop-color="#d98d82"/>
+      <stop offset="1" stop-color="#7d3957"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="376" y1="438" x2="680" y2="438" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22f7ff"/>
+      <stop offset=".52" stop-color="#a4fff7"/>
+      <stop offset="1" stop-color="#00aaff"/>
+    </linearGradient>
+    <linearGradient id="magenta" x1="224" y1="268" x2="820" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff2bd6"/>
+      <stop offset="1" stop-color="#7b2cff"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.98 0 1 0 0 0.1 0 0 1 0 0.95 0 0 0 .55 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="squircle">
+      <path d="M512 40c160 0 281 16 356 91s116 196 116 356-41 288-116 366-196 131-356 131-281-53-356-131S40 647 40 487 81 206 156 131 352 40 512 40Z"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <path d="M0 0h1024v1024H0z" fill="url(#bg)"/>
+    <path d="M140 768 768 140h88L228 768h-88Z" fill="#ffd52e" opacity=".1"/>
+    <path d="M196 254h158v28H224v116h-28V254Zm632 516H672v-28h128V626h28v144Z" fill="#25f4ff" opacity=".52"/>
+    <path d="M143 600h126v20H143v-20Zm658-185h92v20h-92v-20ZM216 836h176v18H216v-18Zm452-668h160v18H668v-18Z" fill="#fff15a" opacity=".72"/>
+    <path d="M180 500h92l42-42h88M814 548h-96l-52 52H552" fill="none" stroke="#ff2bd6" stroke-width="18" stroke-linecap="square" opacity=".5"/>
+
+    <path d="M288 829c46-126 84-204 118-235 31-28 70-44 118-46 46-2 89 13 128 45 42 35 77 114 105 236H288Z" fill="#151116"/>
+    <path d="M366 792c17-68 45-113 84-136 36-21 85-22 147-4 39 12 70 58 93 140H366Z" fill="#24151f"/>
+
+    <path d="M268 402c20-117 76-198 166-244 85-44 196-38 294 13 52 27 92 68 120 123-35-20-72-29-111-27 29 42 44 88 46 138-51-38-105-55-162-50 18 62 15 121-10 178-67-76-150-108-249-96-38 5-70-6-94-35Z" fill="#05060a"/>
+    <path d="M298 438c7-119 52-202 137-249 89-49 193-43 313 18-54 0-96 11-128 32 92 19 155 72 190 160-62-37-126-51-192-42 48 43 72 104 72 183-52-75-124-108-216-99-76 7-134 6-176-3Z" fill="url(#hair)" filter="url(#softGlow)"/>
+    <path d="M308 453c74-34 139-78 194-132 29 52 84 90 166 112 10 105-14 193-72 264-44 54-97 81-158 81-70 0-124-33-161-100-35-65-40-148-14-249Z" fill="url(#skin)"/>
+    <path d="M646 461c20 52 24 109 12 171-16 83-58 144-126 182 75-8 132-40 171-97 51-76 68-159 51-249-41 4-77 2-108-7Z" fill="#42162e" opacity=".38"/>
+    <path d="M319 476c58-23 110-57 156-101 29 52 84 90 166 112-18 17-51 26-99 28-67 3-121-10-163-38-17 56-20 111-9 165-43-43-60-98-51-166Z" fill="#2b101c" opacity=".32"/>
+
+    <path d="M358 430h308c20 0 36 16 36 36v28c0 20-16 36-36 36H358c-20 0-36-16-36-36v-28c0-20 16-36 36-36Z" fill="#07080d"/>
+    <path d="M376 454h130c20 0 36 16 36 36v5H376v-41Zm181 0h99c15 0 27 12 27 27v14H557v-41Z" fill="url(#visor)" filter="url(#softGlow)"/>
+    <path d="M430 490h72m93 0h50" stroke="#081114" stroke-width="13" stroke-linecap="square" opacity=".55"/>
+    <path d="M328 451h-54l-34 34v60h74" fill="none" stroke="#25f4ff" stroke-width="22" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M701 446h52l50 50v72h-82" fill="none" stroke="#ff2bd6" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter"/>
+
+    <path d="M438 602c34 13 71 12 109-4" fill="none" stroke="#632337" stroke-width="18" stroke-linecap="round"/>
+    <path d="M451 679c34 17 73 16 116-3" fill="none" stroke="#f6b0a0" stroke-width="13" stroke-linecap="round"/>
+    <path d="M600 562h70v28h-70z" fill="#25f4ff" opacity=".72"/>
+    <path d="M372 572h48v18h-48z" fill="#ff2bd6" opacity=".68"/>
+    <path d="M693 594h62v21h-62v-21Zm-395 54h58v18h-58v-18Z" fill="#fff15a" opacity=".8"/>
+
+    <path d="M278 289 182 408l83 34 88-62-31-91h-44Z" fill="url(#magenta)" opacity=".88"/>
+    <path d="M740 233c85 69 125 145 120 229l-72-65c-24-66-67-111-129-136l81-28Z" fill="#25f4ff" opacity=".72"/>
+    <path d="M211 206h141v24H211v-24Zm562 598h116v24H773v-24Z" fill="#ffd52e"/>
+    <path d="M204 798h70v24h-70v-24Zm622-557h54v24h-54v-24Z" fill="#ff2bd6"/>
+  </g>
+</svg>

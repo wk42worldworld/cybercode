@@ -99,11 +99,20 @@ const diffStyles = {
   },
   line: {
     padding: '1px 0',
+    borderLeft: '2px solid transparent',
+  },
+  addedLine: {
+    borderLeft: '2px solid var(--color-diff-added-text)',
+  },
+  removedLine: {
+    borderLeft: '2px solid var(--color-diff-removed-text)',
   },
   gutter: {
     padding: '1px 8px',
     minWidth: '40px',
     fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
+    color: 'var(--color-text-tertiary)',
   },
   wordDiff: {
     padding: '1px 2px',
@@ -120,27 +129,27 @@ export function DiffViewer({ filePath, oldString, newString }: Props) {
   const deletions = oldLines.filter((l, i) => l !== (newLines[i] ?? null)).length
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/50 bg-[var(--color-surface-container-low)]">
+    <div className="overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container)] px-3 py-1.5">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-3 py-1.5">
         <div className="min-w-0">
           <div className="truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
             {filePath}
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-[0.14em]">
-            <span className="rounded-full bg-[var(--color-diff-added-bg)] px-2 py-0.5 text-[var(--color-diff-added-text)]">+{additions}</span>
-            <span className="rounded-full bg-[var(--color-diff-removed-bg)] px-2 py-0.5 text-[var(--color-diff-removed-text)]">-{deletions}</span>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="label-micro text-[var(--color-diff-added-text)]">+{additions}</span>
+            <span className="label-micro text-[var(--color-diff-removed-text)]">-{deletions}</span>
           </div>
         </div>
         <CopyButton
           text={`--- ${filePath}\n+++ ${filePath}`}
           label="Copy path"
-          className="rounded-md border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)]"
+          className="btn-ghost px-2 py-1 text-[11px] text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]"
         />
       </div>
 
       {/* Diff area */}
-      <div className="max-h-[400px] overflow-auto">
+      <div className="max-h-[400px] overflow-auto bg-[var(--color-code-bg)]">
         <ReactDiffViewer
           oldValue={oldString}
           newValue={newString}

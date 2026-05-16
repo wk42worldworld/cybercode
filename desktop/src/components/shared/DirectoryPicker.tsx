@@ -148,9 +148,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
           className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-surface-container-low)] hover:bg-[var(--color-surface-hover)] rounded-md text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors"
         >
           {selectedProject?.isGit ? (
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-[var(--color-text-secondary)]">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
+            <Icon name="account_tree" size={14} className="shrink-0 text-[var(--color-text-secondary)]" />
           ) : (
             <Icon name="folder" size={14} className="shrink-0" />
           )}
@@ -178,7 +176,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
       {isOpen && dropdownPos && createPortal(
         <div
           ref={dropdownRef}
-          className="w-[400px] bg-[var(--color-surface-container-lowest)] border-2 border-[var(--color-border)] rounded-md shadow-[var(--shadow-dropdown)] overflow-hidden"
+          className="w-[320px] overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
           style={{
             position: 'fixed',
             left: dropdownPos.left,
@@ -190,10 +188,10 @@ export function DirectoryPicker({ value, onChange }: Props) {
         >
           {mode === 'recent' ? (
             <>
-              <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--color-outline)]">
+              <div className="px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
                 {t('dirPicker.recent')}
               </div>
-              <div className="max-h-[300px] overflow-y-auto">
+              <div className="max-h-[280px] overflow-y-auto py-1 px-1.5">
                 {loading ? (
                   <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
                 ) : projects.length === 0 ? (
@@ -205,30 +203,25 @@ export function DirectoryPicker({ value, onChange }: Props) {
                       <button
                         key={project.projectPath}
                         onClick={() => handleSelect(project.realPath)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-surface-hover)] ${
-                          isSelected ? 'bg-[var(--color-surface-selected)]' : ''
+                        className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group ${
+                          isSelected ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'
                         }`}
                       >
                         {project.isGit ? (
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                            <circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" />
-                            <path d="M13 6h3a2 2 0 0 1 2 2v7" /><line x1="6" y1="9" x2="6" y2="21" />
-                          </svg>
+                          <Icon name="account_tree" size={14} className="flex-shrink-0 text-[var(--color-text-tertiary)]" />
                         ) : (
-                          <Icon name="folder" size={20} className="text-[var(--color-text-secondary)] flex-shrink-0" />
+                          <Icon name="folder" size={14} className="flex-shrink-0 text-[var(--color-text-tertiary)]" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="text-[14px] font-semibold text-[var(--color-text-primary)] truncate">
+                          <div className={`truncate text-[13px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                             {project.repoName || project.projectName}
                           </div>
-                          <div className="text-[11px] text-[var(--color-text-tertiary)] truncate font-[var(--font-mono)]">
+                          <div className="truncate text-[10px] font-mono text-[var(--color-text-tertiary)]">
                             {project.realPath}
                           </div>
                         </div>
                         {isSelected && (
-                          <span className="material-symbols-outlined text-[18px] text-[var(--color-brand)] flex-shrink-0" style={{ fontVariationSettings: "'FILL' 1" }}>
-                            check
-                          </span>
+                          <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-secondary)]" />
                         )}
                       </button>
                     )
@@ -237,43 +230,43 @@ export function DirectoryPicker({ value, onChange }: Props) {
               </div>
 
               {/* Divider + Choose different folder */}
-              <div className="border-t border-[var(--color-border)]">
+              <div className="border-t border-[var(--color-border-separator)]">
                 <button
                   onClick={handleChooseFolder}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--color-surface-hover)] transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-surface-hover)] transition-colors"
                 >
-                  <Icon name="create_new_folder" size={20} className="text-[var(--color-text-tertiary)]" />
-                  <span className="text-[14px] text-[var(--color-text-secondary)]">{t('dirPicker.chooseFolder')}</span>
+                  <Icon name="create_new_folder" size={14} className="text-[var(--color-text-tertiary)]" />
+                  <span className="text-[13px] text-[var(--color-text-secondary)]">{t('dirPicker.chooseFolder')}</span>
                 </button>
               </div>
             </>
           ) : (
             /* Directory tree browser (web only) */
             <>
-              <div className="px-3 py-2 border-b border-[var(--color-border)] flex items-center gap-1 flex-wrap">
-                <button onClick={() => setMode('recent')} className="text-[12px] text-[var(--color-text-accent)] hover:underline mr-2">
+              <div className="px-3 py-2 border-b border-[var(--color-border-separator)] flex items-center gap-1 flex-wrap">
+                <button onClick={() => setMode('recent')} className="text-[11px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] mr-2 transition-colors">
                   {'← ' + t('dirPicker.recent')}
                 </button>
-                <button onClick={() => loadBrowseDir('/')} className="text-[10px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]">/</button>
+                <button onClick={() => loadBrowseDir('/')} className="text-[10px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors">/</button>
                 {browsePath.split('/').filter(Boolean).map((seg, i, arr) => (
                   <span key={i} className="flex items-center gap-1">
-                    <span className="text-[10px] text-[var(--color-text-tertiary)]">/</span>
+                    <span className="text-[10px] text-[var(--color-border)]">/</span>
                     <button
                       onClick={() => loadBrowseDir('/' + arr.slice(0, i + 1).join('/'))}
-                      className="text-[10px] text-[var(--color-text-accent)] hover:underline"
+                      className="text-[10px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors"
                     >{seg}</button>
                   </span>
                 ))}
               </div>
 
-              <div className="max-h-[240px] overflow-y-auto">
+              <div className="max-h-[240px] overflow-y-auto py-1 px-1">
                 {loading ? (
                   <div className="px-3 py-4 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
                 ) : (
                   <>
                     {browseParent && browseParent !== browsePath && (
-                      <button onClick={() => loadBrowseDir(browseParent)} className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-surface-hover)]">
-                        <Icon name="arrow_upward" size={16} className="text-[var(--color-text-tertiary)]" />
+                      <button onClick={() => loadBrowseDir(browseParent)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors">
+                        <Icon name="arrow_upward" size={14} className="text-[var(--color-text-tertiary)]" />
                         <span className="text-[12px] text-[var(--color-text-secondary)]">..</span>
                       </button>
                     )}
@@ -282,11 +275,13 @@ export function DirectoryPicker({ value, onChange }: Props) {
                     ) : browseEntries.map((entry) => (
                       <button
                         key={entry.path}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[var(--color-surface-hover)]"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[16px] text-[var(--color-text-tertiary)]" onClick={() => loadBrowseDir(entry.path)}>folder</span>
-                        <span className="text-[12px] text-[var(--color-text-primary)] flex-1" onClick={() => loadBrowseDir(entry.path)}>{entry.name}</span>
-                        <button onClick={() => handleSelect(entry.path)} className="px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)] hover:bg-[var(--color-primary-fixed)] rounded transition-colors">
+                        <span onClick={() => loadBrowseDir(entry.path)}>
+                          <Icon name="folder" size={14} className="text-[var(--color-text-tertiary)]" />
+                        </span>
+                        <span className="text-[12px] text-[var(--color-text-secondary)] flex-1" onClick={() => loadBrowseDir(entry.path)}>{entry.name}</span>
+                        <button onClick={() => handleSelect(entry.path)} className="px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
                           {t('common.select')}
                         </button>
                       </button>
@@ -296,9 +291,9 @@ export function DirectoryPicker({ value, onChange }: Props) {
               </div>
 
               {/* Use current folder */}
-              <div className="px-3 py-2 border-t border-[var(--color-border)] flex justify-between items-center">
-                <span className="text-[10px] text-[var(--color-text-tertiary)] font-[var(--font-mono)] truncate">{browsePath}</span>
-                <button onClick={() => handleSelect(browsePath)} className="px-3 py-1.5 bg-[var(--color-brand)] text-[var(--color-on-primary)] text-[12px] font-semibold rounded-lg hover:opacity-90">
+              <div className="px-3 py-2 border-t border-[var(--color-border-separator)] flex justify-between items-center">
+                <span className="text-[10px] text-[var(--color-text-tertiary)] font-mono truncate">{browsePath}</span>
+                <button onClick={() => handleSelect(browsePath)} className="px-3 py-1.5 bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] text-[12px] font-semibold rounded-lg hover:bg-[var(--color-btn-primary-bg-hover)] transition-colors">
                   {t('dirPicker.useThisFolder')}
                 </button>
               </div>
@@ -310,4 +305,3 @@ export function DirectoryPicker({ value, onChange }: Props) {
     </div>
   )
 }
-

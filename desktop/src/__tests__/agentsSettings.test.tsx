@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import { Settings } from '../pages/Settings'
+import { Settings, SkillSettings } from '../pages/Settings'
 import { useAgentStore } from '../stores/agentStore'
 import { useSkillStore } from '../stores/skillStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -137,10 +137,6 @@ function switchToAgentsTab() {
   fireEvent.click(screen.getByText('Agents'))
 }
 
-function switchToSkillsTab() {
-  fireEvent.click(screen.getByText('Skills'))
-}
-
 describe('Settings > Agents tab', () => {
   beforeEach(() => {
     useSettingsStore.setState({ locale: 'en' })
@@ -154,6 +150,7 @@ describe('Settings > Agents tab', () => {
         {
           id: 'session-1',
           title: 'Test Session',
+          lastMessage: '',
           createdAt: '',
           modifiedAt: '',
           messageCount: 0,
@@ -235,7 +232,7 @@ describe('Settings > Agents tab', () => {
     expect(screen.getByText('Retry')).toBeInTheDocument()
   })
 
-  it('renders grouped agent browser with source sections', () => {
+  it('renders a simplified flat agent list', () => {
     useAgentStore.setState({
       allAgents: MOCK_AGENTS,
       activeAgents: MOCK_AGENTS.filter((agent) => agent.isActive),
@@ -245,19 +242,22 @@ describe('Settings > Agents tab', () => {
     render(<Settings />)
     switchToAgentsTab()
 
-    expect(screen.getByText('Browse installed agents')).toBeInTheDocument()
-    expect(screen.getByText('Agent Browser')).toBeInTheDocument()
+    expect(screen.queryByText('Browse installed agents')).not.toBeInTheDocument()
+    expect(screen.queryByText('Agent Browser')).not.toBeInTheDocument()
+    expect(screen.queryByText('Total agents')).not.toBeInTheDocument()
+    expect(screen.getByText('code-reviewer')).toBeInTheDocument()
+    expect(screen.getByText('doc-writer')).toBeInTheDocument()
+    expect(screen.getByText('plain-agent')).toBeInTheDocument()
+    expect(screen.getByText('Writes technical documentation')).toBeInTheDocument()
+    expect(screen.getByText('telegram:pairing')).toBeInTheDocument()
     expect(screen.getAllByText('User').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Built-in').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Project').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Plugin').length).toBeGreaterThan(0)
-    expect(screen.getByText('code-reviewer')).toBeInTheDocument()
-    expect(screen.getByText('Writes technical documentation')).toBeInTheDocument()
-    expect(screen.getByText('telegram:pairing')).toBeInTheDocument()
     expect(screen.getByText('Overridden by User')).toBeInTheDocument()
   })
 
-  it('opens agent detail with metadata cards and document prompt', () => {
+  it('keeps the agents tab list-only when an agent row is clicked', () => {
     useAgentStore.setState({
       allAgents: MOCK_AGENTS,
       activeAgents: MOCK_AGENTS.filter((agent) => agent.isActive),
@@ -269,71 +269,43 @@ describe('Settings > Agents tab', () => {
 
     fireEvent.click(screen.getByText('code-reviewer'))
 
-    expect(screen.getByText('Back to list')).toBeInTheDocument()
-    expect(screen.getByText('Agent Profile')).toBeInTheDocument()
-    expect(screen.getAllByText('claude-sonnet-4-6')[0]).toBeInTheDocument()
-    expect(screen.getByText('Read')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Code Reviewer' })).toBeInTheDocument()
-
-    const rendererRoot = screen.getByRole('heading', { name: 'Code Reviewer' }).closest('div[class*="prose"]')
-    expect(rendererRoot?.className).toContain('max-w-[72ch]')
-  })
-
-  it('shows no system prompt state when agent has no prompt', () => {
-    useAgentStore.setState({
-      allAgents: MOCK_AGENTS,
-      activeAgents: MOCK_AGENTS.filter((agent) => agent.isActive),
-      isLoading: false,
-      fetchAgents: noopFetch,
-    })
-    render(<Settings />)
-    switchToAgentsTab()
-
-    fireEvent.click(screen.getByText('plain-agent'))
-
-    expect(screen.getByText('No system prompt defined.')).toBeInTheDocument()
-    expect(screen.getByText('shadowed by User')).toBeInTheDocument()
-  })
-
-  it('navigates back to list from detail view', () => {
-    useAgentStore.setState({
-      allAgents: MOCK_AGENTS,
-      activeAgents: MOCK_AGENTS.filter((agent) => agent.isActive),
-      isLoading: false,
-      fetchAgents: noopFetch,
-    })
-    render(<Settings />)
-    switchToAgentsTab()
-
-    fireEvent.click(screen.getByText('code-reviewer'))
-    fireEvent.click(screen.getByText('Back to list'))
-
-    expect(screen.getByText('code-reviewer')).toBeInTheDocument()
+    expect(screen.queryByText('Back to list')).not.toBeInTheDocument()
+    expect(screen.queryByText('Agent Profile')).not.toBeInTheDocument()
+    expect(screen.queryByText('System Prompt')).not.toBeInTheDocument()
     expect(screen.getByText('doc-writer')).toBeInTheDocument()
-    expect(screen.getByText('plain-agent')).toBeInTheDocument()
   })
 
-  it('returns to plugins tab when agent detail was opened from plugins', () => {
+  it('shows agent list data without detail-only prompt states', () => {
     useAgentStore.setState({
       allAgents: MOCK_AGENTS,
       activeAgents: MOCK_AGENTS.filter((agent) => agent.isActive),
       isLoading: false,
-      selectedAgent: MOCK_AGENTS[0],
+      fetchAgents: noopFetch,
+    })
+    render(<Settings />)
+    switchToAgentsTab()
+
+    expect(screen.getByText('plain-agent')).toBeInTheDocument()
+    expect(screen.getByText('No description')).toBeInTheDocument()
+    expect(screen.getByText('Overridden by User')).toBeInTheDocument()
+    expect(screen.queryByText('No system prompt defined.')).not.toBeInTheDocument()
+  })
+
+  it('highlights the selected agent when opened from another settings section', () => {
+    useAgentStore.setState({
+      allAgents: MOCK_AGENTS,
+      activeAgents: MOCK_AGENTS.filter((agent) => agent.isActive),
+      isLoading: false,
+      selectedAgent: MOCK_AGENTS[3],
       selectedAgentReturnTab: 'plugins',
       fetchAgents: noopFetch,
-      selectAgent: (agent) =>
-        useAgentStore.setState({
-          selectedAgent: agent,
-          selectedAgentReturnTab: agent ? 'plugins' : 'agents',
-        }),
     })
-
     render(<Settings />)
     switchToAgentsTab()
 
-    fireEvent.click(screen.getByText('Back to list'))
-
-    expect(screen.getByText('Installed Plugins')).toBeInTheDocument()
+    expect(screen.queryByText('Back to list')).not.toBeInTheDocument()
+    expect(screen.getByText('telegram:pairing').closest('article')).toHaveAttribute('aria-current', 'true')
+    expect(screen.getAllByText(/telegram:pairing|code-reviewer|doc-writer|plain-agent/)[0]).toHaveTextContent('telegram:pairing')
   })
 })
 
@@ -358,8 +330,7 @@ describe('Settings > Skills tab', () => {
       clearSelection: () => useSkillStore.setState({ selectedSkill: null }),
     })
 
-    render(<Settings />)
-    switchToSkillsTab()
+    render(<SkillSettings />)
 
     expect(screen.getByText('Skill metadata')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Heading' })).toBeInTheDocument()
@@ -377,8 +348,7 @@ describe('Settings > Skills tab', () => {
       clearSelection: () => useSkillStore.setState({ selectedSkill: null }),
     })
 
-    render(<Settings />)
-    switchToSkillsTab()
+    render(<SkillSettings />)
 
     fireEvent.click(screen.getAllByText('helper.ts')[0]!)
 

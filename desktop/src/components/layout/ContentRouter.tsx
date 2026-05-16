@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTabStore } from '../../stores/tabStore'
-import { EmptySession } from '../../pages/EmptySession'
 import { ActiveSession } from '../../pages/ActiveSession'
+import { EmptySession } from '../../pages/EmptySession'
 import { ScheduledTasks } from '../../pages/ScheduledTasks'
 import { TerminalSettings } from '../../pages/TerminalSettings'
 
@@ -9,22 +9,34 @@ export function ContentRouter() {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const tabs = useTabStore((s) => s.tabs)
   const recentSessionIds = useTabStore((s) => s.recentSessionIds)
-  const activeTabType = tabs.find((t) => t.sessionId === activeTabId)?.type
+  const activeTab = tabs.find((t) => t.sessionId === activeTabId)
+  const activeTabType = activeTab?.type
   const terminalTabs = tabs.filter((tab) => tab.type === 'terminal')
+  const sessionPanelIds = [
+    ...(activeTabId && activeTabType === 'session' ? [activeTabId] : []),
+    ...recentSessionIds,
+  ].filter((sessionId, index, ids) => ids.indexOf(sessionId) === index)
 
-  // Non-session pages (EmptySession / ScheduledTasks)
-  let nonSessionPage: ReactNode = null
-  if (!activeTabId || !activeTabType) {
-    nonSessionPage = <EmptySession />
-  } else if (activeTabType === 'scheduled') {
-    nonSessionPage = <ScheduledTasks />
-  }
+  // Non-session pages (ScheduledTasks)
+  const nonSessionPage: ReactNode =
+    activeTabType === 'scheduled' ? <ScheduledTasks /> : null
+
+  const showEmptySession = !activeTabId || !activeTabType
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
-      {/* Keep the last N session panels mounted — only toggle CSS visibility.
-          This makes switching back to a cached session instant (no re-render). */}
-      {recentSessionIds.map((sessionId) => {
+      {showEmptySession && (
+        <div className="absolute inset-0 flex min-h-0 flex-col overflow-hidden">
+          <EmptySession />
+        </div>
+      )}
+
+      {/* Keep the last N session panels in the DOM for layout, but only mount
+          ActiveSession for the active panel. This avoids keeping hidden
+          MessageList trees alive, saving GPU/memory while chatStore preserves
+          the session data so re-mounting is instant. */}
+      {sessionPanelIds.map((sessionId) => {
+        const tab = tabs.find((candidate) => candidate.sessionId === sessionId)
         const isActive = sessionId === activeTabId && activeTabType === 'session'
         return (
           <div
@@ -33,7 +45,9 @@ export function ContentRouter() {
             style={{ display: isActive ? 'flex' : 'none' }}
             className="absolute inset-0 flex-col min-h-0 overflow-hidden"
           >
-            <ActiveSession sessionId={sessionId} isActive={isActive} />
+            {isActive ? (
+              <ActiveSession sessionId={sessionId} projectPath={tab?.projectPath} isActive={isActive} />
+            ) : null}
           </div>
         )
       })}

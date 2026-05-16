@@ -22,6 +22,7 @@ export const zh: Record<TranslationKey, string> = {
   'sidebar.scheduled': '定时任务',
   'sidebar.terminal': '终端',
   'sidebar.settings': '设置',
+  'sidebar.githubTooltip': '点赞收藏项目',
   'sidebar.searchPlaceholder': '搜索会话...',
   'sidebar.noSessions': '暂无会话',
   'sidebar.noMatching': '没有匹配的会话',
@@ -40,6 +41,17 @@ export const zh: Record<TranslationKey, string> = {
   'sidebar.collapse': '折叠侧边栏',
   'sidebar.expand': '展开侧边栏',
 
+  // ─── 新建会话 ──────────────────────────────────────
+  'newSession.title': '新建会话',
+  'newSession.currentProject': '当前项目',
+  'newSession.recentProjects': '最近项目',
+  'newSession.noRecentProjects': '暂无最近项目',
+  'newSession.chooseFolder': '选择文件夹...',
+  'newSession.temporary': '临时会话',
+  'newSession.create': '创建会话',
+  'newSession.selectedWorkspace': '已选择工作区',
+  'newSession.sessionCount': '{count} 个会话',
+
   // ─── Title Bar ──────────────────────────────────────
   'titlebar.code': '代码',
   'titlebar.terminal': '终端',
@@ -53,6 +65,10 @@ export const zh: Record<TranslationKey, string> = {
 
   // ─── Settings ──────────────────────────────────────
   'settings.title': '设置',
+  'settings.nav.account': '账号',
+  'settings.nav.system': '系统',
+  'settings.nav.tools': '工具',
+  'settings.nav.info': '关于',
   'settings.tab.providers': '大模型',
   'settings.tab.permissions': '权限',
   'settings.tab.general': '通用',
@@ -94,6 +110,13 @@ export const zh: Record<TranslationKey, string> = {
   'settings.providers.addProvider': '添加大模型',
   'settings.providers.officialName': 'Claude 官方',
   'settings.providers.officialDesc': 'Anthropic 原生接入 — 无需 API 密钥',
+  'settings.providers.officialBadge': '官方',
+  'settings.providers.configured': '已配置',
+  'settings.providers.notConfigured': '未配置',
+  'settings.providers.configure': '配置',
+  'settings.providers.customDesc': '连接任意兼容 API 地址。',
+  'settings.providers.modelPending': '未设置模型',
+  'settings.providers.baseUrlPending': '未设置 API 地址',
   'settings.providers.connected': '已连接 ({latency}ms)',
   'settings.providers.failed': '失败: {error}',
   'settings.providers.connectivityOk': '① 连通 ({latency}ms)',
@@ -108,6 +131,7 @@ export const zh: Record<TranslationKey, string> = {
   'settings.providers.edit': '编辑',
   'settings.providers.requestFailed': '请求失败',
   'settings.providers.addTitle': '添加大模型',
+  'settings.providers.configureTitle': '配置 {name}',
   'settings.providers.editTitle': '编辑大模型',
   'settings.providers.preset': '厂商',
   'settings.providers.name': '名称',
@@ -119,6 +143,7 @@ export const zh: Record<TranslationKey, string> = {
   'settings.providers.apiKey': 'API Key',
   'settings.providers.apiKeyKeep': 'API Key（留空保持不变）',
   'settings.providers.getApiKey': '获取 Key',
+  'settings.providers.openProviderSite': '打开厂商页面',
   'settings.providers.modelMapping': '模型',
   'settings.providers.mainModel': '主力模型',
   'settings.providers.haikuModel': '轻量模型',
@@ -615,6 +640,10 @@ export const zh: Record<TranslationKey, string> = {
   'chat.rewindFilesMore': '另有 {count} 个',
   'chat.rewindSuccessWithCode': '已回滚 {count} 条消息，并恢复相关文件。',
   'chat.rewindSuccessConversationOnly': '已回滚 {count} 条消息。这一轮没有可用的文件检查点。',
+  'chat.addFileRef': '添加文件引用',
+  'chat.hintCommand': '命令',
+  'chat.hintFile': '文件',
+  'chat.hintSettings': '设置',
 
   // ─── Streaming Indicator ──────────────────────────────────────
   'streaming.thinking': '思考中',
@@ -923,7 +952,7 @@ export const zh: Record<TranslationKey, string> = {
   'update.failed': '更新失败: {error}',
 
   // ─── 活跃会话 ──────────────────────────────────────
-  'session.untitled': '未命名会话',
+  'session.untitled': '新会话',
   'session.active': '会话活跃中',
   'session.lastUpdated': '最后更新 {time}',
   'session.messages': '{count} 条消息',

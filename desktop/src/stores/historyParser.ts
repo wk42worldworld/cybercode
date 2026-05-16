@@ -64,6 +64,7 @@ function pushAssistantHistoryText(
   timestamp: number,
   idGen: IdGenerator,
   model?: string,
+  serverId?: string,
 ): void {
   if (!content.trim()) return
   const last = messages[messages.length - 1]
@@ -78,6 +79,7 @@ function pushAssistantHistoryText(
     content,
     timestamp,
     ...(model ? { model } : {}),
+    ...(serverId ? { serverId } : {}),
   })
 }
 
@@ -100,10 +102,11 @@ export function mapHistoryMessages(
           type: 'user_text',
           content: teammateContents.join('\n\n'),
           timestamp,
+          serverId: msg.id,
         })
         continue
       }
-      uiMessages.push({ id: msg.id || idGen(), type: 'user_text', content: msg.content, timestamp })
+      uiMessages.push({ id: msg.id || idGen(), type: 'user_text', content: msg.content, timestamp, serverId: msg.id })
       continue
     }
     if (msg.type === 'assistant' && typeof msg.content === 'string') {
@@ -113,15 +116,16 @@ export function mapHistoryMessages(
         content: msg.content,
         timestamp,
         model: msg.model,
+        serverId: msg.id,
       })
       continue
     }
     if ((msg.type === 'assistant' || msg.type === 'tool_use') && Array.isArray(msg.content)) {
       for (const block of msg.content as AssistantHistoryBlock[]) {
         if (block.type === 'thinking' && block.thinking)
-          uiMessages.push({ id: idGen(), type: 'thinking', content: block.thinking, timestamp })
+          uiMessages.push({ id: idGen(), type: 'thinking', content: block.thinking, timestamp, serverId: msg.id })
         else if (block.type === 'text' && block.text)
-          pushAssistantHistoryText(uiMessages, block.text, timestamp, idGen, msg.model)
+          pushAssistantHistoryText(uiMessages, block.text, timestamp, idGen, msg.model, msg.id)
         else if (block.type === 'tool_use')
           uiMessages.push({
             id: idGen(),
@@ -131,6 +135,7 @@ export function mapHistoryMessages(
             input: block.input,
             timestamp,
             parentToolUseId: msg.parentToolUseId,
+            serverId: msg.id,
           })
       }
       continue
@@ -171,6 +176,7 @@ export function mapHistoryMessages(
             isError: !!block.is_error,
             timestamp,
             parentToolUseId: msg.parentToolUseId,
+            serverId: msg.id,
           })
       }
       if (textParts.length > 0 || attachments.length > 0) {
@@ -180,6 +186,7 @@ export function mapHistoryMessages(
           content: textParts.join('\n'),
           attachments: attachments.length > 0 ? attachments : undefined,
           timestamp,
+          serverId: msg.id,
         })
       }
     }

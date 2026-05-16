@@ -108,6 +108,9 @@ export const handleWebSocket = {
     }
 
     activeSessions.set(sessionId, ws)
+    // Force-reset any stale stream state from a previous connection so the
+    // new session doesn't inherit stale hasReceivedStreamEvents / tool_use flags.
+    cleanupStreamState(sessionId)
     if (prewarmedSessions.has(sessionId)) {
       bindPrewarmMetadataCapture(sessionId)
     } else {
@@ -184,8 +187,12 @@ export const handleWebSocket = {
 
     console.log(`[WS] Client disconnected from session: ${sessionId} (${code}: ${reason})`)
     computerUseApprovalService.cancelSession(sessionId)
-    activeSessions.delete(sessionId)
-    conversationService.clearOutputCallbacks(sessionId)
+    // Only clean up if this ws is still the active one for the session.
+    // Prevents a stale close from wiping a newer reconnection.
+    if (activeSessions.get(sessionId) === ws) {
+      activeSessions.delete(sessionId)
+      conversationService.clearOutputCallbacks(sessionId)
+    }
 
     // Schedule delayed cleanup: if the client doesn't reconnect within 30 seconds,
     // stop the CLI subprocess to avoid leaking resources.

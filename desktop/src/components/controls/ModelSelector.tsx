@@ -22,6 +22,9 @@ type Props = {
   onChange?: (modelId: string) => void
   runtimeKey?: string
   disabled?: boolean
+  placement?: 'top' | 'bottom'
+  align?: 'left' | 'right'
+  compact?: boolean
 }
 
 function officialChoices(availableModels: ModelInfo[], isDefault: boolean, officialName: string): ProviderChoice {
@@ -106,6 +109,9 @@ export function ModelSelector({
   onChange,
   runtimeKey,
   disabled = false,
+  placement = 'top',
+  align = 'right',
+  compact = false,
 }: Props = {}) {
   const t = useTranslation()
   const {
@@ -153,10 +159,12 @@ export function ModelSelector({
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
     }
-    document.addEventListener('mousedown', handleClick)
+    // Use capture phase so ancestor stopPropagation (e.g. TabBar drag region)
+    // does not prevent the dropdown from closing on outside clicks.
+    document.addEventListener('mousedown', handleClick, true)
     document.addEventListener('keydown', handleEsc)
     return () => {
-      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('mousedown', handleClick, true)
       document.removeEventListener('keydown', handleEsc)
     }
   }, [open])
@@ -230,44 +238,51 @@ export function ModelSelector({
       <button
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
-        className="flex max-w-[280px] items-center gap-2 rounded-md bg-[var(--color-surface-container-low)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+        className={`
+          flex items-center gap-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50
+          ${compact
+            ? 'px-2.5 py-1 rounded-full text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
+            : 'max-w-[280px] gap-2 rounded-md bg-[var(--color-surface-container)] border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+          }
+        `}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--color-text-primary)]">
-            {buttonModelLabel}
+        <span className={`min-w-0 truncate ${compact ? 'max-w-[100px]' : 'flex-1 text-[14px] font-semibold text-[var(--color-text-primary)]'}`} style={compact ? undefined : { fontFamily: 'var(--font-headline)' }}>
+          {compact
+            ? (buttonModelLabel.length > 12 ? buttonModelLabel.slice(0, 10) + '…' : buttonModelLabel)
+            : buttonModelLabel}
+        </span>
+        {!compact && buttonProviderLabel && (
+          <span className="max-w-[108px] flex-shrink-0 truncate text-[11px] text-[var(--color-text-tertiary)]">
+            {buttonProviderLabel}
           </span>
-          {buttonProviderLabel && (
-            <span className="max-w-[108px] flex-shrink-0 truncate text-[11px] text-[var(--color-text-tertiary)]">
-              {buttonProviderLabel}
-            </span>
-          )}
-        </div>
-        <Icon name="expand_more" size={18} className="flex-shrink-0 text-[12px]" />
+        )}
+        <Icon name="expand_more" size={compact ? 14 : 18} className={`flex-shrink-0 ${compact ? 'text-[10px] opacity-50' : 'text-[12px]'}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-full z-50 mb-2 w-[360px] rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)] overflow-hidden">
-          <div className="max-h-[420px] overflow-y-auto p-3">
-            <div className="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-[var(--color-outline)]">
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} z-50 w-[280px] rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)] overflow-hidden animate-fade-in ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+          <div className="max-h-[380px] overflow-y-auto py-2 px-1.5">
+            {/* Section label */}
+            <div className="px-2.5 py-2 text-[13px] font-semibold text-[var(--color-text-primary)]">
               {t('model.configuration')}
             </div>
 
             {isRuntimeScoped ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {providerChoices.map((choice) => (
-                  <div key={choice.providerId ?? 'official'} className="space-y-1.5">
-                    <div className="flex items-center justify-between px-2 pt-1">
-                      <span className="truncate text-[11px] font-semibold tracking-[0.01em] text-[var(--color-text-secondary)]">
+                  <div key={choice.providerId ?? 'official'} className="space-y-0.5">
+                    <div className="flex items-center justify-between px-2.5 py-1">
+                      <span className="truncate text-[12px] font-semibold text-[var(--color-text-secondary)]">
                         {choice.providerName}
                       </span>
                       {choice.isDefault && (
-                        <span className="flex-shrink-0 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+                        <span className="flex-shrink-0 text-[9px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">
                           {t('settings.providers.default')}
                         </span>
                       )}
                     </div>
 
-                    <div className="space-y-1">
+                    <div>
                       {choice.models.map((model) => {
                         const isSelected =
                           activeRuntimeSelection?.providerId === choice.providerId &&
@@ -277,33 +292,26 @@ export function ModelSelector({
                             key={`${choice.providerId ?? 'official'}:${model.id}`}
                             onClick={() => handleRuntimeSelect({ providerId: choice.providerId, modelId: model.id })}
                             className={`
-                              w-full rounded-lg border px-3 py-2.5 text-left transition-colors
+                              w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group
                               ${isSelected
-                                ? 'border-[var(--color-model-option-selected-border)] bg-[var(--color-model-option-selected-bg)]'
-                                : 'border-transparent hover:bg-[var(--color-surface-hover)]'
+                                ? 'bg-[var(--color-surface-selected)]'
+                                : 'hover:bg-[var(--color-surface-hover)]'
                               }
                             `}
                           >
-                            <div className="flex items-start gap-3">
-                              <div className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 ${
-                                isSelected ? 'border-[var(--color-brand)]' : 'border-[var(--color-outline)]'
-                              }`}>
-                                {isSelected && (
-                                  <div className="h-2 w-2 rounded-full bg-[var(--color-brand)]" />
-                                )}
+                            <div className="min-w-0 flex-1">
+                              <div className={`truncate text-[12px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                                {model.name}
                               </div>
-
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">
-                                  {model.name}
+                              {model.description && (
+                                <div className="mt-px truncate text-[10px] text-[var(--color-text-tertiary)]">
+                                  {model.description}
                                 </div>
-                                {model.description && (
-                                  <div className="mt-0.5 truncate pr-[6px] text-[10px] text-[var(--color-text-tertiary)]">
-                                    {model.description}
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </div>
+                            {isSelected && (
+                              <Icon name="check" size={14} className="shrink-0 text-[var(--color-brand)]" />
+                            )}
                           </button>
                         )
                       })}
@@ -312,7 +320,7 @@ export function ModelSelector({
                 ))}
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {availableModels.map((model) => {
                   const isSelected = model.id === selectedModel?.id
                   return (
@@ -327,31 +335,26 @@ export function ModelSelector({
                         setOpen(false)
                       }}
                       className={`
-                        w-full rounded-lg px-3 py-2.5 text-left transition-colors
+                        w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group
                         ${isSelected
-                          ? 'border border-[var(--color-model-option-selected-border)] bg-[var(--color-model-option-selected-bg)]'
+                          ? 'bg-[var(--color-surface-selected)]'
                           : 'hover:bg-[var(--color-surface-hover)]'
                         }
                       `}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 ${
-                          isSelected ? 'border-[var(--color-brand)]' : 'border-[var(--color-outline)]'
-                        }`}>
-                          {isSelected && (
-                            <div className="h-2 w-2 rounded-full bg-[var(--color-brand)]" />
-                          )}
+                      <div className="min-w-0 flex-1">
+                        <div className={`truncate text-[12px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                          {model.name}
                         </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{model.name}</div>
-                          {model.description && (
-                            <div className="mt-0.5 truncate text-[10px] text-[var(--color-text-tertiary)]">
-                              {model.description}
-                            </div>
-                          )}
-                        </div>
+                        {model.description && (
+                          <div className="mt-px truncate text-[10px] text-[var(--color-text-tertiary)]">
+                            {model.description}
+                          </div>
+                        )}
                       </div>
+                      {isSelected && (
+                        <Icon name="check" size={14} className="shrink-0 text-[var(--color-brand)]" />
+                      )}
                     </button>
                   )
                 })}
@@ -360,11 +363,11 @@ export function ModelSelector({
           </div>
 
           {!isControlled && !isRuntimeScoped && (
-            <div className="border-t border-[var(--color-border)] p-3">
-              <div className="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-[var(--color-outline)]">
+            <div className="border-t border-[var(--color-border-separator)] px-2.5 py-3">
+              <div className="px-2.5 mb-2 text-[13px] font-semibold text-[var(--color-text-primary)]">
                 {t('model.effort')}
               </div>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="flex gap-1">
                 {EFFORT_OPTIONS.map((opt) => {
                   const isSelected = opt.value === effortLevel
                   return (
@@ -375,10 +378,10 @@ export function ModelSelector({
                         setOpen(false)
                       }}
                       className={`
-                        rounded-lg py-2 text-center text-[12px] font-semibold transition-colors
+                        flex-1 rounded-lg py-1.5 text-center text-[11px] font-medium transition-all duration-150
                         ${isSelected
-                          ? 'bg-[var(--color-brand)] text-[var(--color-on-primary)]'
-                          : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
+                          ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] font-semibold'
+                          : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
                         }
                       `}
                     >
@@ -394,4 +397,3 @@ export function ModelSelector({
     </div>
   )
 }
-

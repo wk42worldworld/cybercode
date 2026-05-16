@@ -28,65 +28,67 @@ export function ToolResultBlock({ content, isError, toolName, standalone = true 
   const hasMore = text.length > 200
 
   return (
-    <div className={`mb-2 overflow-hidden rounded-md border-2 ${
+    <div className={`mb-1.5 overflow-hidden rounded-[10px] ${
       isError
-        ? 'border-[var(--color-error)]/40'
-        : 'border-[var(--color-outline-variant)]'
+        ? 'bg-red-500/[0.06] dark:bg-red-500/[0.08]'
+        : 'bg-black/[0.03] dark:bg-white/[0.04]'
     }`}>
-      {/* Status header */}
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className={`flex w-full items-center justify-between px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider ${
-        isError
-          ? 'bg-[var(--color-error-container)] text-[var(--color-error)]'
-          : 'bg-[var(--color-surface-container-high)] text-[var(--color-outline)]'
-      }`}
-      >
-        <span className="flex items-center gap-1.5">
-          <Icon name={isError ? 'error' : 'check_circle'} size={12} />
-          {toolName ? t('tool.result', { toolName }) : t('tool.resultGeneric')}
-        </span>
-        <span className={`px-2 py-0.5 rounded-full text-[9px] ${
-          isError
-            ? 'bg-[var(--color-error)]/10'
-            : 'bg-[var(--color-diff-added-bg)] text-[var(--color-diff-added-text)]'
-        }`}>
-          {isError ? t('tool.error') : t('tool.success')}
-        </span>
-      </button>
-
-      {/* Inline image gallery from detected paths */}
-      <InlineImageGallery text={text} />
-
-      {/* Content */}
-      {expanded ? (
-        isError ? (
-          <div className="bg-[var(--color-error-container)]/50 px-3 py-2.5 font-[var(--font-mono)] text-[11px] leading-[1.5] whitespace-pre-wrap break-words text-[var(--color-error)]">
-            {text}
-          </div>
-        ) : (
-          <CodeViewer
-            code={text}
-            language="plaintext"
-            maxLines={12}
-          />
-        )
-      ) : (
-        <div className="bg-[var(--color-surface-container-lowest)] px-3 py-2 font-[var(--font-mono)] text-[10px] leading-[1.35] text-[var(--color-text-tertiary)]">
-          {preview}
-          {hasMore ? '…' : ''}
-        </div>
-      )}
-
-      {hasMore && (
+      <div className="min-w-0">
+        {/* Status header */}
         <button
+          type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="w-full py-1 text-[10px] font-medium text-[var(--color-text-accent)] hover:underline bg-[var(--color-surface-container-low)] border-t border-[var(--color-outline-variant)]/10"
+          className={`flex w-full items-center justify-between px-3 py-1.5 text-left transition-colors ${
+            isError
+              ? 'text-[var(--color-error)]'
+              : 'text-[var(--color-text-tertiary)]'
+          }`}
         >
-          {expanded ? t('tool.showLess') : t('tool.showMore', { count: text.length - 200 })}
+          <span className="flex items-center gap-1.5 text-[11px] font-medium">
+            <Icon name={isError ? 'error' : 'check_circle'} size={12} />
+            {toolName ? t('tool.result', { toolName }) : t('tool.resultGeneric')}
+          </span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+            isError
+              ? 'bg-red-500/10 text-[var(--color-error)]'
+              : 'bg-black/5 dark:bg-white/10 text-black/40 dark:text-white/40'
+          }`}>
+            {isError ? t('tool.error') : t('tool.success')}
+          </span>
         </button>
-      )}
+
+        {/* Inline image gallery from detected paths */}
+        <InlineImageGallery text={text} />
+
+        {/* Content */}
+        {expanded ? (
+          isError ? (
+            <div className="px-3 pb-2 font-[var(--font-mono)] text-[11px] leading-[1.5] whitespace-pre-wrap break-words text-[var(--color-error)]">
+              {text}
+            </div>
+          ) : (
+            <CodeViewer
+              code={text}
+              language="plaintext"
+              maxLines={12}
+            />
+          )
+        ) : (
+          <div className="px-3 pb-2 font-[var(--font-mono)] text-[10px] leading-[1.35] text-[var(--color-text-tertiary)]">
+            {preview}
+            {hasMore ? '...' : ''}
+          </div>
+        )}
+
+        {hasMore && (
+          <button
+            onClick={() => setExpanded((value) => !value)}
+            className="w-full py-1 text-[10px] font-medium text-black/30 dark:text-white/30 hover:text-black/50 dark:hover:text-white/50 transition-colors"
+          >
+            {expanded ? t('tool.showLess') : t('tool.showMore', { count: text.length - 200 })}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -104,4 +106,3 @@ function extractText(content: unknown): string {
   }
   return String(content ?? '')
 }
-

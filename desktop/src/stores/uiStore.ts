@@ -41,6 +41,8 @@ export type SettingsTab =
   | 'computerUse'
   | 'about'
 
+export type SettingsPanelView = SettingsTab | 'settings' | 'scheduled'
+
 type ActiveView = 'code' | 'scheduled' | 'terminal' | 'history' | 'settings'
 
 type UIStore = {
@@ -49,6 +51,10 @@ type UIStore = {
   activeView: ActiveView
   pendingSettingsTab: SettingsTab | null
   settingsOpen: boolean
+  settingsPanelView: SettingsPanelView
+  /** Which settings page is shown directly in the content area via the icon rail.
+   * Deprecated: rail entries now open the shared floating settings panel. */
+  railSettingsView: SettingsTab | null
   activeModal: string | null
   toasts: Toast[]
 
@@ -58,8 +64,9 @@ type UIStore = {
   setSidebarOpen: (open: boolean) => void
   setActiveView: (view: ActiveView) => void
   setPendingSettingsTab: (tab: SettingsTab | null) => void
-  openSettings: (tab?: SettingsTab) => void
+  openSettings: (view?: SettingsPanelView) => void
   closeSettings: () => void
+  setRailSettingsView: (view: SettingsTab | null) => void
   openModal: (id: string) => void
   closeModal: () => void
   addToast: (toast: Omit<Toast, 'id'>) => void
@@ -74,6 +81,8 @@ export const useUIStore = create<UIStore>((set) => ({
   activeView: 'code',
   pendingSettingsTab: null,
   settingsOpen: false,
+  settingsPanelView: 'settings',
+  railSettingsView: null,
   activeModal: null,
   toasts: [],
 
@@ -96,8 +105,21 @@ export const useUIStore = create<UIStore>((set) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setActiveView: (view) => set({ activeView: view }),
   setPendingSettingsTab: (tab) => set({ pendingSettingsTab: tab }),
-  openSettings: (tab) => set(tab ? { settingsOpen: true, pendingSettingsTab: tab } : { settingsOpen: true }),
+  openSettings: (view = 'settings') => set({
+    settingsOpen: true,
+    settingsPanelView: view,
+    pendingSettingsTab: view !== 'settings' && view !== 'scheduled' ? view : null,
+    railSettingsView: null,
+  }),
   closeSettings: () => set({ settingsOpen: false }),
+  setRailSettingsView: (view) => set(view
+    ? {
+        settingsOpen: true,
+        settingsPanelView: view,
+        pendingSettingsTab: view,
+        railSettingsView: null,
+      }
+    : { settingsOpen: false, railSettingsView: null }),
   openModal: (id) => set({ activeModal: id }),
   closeModal: () => set({ activeModal: null }),
 

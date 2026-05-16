@@ -36,9 +36,9 @@ export function MessageActionBar({
             onClick={onRewind}
             aria-label={rewindLabel}
             title={rewindLabel}
-            className="inline-flex min-h-7 items-center gap-1 rounded-md border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-border-focus)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
+            className="inline-flex min-h-6 items-center gap-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2 text-[10px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-brand)]/30"
           >
-            <Icon name="undo" size={14} />
+            <Icon name="undo" size={12} />
             <span className="hidden min-[920px]:inline">Rewind</span>
           </button>
         )}
@@ -48,7 +48,7 @@ export function MessageActionBar({
             label={copyLabel}
             displayLabel="Copy"
             displayCopiedLabel="Copied"
-            className="inline-flex min-h-7 items-center rounded-md border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-border-focus)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
+            className="inline-flex min-h-6 items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2 text-[10px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-brand)]/30"
           />
         )}
       </div>

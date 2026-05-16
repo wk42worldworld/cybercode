@@ -2,12 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../pages/EmptySession', () => ({
-  EmptySession: () => <div data-testid="empty-session" />,
-}))
-
 vi.mock('../../pages/ActiveSession', () => ({
   ActiveSession: () => <div data-testid="active-session" />,
+}))
+
+vi.mock('../../pages/EmptySession', () => ({
+  EmptySession: () => <div data-testid="empty-session" />,
 }))
 
 vi.mock('../../pages/ScheduledTasks', () => ({
@@ -16,6 +16,13 @@ vi.mock('../../pages/ScheduledTasks', () => ({
 
 vi.mock('../../pages/Settings', () => ({
   Settings: () => <div data-testid="settings-page" />,
+  ProviderSettings: () => <div data-testid="settings-page" />,
+  PermissionSettings: () => <div data-testid="settings-page" />,
+  GeneralSettings: () => <div data-testid="settings-page" />,
+  SkillSettings: () => <div data-testid="settings-page" />,
+  PluginSettings: () => <div data-testid="settings-page" />,
+  AgentsSettings: () => <div data-testid="settings-page" />,
+  AboutSettings: () => <div data-testid="settings-page" />,
 }))
 
 vi.mock('../../pages/TerminalSettings', () => ({
@@ -32,6 +39,14 @@ import { useTabStore } from '../../stores/tabStore'
 describe('ContentRouter terminal tabs', () => {
   afterEach(() => {
     useTabStore.setState({ tabs: [], activeTabId: null })
+  })
+
+  it('renders the empty session page when no tab is active', () => {
+    useTabStore.setState({ tabs: [], activeTabId: null, recentSessionIds: [] })
+
+    render(<ContentRouter />)
+
+    expect(screen.getByTestId('empty-session')).toBeInTheDocument()
   })
 
   it('renders the active terminal tab as main content', () => {
@@ -53,6 +68,7 @@ describe('ContentRouter terminal tabs', () => {
         { sessionId: 'session-1', title: 'Chat', type: 'session', status: 'idle' },
       ],
       activeTabId: 'session-1',
+      recentSessionIds: ['session-1'],
     })
 
     render(<ContentRouter />)

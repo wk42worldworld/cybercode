@@ -5,7 +5,7 @@ import { Input } from '../components/shared/Input'
 import { Button } from '../components/shared/Button'
 import { DirectoryPicker } from '../components/shared/DirectoryPicker'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
-import { SettingsPage } from '../components/settings/SettingsLayout'
+import { SettingsPage, SettingsSection, SettingsRow, SegmentedControl, Switch } from '../components/settings/SettingsLayout'
 import { Icon } from '../components/shared/Icon'
 
 type ImTab = 'feishu' | 'telegram'
@@ -144,6 +144,10 @@ export function AdapterSettings() {
   const pairingExpiry = config.pairing?.expiresAt
   const isPairingActive = pairingExpiry ? Date.now() < pairingExpiry : false
   const minutesLeft = pairingExpiry ? Math.max(0, Math.ceil((pairingExpiry - Date.now()) / 60000)) : 0
+  const imTabs: Array<{ value: ImTab; label: string }> = [
+    { value: 'feishu', label: t('settings.adapters.feishu') },
+    { value: 'telegram', label: t('settings.adapters.telegram') },
+  ]
 
   if (isLoading) {
     return (
@@ -158,73 +162,74 @@ export function AdapterSettings() {
     <SettingsPage icon="chat" title={t('settings.tab.adapters')} description={t('settings.adapters.description')}>
       <div className="space-y-5">
         {/* Pairing */}
-        <section className="rounded-md border-2 border-[var(--color-border)] overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-surface-hover)] border-b border-[var(--color-border)]">
-          <Icon name="link" size={18} className="text-[var(--color-text-secondary)]" />
-          <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">{t('settings.adapters.pairing')}</span>
-        </div>
-        <div className="p-4 space-y-4">
-          <p className="text-[14px] text-[var(--color-text-secondary)]">{t('settings.adapters.pairingDesc')}</p>
-
-          {/* Generate code */}
-          <div className="flex items-center gap-3">
-            <Button onClick={handleGenerateCode} loading={isGenerating}>
-              {pairingCode || isPairingActive ? t('settings.adapters.regenerateCode') : t('settings.adapters.generateCode')}
+        <SettingsSection
+          title={t('settings.adapters.pairing')}
+          description={t('settings.adapters.pairingDesc')}
+          action={(
+            <Button variant="secondary" size="sm" onClick={handleGenerateCode} loading={isGenerating}>
+              {pairingCode || isPairingActive
+                ? t('settings.adapters.regenerateCode')
+                : t('settings.adapters.generateCode')}
             </Button>
-            {pairingCode && (
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--color-brand)]">
-                  {pairingCode}
-                </span>
-                <span className="text-[12px] text-[var(--color-text-tertiary)]">
-                  {t('settings.adapters.codeExpiresIn')} 60 {t('settings.adapters.minutes')}
-                </span>
-              </div>
-            )}
-            {!pairingCode && isPairingActive && (
-              <span className="text-[12px] text-[var(--color-text-tertiary)]">
-                {t('settings.adapters.codeExpiresIn')} {minutesLeft} {t('settings.adapters.minutes')}
-              </span>
-            )}
-          </div>
-          {pairingCode && (
-            <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.adapters.pairingCodeHint')}</p>
           )}
-
-          {/* Paired users list */}
-          <div>
-            <h4 className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2">{t('settings.adapters.pairedUsers')}</h4>
-            {allPairedUsers.length === 0 ? (
-              <p className="text-[14px] text-[var(--color-text-tertiary)]">{t('settings.adapters.noPairedUsers')}</p>
-            ) : (
-              <div className="space-y-2">
-                {allPairedUsers.map((user) => (
-                  <div
-                    key={`${user.platform}-${user.userId}`}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--color-surface-hover)]"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-[12px] px-1.5 py-0.5 rounded bg-[var(--color-surface)] text-[var(--color-text-secondary)]">
-                        {t(`settings.adapters.platform.${user.platform}`)}
-                      </span>
-                      <span className="text-[14px] text-[var(--color-text-primary)]">{user.displayName}</span>
-                      <span className="text-[12px] text-[var(--color-text-tertiary)]">
-                        {new Date(user.pairedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleUnbind(user.platform, user.userId)}
-                      className="text-[12px] text-[var(--color-error)] hover:underline cursor-pointer"
-                    >
-                      {t('settings.adapters.unbind')}
-                    </button>
-                  </div>
-                ))}
+        >
+          <div className="px-5 py-4 space-y-4">
+            {(pairingCode || isPairingActive) && (
+              <div className="flex flex-wrap items-center gap-2.5">
+                {pairingCode && (
+                  <span className="font-mono text-[24px] font-semibold tracking-[0.32em] text-[var(--color-text-primary)]">
+                    {pairingCode}
+                  </span>
+                )}
+                <span className="rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-text-tertiary)]">
+                  {t('settings.adapters.codeExpiresIn')} {pairingCode ? 60 : minutesLeft} {t('settings.adapters.minutes')}
+                </span>
               </div>
             )}
+            {pairingCode && (
+              <p className="text-[12px] leading-[1.6] text-[var(--color-text-tertiary)]">
+                {t('settings.adapters.pairingCodeHint')}
+              </p>
+            )}
+
+            <div>
+              <h4 className="mb-2 text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+                {t('settings.adapters.pairedUsers')}
+              </h4>
+              {allPairedUsers.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-4 py-5 text-center text-[13px] text-[var(--color-text-tertiary)]">
+                  {t('settings.adapters.noPairedUsers')}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {allPairedUsers.map((user) => (
+                    <div
+                      key={`${user.platform}-${user.userId}`}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex items-center gap-2">
+                        <span className="rounded bg-[var(--color-surface-container)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
+                          {t(`settings.adapters.platform.${user.platform}`)}
+                        </span>
+                        <span className="truncate text-[13px] font-medium text-[var(--color-text-primary)]">{user.displayName}</span>
+                        <span className="shrink-0 text-[11px] text-[var(--color-text-tertiary)]">
+                          {new Date(user.pairedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnbind(user.platform, user.userId)}
+                        className="shrink-0 rounded-md px-2 py-1 text-[12px] font-medium text-[var(--color-error)] transition-colors hover:bg-[var(--color-error)]/10"
+                      >
+                        {t('settings.adapters.unbind')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </SettingsSection>
 
       {/* Server URL —— 之前是个手填字段，但桌面端 Tauri 启动 adapter sidecar
           时已经把 server 的动态端口通过 ADAPTER_SERVER_URL env var 注进去了，
@@ -232,66 +237,57 @@ export function AdapterSettings() {
           运行时完全不会被读到。用户也根本不知道该填什么端口（每次启动随机）。
           Standalone 模式（直接 bun run adapters/...）保留 file 字段兜底就够了。 */}
 
-      {/* Default Project */}
-      <div className="flex flex-col gap-1">
-        <label className="text-[14px] font-medium text-[var(--color-text-primary)]">
-          {t('settings.adapters.defaultProject')}
-        </label>
-        <DirectoryPicker value={defaultProjectDir} onChange={setDefaultProjectDir} />
-        <p className="text-[12px] text-[var(--color-text-tertiary)]">
-          {t('settings.adapters.defaultProjectHint')}
-        </p>
-      </div>
-
-      {/* IM Adapter Tabs —— Feishu 默认在前，Telegram 在后 */}
-      <section className="rounded-md border-2 border-[var(--color-border)] overflow-hidden">
-        <div role="tablist" aria-label="IM adapter" className="flex items-stretch border-b border-[var(--color-border)] bg-[var(--color-surface-hover)]">
-          <ImTabButton
-            label={t('settings.adapters.feishu')}
-            active={activeIm === 'feishu'}
-            onClick={() => setActiveIm('feishu')}
-          />
-          <ImTabButton
-            label={t('settings.adapters.telegram')}
-            active={activeIm === 'telegram'}
-            onClick={() => setActiveIm('telegram')}
-          />
-        </div>
-
-        {activeIm === 'feishu' && (
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label={t('settings.adapters.appId')}
-                value={fsAppId}
-                onChange={(e) => setFsAppId(e.target.value)}
-                placeholder={t('settings.adapters.appIdPlaceholder')}
-              />
-              <Input
-                label={t('settings.adapters.appSecret')}
-                type="password"
-                value={fsAppSecret}
-                onChange={(e) => setFsAppSecret(e.target.value)}
-                placeholder={t('settings.adapters.appSecretPlaceholder')}
-              />
+        {/* Default Project */}
+        <SettingsSection>
+          <SettingsRow
+            label={t('settings.adapters.defaultProject')}
+            hint={t('settings.adapters.defaultProjectHint')}
+            align="start"
+          >
+            <div className="min-w-[220px]">
+              <DirectoryPicker value={defaultProjectDir} onChange={setDefaultProjectDir} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label={t('settings.adapters.encryptKey')}
-                type="password"
-                value={fsEncryptKey}
-                onChange={(e) => setFsEncryptKey(e.target.value)}
-                placeholder={t('settings.adapters.encryptKeyPlaceholder')}
-              />
-              <Input
-                label={t('settings.adapters.verificationToken')}
-                type="password"
-                value={fsVerificationToken}
-                onChange={(e) => setFsVerificationToken(e.target.value)}
-                placeholder={t('settings.adapters.verificationTokenPlaceholder')}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
+          </SettingsRow>
+        </SettingsSection>
+
+        {/* IM Adapter Tabs —— Feishu 默认展示，在前 */}
+        <SettingsSection
+          title={activeIm === 'feishu' ? t('settings.adapters.feishu') : t('settings.adapters.telegram')}
+          action={<SegmentedControl items={imTabs} value={activeIm} onChange={setActiveIm} />}
+        >
+          {activeIm === 'feishu' && (
+            <div className="space-y-4 px-5 py-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label={t('settings.adapters.appId')}
+                  value={fsAppId}
+                  onChange={(e) => setFsAppId(e.target.value)}
+                  placeholder={t('settings.adapters.appIdPlaceholder')}
+                />
+                <Input
+                  label={t('settings.adapters.appSecret')}
+                  type="password"
+                  value={fsAppSecret}
+                  onChange={(e) => setFsAppSecret(e.target.value)}
+                  placeholder={t('settings.adapters.appSecretPlaceholder')}
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label={t('settings.adapters.encryptKey')}
+                  type="password"
+                  value={fsEncryptKey}
+                  onChange={(e) => setFsEncryptKey(e.target.value)}
+                  placeholder={t('settings.adapters.encryptKeyPlaceholder')}
+                />
+                <Input
+                  label={t('settings.adapters.verificationToken')}
+                  type="password"
+                  value={fsVerificationToken}
+                  onChange={(e) => setFsVerificationToken(e.target.value)}
+                  placeholder={t('settings.adapters.verificationTokenPlaceholder')}
+                />
+              </div>
               <Input
                 label={t('settings.adapters.allowedUsers')}
                 value={fsAllowedUsers}
@@ -299,32 +295,28 @@ export function AdapterSettings() {
                 placeholder={t('settings.adapters.fsAllowedUsersPlaceholder')}
               />
               <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.adapters.allowedUsersHint')}</p>
+              <SettingsRow
+                label={t('settings.adapters.streamingCard')}
+                hint={t('settings.adapters.streamingCardDesc')}
+              >
+                <Switch
+                  checked={fsStreamingCard}
+                  onChange={setFsStreamingCard}
+                  ariaLabel={t('settings.adapters.streamingCard')}
+                />
+              </SettingsRow>
             </div>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={fsStreamingCard}
-                onChange={(e) => setFsStreamingCard(e.target.checked)}
-                className="w-4 h-4 rounded border-[var(--color-border)] accent-[var(--color-brand)]"
-              />
-              <div>
-                <span className="text-[14px] text-[var(--color-text-primary)]">{t('settings.adapters.streamingCard')}</span>
-                <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.adapters.streamingCardDesc')}</p>
-              </div>
-            </label>
-          </div>
-        )}
+          )}
 
-        {activeIm === 'telegram' && (
-          <div className="p-4 space-y-4">
-            <Input
-              label={t('settings.adapters.botToken')}
-              type="password"
-              value={tgBotToken}
-              onChange={(e) => setTgBotToken(e.target.value)}
-              placeholder={t('settings.adapters.botTokenPlaceholder')}
-            />
-            <div className="flex flex-col gap-1">
+          {activeIm === 'telegram' && (
+            <div className="space-y-4 px-5 py-4">
+              <Input
+                label={t('settings.adapters.botToken')}
+                type="password"
+                value={tgBotToken}
+                onChange={(e) => setTgBotToken(e.target.value)}
+                placeholder={t('settings.adapters.botTokenPlaceholder')}
+              />
               <Input
                 label={t('settings.adapters.allowedUsers')}
                 value={tgAllowedUsers}
@@ -333,9 +325,8 @@ export function AdapterSettings() {
               />
               <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.adapters.allowedUsersHint')}</p>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </SettingsSection>
 
       {/* Save */}
       <div className="flex items-center gap-3">
@@ -356,48 +347,21 @@ export function AdapterSettings() {
         )}
       </div>
 
-      <ConfirmDialog
-        open={pendingUnbind !== null}
-        onClose={() => {
-          if (isUnbinding) return
-          setPendingUnbind(null)
-        }}
-        onConfirm={confirmUnbind}
-        title={t('settings.adapters.unbind')}
-        body={t('settings.adapters.unbindConfirm')}
-        confirmLabel={t('settings.adapters.unbind')}
-        cancelLabel={t('common.cancel')}
-        confirmVariant="danger"
-        loading={isUnbinding}
-      />
+        <ConfirmDialog
+          open={pendingUnbind !== null}
+          onClose={() => {
+            if (isUnbinding) return
+            setPendingUnbind(null)
+          }}
+          onConfirm={confirmUnbind}
+          title={t('settings.adapters.unbind')}
+          body={t('settings.adapters.unbindConfirm')}
+          confirmLabel={t('settings.adapters.unbind')}
+          cancelLabel={t('common.cancel')}
+          confirmVariant="danger"
+          loading={isUnbinding}
+        />
       </div>
     </SettingsPage>
   )
 }
-
-function ImTabButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={`relative px-4 py-2.5 text-[14px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-inset ${
-        active
-          ? 'text-[var(--color-text-primary)] font-semibold after:absolute after:left-3 after:right-3 after:bottom-0 after:h-[2px] after:bg-[var(--color-brand)]'
-          : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
-      }`}
-    >
-      {label}
-    </button>
-  )
-}
-

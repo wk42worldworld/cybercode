@@ -129,43 +129,53 @@ function AgentToolGroup({
   }, [isStreaming])
 
   return (
-    <div className="mb-2">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-lg border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
-      >
-        <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)]" />
-        <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
-          {toolCalls.length === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: toolCalls.length })}
-        </span>
-        {isAnyRunning && (
-          <span className="rounded-full bg-[var(--color-warning)]/12 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-warning)]">
-            {t('agentStatus.running')}
+    <div className="mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)]">
+      {/* Left accent line */}
+      <div className="flex">
+        <div className={`w-0.5 shrink-0 ${isAnyRunning ? 'bg-[var(--color-brand)] animate-accent-pulse-line' : 'bg-[var(--color-brand)]'}`} />
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
+        >
+          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)] transition-transform duration-200" style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
+          <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
+            {toolCalls.length === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: toolCalls.length })}
           </span>
-        )}
-        {!isAnyRunning && errorPresent && (
-          <Icon name="error" size={14} className="text-[var(--color-error)]" />
-        )}
-        {!isAnyRunning && !errorPresent && allComplete && (
-          <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
-        )}
-        {!isAnyRunning && !errorPresent && !allComplete && !anyStopped && (
-          <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
-        )}
-        {!isAnyRunning && !errorPresent && !allComplete && anyStopped && (
-          <Icon name="stop_circle" size={14} className="text-[var(--color-outline)]" />
-        )}
-      </button>
+          <span className="label-micro text-[var(--color-text-tertiary)]">
+            {toolCalls.length}
+          </span>
+          {isAnyRunning && (
+            <span className="rounded-full bg-[var(--color-brand)]/12 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)]">
+              {t('agentStatus.running')}
+            </span>
+          )}
+          {!isAnyRunning && errorPresent && (
+            <Icon name="error" size={14} className="text-[var(--color-error)]" />
+          )}
+          {!isAnyRunning && !errorPresent && allComplete && (
+            <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
+          )}
+          {!isAnyRunning && !errorPresent && !allComplete && !anyStopped && (
+            <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
+          )}
+          {!isAnyRunning && !errorPresent && !allComplete && anyStopped && (
+            <Icon name="stop_circle" size={14} className="text-[var(--color-outline)]" />
+          )}
+        </button>
+      </div>
 
       {expanded && (
-        <div className="relative mt-3 pl-5">
-          <div className="absolute bottom-6 left-[11px] top-4 w-px rounded-full bg-[var(--color-border)]/45" />
+        <div
+          className="relative pl-5"
+          style={{ animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+        >
+          <div className="absolute bottom-6 left-[11px] top-4 w-px rounded-full bg-[var(--color-border-separator)]" />
           <div className="space-y-2">
             {toolCalls.map((toolCall) => (
               <div key={toolCall.id} className="relative pl-7">
                 <div className="absolute left-0 top-1/2 -translate-y-1/2">
-                  <div className="absolute left-[11px] top-1/2 h-px w-4 -translate-y-1/2 bg-[var(--color-border)]/45" />
+                  <div className="absolute left-[11px] top-1/2 h-px w-4 -translate-y-1/2 bg-[var(--color-border-separator)]" />
                   <div className="absolute left-[8px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-[var(--color-border)]/65 bg-[var(--color-surface-container-lowest)] shadow-[0_0_0_2px_var(--color-surface)]" />
                 </div>
                 <AgentCallCard
@@ -199,42 +209,56 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
     }
   }, [hasNestedToolCalls, isStreaming])
 
+  const isExecuting = !allComplete || isStreaming
+
   return (
-    <div className="mb-2">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2 rounded-lg border-2 border-[var(--color-border)]/70 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
-      >
-        <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)]" />
-        <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
-          {summary}
-        </span>
-        {!isStreaming && allComplete && !errorPresent && (
-          <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
-        )}
-        {!isStreaming && errorPresent && (
-          <Icon name="error" size={14} className="text-[var(--color-error)]" />
-        )}
-        {!isStreaming && !allComplete && !errorPresent && (
-          <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
-        )}
-        {isStreaming && (
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
-        )}
-      </button>
+    <div className="mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)]">
+      {/* Left accent line + header */}
+      <div className="flex">
+        <div className={`w-0.5 shrink-0 ${isExecuting ? 'bg-[var(--color-brand)] animate-accent-pulse-line' : 'bg-[var(--color-brand)]'}`} />
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
+        >
+          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)] transition-transform duration-200" style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
+          <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
+            {summary}
+          </span>
+          <span className="label-micro text-[var(--color-text-tertiary)]">
+            {toolCalls.length}
+          </span>
+          {!isStreaming && allComplete && !errorPresent && (
+            <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
+          )}
+          {!isStreaming && errorPresent && (
+            <Icon name="error" size={14} className="text-[var(--color-error)]" />
+          )}
+          {!isStreaming && !allComplete && !errorPresent && (
+            <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
+          )}
+          {isStreaming && (
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
+          )}
+        </button>
+      </div>
 
       {expanded && (
-        <div className="mt-1.5 space-y-1">
-          {toolCalls.map((tc) => {
+        <div
+          className="space-y-0 px-3 pb-2"
+          style={{ animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+        >
+          {toolCalls.map((tc, idx) => {
+            const isLast = idx === toolCalls.length - 1
             return (
-              <ToolCallTree
-                key={tc.id}
-                toolCall={tc}
-                resultMap={resultMap}
-                childToolCallsByParent={childToolCallsByParent}
-                compact
-              />
+              <div key={tc.id} className={isLast ? '' : 'border-b border-[var(--color-border-separator)]'}>
+                <ToolCallTree
+                  toolCall={tc}
+                  resultMap={resultMap}
+                  childToolCallsByParent={childToolCallsByParent}
+                  compact
+                />
+              </div>
             )
           })}
         </div>
@@ -292,12 +316,12 @@ function AgentCallCard({
   const description = typeof input.description === 'string' ? input.description : ''
 
   return (
-    <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)]/50 bg-[var(--color-surface-container-lowest)]">
+    <div className="overflow-hidden rounded-lg bg-[var(--color-surface-container-low)]">
       <div className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50">
-        <Icon name="smart_toy" size={18} className="text-[var(--color-outline)]" />
+        <Icon name="smart_toy" size={18} className="text-[var(--color-brand)]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">Agent</span>
+            <span className="label-micro text-[var(--color-brand)]">Agent</span>
             {description && (
               <span className="truncate text-[12px] text-[var(--color-text-secondary)]">
                 {description}
@@ -334,7 +358,7 @@ function AgentCallCard({
               event.stopPropagation()
               setPreviewOpen(true)
             }}
-            className="shrink-0 rounded-md border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            className="btn-ghost px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)] hover:text-[var(--color-brand)]"
           >
             {t('agentStatus.viewResult')}
           </button>
@@ -345,7 +369,7 @@ function AgentCallCard({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--color-outline)] transition-colors hover:bg-[var(--color-surface-hover)]"
+          className="btn-ghost flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--color-outline)] hover:text-[var(--color-brand)]"
           aria-label={expanded ? 'Collapse agent' : 'Expand agent'}
         >
           <Icon name={expanded ? 'expand_less' : 'expand_more'} size={16} />
@@ -353,9 +377,12 @@ function AgentCallCard({
       </div>
 
       {expanded && (
-        <div className="border-t border-[var(--color-border)]/60 px-3 py-3">
+        <div
+          className="border-t border-[var(--color-border-separator)] px-3 py-3"
+          style={{ animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
+        >
           {errorText && (
-            <div className="mb-3 rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/60 px-3 py-2 text-[11px] text-[var(--color-error)]">
+            <div className="mb-3 rounded-lg bg-[var(--color-error-container)]/60 px-3 py-2 text-[11px] text-[var(--color-error)]">
               {errorText}
             </div>
           )}
@@ -419,7 +446,7 @@ function ToolCallTree({
         compact={compact}
       />
       {childToolCalls.length > 0 && (
-        <div className={compact ? 'ml-4 border-l border-[var(--color-border)]/60 pl-3' : 'mb-2 ml-16 border-l border-[var(--color-border)]/60 pl-3'}>
+        <div className={compact ? 'ml-4 border-l border-[var(--color-border-separator)] pl-3' : 'mb-2 ml-16 border-l border-[var(--color-border-separator)] pl-3'}>
           <div className="space-y-1">
             {childToolCalls.map((childToolCall) => (
               <ToolCallTree
@@ -492,7 +519,7 @@ function getAgentStatusClassName(status: AgentStatus): string {
     case 'done':
       return 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
     case 'running':
-      return 'bg-[var(--color-warning)]/10 text-[var(--color-warning)]'
+      return 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]'
     case 'starting':
     default:
       return 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)]'
@@ -507,7 +534,7 @@ function formatRecentToolUseSummary(
     ? toolCall.input as Record<string, unknown>
     : {}
   const result = resultMap.get(toolCall.toolUseId)
-  const suffix = result?.isError ? ' • failed' : result ? ' • done' : ' • running'
+  const suffix = result?.isError ? ' * failed' : result ? ' * done' : ' * running'
 
   switch (toolCall.toolName) {
     case 'Bash':
@@ -616,4 +643,3 @@ function extractTextContent(content: unknown): string {
   }
   return ''
 }
-

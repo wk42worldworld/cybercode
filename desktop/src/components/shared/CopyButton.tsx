@@ -48,7 +48,15 @@ export function CopyButton({
     <button
       type="button"
       onClick={handleCopy}
-      className={className}
+      className={`
+        inline-flex items-center gap-1.5 rounded-[var(--radius-md)]
+        px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em]
+        bg-transparent text-[var(--color-text-secondary)]
+        hover:text-[var(--color-brand)] hover:bg-[var(--color-surface-hover)]
+        transition-all duration-200 cursor-pointer
+        ${copied ? 'text-[var(--color-brand)] shadow-[var(--shadow-accent-glow)]' : ''}
+        ${className}
+      `}
       aria-label={currentLabel}
       title={currentLabel}
     >

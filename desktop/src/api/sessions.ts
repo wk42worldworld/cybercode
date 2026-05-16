@@ -2,8 +2,9 @@ import { api } from './client'
 import type { SessionListItem, MessageEntry } from '../types/session'
 
 type SessionsResponse = { sessions: SessionListItem[]; total: number }
-type MessagesResponse = { messages: MessageEntry[] }
+type MessagesResponse = { messages: MessageEntry[]; hasMore: boolean }
 type CreateSessionResponse = { sessionId: string }
+type SessionLocatorParams = { projectPath?: string }
 export type SessionRewindResponse = {
   target: {
     targetUserMessageId: string
@@ -149,20 +150,28 @@ export const sessionsApi = {
     return api.get<SessionsResponse>(`/api/sessions${qs ? `?${qs}` : ''}`)
   },
 
-  getMessages(sessionId: string) {
-    return api.get<MessagesResponse>(`/api/sessions/${sessionId}/messages`)
+  getMessages(sessionId: string, params?: { limit?: number; before?: string; after?: string } & SessionLocatorParams) {
+    const query = new URLSearchParams()
+    if (params?.limit) query.set('limit', String(params.limit))
+    if (params?.before) query.set('before', params.before)
+    if (params?.after) query.set('after', params.after)
+    if (params?.projectPath) query.set('projectPath', params.projectPath)
+    const qs = query.toString()
+    return api.get<MessagesResponse>(`/api/sessions/${sessionId}/messages${qs ? `?${qs}` : ''}`)
   },
 
   create(workDir?: string) {
     return api.post<CreateSessionResponse>('/api/sessions', workDir ? { workDir } : {})
   },
 
-  delete(sessionId: string) {
-    return api.delete<{ ok: true }>(`/api/sessions/${sessionId}`)
+  delete(sessionId: string, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.delete<{ ok: true }>(`/api/sessions/${sessionId}${query}`)
   },
 
-  rename(sessionId: string, title: string) {
-    return api.patch<{ ok: true }>(`/api/sessions/${sessionId}`, { title })
+  rename(sessionId: string, title: string, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.patch<{ ok: true }>(`/api/sessions/${sessionId}${query}`, { title })
   },
 
   getRecentProjects(limit?: number) {
@@ -170,19 +179,22 @@ export const sessionsApi = {
     return api.get<{ projects: RecentProject[] }>(`/api/sessions/recent-projects${query}`)
   },
 
-  getGitInfo(sessionId: string) {
-    return api.get<{ branch: string | null; repoName: string | null; workDir: string; changedFiles: number }>(`/api/sessions/${sessionId}/git-info`)
+  getGitInfo(sessionId: string, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.get<{ branch: string | null; repoName: string | null; workDir: string; changedFiles: number }>(`/api/sessions/${sessionId}/git-info${query}`)
   },
 
-  getSlashCommands(sessionId: string) {
-    return api.get<{ commands: Array<{ name: string; description: string }> }>(`/api/sessions/${sessionId}/slash-commands`)
+  getSlashCommands(sessionId: string, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.get<{ commands: Array<{ name: string; description: string }> }>(`/api/sessions/${sessionId}/slash-commands${query}`)
   },
 
-  getInspection(sessionId: string, options?: { includeContext?: boolean; timeout?: number }) {
-    const query = options?.includeContext === undefined
-      ? ''
-      : `?includeContext=${options.includeContext ? '1' : '0'}`
-    return api.get<SessionInspectionResponse>(`/api/sessions/${sessionId}/inspection${query}`, {
+  getInspection(sessionId: string, options?: { includeContext?: boolean; timeout?: number } & SessionLocatorParams) {
+    const query = new URLSearchParams()
+    if (options?.includeContext !== undefined) query.set('includeContext', options.includeContext ? '1' : '0')
+    if (options?.projectPath) query.set('projectPath', options.projectPath)
+    const qs = query.toString()
+    return api.get<SessionInspectionResponse>(`/api/sessions/${sessionId}/inspection${qs ? `?${qs}` : ''}`, {
       timeout: options?.timeout ?? (options?.includeContext ? 45_000 : 25_000),
     })
   },
@@ -192,8 +204,9 @@ export const sessionsApi = {
     userMessageIndex?: number
     expectedContent?: string
     dryRun?: boolean
-  }) {
-    return api.post<SessionRewindResponse>(`/api/sessions/${sessionId}/rewind`, body, {
+  }, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.post<SessionRewindResponse>(`/api/sessions/${sessionId}/rewind${query}`, body, {
       timeout: 60_000,
     })
   },

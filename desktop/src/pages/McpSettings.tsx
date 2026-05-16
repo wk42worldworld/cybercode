@@ -8,6 +8,7 @@ import { useMcpStore } from '../stores/mcpStore'
 import { useSessionStore } from '../stores/sessionStore'
 import type { McpServerRecord, McpUpsertPayload } from '../types/mcp'
 import { Icon } from '../components/shared/Icon'
+import { Avatar } from '../components/shared/Avatar'
 
 type EditorMode =
   | { type: 'list' }
@@ -63,7 +64,7 @@ const MCP_GROUP_ORDER: McpGroupKey[] = [
 ]
 
 const STATUS_TONE: Record<McpServerRecord['status'], string> = {
-  connected: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  connected: 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20',
   checking: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
   'needs-auth': 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   failed: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
@@ -208,6 +209,15 @@ function transportLabel(transport: string, t: ReturnType<typeof useTranslation>)
   }
 }
 
+function mcpIconFor(transport: string) {
+  switch (transport) {
+    case 'stdio': return 'terminal'
+    case 'http': return 'language'
+    case 'sse': return 'sensors'
+    default: return 'hub'
+  }
+}
+
 function getServerGroupKey(server: McpServerRecord): McpGroupKey {
   if (server.name.startsWith('plugin:')) return 'plugin'
   switch (server.scope) {
@@ -263,7 +273,7 @@ function ToggleSwitch({
       disabled={disabled}
       onClick={onChange}
       className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-        checked ? 'bg-[#90c1f7]' : 'bg-[var(--color-border)]'
+        checked ? 'bg-[var(--color-brand)] shadow-[0_0_0_3px_var(--color-accent-glow)]' : 'bg-[var(--color-border)]'
       } ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span
@@ -297,7 +307,7 @@ function ArraySection({
   addLabel: string
 }) {
   return (
-    <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+    <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
       <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">{title}</div>
       <div className="space-y-3">
         {rows.map((row) => (
@@ -339,12 +349,12 @@ function ArraySection({
 
 function StatCard({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
-    <div className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-5 py-4">
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-4">
       <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] mb-2">
         <Icon name={icon} size={18} />
         <span className="text-[12px] uppercase tracking-[0.18em] font-semibold">{label}</span>
       </div>
-      <div className="text-3xl font-semibold text-[var(--color-text-primary)]">{value}</div>
+      <div className="text-3xl font-semibold text-[var(--color-brand)]">{value}</div>
     </div>
   )
 }
@@ -363,7 +373,9 @@ function ServerRow({
   t: ReturnType<typeof useTranslation>
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 px-6 py-5 border-t border-[var(--color-border)] first:border-t-0">
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-4 px-6 py-5 border-t border-[var(--color-border-separator)] first:border-t-0">
+      {/* Douyin-style circular icon — distinct shape from provider tiles */}
+      <Avatar seed={server.name} icon={mcpIconFor(server.transport)} variant="circle" size={44} active={server.enabled && server.status === 'connected'} />
       <div className="min-w-0">
         <div className="flex items-center gap-3 mb-2 min-w-0">
           <div className="text-[1.05rem] font-semibold text-[var(--color-text-primary)] truncate">{server.name}</div>
@@ -717,7 +729,7 @@ export function McpSettings() {
             </div>
             <div className="mt-5">
               <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2">{t('settings.mcp.form.rawConfig')}</div>
-              <pre className="overflow-x-auto rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] p-4 text-[12px] text-[var(--color-text-secondary)]">
+              <pre className="overflow-x-auto rounded-[var(--radius-lg)] bg-[var(--color-surface-container-low)] p-4 text-[12px] text-[var(--color-text-secondary)] font-mono">
                 {JSON.stringify(server.config, null, 2)}
               </pre>
             </div>
@@ -786,7 +798,7 @@ export function McpSettings() {
           </div>
 
           <div className="space-y-4">
-          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
             <Input
               label={t('settings.mcp.form.name')}
               value={draft.name}
@@ -797,7 +809,7 @@ export function McpSettings() {
             />
           </section>
 
-          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
             <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2">
               {t('settings.mcp.form.scope')}
             </div>
@@ -806,7 +818,7 @@ export function McpSettings() {
             </p>
           </section>
 
-          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] overflow-hidden">
             <div className="grid grid-cols-3">
               {(['stdio', 'http', 'sse'] as TransportKind[]).map((transport) => {
                 const active = draft.transport === transport
@@ -837,7 +849,7 @@ export function McpSettings() {
 
           {draft.transport === 'stdio' ? (
             <>
-              <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
                 <Input
                   label={t('settings.mcp.form.command')}
                   value={draft.command}
@@ -874,7 +886,7 @@ export function McpSettings() {
             </>
           ) : (
             <>
-              <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
                 <Input
                   label={draft.transport === 'http' ? t('settings.mcp.form.url') : t('settings.mcp.form.sseUrl')}
                   value={draft.url}
@@ -895,7 +907,7 @@ export function McpSettings() {
                 addLabel={t('settings.mcp.form.addHeader')}
               />
 
-              <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <Input
                     label={t('settings.mcp.form.oauthClientId')}
@@ -960,9 +972,10 @@ export function McpSettings() {
       {isLoading && servers.length === 0 ? (
         <div className="flex justify-center py-16">
           <div className="animate-spin h-6 w-6 rounded-full border-2 border-[var(--color-brand)] border-t-transparent" />
+
         </div>
       ) : error ? (
-        <div className="text-center py-16 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <div className="text-center py-16 rounded-lg border border-dashed border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
           <Icon name="error" size={40} className="text-[var(--color-error)] mb-3 block" />
           <p className="text-[14px] text-[var(--color-error)] mb-3">{error}</p>
           <button
@@ -974,7 +987,7 @@ export function McpSettings() {
           </button>
         </div>
       ) : servers.length === 0 ? (
-        <div className="text-center py-16 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <div className="text-center py-16 rounded-lg border border-dashed border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
           <Icon name="dns" size={40} className="text-[var(--color-text-tertiary)] mb-3 block" />
           <p className="text-[14px] text-[var(--color-text-secondary)] mb-1">{t('settings.mcp.empty')}</p>
           <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.mcp.emptyHint')}</p>
@@ -993,7 +1006,7 @@ export function McpSettings() {
                   </div>
                   <div className="text-[14px] text-[var(--color-text-tertiary)]">{groupServers.length}</div>
                 </div>
-                <div className="rounded-[5px] border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] overflow-hidden">
                   {groupServers.map((server) => (
                     <ServerRow
                       key={`${server.scope}:${server.name}`}
@@ -1017,10 +1030,9 @@ export function McpSettings() {
 
 function InfoPair({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] px-4 py-3">
+    <div className="rounded-[var(--radius-lg)] bg-[var(--color-surface-container-low)] px-4 py-3">
       <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-[var(--color-text-tertiary)] mb-2">{label}</div>
       <div className="text-[14px] text-[var(--color-text-primary)] break-all">{value}</div>
     </div>
   )
 }
-

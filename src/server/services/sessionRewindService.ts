@@ -31,6 +31,8 @@ export type RewindTargetSelector = {
   expectedContent?: string
 }
 
+type RewindLocator = { projectPath?: string }
+
 export type SessionRewindPreview = {
   target: {
     targetUserMessageId: string
@@ -99,8 +101,12 @@ function assertExpectedPromptMatches(
 async function resolveRewindTarget(
   sessionId: string,
   selector: RewindTargetSelector,
+  locator?: RewindLocator,
 ): Promise<RewindTarget> {
-  const activeMessages = await sessionService.getSessionMessages(sessionId)
+  const { messages: activeMessages } = await sessionService.getSessionMessages(sessionId, {
+    limit: 200,
+    projectPath: locator?.projectPath,
+  })
   const userMessages = activeMessages.filter((message) => message.type === 'user')
 
   if (userMessages.length === 0) {
@@ -162,8 +168,9 @@ async function resolveRewindTarget(
 
 async function loadFileHistorySnapshots(
   sessionId: string,
+  locator?: RewindLocator,
 ): Promise<FileHistorySnapshot[] | null> {
-  const snapshots = await sessionService.getSessionFileHistorySnapshots(sessionId)
+  const snapshots = await sessionService.getSessionFileHistorySnapshots(sessionId, locator)
   if (snapshots.length === 0) {
     return null
   }
@@ -267,11 +274,12 @@ async function buildCodePreview(
   sessionId: string,
   workDir: string,
   targetUserMessageId: string,
+  locator?: RewindLocator,
 ): Promise<{
   snapshots: FileHistorySnapshot[] | null
   preview: RewindCodePreview
 }> {
-  const snapshots = await loadFileHistorySnapshots(sessionId)
+  const snapshots = await loadFileHistorySnapshots(sessionId, locator)
   if (!snapshots) {
     return {
       snapshots: null,
@@ -357,18 +365,20 @@ async function buildCodePreview(
 export async function previewSessionRewind(
   sessionId: string,
   selector: RewindTargetSelector,
+  locator?: RewindLocator,
 ): Promise<SessionRewindPreview> {
-  const target = await resolveRewindTarget(sessionId, selector)
+  const target = await resolveRewindTarget(sessionId, selector, locator)
   const workDir =
     (conversationService.hasSession(sessionId)
       ? conversationService.getSessionWorkDir(sessionId)
       : null) ||
-    (await sessionService.getSessionWorkDir(sessionId)) ||
+    (await sessionService.getSessionWorkDir(sessionId, locator)) ||
     process.cwd()
   const { preview } = await buildCodePreview(
     sessionId,
     workDir,
     target.targetUserMessageId,
+    locator,
   )
 
   return {
@@ -387,18 +397,20 @@ export async function previewSessionRewind(
 export async function executeSessionRewind(
   sessionId: string,
   selector: RewindTargetSelector,
+  locator?: RewindLocator,
 ): Promise<SessionRewindExecuteResult> {
-  const target = await resolveRewindTarget(sessionId, selector)
+  const target = await resolveRewindTarget(sessionId, selector, locator)
   const workDir =
     (conversationService.hasSession(sessionId)
       ? conversationService.getSessionWorkDir(sessionId)
       : null) ||
-    (await sessionService.getSessionWorkDir(sessionId)) ||
+    (await sessionService.getSessionWorkDir(sessionId, locator)) ||
     process.cwd()
   const { snapshots, preview } = await buildCodePreview(
     sessionId,
     workDir,
     target.targetUserMessageId,
+    locator,
   )
 
   if (conversationService.hasSession(sessionId)) {
@@ -441,6 +453,7 @@ export async function executeSessionRewind(
   const trimResult = await sessionService.trimSessionMessagesFrom(
     sessionId,
     target.targetUserMessageId,
+    locator,
   )
 
   return {

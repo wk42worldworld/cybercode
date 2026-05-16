@@ -50,8 +50,8 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
                   onClick={() => setActiveImageIndex(images.findIndex((image) => image.src === src))}
                   className={
                     isComposer
-                      ? 'overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)]'
-                      : 'overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left shadow-sm transition-transform hover:scale-[1.01]'
+                      ? 'overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-colors'
+                      : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-all text-left shadow-sm hover:scale-[1.01]'
                   }
                 >
                   <img
@@ -81,7 +81,7 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
           return (
             <div
               key={attachment.id || `${attachment.name}-${index}`}
-              className="flex items-center gap-2 rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)]"
+              className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-colors px-3 py-2 text-[12px] text-[var(--color-text-secondary)]"
             >
               <Icon name="attach_file" size={14} />
               <span className="max-w-[220px] truncate">{attachment.name}</span>

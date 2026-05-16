@@ -58,13 +58,9 @@ export default function SessionControls() {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-[var(--color-text-secondary)] cursor-pointer">
-            arrow_back_ios
-          </span>
-          <span className="material-symbols-outlined text-[var(--color-text-secondary)] cursor-pointer">
-            arrow_forward_ios
-          </span>
-          <button className="ml-2 px-3 py-1 bg-surface-container-high rounded text-[var(--color-primary)] hover:bg-surface-container-highest transition-colors">
+          <Icon name="arrow_back_ios" size={18} className="text-[var(--color-text-secondary)] cursor-pointer" />
+          <Icon name="arrow_forward_ios" size={18} className="text-[var(--color-text-secondary)] cursor-pointer" />
+          <button className="btn-ghost ml-2 px-3 py-1 rounded text-[12px] font-medium text-[var(--color-text-secondary)]">
             Settings
           </button>
         </div>
@@ -94,7 +90,7 @@ export default function SessionControls() {
 
         {/* Nav items */}
         <button className="w-full text-left p-2.5 bg-[var(--color-surface)] text-[var(--color-text-primary)] rounded-lg relative before:content-[''] before:absolute before:left-[-8px] before:w-1 before:h-4 before:bg-[var(--color-primary)] before:rounded-full before:top-1/2 before:-translate-y-1/2 transition-all duration-200 ease-in-out flex items-center gap-3">
-          <span className="material-symbols-outlined text-[var(--color-primary)]">add</span>
+          <Icon name="add" size={18} className="text-[var(--color-primary)]" />
           <span>New session</span>
         </button>
         <button className="w-full text-left p-2.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-all duration-200 ease-in-out flex items-center gap-3">
@@ -117,11 +113,11 @@ export default function SessionControls() {
         {/* Bottom modes */}
         <div className="mt-auto pt-4 border-t border-outline/10 flex flex-col gap-1">
           <button className="flex items-center gap-3 p-2 text-outline hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-[12px]">computer</span>
+            <Icon name="computer" size={12} />
             <span className="text-[12px]">Local Mode</span>
           </button>
           <button className="flex items-center gap-3 p-2 text-outline hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-[12px]">cloud</span>
+            <Icon name="cloud" size={12} />
             <span className="text-[12px]">Remote Mode</span>
           </button>
         </div>
@@ -167,9 +163,7 @@ export default function SessionControls() {
                   <span className="text-[12px] text-on-surface-variant">
                     internal/auth/provider.go
                   </span>
-                  <span className="material-symbols-outlined text-[14px] text-outline cursor-pointer">
-                    content_copy
-                  </span>
+                  <Icon name="content_copy" size={14} className="text-outline cursor-pointer" />
                 </div>
                 <pre className="p-4 text-on-surface">
                   <code>{`func (p *Provider) RefreshToken(ctx context.Context) error {
@@ -191,15 +185,15 @@ export default function SessionControls() {
                 </h4>
                 <ul className="space-y-3">
                   <li className="flex items-center gap-2 text-[14px] text-on-surface-variant">
-                    <span className="material-symbols-outlined text-[14px]">description</span>
+                    <Icon name="description" size={14} />
                     auth_provider.go
                   </li>
                   <li className="flex items-center gap-2 text-[14px] text-on-surface-variant">
-                    <span className="material-symbols-outlined text-[14px]">description</span>
+                    <Icon name="description" size={14} />
                     main.go
                   </li>
                   <li className="flex items-center gap-2 text-[14px] text-on-surface-variant">
-                    <span className="material-symbols-outlined text-[14px]">description</span>
+                    <Icon name="description" size={14} />
                     session_test.go
                   </li>
                 </ul>
@@ -216,16 +210,14 @@ export default function SessionControls() {
           {/* ── Permissions Dropdown ─────────────────────────────── */}
           {showPermissions && (
             <div
-              className="w-80 rounded-md border border-[#E8E6DC] overflow-hidden flex flex-col"
+              className="w-80 rounded-md border border-[var(--color-border)] overflow-hidden flex flex-col"
               style={{
-                background: 'rgba(255, 255, 255, 0.85)',
-                backdropFilter: 'blur(20px)',
-                boxShadow:
-                  '0 4px 20px rgba(27, 28, 26, 0.04), 0 12px 40px rgba(27, 28, 26, 0.08)',
+                background: 'var(--color-surface-container-lowest)',
+                boxShadow: '0 16px 48px -8px rgba(0,0,0,0.15)',
               }}
             >
-              <div className="px-4 py-3 bg-surface-container-low border-b border-[#E8E6DC]">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+              <div className="px-4 py-3 bg-[var(--color-surface-container-low)] border-b border-[var(--color-border-separator)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
                   Execution Permissions
                 </span>
               </div>
@@ -233,19 +225,19 @@ export default function SessionControls() {
                 {mockPermissionModes.map((mode) => {
                   const meta = permissionIcons[mode.id] || {
                     icon: mode.icon,
-                    color: 'text-outline',
+                    color: 'text-[var(--color-text-secondary)]',
                   }
                   const isSelected = selectedPermission === mode.id
                   const isPlan = mode.id === 'plan'
                   const isBypass = mode.id === 'bypass'
 
-                  let hoverClass = 'hover:bg-surface-container-high'
-                  if (isPlan) hoverClass = 'hover:bg-tertiary-container/10'
-                  if (isBypass) hoverClass = 'hover:bg-error-container/20'
+                  let hoverClass = 'hover:bg-[var(--color-surface-container-high)]'
+                  if (isPlan) hoverClass = 'hover:bg-[var(--color-surface-hover)]'
+                  if (isBypass) hoverClass = 'hover:bg-[var(--color-error)]/10'
 
                   let labelColor = ''
-                  if (isPlan) labelColor = 'text-tertiary'
-                  if (isBypass) labelColor = 'text-error'
+                  if (isPlan) labelColor = 'text-[var(--color-text-tertiary)]'
+                  if (isBypass) labelColor = 'text-[var(--color-error)]'
 
                   return (
                     <button
@@ -253,20 +245,14 @@ export default function SessionControls() {
                       onClick={() => setSelectedPermission(mode.id)}
                       className={`w-full text-left p-3 rounded-lg ${hoverClass} transition-colors flex gap-3 group`}
                     >
-                      <span
-                        className={`material-symbols-outlined ${meta.color} mt-0.5`}
-                      >
-                        {meta.icon}
-                      </span>
+                      <Icon name={meta.icon} size={18} className={`${meta.color} mt-0.5`} />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className={`text-[14px] font-semibold ${labelColor}`}>
                             {mode.label}
                           </span>
                           {isSelected && (
-                            <span className="material-symbols-outlined text-primary text-[14px]">
-                              check_circle
-                            </span>
+                            <Icon name="check_circle" size={14} className="text-[var(--color-brand)]" />
                           )}
                         </div>
                         <p className="text-[12px] text-on-surface-variant">{mode.description}</p>
@@ -281,16 +267,14 @@ export default function SessionControls() {
           {/* ── Model & Effort Dropdown ─────────────────────────── */}
           {showModelConfig && (
             <div
-              className="w-64 rounded-md border border-[#E8E6DC] overflow-hidden flex flex-col"
+              className="w-64 rounded-md border border-[var(--color-border)] overflow-hidden flex flex-col"
               style={{
-                background: 'rgba(255, 255, 255, 0.85)',
-                backdropFilter: 'blur(20px)',
-                boxShadow:
-                  '0 4px 20px rgba(27, 28, 26, 0.04), 0 12px 40px rgba(27, 28, 26, 0.08)',
+                background: 'var(--color-surface-container-lowest)',
+                boxShadow: '0 16px 48px -8px rgba(0,0,0,0.15)',
               }}
             >
-              <div className="px-4 py-3 bg-surface-container-low border-b border-[#E8E6DC]">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-outline">
+              <div className="px-4 py-3 bg-[var(--color-surface-container-low)] border-b border-[var(--color-border-separator)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
                   Model Configuration
                 </span>
               </div>
@@ -307,8 +291,8 @@ export default function SessionControls() {
                       onClick={() => setSelectedModel(model.id)}
                       className={`w-full text-left p-2.5 rounded-lg flex items-center justify-between transition-colors ${
                         isActive
-                          ? 'bg-primary/5 text-primary'
-                          : 'hover:bg-surface-container-high'
+                          ? 'bg-[var(--color-brand)]/8 text-[var(--color-brand)]'
+                          : 'hover:bg-[var(--color-surface-container-high)]'
                       }`}
                     >
                       <div
@@ -316,19 +300,15 @@ export default function SessionControls() {
                           isActive ? 'font-semibold' : ''
                         }`}
                       >
-                        <span
-                          className={`material-symbols-outlined text-[14px] ${
-                            isActive ? '' : 'text-outline'
-                          }`}
-                        >
-                          {icon}
-                        </span>
+                        <Icon
+                          name={icon}
+                          size={14}
+                          className={isActive ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-tertiary)]'}
+                        />
                         <span className="text-[14px]">{model.name}</span>
                       </div>
                       {isActive && (
-                        <span className="material-symbols-outlined text-[14px]">
-                          radio_button_checked
-                        </span>
+                        <Icon name="radio_button_checked" size={14} className="text-[var(--color-brand)]" />
                       )}
                     </button>
                   )
@@ -336,12 +316,12 @@ export default function SessionControls() {
               </div>
 
               {/* Divider */}
-              <div className="mx-4 h-[1px] bg-[#E8E6DC]" />
+              <div className="mx-4 h-[1px] bg-[var(--color-border)]" />
 
               {/* Effort levels */}
               <div className="p-2">
                 <div className="px-2 mb-2">
-                  <span className="text-[9px] font-bold text-outline uppercase tracking-tighter">
+                  <span className="text-[9px] font-bold text-[var(--color-text-tertiary)] uppercase tracking-tighter">
                     Thinking Effort
                   </span>
                 </div>
@@ -358,8 +338,8 @@ export default function SessionControls() {
                         onClick={() => setSelectedEffort(level)}
                         className={`text-[12px] py-2 px-3 rounded-md transition-all ${
                           isActive
-                            ? 'bg-primary text-on-primary'
-                            : 'border border-outline-variant/30 hover:border-primary'
+                            ? 'bg-[var(--color-brand)] text-[var(--color-on-primary)]'
+                            : 'border border-[var(--color-border)] hover:border-[var(--color-brand)]'
                         } ${level === 'Max' ? 'font-bold' : ''}`}
                       >
                         {displayLabel}
@@ -374,12 +354,10 @@ export default function SessionControls() {
 
         {/* ── The Composer (Anchor) ─────────────────────────────── */}
         <div
-          className="w-full max-w-2xl p-4 rounded-md border border-outline-variant/15 pointer-events-auto flex flex-col gap-3"
+          className="w-full max-w-2xl p-4 rounded-md border border-[var(--color-border)] pointer-events-auto flex flex-col gap-3"
           style={{
-            background: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            boxShadow:
-              '0 4px 20px rgba(27, 28, 26, 0.04), 0 12px 40px rgba(27, 28, 26, 0.08)',
+            background: 'var(--color-surface-container-lowest)',
+            boxShadow: '0 16px 48px -8px rgba(0,0,0,0.15)',
           }}
         >
           <textarea
@@ -392,11 +370,9 @@ export default function SessionControls() {
               {/* Permission pill */}
               <button
                 onClick={() => setShowPermissions((v) => !v)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-[#E8E6DC] text-[12px] font-medium hover:bg-surface-container-high transition-all"
+                className="btn-ghost flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  {permissionIcons[selectedPermission]?.icon || 'verified_user'}
-                </span>
+                <Icon name={permissionIcons[selectedPermission]?.icon || 'verified_user'} size={16} />
                 {mockPermissionModes.find((m) => m.id === selectedPermission)?.label ||
                   'Ask permissions'}
               </button>
@@ -404,24 +380,22 @@ export default function SessionControls() {
               {/* Model pill */}
               <button
                 onClick={() => setShowModelConfig((v) => !v)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container-low border border-[#E8E6DC] text-[12px] font-medium hover:bg-surface-container-high transition-all"
+                className="btn-ghost flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all"
               >
-                <span className="material-symbols-outlined text-[16px]">
-                  {modelIcons[selectedModel] || 'smart_toy'}
-                </span>
+                <Icon name={modelIcons[selectedModel] || 'smart_toy'} size={16} />
                 {activeModel?.name || 'Sonnet 4.6'}
               </button>
 
               {/* Attach file button */}
-              <button className="p-1.5 rounded-lg text-outline hover:bg-surface-container-low transition-colors">
+              <button className="btn-ghost p-1.5 rounded-lg text-[var(--color-text-tertiary)]">
                 <Icon name="attach_file" size={18} />
               </button>
             </div>
 
             {/* Run button */}
-            <button className="bg-primary text-on-primary px-4 py-1.5 rounded-lg font-semibold text-[14px] flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <button className="bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] px-4 py-1.5 rounded-lg font-semibold text-[14px] flex items-center gap-2 hover:bg-[var(--color-btn-primary-bg-hover)] transition-colors">
               Run
-              <span className="material-symbols-outlined text-[16px]">send</span>
+              <Icon name="arrow_upward" size={16} />
             </button>
           </div>
         </div>
@@ -432,12 +406,7 @@ export default function SessionControls() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded-full bg-primary-fixed flex items-center justify-center">
-              <span
-                className="material-symbols-outlined text-[10px] text-on-primary-fixed"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                person
-              </span>
+              <Icon name="person" size={10} className="text-on-primary-fixed" />
             </div>
             <span className="text-outline">
               {mockStatusBar.user} &bull; {mockStatusBar.username} &bull; {mockStatusBar.plan}
@@ -459,4 +428,3 @@ export default function SessionControls() {
     </div>
   )
 }
-

@@ -4,48 +4,50 @@ import { useUIStore } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
 import { ProjectFilter } from './ProjectFilter'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
-import type { SessionListItem } from '../../types/session'
 import { useTabStore } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
+import { getDefaultSessionTitle, getSessionDisplayTitle } from '../../utils/sessionTitle'
+import { Icon } from '../shared/Icon'
+import { NewSessionMenu } from './NewSessionMenu'
 
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
-const isWindows = typeof navigator !== 'undefined' && /Win/.test(navigator.platform)
+type SessionRef = { id: string; projectPath?: string }
 
-type TimeGroup = 'today' | 'yesterday' | 'last7days' | 'last30days' | 'older'
-
-const TIME_GROUP_ORDER: TimeGroup[] = ['today', 'yesterday', 'last7days', 'last30days', 'older']
+function sessionKey(id: string, projectPath?: string): string {
+  return `${id}:${projectPath ?? ''}`
+}
 
 export function Sidebar() {
   const sessions = useSessionStore((s) => s.sessions)
   const selectedProjects = useSessionStore((s) => s.selectedProjects)
+  const availableProjects = useSessionStore((s) => s.availableProjects)
   const error = useSessionStore((s) => s.error)
   const fetchSessions = useSessionStore((s) => s.fetchSessions)
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const renameSession = useSessionStore((s) => s.renameSession)
-  const addToast = useUIStore((s) => s.addToast)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
 
   const activeTabId = useTabStore((s) => s.activeTabId)
+  const activeTab = useTabStore((s) => s.tabs.find((tab) => tab.sessionId === s.activeTabId))
   const closeTab = useTabStore((s) => s.closeTab)
   const disconnectSession = useChatStore((s) => s.disconnectSession)
+  const t = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
-  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null)
-  const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null)
-  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null)
-  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [pendingSessionKey, setPendingSessionKey] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<(SessionRef & { x: number; y: number }) | null>(null)
+  const [pendingDeleteSession, setPendingDeleteSession] = useState<SessionRef | null>(null)
+  const [newSessionMenuOpen, setNewSessionMenuOpen] = useState(false)
+  const [renamingSession, setRenamingSession] = useState<SessionRef | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [scrollAreaHover, setScrollAreaHover] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const newSessionButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { fetchSessions() }, [fetchSessions])
 
   useEffect(() => {
-    fetchSessions()
-  }, [fetchSessions])
-
-  useEffect(() => {
-    if (pendingSessionId && pendingSessionId === activeTabId) {
-      setPendingSessionId(null)
-    }
-  }, [activeTabId, pendingSessionId])
+    const activeKey = activeTab ? sessionKey(activeTab.sessionId, activeTab.projectPath) : activeTabId
+    if (pendingSessionKey && pendingSessionKey === activeKey) setPendingSessionKey(null)
+  }, [activeTab, activeTabId, pendingSessionKey])
 
   useEffect(() => {
     if (!contextMenu || sidebarOpen) return
@@ -66,50 +68,61 @@ export function Sidebar() {
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      result = result.filter((s) => s.title.toLowerCase().includes(q))
+      result = result.filter((s) => getSessionDisplayTitle(s, t).toLowerCase().includes(q))
     }
     return result
-  }, [sessions, selectedProjects, searchQuery])
+  }, [sessions, selectedProjects, searchQuery, t])
 
-  const timeGroups = useMemo(() => groupByTime(filteredSessions), [filteredSessions])
+  const selectedProject = useMemo(() => {
+    if (selectedProjects.length !== 1) return undefined
+    const projectPath = selectedProjects[0]!
+    const latestSession = sessions
+      .filter((session) =>
+        session.projectPath === projectPath &&
+        session.workDir &&
+        session.workDirExists,
+      )
+      .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime())[0]
+    if (!latestSession?.workDir) return undefined
+    const title = latestSession.workDir.split('/').filter(Boolean).pop() || latestSession.workDir
+    return { projectPath, workDir: latestSession.workDir, title }
+  }, [selectedProjects, sessions])
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, id: string) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, session: SessionRef) => {
     e.preventDefault()
-    setContextMenu({ id, x: e.clientX, y: e.clientY })
+    setContextMenu({ ...session, x: e.clientX, y: e.clientY })
   }, [])
 
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = useCallback((session: SessionRef) => {
     setContextMenu(null)
-    setPendingDeleteSessionId(id)
+    setPendingDeleteSession(session)
   }, [])
 
   const confirmDelete = useCallback(async () => {
-    if (!pendingDeleteSessionId) return
-    await deleteSession(pendingDeleteSessionId)
-    disconnectSession(pendingDeleteSessionId)
-    closeTab(pendingDeleteSessionId)
-    setPendingDeleteSessionId(null)
-  }, [closeTab, deleteSession, disconnectSession, pendingDeleteSessionId])
+    if (!pendingDeleteSession) return
+    await deleteSession(pendingDeleteSession.id, pendingDeleteSession.projectPath)
+    disconnectSession(pendingDeleteSession.id)
+    closeTab(pendingDeleteSession.id, pendingDeleteSession.projectPath)
+    setPendingDeleteSession(null)
+  }, [closeTab, deleteSession, disconnectSession, pendingDeleteSession])
 
-  const handleStartRename = useCallback((id: string, currentTitle: string) => {
+  const handleStartRename = useCallback((session: SessionRef, currentTitle: string) => {
     setContextMenu(null)
-    setRenamingId(id)
+    setRenamingSession(session)
     setRenameValue(currentTitle)
   }, [])
 
   useEffect(() => {
-    if (renamingId) {
-      renameInputRef.current?.focus()
-    }
-  }, [renamingId])
+    if (renamingSession) renameInputRef.current?.focus()
+  }, [renamingSession])
 
   const handleFinishRename = useCallback(async () => {
-    if (renamingId && renameValue.trim()) {
-      await renameSession(renamingId, renameValue.trim())
+    if (renamingSession && renameValue.trim()) {
+      await renameSession(renamingSession.id, renameValue.trim(), renamingSession.projectPath)
     }
-    setRenamingId(null)
+    setRenamingSession(null)
     setRenameValue('')
-  }, [renamingId, renameValue, renameSession])
+  }, [renamingSession, renameValue, renameSession])
 
   const startDraggingRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -128,250 +141,201 @@ export function Sidebar() {
     startDraggingRef.current?.()
   }, [])
 
-  const t = useTranslation()
+  const createSession = useSessionStore((state) => state.createSession)
 
-  const handleNewSession = useCallback(async () => {
+  const createAndOpenSession = useCallback(async (workDir?: string): Promise<boolean> => {
     try {
-      const currentTabId = useTabStore.getState().activeTabId
-      const currentSession = currentTabId
-        ? useSessionStore.getState().sessions.find((s) => s.id === currentTabId)
-        : null
-      const workDir = currentSession?.workDir || undefined
-      const sessionId = await useSessionStore.getState().createSession(workDir)
-      useTabStore.getState().openTab(sessionId, t('sidebar.newSession'))
-      useChatStore.getState().connectToSession(sessionId)
+      const newSessionId = await createSession(workDir)
+      const createdSession = useSessionStore.getState().sessions.find((session) => session.id === newSessionId)
+      useTabStore.getState().openTab(newSessionId, getDefaultSessionTitle(t), 'session', createdSession?.projectPath)
+      void useChatStore.getState().ensureSessionReady(newSessionId, createdSession?.projectPath)
+      useUIStore.getState().setRailSettingsView(null)
+      return true
     } catch (error) {
-      addToast({
+      useUIStore.getState().addToast({
         type: 'error',
-        message: error instanceof Error ? error.message : t('sidebar.sessionListFailed'),
+        message: error instanceof Error ? error.message : t('empty.failedToCreate'),
       })
+      return false
     }
-  }, [addToast, t])
+  }, [createSession, t])
 
-  const timeGroupLabels: Record<TimeGroup, string> = {
-    today: t('sidebar.timeGroup.today'),
-    yesterday: t('sidebar.timeGroup.yesterday'),
-    last7days: t('sidebar.timeGroup.last7days'),
-    last30days: t('sidebar.timeGroup.last30days'),
-    older: t('sidebar.timeGroup.older'),
+  const handleNewSession = useCallback(() => {
+    setContextMenu(null)
+    setNewSessionMenuOpen((open) => !open)
+  }, [])
+
+
+  if (!sidebarOpen) {
+    return null
   }
 
   return (
     <aside
       onMouseDown={handleSidebarDrag}
-      className="sidebar-panel relative h-full flex flex-col select-none"
-      data-state={sidebarOpen ? 'open' : 'closed'}
+      className="sidebar-panel relative h-full w-full flex flex-col select-none bg-transparent"
+      data-state="open"
       aria-label="Sidebar"
     >
-      {/* macOS traffic light spacer */}
-      <div
-        className={isTauri && !isWindows ? 'h-[52px] w-full shrink-0' : 'h-3 w-full shrink-0'}
-        data-tauri-drag-region
-      />
+      <div className="flex-1 flex flex-col overflow-hidden pt-4">
 
-      {sidebarOpen ? (
-        <>
-          <div
-            data-testid="sidebar-project-filter-section"
-            className="sidebar-section sidebar-section--visible relative z-20 flex-none px-4 pb-4"
-            style={{ overflow: 'visible' }}
-          >
-            <div className="flex items-center gap-2" style={{ overflow: 'visible' }}>
-              <div className="group relative flex min-w-0 flex-1 items-center rounded-[8px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.12] py-2 pl-2 pr-3 transition-all focus-within:border-black/30 dark:focus-within:border-white/50">
-                <ProjectFilter variant="embedded" />
-                <span className="mx-2 h-4 w-px bg-black/15 dark:bg-white/25" aria-hidden="true" />
-                <span className="pointer-events-none flex shrink-0 items-center text-black/70 dark:text-white/70 group-focus-within:text-black/80 dark:group-focus-within:text-white/80 transition-colors">
-                  <SearchIcon />
+        {/* ── Top Profile Area ── */}
+        <div className="flex items-center px-6 pb-4">
+          <div className="group/logo flex items-center gap-3 p-2 -ml-2 text-black/90 dark:text-white/90 cursor-default"
+               style={{ perspective: '200px' }}>
+            <div className="relative w-9 h-9 rounded-[14px] flex items-center justify-center shrink-0 transition-transform duration-75 ease-out group-hover/logo:scale-[0.92]"
+                 style={{ willChange: 'transform' }}>
+              <div className="absolute inset-0 bg-white/60 dark:bg-white/10 border border-white/40 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.05)] rounded-[14px]" />
+              <div className="relative w-4 h-4 border-[3px] border-black dark:border-white rounded-md opacity-80 transition-all duration-75 ease-out group-hover/logo:opacity-100 group-hover/logo:scale-110"
+                   style={{ willChange: 'transform, opacity' }} />
+            </div>
+            <span className="text-[15px] font-semibold tracking-tight transition-transform duration-75 ease-out group-hover/logo:translate-x-[1px]"
+                  style={{ willChange: 'transform' }}>CyberCode</span>
+          </div>
+        </div>
+
+        {/* ── Search + New Session ── */}
+        <div className="px-5 pb-4">
+          <div className="relative group flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                id="sidebar-search"
+                type="text"
+                placeholder={t('sidebar.searchPlaceholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/40 dark:bg-black/20 border border-white/50 dark:border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[20px] px-4 py-2.5 pl-10 pr-10 text-[14px] focus:outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/5 transition-all placeholder:text-black/40 dark:placeholder:text-white/40 text-black dark:text-white font-medium"
+              />
+              <Icon name="search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30" />
+              {availableProjects.length > 1 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <ProjectFilter variant="embedded" />
                 </span>
-                <input
-                  id="sidebar-search"
-                  type="text"
-                  placeholder={t('sidebar.searchPlaceholder')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="min-w-0 flex-1 bg-transparent pl-2 pr-0 text-[13px] text-black/90 dark:text-white/90 placeholder:text-black/45 dark:placeholder:text-white/60 outline-none"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleNewSession}
-                title={t('sidebar.newSession')}
-                aria-label={t('sidebar.newSession')}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-black/65 dark:text-white/65 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:text-black/80 dark:hover:text-white/80 transition-colors"
-              >
-                <PlusIcon />
-              </button>
+              )}
             </div>
-          </div>
-
-          <div
-            data-testid="sidebar-session-list-section"
-            className="sidebar-section sidebar-section--visible flex flex-1 min-h-0 flex-col"
-          >
-            <div
-              onMouseEnter={() => setScrollAreaHover(true)}
-              onMouseLeave={() => setScrollAreaHover(false)}
-              style={{ ['--sidebar-thumb-alpha' as string]: scrollAreaHover ? '1' : '0' }}
-              className="sidebar-scroll-area min-h-0 flex-1 pl-3 pr-1.5 py-2 space-y-1"
+            <button
+              ref={newSessionButtonRef}
+              type="button"
+              onClick={handleNewSession}
+              title={t('sidebar.newSession')}
+              aria-label={t('sidebar.newSession')}
+              className="shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-[20px] bg-white/40 dark:bg-black/20 border border-white/50 dark:border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.02)] text-black/60 dark:text-white/60 hover:bg-black/[0.08] dark:hover:bg-white/[0.12] hover:text-black dark:hover:text-white transition-all"
             >
-              {error && (
-                <div className="mx-1 mt-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2">
-                  <div className="text-[11px] font-medium text-red-500">{t('sidebar.sessionListFailed')}</div>
-                  <div className="mt-1 text-[10px] text-black/60 dark:text-white/60 break-words">{error}</div>
-                  <button
-                    onClick={() => fetchSessions()}
-                    className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-brand)] hover:underline"
-                  >
-                    {t('common.retry')}
-                  </button>
-                </div>
-              )}
-              {filteredSessions.length === 0 && (
-                <div className="px-3 py-6 text-center text-[11px] italic text-black/60 dark:text-white/60">
-                  {searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}
-                </div>
-              )}
-              {TIME_GROUP_ORDER.map((group) => {
-                const items = timeGroups.get(group)
-                if (!items || items.length === 0) return null
-                return (
-                  <div key={group}>
-                    <div className="px-3 mt-2 mb-2.5 text-[10px] font-semibold tracking-[0.09em] uppercase text-black/70 dark:text-white/70">
-                      {timeGroupLabels[group]}
-                    </div>
-                    <div className="space-y-[4px]">
-                    {items.map((session) => {
-                      const isActive = session.id === (pendingSessionId ?? activeTabId)
-                      return (
-                        <div key={session.id} className="relative">
-                          {renamingId === session.id ? (
-                            <input
-                              ref={renameInputRef}
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onBlur={handleFinishRename}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleFinishRename()
-                                if (e.key === 'Escape') {
-                                  setRenamingId(null)
-                                  setRenameValue('')
-                                }
-                              }}
-                              className="ml-1 w-[calc(100%-0.5rem)] rounded-md border border-black/10 dark:border-white/10 bg-white dark:bg-black px-3 py-2 text-[13px] text-black/90 dark:text-white/90 outline-none focus:ring-1 focus:ring-black/20 focus:dark:ring-white/20"
-                            />
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setPendingSessionId(session.id)
-                                useTabStore.getState().switchToSession(session.id, session.title)
-                                useChatStore.getState().connectToSession(session.id)
-                              }}
-                              onContextMenu={(e) => handleContextMenu(e, session.id)}
-                              className={`
-                                w-full text-left flex flex-col px-3 py-2.5 rounded-[5px] transition-all duration-200 group relative
-                                ${isActive
-                                  ? 'bg-white/75 dark:bg-white/[0.10] shadow-[0_2px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.2)] text-black dark:text-white'
-                                  : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-black/70 dark:text-white/70'
-                                }
-                              `}
-                            >
-                              <div className="flex items-baseline w-full gap-2">
-                                <span className={`text-[13px] font-medium leading-snug truncate flex-1 min-w-0 tracking-[-0.01em] ${isActive ? 'text-black dark:text-white' : ''}`}>
-                                  {session.title || 'Untitled'}
-                                </span>
-                                <span className={`text-[10px] font-mono shrink-0 tabular-nums ${isActive ? 'text-black/60 dark:text-white/60' : 'text-black/70 dark:text-white/70'}`}>
-                                  {formatRelativeTime(session.modifiedAt)}
-                                </span>
-                              </div>
-
-                              {session.workDir && (
-                                <p className={`text-[11px] leading-none truncate mt-1 ${isActive ? 'text-black/65 dark:text-white/65' : 'text-black/70 dark:text-white/70'}`}>
-                                  {!session.workDirExists ? (
-                                    <span className="text-amber-500" title={session.workDir ?? ''}>
-                                      {t('sidebar.missingDir')}
-                                    </span>
-                                  ) : (
-                                    session.workDir.split('/').slice(-2).join('/')
-                                  )}
-                                </p>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+              <Icon name="add" size={18} className="opacity-70" />
+            </button>
           </div>
-        </>
-      ) : (
-        <div className="flex-1" aria-hidden="true" />
-      )}
+        </div>
+
+        {/* ── Sessions List ── */}
+        <div data-testid="sidebar-session-list-section" className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
+          <div className="pb-6">
+          {error && (
+            <div className="mx-4 mt-2 rounded-[16px] border border-red-500/20 bg-red-500/5 px-4 py-3">
+              <div className="text-[11px] font-medium text-red-500">{t('sidebar.sessionListFailed')}</div>
+              <div className="mt-1 text-[10px] text-black/40 dark:text-white/40 break-words">{error}</div>
+              <button onClick={() => fetchSessions()} className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-brand)] hover:underline">{t('common.retry')}</button>
+            </div>
+          )}
+          {filteredSessions.length === 0 && (
+            <div className="px-4 py-6 text-center text-[11px] italic text-black/40 dark:text-white/40">{searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}</div>
+          )}
+          <div>
+            {filteredSessions.map((session) => {
+              const currentKey = sessionKey(session.id, session.projectPath)
+              const activeKey = activeTab ? sessionKey(activeTab.sessionId, activeTab.projectPath) : activeTabId
+              const isActive = currentKey === (pendingSessionKey ?? activeKey)
+              const displayTitle = getSessionDisplayTitle(session, t)
+              const iconStr = (displayTitle || 'U').charAt(0).toUpperCase()
+              return (
+                <div key={currentKey} className="relative">
+                  {renamingSession?.id === session.id && renamingSession.projectPath === session.projectPath ? (
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={handleFinishRename}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleFinishRename()
+                        if (e.key === 'Escape') { setRenamingSession(null); setRenameValue('') }
+                      }}
+                      className="ml-1 w-[calc(100%-0.5rem)] rounded-[16px] border border-white/50 dark:border-white/10 bg-white/60 dark:bg-black/40 px-4 py-2 text-[14px] text-black dark:text-white outline-none focus:ring-2 focus:ring-black/5"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setPendingSessionKey(currentKey)
+                        useTabStore.getState().switchToSession(session.id, displayTitle, session.projectPath)
+                        void useChatStore.getState().ensureSessionReady(session.id, session.projectPath)
+                      }}
+                      onContextMenu={(e) => handleContextMenu(e, { id: session.id, projectPath: session.projectPath })}
+                      className={`w-full flex px-5 py-4 rounded-none transition-colors duration-100 group relative ${
+                        isActive
+                          ? 'bg-white/80 dark:bg-white/10 text-black dark:text-white'
+                          : 'bg-transparent hover:bg-white/90 dark:hover:bg-white/20 text-black/70 dark:text-white/70'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 w-full">
+                        <div className={`w-10 h-10 rounded-[4px] flex items-center justify-center shrink-0 text-[13px] font-semibold transition-colors ${isActive ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' : 'bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50'}`}>
+                          {iconStr}
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={`text-[11px] font-medium leading-none truncate ${isActive ? 'text-black dark:text-white opacity-90' : ''}`}>
+                              {session.lastMessage || displayTitle}
+                            </span>
+                            <span className={`text-[10px] shrink-0 font-medium ${isActive ? 'text-black/40 dark:text-white/50' : 'text-black/30 dark:text-white/30'}`}>
+                              {formatRelativeTime(session.modifiedAt)}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[12px] leading-[1.4] text-black/50 dark:text-white/60 line-clamp-1 text-left">
+                            {session.workDir
+                              ? (!session.workDirExists ? <span className="text-amber-500" title={session.workDir ?? ''}>{t('sidebar.missingDir')}</span> : session.workDir.split('/').slice(-2).join('/'))
+                              : '\u00A0'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          </div>
+        </div>
+      </div>
 
 
-      {contextMenu && sidebarOpen && (
+      {contextMenu && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-md border border-black/[0.12] dark:border-white/[0.12] bg-white dark:bg-[#0A0A0A] py-1 backdrop-blur"
-          style={{ left: contextMenu.x, top: contextMenu.y, boxShadow: 'var(--shadow-dropdown)' }}
+          className="fixed z-50 min-w-[160px] rounded-[16px] border border-white/50 dark:border-white/10 bg-white/80 dark:bg-black/80 py-1 shadow-[0_8px_30px_rgba(0,0,0,0.1)]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={() => {
-              const session = sessions.find((s) => s.id === contextMenu.id)
-              handleStartRename(contextMenu.id, session?.title || '')
-            }}
-            className="w-full px-3 py-2 text-left text-[12px] text-black/90 dark:text-white/90 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-          >
-            {t('common.rename')}
-          </button>
-          <button
-            onClick={() => handleDelete(contextMenu.id)}
-            className="w-full px-3 py-2 text-left text-[12px] text-red-500 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-          >
-            {t('common.delete')}
-          </button>
+          <button onClick={() => { const session = sessions.find((s) => s.id === contextMenu.id && s.projectPath === contextMenu.projectPath); handleStartRename(contextMenu, session ? getSessionDisplayTitle(session, t) : '') }} className="w-full px-4 py-2.5 text-left text-[13px] text-black/80 dark:text-white/80 transition-colors hover:bg-black/5 dark:hover:bg-white/5 rounded-[8px]">{t('common.rename')}</button>
+          <button onClick={() => handleDelete(contextMenu)} className="w-full px-4 py-2.5 text-left text-[13px] text-red-500 transition-colors hover:bg-black/5 dark:hover:bg-white/5 rounded-[8px]">{t('common.delete')}</button>
         </div>
       )}
 
       <ConfirmDialog
-        open={pendingDeleteSessionId !== null}
-        onClose={() => setPendingDeleteSessionId(null)}
+        open={pendingDeleteSession !== null}
+        onClose={() => setPendingDeleteSession(null)}
         onConfirm={confirmDelete}
         title={t('common.delete')}
-        body={pendingDeleteSessionId ? t('sidebar.confirmDelete') : ''}
+        body={pendingDeleteSession ? t('sidebar.confirmDelete') : ''}
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
         confirmVariant="danger"
       />
+
+      <NewSessionMenu
+        open={newSessionMenuOpen}
+        anchorRef={newSessionButtonRef}
+        currentProject={selectedProject}
+        onClose={() => setNewSessionMenuOpen(false)}
+        onCreate={createAndOpenSession}
+      />
     </aside>
   )
-}
-
-function groupByTime(sessions: SessionListItem[]): Map<TimeGroup, SessionListItem[]> {
-  const groups = new Map<TimeGroup, SessionListItem[]>()
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const startOfYesterday = startOfToday - 86400000
-  const sevenDaysAgo = startOfToday - 7 * 86400000
-  const thirtyDaysAgo = startOfToday - 30 * 86400000
-
-  for (const session of sessions) {
-    const ts = new Date(session.modifiedAt).getTime()
-    let group: TimeGroup
-    if (ts >= startOfToday) group = 'today'
-    else if (ts >= startOfYesterday) group = 'yesterday'
-    else if (ts >= sevenDaysAgo) group = 'last7days'
-    else if (ts >= thirtyDaysAgo) group = 'last30days'
-    else group = 'older'
-
-    if (!groups.has(group)) groups.set(group, [])
-    groups.get(group)!.push(session)
-  }
-
-  return groups
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -385,22 +349,3 @@ function formatRelativeTime(dateStr: string): string {
   if (day < 30) return `${day}d`
   return `${Math.floor(day / 30)}mo`
 }
-
-function PlusIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  )
-}
-

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Sidebar } from './Sidebar'
 import { IconRail } from './IconRail'
+import { Sidebar } from './Sidebar'
 import { ContentRouter } from './ContentRouter'
 import { ToastContainer } from '../shared/Toast'
 import { UpdateChecker } from '../shared/UpdateChecker'
@@ -13,7 +13,6 @@ import { StartupErrorView } from './StartupErrorView'
 import { SettingsPanel } from './SettingsPanel'
 import { useTabStore } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
-import { useTranslation } from '../../i18n'
 
 export function AppShell() {
   const fetchSettings = useSettingsStore((s) => s.fetchAll)
@@ -23,9 +22,7 @@ export function AppShell() {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const [ready, setReady] = useState(false)
   const [startupError, setStartupError] = useState<string | null>(null)
-  const t = useTranslation()
 
-  // Close the settings panel automatically when the user navigates to a different tab
   useEffect(() => {
     if (settingsOpen) closeSettings()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -38,33 +35,30 @@ export function AppShell() {
       try {
         await initializeDesktopServerUrl()
         await fetchSettings()
-
-        // Restore tabs from localStorage
         await useTabStore.getState().restoreTabs()
+
         const { activeTabId: activeId, tabs } = useTabStore.getState()
         const activeTab = tabs.find((tab) => tab.sessionId === activeId)
         if (activeId && activeTab?.type === 'session') {
-          useChatStore.getState().connectToSession(activeId)
+          // Preload history BEFORE revealing UI. The loading screen absorbs the
+          // network round-trip so the main-app tree replacement (loading → shell)
+          // sees data already in the store — one controlled DOM swap, no second
+          // burst that would crash the WKWebView GPU compositor.
+          await useChatStore.getState().ensureSessionReady(activeTab.sessionId, activeTab.projectPath)
         }
-        if (!cancelled) {
-          setReady(true)
-        }
+
+        if (!cancelled) setReady(true)
       } catch (error) {
         if (!cancelled) {
           setStartupError(error instanceof Error ? error.message : String(error))
-          setReady(false)
         }
       }
     }
 
     void bootstrap()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [fetchSettings])
 
-  // Listen for macOS native menu navigation events (About / Settings)
   useEffect(() => {
     let unlisten: (() => void) | undefined
     import(/* @vite-ignore */ '@tauri-apps/api/event')
@@ -87,35 +81,28 @@ export function AppShell() {
 
   if (!ready) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#f5f5f7] dark:bg-black text-black/60 dark:text-white/60 font-sans">
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-black/80 dark:bg-white/80" style={{ animation: 'bounce-dot 1.2s infinite ease-in-out' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-black/80 dark:bg-white/80" style={{ animation: 'bounce-dot 1.2s infinite ease-in-out -0.15s' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-black/80 dark:bg-white/80" style={{ animation: 'bounce-dot 1.2s infinite ease-in-out -0.30s' }} />
-          </div>
-          <span className="font-mono text-[10px] tracking-[0.32em] font-bold uppercase opacity-60">{t('app.launching')}</span>
+      <div className="h-screen flex items-center justify-center bg-[#EBEBEB] dark:bg-[#111] font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-full border-[3px] border-black/10 dark:border-white/10 border-t-black/50 dark:border-t-white/50"
+            style={{ animation: 'spin 0.8s linear infinite' }}
+          />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#f5f5f7] dark:bg-[#000000] font-sans">
-
-      <div className="flex shrink-0 h-full relative z-20 border-r border-black/[0.10] dark:border-white/20 bg-white/60 dark:bg-white/[0.06]">
-        <IconRail />
-        <div
-          data-testid="sidebar-shell"
-          data-state={sidebarOpen ? 'open' : 'closed'}
-          className="sidebar-shell relative"
-        >
-          <Sidebar />
-        </div>
+    <div className="h-screen w-screen flex overflow-hidden bg-[var(--color-background)] font-sans relative">
+      <IconRail />
+      <div
+        className={`flex shrink-0 h-full relative z-20 border-r border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] transition-[width] duration-[var(--motion-sidebar-duration)] ease-[var(--motion-sidebar-easing)] ${sidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0'} overflow-hidden`}
+      >
+        <Sidebar />
       </div>
       <main
         id="content-area"
-        className="min-w-0 flex-1 flex flex-col overflow-hidden relative z-10"
+        className="min-w-0 w-0 flex-1 flex flex-col overflow-hidden relative z-10 bg-transparent transition-colors duration-300"
       >
         <TabBar />
         <ContentRouter />

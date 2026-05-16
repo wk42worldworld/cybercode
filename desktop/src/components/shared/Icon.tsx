@@ -1,199 +1,226 @@
 /**
- * Unified icon component — ByteDance IconPark (@icon-park/react).
- * Maps Material Symbol names → IconPark components.
+ * Single icon entrypoint for desktop UI.
+ *
+ * The app uses VS Code Codicons exclusively so chrome, settings, chat, and task
+ * surfaces share the same visual language.
  */
-import type { ComponentType } from 'react'
-import {
-  AddOne, Close, CloseOne, Down, Up, Right, Left,
-  Return, ArrowRight, LinkRight, EfferentThree,
-  Config, Terminal, Time, Calendar, HamburgerButton,
-  CheckOne, CheckCorrect, Caution, Info, Help, Loading,
-  Square, Play, Pause,
-  Undo, Redo, Rotate,
-  FileEditingOne, FileAdditionOne, FileTextOne, FileSearchOne,
-  Search, Robot, Brain, Asterisk,
-  Shield, Flashlight, Lock, Unlock, Logout, Gavel, HammerAndAnvil,
-  FolderOpen, Folder, CategoryManagement,
-  SixPoints, LayoutOne, More, Filter, Pound, AtSign,
-  Comment, Connect, Plug, PlugOne, Mouse, Send, LinkThree,
-  Browser, Wifi,
-  Data, Bug, Code, History,
-  Copy, Edit, Delete,
-  Eyes, Tips, PersonalCollection,
-  Monitor, PictureOne, Power, ListCheckbox, Like,
-  Download, Upload, Refresh,
-  FullScreenOne, OffScreenOne, PageTemplate,
-} from '@icon-park/react'
+import '@vscode/codicons/dist/codicon.css'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type IP = ComponentType<any>
+export const ICONS = {
+  account_tree: 'git-branch',
+  add: 'add',
+  add_task: 'checklist',
+  alternate_email: 'mention',
+  analytics: 'graph-line',
+  architecture: 'type-hierarchy',
+  archive: 'archive',
+  arrow_back: 'arrow-left',
+  arrow_back_ios: 'chevron-left',
+  arrow_forward: 'arrow-right',
+  arrow_forward_ios: 'chevron-right',
+  arrow_outward: 'link-external',
+  arrow_upward: 'arrow-up',
+  article: 'file-text',
+  attach_file: 'attach',
+  auto_awesome: 'sparkle',
+  bolt: 'run',
+  bookmarks: 'bookmark',
+  bug_report: 'bug',
+  build: 'tools',
+  calendar_month: 'calendar',
+  calendar_today: 'calendar',
+  cancel: 'error',
+  chat: 'comment',
+  check: 'check',
+  check_circle: 'pass-filled',
+  checklist: 'checklist',
+  chevron_left: 'chevron-left',
+  chevron_right: 'chevron-right',
+  clean: 'clear-all',
+  cleaning_services: 'clear-all',
+  close: 'chrome-close',
+  close_one: 'close',
+  cloud: 'cloud',
+  cloud_download: 'cloud-download',
+  code: 'file-code',
+  code_blocks: 'file-code',
+  commit: 'git-commit',
+  computer: 'device-desktop',
+  content_copy: 'copy',
+  content_cut: 'screen-cut',
+  copy_all: 'copy',
+  create_new_folder: 'new-folder',
+  database: 'database',
+  delete: 'trash',
+  description: 'file-text',
+  desktop_windows: 'device-desktop',
+  dns: 'server',
+  download: 'cloud-download',
+  edit: 'edit',
+  edit_document: 'new-file',
+  edit_note: 'edit',
+  error: 'error',
+  error_outline: 'error',
+  event_note: 'calendar',
+  expand_less: 'chevron-up',
+  expand_more: 'chevron-down',
+  extension: 'extensions',
+  extension_off: 'extensions',
+  feedback: 'comment-discussion',
+  fiber_manual_record: 'circle-filled',
+  file_present: 'file',
+  file_upload: 'cloud-upload',
+  filter: 'filter',
+  filter_alt: 'filter',
+  filter_list: 'list-filter',
+  find_in_page: 'search',
+  folder: 'folder',
+  folder_lock: 'folder',
+  folder_managed: 'folder',
+  folder_open: 'folder-opened',
+  forum: 'comment-discussion',
+  fullscreen: 'screen-full',
+  fullscreen_exit: 'screen-normal',
+  gavel: 'law',
+  github: 'github',
+  groups: 'organization',
+  hash: 'symbol-key',
+  help: 'question',
+  help_outline: 'question',
+  history: 'history',
+  history_toggle_off: 'history',
+  hub: 'remote',
+  hourglass_empty: 'watch',
+  image: 'file-media',
+  image_search: 'file-media',
+  info: 'info',
+  inventory_2: 'archive',
+  keyboard_double_arrow_right: 'chevron-right',
+  label: 'tag',
+  layers: 'layers',
+  layout: 'layout',
+  link: 'link',
+  loading: 'loading',
+  lock: 'lock',
+  lock_open: 'unlock',
+  logout: 'sign-out',
+  manage_accounts: 'account',
+  manage_search: 'search',
+  memory: 'chip',
+  menu: 'menu',
+  monitor: 'device-desktop',
+  mop: 'clear-all',
+  more_horiz: 'ellipsis',
+  more_vert: 'kebab-vertical',
+  mouse: 'device-desktop',
+  note: 'file-text',
+  open_in_new: 'link-external',
+  package: 'archive',
+  pause: 'debug-pause',
+  pause_circle: 'debug-pause',
+  pending: 'loading',
+  person: 'account',
+  photo: 'file-media',
+  play_arrow: 'run',
+  play_circle: 'run',
+  plug_one: 'plug',
+  power_off: 'debug-disconnect',
+  power_settings_new: 'debug-disconnect',
+  progress_activity: 'loading',
+  psychology: 'hubot',
+  radio_button_checked: 'circle-large-filled',
+  radio_button_unchecked: 'circle-large-outline',
+  receipt_long: 'file-text',
+  redo: 'redo',
+  refresh: 'sync',
+  remove: 'trash',
+  replay: 'debug-restart',
+  restart_alt: 'debug-restart',
+  rotate_left: 'debug-restart',
+  route: 'remote-explorer',
+  save: 'save',
+  schedule: 'clockface',
+  science: 'beaker',
+  search: 'search',
+  send: 'arrow-up',
+  settings: 'gear',
+  shield: 'shield',
+  smart_toy: 'robot',
+  source: 'file-code',
+  star: 'star-full',
+  stop: 'debug-stop',
+  stop_circle: 'debug-stop',
+  storage: 'database',
+  sync: 'sync',
+  tag: 'tag',
+  task_alt: 'pass-filled',
+  terminal: 'terminal',
+  timer_off: 'watch',
+  tips_and_updates: 'lightbulb',
+  toggle_on: 'circle-large-filled',
+  trending_up: 'graph-line',
+  travel_explore: 'globe',
+  tune: 'settings-gear',
+  undo: 'discard',
+  unfold_more: 'chevron-down',
+  verified: 'verified',
+  verified_user: 'verified',
+  visibility: 'eye',
+  visibility_off: 'eye-closed',
+  view_column: 'layout-panel',
+  view_sidebar: 'layout-sidebar-left',
+  view_sidebar_off: 'layout-sidebar-left-off',
+  warning: 'warning',
+  wifi: 'broadcast',
+  window_maximize: 'chrome-maximize',
+  window_minimize: 'chrome-minimize',
+  window_restore: 'chrome-restore',
+  workspaces: 'project',
+} as const
 
-const MAP: Record<string, IP> = {
-  add: AddOne,
-  close: Close,
-  close_one: CloseOne,
-  expand_more: Down,
-  expand_less: Up,
-  chevron_right: Right,
-  chevron_left: Left,
-  arrow_back: Return,
-  arrow_forward: ArrowRight,
-  arrow_outward: LinkRight,
+export type IconName = keyof typeof ICONS
 
-  settings: Config,
-  tune: Config,
-  terminal: Terminal,
-  schedule: Time,
-  calendar_month: Calendar,
-  menu: HamburgerButton,
-
-  check_circle: CheckOne,
-  task_alt: CheckOne,
-  radio_button_unchecked: Close,
-  error: Caution,
-  error_outline: Caution,
-  warning: Caution,
-  info: Info,
-  help: Help,
-  help_outline: Help,
-  pending: Loading,
-  check: CheckCorrect,
-  refresh: Refresh,
-  sync: Refresh,
-  loading: Loading,
-  restart_alt: Rotate,
-  replay: Rotate,
-  rotate_left: Rotate,
-
-  stop: Square,
-  stop_circle: Square,
-  play_arrow: Play,
-  pause: Pause,
-
-  undo: Undo,
-  redo: Redo,
-  build: HammerAndAnvil,
-  edit_note: FileEditingOne,
-  edit_document: FileAdditionOne,
-  description: FileTextOne,
-  article: FileTextOne,
-  note: FileTextOne,
-  file_upload: Upload,
-  file_present: FileTextOne,
-  code: Code,
-  code_blocks: Code,
-  save: FileEditingOne,
-  content_cut: Delete,
-  mop: Refresh,
-  cleaning_services: Refresh,
-
-  search: Search,
-  find_in_page: FileSearchOne,
-  manage_search: Search,
-
-  smart_toy: Robot,
-  psychology: Brain,
-  auto_awesome: Asterisk,
-
-  verified_user: Shield,
-  gavel: Gavel,
-  bolt: Flashlight,
-  shield: Shield,
-  lock: Lock,
-  lock_open: Unlock,
-  logout: Logout,
-
-  attach_file: LinkThree,
-  folder_open: FolderOpen,
-  folder: Folder,
-  folder_lock: Folder,
-  inventory_2: CategoryManagement,
-  archive: CategoryManagement,
-  package: CategoryManagement,
-
-  architecture: SixPoints,
-  layers: SixPoints,
-  layout: LayoutOne,
-  view_sidebar: PageTemplate,
-  view_column: PageTemplate,
-  fullscreen: FullScreenOne,
-  fullscreen_exit: OffScreenOne,
-  more_horiz: More,
-  filter_alt: Filter,
-  hash: Pound,
-  alternate_email: AtSign,
-
-  chat: Comment,
-  hub: Connect,
-  send: Send,
-  feedback: Comment,
-  link: LinkThree,
-  open_in_new: EfferentThree,
-  travel_explore: Browser,
-  cloud_download: Download,
-  wifi: Wifi,
-  dns: Connect,
-  extension: Plug,
-  mouse: Mouse,
-  tips_and_updates: Tips,
-
-  person: PersonalCollection,
-  manage_accounts: PersonalCollection,
-
-  database: Data,
-  storage: Data,
-  memory: Data,
-
-  bug_report: Bug,
-  source: Code,
-  history: History,
-
-  content_copy: Copy,
-  copy_all: Copy,
-  edit: Edit,
-  delete: Delete,
-  star: Like,
-  bookmarks: FileTextOne,
-  tag: Pound,
-  label: Pound,
-  monitor: Monitor,
-  desktop_windows: Monitor,
-  image: PictureOne,
-  image_search: PictureOne,
-  photo: PictureOne,
-  power_settings_new: Power,
-
-  checklist: ListCheckbox,
-  visibility: Eyes,
-  visibility_off: Close,
+export function getCodiconName(name: string): string | undefined {
+  return ICONS[name.trim() as IconName]
 }
 
 type IconProps = {
-  name: string
+  name: IconName | (string & {})
   size?: number
-  theme?: 'outline' | 'filled' | 'two-tone' | 'multi-color'
-  strokeWidth?: number
   className?: string
   style?: React.CSSProperties
 }
 
-export function Icon({ name, size = 18, theme = 'outline', strokeWidth = 4, className, style }: IconProps) {
-  const Component = MAP[name] as IP | undefined
-  if (Component) {
+const warnedMissingIcons = new Set<string>()
+
+export function Icon({ name, size = 18, className, style }: IconProps) {
+  const codicon = getCodiconName(name)
+  if (!codicon) {
+    if (import.meta.env.DEV && !warnedMissingIcons.has(name)) {
+      warnedMissingIcons.add(name)
+      console.warn(`[Icon] Unknown icon name: ${name}`)
+    }
+
     return (
-      <Component
-        size={size}
-        theme={theme}
-        strokeWidth={strokeWidth}
-        className={className}
-        style={style}
+      <span
+        className={`inline-flex items-center justify-center ${className ?? ''}`}
+        style={{ width: size, height: size, ...style }}
+        aria-hidden="true"
       />
     )
   }
+
+  const shouldSpin = codicon === 'loading' || className?.includes('animate-spin')
   return (
     <span
-      className={`inline-flex items-center justify-center ${className ?? ''}`}
-      style={{ width: size, height: size, ...style }}
+      className={`codicon codicon-${codicon}${shouldSpin ? ' codicon-modifier-spin' : ''} ${className ?? ''}`}
+      style={{
+        fontSize: size,
+        width: size,
+        height: size,
+        lineHeight: `${size}px`,
+        ...style,
+      }}
       aria-hidden="true"
     />
   )

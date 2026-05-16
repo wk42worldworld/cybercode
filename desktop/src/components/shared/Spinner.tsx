@@ -4,27 +4,28 @@ type SpinnerProps = {
 }
 
 export function Spinner({ size = 20, className = '' }: SpinnerProps) {
+  const dotSize = Math.max(3, Math.round(size * 0.2))
+  const gap = Math.max(3, Math.round(size * 0.16))
+  const containerHeight = dotSize + 2
+
   return (
-    <svg
-      className={`animate-spin ${className}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
+    <span
+      className={`inline-flex items-center ${className}`}
+      style={{ width: size, height: containerHeight, gap }}
+      role="status"
+      aria-label="Loading"
     >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-      />
-    </svg>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="animate-pulse-dot rounded-full bg-[var(--color-brand)]"
+          style={{
+            width: dotSize,
+            height: dotSize,
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+    </span>
   )
 }

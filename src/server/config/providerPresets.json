@@ -19,10 +19,10 @@
     "baseUrl": "https://api.deepseek.com/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "deepseek-v4-pro",
+      "main": "deepseek-v4-pro[1m]",
       "haiku": "deepseek-v4-flash",
-      "sonnet": "deepseek-v4-pro",
-      "opus": "deepseek-v4-pro"
+      "sonnet": "deepseek-v4-pro[1m]",
+      "opus": "deepseek-v4-pro[1m]"
     },
     "needsApiKey": true,
     "websiteUrl": "https://platform.deepseek.com",
@@ -74,15 +74,30 @@
     "apiKeyUrl": "https://platform.minimaxi.com/user-center/basic-information/interface-key"
   },
   {
+    "id": "xiaomimimo",
+    "name": "小米 MiMo",
+    "baseUrl": "https://api.xiaomimimo.com/anthropic",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "mimo-v2.5-pro",
+      "haiku": "mimo-v2.5-flash",
+      "sonnet": "mimo-v2.5-pro",
+      "opus": "mimo-v2.5-pro"
+    },
+    "needsApiKey": true,
+    "websiteUrl": "https://platform.xiaomimimo.com",
+    "apiKeyUrl": "https://platform.xiaomimimo.com"
+  },
+  {
     "id": "lmstudio",
     "name": "LM Studio",
     "baseUrl": "http://localhost:1234",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "qwen/qwen3.6-27b",
-      "haiku": "qwen/qwen3.6-27b",
-      "sonnet": "qwen/qwen3.6-27b",
-      "opus": "qwen/qwen3.6-27b"
+      "main": "openai/gpt-oss-20b",
+      "haiku": "openai/gpt-oss-20b",
+      "sonnet": "openai/gpt-oss-20b",
+      "opus": "openai/gpt-oss-20b"
     },
     "needsApiKey": false,
     "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
@@ -97,10 +112,10 @@
     "baseUrl": "http://localhost:11434",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "qwen3.6:27b",
-      "haiku": "qwen3.6:27b",
-      "sonnet": "qwen3.6:27b",
-      "opus": "qwen3.6:27b"
+      "main": "qwen3.5",
+      "haiku": "qwen3.5",
+      "sonnet": "qwen3.5",
+      "opus": "qwen3.5"
     },
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",

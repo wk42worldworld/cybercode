@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MessageEntry } from '../types/session'
 import { useSessionRuntimeStore } from './sessionRuntimeStore'
+import { sessionsApi } from '../api/sessions'
+import { ApiError } from '../api/client'
 
 const {
   sendMock,
@@ -40,6 +42,7 @@ vi.mock('../api/websocket', () => ({
     connect: vi.fn(),
     disconnect: vi.fn(),
     onMessage: vi.fn(() => () => {}),
+    onStateChange: vi.fn(() => () => {}),
     clearHandlers: vi.fn(),
     send: sendMock,
   },
@@ -47,7 +50,7 @@ vi.mock('../api/websocket', () => ({
 
 vi.mock('../api/sessions', () => ({
   sessionsApi: {
-    getMessages: vi.fn(async () => ({ messages: [] })),
+    getMessages: vi.fn(async () => ({ messages: [], hasMore: false })),
     getSlashCommands: vi.fn(async () => ({ commands: [] })),
   },
 }))
@@ -237,6 +240,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -320,6 +327,66 @@ describe('chatStore history mapping', () => {
     })
   })
 
+  it('passes the projectPath locator when loading history', async () => {
+    vi.mocked(sessionsApi.getMessages).mockResolvedValueOnce({
+      hasMore: false,
+      messages: [
+        {
+          id: 'user-1',
+          type: 'user',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          content: 'hello from project a',
+        },
+      ],
+    })
+
+    useChatStore.getState().connectToSession(TEST_SESSION_ID, '-project-a')
+    await useChatStore.getState().loadHistory(TEST_SESSION_ID, '-project-a')
+
+    expect(sessionsApi.getMessages).toHaveBeenCalledWith(TEST_SESSION_ID, {
+      limit: 200,
+      projectPath: '-project-a',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.projectPath).toBe('-project-a')
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      { type: 'user_text', content: 'hello from project a' },
+    ])
+  })
+
+  it('does not refetch an empty session history after it has loaded successfully', async () => {
+    const getMessagesMock = vi.mocked(sessionsApi.getMessages)
+    getMessagesMock.mockReset()
+    getMessagesMock
+      .mockResolvedValueOnce({ hasMore: false, messages: [] })
+      .mockRejectedValueOnce(new Error('should not refetch empty history'))
+
+    useChatStore.getState().connectToSession(TEST_SESSION_ID, '-project-empty')
+    await useChatStore.getState().loadHistory(TEST_SESSION_ID, '-project-empty')
+    await useChatStore.getState().loadHistory(TEST_SESSION_ID, '-project-empty')
+
+    expect(getMessagesMock).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.historyLoadState).toBe('loaded')
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toEqual([])
+  })
+
+  it('treats a missing empty transcript as a loaded empty history', async () => {
+    const getMessagesMock = vi.mocked(sessionsApi.getMessages)
+    getMessagesMock.mockReset()
+    getMessagesMock.mockRejectedValueOnce(new ApiError(404, {
+      error: 'NOT_FOUND',
+      message: 'Session not found',
+    }))
+
+    useChatStore.getState().connectToSession(TEST_SESSION_ID, '-project-empty')
+    await useChatStore.getState().loadHistory(TEST_SESSION_ID, '-project-empty')
+
+    const session = useChatStore.getState().sessions[TEST_SESSION_ID]
+    expect(getMessagesMock).toHaveBeenCalledOnce()
+    expect(session?.historyLoadState).toBe('loaded')
+    expect(session?.allMessagesLoaded).toBe(true)
+    expect(session?.messages).toEqual([])
+  })
+
   it('does not prewarm team member sessions', () => {
     getMemberBySessionIdMock.mockReturnValue({
       agentId: 'reviewer@test-team',
@@ -376,6 +443,10 @@ describe('chatStore history mapping', () => {
               timestamp: 1,
             },
           ],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -431,6 +502,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         'session-1': {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -462,6 +537,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -514,6 +593,10 @@ describe('chatStore history mapping', () => {
             { id: 'u1', type: 'user_text', content: '/clear', timestamp: Date.now() },
             { id: 'a1', type: 'assistant_text', content: 'old context', timestamp: Date.now() },
           ],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'thinking',
           connectionState: 'connected',
           streamingText: 'pending',
@@ -553,6 +636,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -588,6 +675,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'streaming',
           connectionState: 'connected',
           streamingText: '上一次分析结果 **还在流式区域**',
@@ -633,6 +724,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -675,6 +770,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -737,6 +836,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -799,6 +902,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -857,11 +964,86 @@ describe('chatStore history mapping', () => {
     vi.useRealTimers()
   })
 
+  it('keeps throttled streaming deltas isolated per session', () => {
+    vi.useFakeTimers()
+
+    const otherSessionId = 'test-session-2'
+    const emptySession = {
+      messages: [],
+      historyBuffer: [],
+      recentBuffer: [],
+      historyLoadState: 'loaded' as const,
+      allMessagesLoaded: true,
+      chatState: 'idle' as const,
+      connectionState: 'connected' as const,
+      streamingText: '',
+      streamingToolInput: '',
+      activeToolUseId: null,
+      activeToolName: null,
+      activeThinkingId: null,
+      pendingPermission: null,
+      pendingComputerUsePermission: null,
+      tokenUsage: { input_tokens: 0, output_tokens: 0 },
+      elapsedSeconds: 0,
+      statusVerb: '',
+      slashCommands: [],
+      agentTaskNotifications: {},
+      elapsedTimer: null,
+    }
+
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: { ...emptySession },
+        [otherSessionId]: { ...emptySession },
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'content_start',
+      blockType: 'text',
+    })
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'content_delta',
+      text: 'session one',
+    })
+    useChatStore.getState().handleServerMessage(otherSessionId, {
+      type: 'content_start',
+      blockType: 'text',
+    })
+    useChatStore.getState().handleServerMessage(otherSessionId, {
+      type: 'content_delta',
+      text: 'session two',
+    })
+
+    vi.advanceTimersByTime(60)
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.streamingText).toBe('session one')
+    expect(useChatStore.getState().sessions[otherSessionId]?.streamingText).toBe('session two')
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 1, output_tokens: 2 },
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      { type: 'assistant_text', content: 'session one' },
+    ])
+    expect(useChatStore.getState().sessions[otherSessionId]?.messages).toEqual([])
+    expect(useChatStore.getState().sessions[otherSessionId]?.streamingText).toBe('session two')
+
+    vi.runOnlyPendingTimers()
+    vi.useRealTimers()
+  })
+
   it('sends Computer Use approval payloads back over websocket', () => {
     useChatStore.setState({
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'permission_pending',
           connectionState: 'connected',
           streamingText: '',
@@ -935,6 +1117,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [memberSessionId]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',
@@ -976,6 +1162,10 @@ describe('chatStore history mapping', () => {
       sessions: {
         [TEST_SESSION_ID]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          historyLoadState: 'loaded' as const,
+          allMessagesLoaded: true,
           chatState: 'idle',
           connectionState: 'connected',
           streamingText: '',

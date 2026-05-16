@@ -39,6 +39,8 @@ describe('AskUserQuestion', () => {
       sessions: {
         [ACTIVE_TAB]: {
           messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
           chatState: 'permission_pending',
           connectionState: 'connected',
           streamingText: '',

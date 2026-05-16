@@ -133,12 +133,12 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                 <div key={run.id} className="px-4 py-2.5">
                   <div className="flex items-center gap-3">
                     {/* Status icon */}
-                    <span
-                      className={`material-symbols-outlined text-[16px] ${run.status === 'running' ? 'animate-spin' : ''}`}
-                      style={{ color: cfg.color, fontVariationSettings: "'FILL' 1" }}
-                    >
-                      {cfg.icon}
-                    </span>
+                    <Icon
+                      name={cfg.icon}
+                      size={16}
+                      className={run.status === 'running' ? 'animate-spin' : ''}
+                      style={{ color: cfg.color }}
+                    />
 
                     {/* Status text */}
                     <span className="text-[12px] font-medium" style={{ color: cfg.color }}>
@@ -162,7 +162,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                       {run.sessionId && run.status !== 'running' && (
                         <button
                           onClick={() => openSession(run.sessionId!, run.taskName)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-medium text-[var(--color-brand)] bg-[var(--color-brand)]/8 hover:bg-[var(--color-brand)]/15 rounded-[var(--radius-sm)] transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-[#FE2C55] bg-[#FE2C55]/[0.08] hover:bg-[#FE2C55]/[0.16] rounded-[var(--radius-sm)] transition-colors"
                         >
                           <Icon name="open_in_new" size={14} />
                           {t('tasks.openSession')}
@@ -194,4 +194,3 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
     </div>
   )
 }
-

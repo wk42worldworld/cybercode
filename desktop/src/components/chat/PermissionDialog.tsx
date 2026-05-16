@@ -3,7 +3,6 @@ import { useChatStore } from '../../stores/chatStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
-import { Button } from '../shared/Button'
 import { DiffViewer } from './DiffViewer'
 import { Icon } from '../shared/Icon'
 
@@ -16,7 +15,7 @@ type Props = {
 
 /**
  * Icons for known tool types.
- * Uses Material Symbols Outlined names.
+ * Uses shared Icon registry names.
  */
 const TOOL_META: Record<string, { icon: string; label: string; color: string }> = {
   Bash: { icon: 'terminal', label: 'Bash', color: 'var(--color-warning)' },
@@ -71,22 +70,6 @@ function extractToolDetails(toolName: string, input: unknown, t: (key: Translati
   }
 }
 
-function getPermissionTitle(toolName: string, input: unknown, t: (key: TranslationKey, params?: Record<string, string | number>) => string) {
-  const obj = (input && typeof input === 'object') ? input as Record<string, unknown> : {}
-  const filePath = typeof obj.file_path === 'string' ? obj.file_path : ''
-  const fileName = filePath ? filePath.split('/').pop() || filePath : ''
-
-  switch (toolName) {
-    case 'Edit':
-    case 'Write':
-      return fileName ? t('permission.allowEditFile', { toolName, fileName }) : t('permission.allowEditFileGeneric', { toolName: toolName.toLowerCase() })
-    case 'Bash':
-      return t('permission.allowBash')
-    default:
-      return t('permission.allowTool', { toolName })
-  }
-}
-
 function renderPermissionPreview(toolName: string, input: unknown) {
   const obj = (input && typeof input === 'object') ? input as Record<string, unknown> : {}
   const filePath = typeof obj.file_path === 'string' ? obj.file_path : 'file'
@@ -124,130 +107,118 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
   const details = extractToolDetails(toolName, input, t)
   const rawInput = typeof input === 'string' ? input : JSON.stringify(input, null, 2)
   const preview = renderPermissionPreview(toolName, input)
-  const title = getPermissionTitle(toolName, input, t)
   const allowRawToggle = !preview
 
   return (
-    <div className={`mb-4 overflow-hidden rounded-[var(--radius-lg)] border ${
+    <div className={`flex overflow-hidden rounded-[var(--radius-lg)] mb-2 ${
       isPending
-        ? 'border-[var(--color-warning)] bg-[var(--color-surface-container-lowest)]'
-        : 'border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-low)] opacity-70'
+        ? 'bg-[var(--color-surface-container)]'
+        : 'bg-[var(--color-surface-container)] opacity-60'
     }`}>
-      {/* Header */}
-      <div className={`flex items-center gap-3 px-4 py-3 ${
+      {/* Left accent vertical line — same style as ToolCallBlock, warning color for permission */}
+      <div className={`w-0.5 shrink-0 ${
         isPending
-          ? 'bg-[var(--color-surface-container)]'
-          : 'bg-[var(--color-surface-container-low)]'
-      }`}>
-        <div
-          className="flex items-center justify-center w-8 h-8 rounded-[var(--radius-md)]"
-          style={{ backgroundColor: `${meta.color}18` }}
-        >
-          <Icon name={meta.icon} size={18} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
-              {title}
-            </span>
-            {isPending && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--color-warning)]/15 text-[var(--color-warning)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse-dot" />
-                {t('permission.awaitingApproval')}
-              </span>
-            )}
-            {!isPending && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]">
-                {t('permission.responded')}
-              </span>
-            )}
-          </div>
-          {description && (
-            <p className="mt-0.5 text-[12px] text-[var(--color-text-secondary)] truncate">{description}</p>
-          )}
-        </div>
-      </div>
+          ? 'bg-[var(--color-warning)] animate-accent-pulse-line'
+          : 'bg-[var(--color-warning)]'
+      }`} />
 
-      {/* Tool details */}
-      <div className="border-t border-[var(--color-outline-variant)]/20 px-4 py-3">
-        {preview ? (
-          <div className="space-y-2">
-            {details.primary && toolName !== 'Bash' ? (
-              <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] px-3 py-2 text-[12px] font-[var(--font-mono)] text-[var(--color-text-secondary)]">
-                <Icon name="folder_open" size={14} className="text-[var(--color-outline)] flex-shrink-0" />
+      <div className="min-w-0 flex-1">
+        {/* Header: tool name + "needs authorization" badge */}
+        <div className="flex items-center gap-2 px-3 py-2">
+          <Icon name={meta.icon} size={14} className="text-[var(--color-warning)]" />
+          <span className="label-micro text-[var(--color-warning)]">
+            {toolName}
+          </span>
+          {isPending ? (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] font-bold uppercase tracking-wider bg-[var(--color-warning)]/12 text-[var(--color-warning)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse-glow" />
+              {t('permission.awaitingApproval')}
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-[var(--radius-sm)] text-[10px] font-medium text-[var(--color-text-tertiary)]">
+              {t('permission.responded')}
+            </span>
+          )}
+          {description && (
+            <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--color-text-tertiary)]">
+              {description}
+            </span>
+          )}
+          {!description && <span className="flex-1" />}
+        </div>
+
+        {/* Detail: file path, command, or other description */}
+        {(details.primary || preview) && (
+          <div className="space-y-1.5 px-3 pb-2">
+            {details.primary && !preview ? (
+              <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] px-3 py-1.5 text-[11px] font-[var(--font-mono)] text-[var(--color-text-secondary)]">
+                <Icon name={toolName === 'Glob' || toolName === 'Grep' ? 'search' : 'folder_open'} size={12} className="text-[var(--color-outline)] flex-shrink-0" />
                 <span className="truncate">{details.primary}</span>
               </div>
             ) : null}
+
+            {details.primary && preview && toolName !== 'Bash' ? (
+              <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] px-3 py-1.5 text-[11px] font-[var(--font-mono)] text-[var(--color-text-secondary)]">
+                <Icon name="folder_open" size={12} className="text-[var(--color-outline)] flex-shrink-0" />
+                <span className="truncate">{details.primary}</span>
+              </div>
+            ) : null}
+
             {preview}
-          </div>
-        ) : details.primary ? (
-          <div className="mb-2">
-            <div className="flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] px-3 py-2 text-[12px] font-[var(--font-mono)] text-[var(--color-text-secondary)]">
-              <Icon name={toolName === 'Glob' || toolName === 'Grep' ? 'search' : 'folder_open'} size={14} className="text-[var(--color-outline)] flex-shrink-0" />
-              <span className="truncate">{details.primary}</span>
-            </div>
-          </div>
-        ) : null}
 
-        {/* Secondary detail */}
-        {details.secondary && (
-          <p className="mt-2 text-[12px] text-[var(--color-text-tertiary)]">{details.secondary}</p>
+            {details.secondary && (
+              <p className="text-[11px] text-[var(--color-text-tertiary)]">{details.secondary}</p>
+            )}
+
+            {allowRawToggle && (
+              <button
+                onClick={() => setShowRaw(!showRaw)}
+                className="flex cursor-pointer items-center gap-1 text-[10px] text-[var(--color-text-accent)] hover:underline"
+              >
+                <Icon name={showRaw ? 'expand_less' : 'expand_more'} size={12} />
+                {showRaw ? t('permission.hideDetails') : t('permission.showFullInput')}
+              </button>
+            )}
+
+            {allowRawToggle && showRaw && (
+              <pre className="max-h-[160px] overflow-y-auto overflow-x-auto rounded-[var(--radius-md)] bg-[var(--color-terminal-bg)] px-3 py-2 font-[var(--font-mono)] text-[11px] leading-[1.3] text-[var(--color-terminal-fg)] whitespace-pre-wrap break-words">
+                {rawInput}
+              </pre>
+            )}
+          </div>
         )}
 
-        {allowRawToggle && (
-          <button
-            onClick={() => setShowRaw(!showRaw)}
-            className="mt-2 flex cursor-pointer items-center gap-1 text-[11px] text-[var(--color-text-accent)] hover:underline"
-          >
-            <Icon name={showRaw ? 'expand_less' : 'expand_more'} size={14} />
-            {showRaw ? t('permission.hideDetails') : t('permission.showFullInput')}
-          </button>
-        )}
-
-        {allowRawToggle && showRaw && (
-          <pre className="mt-2 max-h-[220px] overflow-y-auto overflow-x-auto rounded-[var(--radius-md)] bg-[var(--color-terminal-bg)] px-3 py-2.5 font-[var(--font-mono)] text-[11px] leading-[1.3] text-[var(--color-terminal-fg)] whitespace-pre-wrap break-words">
-            {rawInput}
-          </pre>
+        {/* Action buttons — inline row at the bottom, no backdrop-blur */}
+        {isPending && (
+          <div className="flex items-center gap-1.5 border-t border-[var(--color-border-separator)] px-3 py-1.5">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-semibold text-[var(--color-btn-primary-fg)] bg-[var(--color-btn-primary-bg)] hover:bg-[var(--color-btn-primary-bg-hover)] transition-colors cursor-pointer"
+              onClick={() => activeTabId && respondToPermission(activeTabId, requestId, true)}
+            >
+              <Icon name="check" size={12} />
+              {t('permission.allow')}
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-medium text-[var(--color-text-secondary)] bg-[var(--color-surface-container-low)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+              onClick={() => activeTabId && respondToPermission(activeTabId, requestId, true, { rule: 'always' })}
+            >
+              <Icon name="verified" size={12} />
+              {t('permission.allowForSession')}
+            </button>
+            <div className="flex-1" />
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] text-[11px] font-semibold text-[var(--color-btn-danger-fg)] bg-[var(--color-error)] hover:opacity-90 transition-opacity cursor-pointer"
+              onClick={() => activeTabId && respondToPermission(activeTabId, requestId, false)}
+            >
+              <Icon name="close" size={12} />
+              {t('permission.deny')}
+            </button>
+          </div>
         )}
       </div>
-
-      {/* Action buttons */}
-      {isPending && (
-        <div className="flex items-center gap-2 border-t border-[var(--color-outline-variant)]/20 bg-[var(--color-surface-container-low)] px-4 py-3">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => activeTabId && respondToPermission(activeTabId, requestId, true)}
-            icon={
-              <Icon name="check" size={14} />
-            }
-          >
-            {t('permission.allow')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => activeTabId && respondToPermission(activeTabId, requestId, true, { rule: 'always' })}
-            icon={
-              <Icon name="verified" size={14} />
-            }
-          >
-            {t('permission.allowForSession')}
-          </Button>
-          <div className="flex-1" />
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => activeTabId && respondToPermission(activeTabId, requestId, false)}
-            icon={
-              <Icon name="close" size={14} />
-            }
-          >
-            {t('permission.deny')}
-          </Button>
-        </div>
-      )}
     </div>
   )
 }
-

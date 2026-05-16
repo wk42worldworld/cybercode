@@ -19,6 +19,10 @@ let polledMemberSessionId: string | null = null
 function createMemberSessionState() {
   return {
     messages: [] as UIMessage[],
+    historyBuffer: [] as UIMessage[],
+    recentBuffer: [] as UIMessage[],
+    allMessagesLoaded: true,
+    historyLoadState: 'loaded' as const,
     chatState: 'idle' as const,
     connectionState: 'connected' as const,
     streamingText: '',

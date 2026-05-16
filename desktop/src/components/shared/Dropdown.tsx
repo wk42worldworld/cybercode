@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from 'react'
+import { Icon } from './Icon'
 
 type DropdownItem<T extends string> = {
   value: T
@@ -56,13 +57,12 @@ export function Dropdown<T extends string>({
       {open && (
         <div
           className={`
-            absolute z-50 mt-1.5 overflow-hidden rounded-[6px]
-            bg-[var(--color-surface-container-lowest)] border-2 border-[var(--color-border)]
-            backdrop-blur-xl
-            animate-in fade-in slide-in-from-top-1
+            absolute z-50 mt-1.5 overflow-hidden rounded-xl
+            bg-[var(--color-background)] border border-[var(--color-border-separator)]
+            shadow-[var(--shadow-dropdown)] animate-slide-down
             ${align === 'right' ? 'right-0' : 'left-0'}
           `}
-          style={{ width, boxShadow: 'var(--shadow-dropdown)' }}
+          style={{ width }}
         >
           {items.map((item, i) => (
             <button
@@ -71,19 +71,19 @@ export function Dropdown<T extends string>({
               className={`
                 w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors
                 hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:bg-[var(--color-surface-hover)]
-                ${item.value === value ? 'bg-[var(--color-model-option-selected-bg)]' : ''}
+                ${item.value === value ? 'bg-[var(--color-surface-selected)]' : ''}
                 ${i > 0 ? 'border-t border-[var(--color-border-separator)]' : ''}
               `}
             >
-              {item.icon && <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[var(--color-text-secondary)]">{item.icon}</span>}
+              {item.icon && <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[var(--color-text-tertiary)]">{item.icon}</span>}
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold tracking-tight text-[var(--color-text-primary)]">{item.label}</div>
+                <div className="text-[13px] font-semibold tracking-[-0.01em] text-[var(--color-text-primary)]">{item.label}</div>
                 {item.description && (
-                  <div className="text-[11px] text-[var(--color-text-secondary)] mt-0.5">{item.description}</div>
+                  <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">{item.description}</div>
                 )}
               </div>
               {item.value === value && (
-                <span className="material-symbols-outlined flex-shrink-0 text-[16px] text-[var(--color-spacex-accent)]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-tertiary)]" />
               )}
             </button>
           ))}
