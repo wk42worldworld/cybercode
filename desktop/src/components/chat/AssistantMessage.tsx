@@ -43,11 +43,11 @@ export function AssistantMessage({ content, isStreaming, toolCalls, resultMap }:
             data-message-bubble="assistant"
             className={
               layout === 'document'
-                ? 'w-full rounded-[24px] rounded-tl-[8px] border border-neutral-200 bg-white px-[24px] py-[16px] text-neutral-800'
-                : 'w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-neutral-200 bg-white px-[24px] py-[16px] text-neutral-800'
+                ? 'w-full rounded-[24px] rounded-tl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[var(--color-text-primary)]'
+                : 'w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[var(--color-text-primary)]'
             }
           >
-            <div className="chat-bubble-text text-[15px] font-normal leading-relaxed tracking-normal text-neutral-800">
+            <div className="chat-bubble-text text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
               {isStreaming ? (
                 <span className="whitespace-pre-wrap">{content}</span>
               ) : (

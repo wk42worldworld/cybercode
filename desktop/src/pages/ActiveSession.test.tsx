@@ -264,6 +264,125 @@ describe('ActiveSession task polling', () => {
     unmount()
   })
 
+  it('starts fading the thinking panel once assistant body text begins streaming', () => {
+    const sessionId = 'thinking-fades-on-body-stream-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Thinking Fade Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 2,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Thinking Fade Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: 'user-1', type: 'user_text', content: 'Explain this', timestamp: 1 },
+            { id: 'thinking-1', type: 'thinking', content: 'Planning the answer', timestamp: 2 },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'streaming',
+          connectionState: 'connected',
+          streamingText: 'Here is the answer',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', 'Planning the answer')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'false')
+
+    unmount()
+  })
+
+  it('keeps the thinking panel fading after streamed body text is committed in the current turn', () => {
+    const sessionId = 'thinking-fades-after-body-commit-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Thinking Commit Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 3,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Thinking Commit Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: 'user-1', type: 'user_text', content: 'Explain this', timestamp: 1 },
+            { id: 'thinking-1', type: 'thinking', content: 'Planning the answer', timestamp: 2 },
+            { id: 'assistant-1', type: 'assistant_text', content: 'Here is the answer', timestamp: 3 },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'tool_executing',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: 'tool-1',
+          activeToolName: 'Read',
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', 'Planning the answer')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'false')
+
+    unmount()
+  })
+
   it('passes fresh thinking once even if a fast turn has already returned to idle', () => {
     const sessionId = 'fast-thinking-session'
 
@@ -318,6 +437,66 @@ describe('ActiveSession task polling', () => {
     const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
 
     expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', 'Brief reasoning burst')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'false')
+
+    unmount()
+  })
+
+  it('does not reopen the thinking panel while switching models', () => {
+    const sessionId = 'model-switch-thinking-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Model Switch Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 3,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Model Switch Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: 'user-1', type: 'user_text', content: 'Previous prompt', timestamp: 1 },
+            { id: 'thinking-1', type: 'thinking', content: 'Old reasoning cache', timestamp: 2 },
+            { id: 'assistant-1', type: 'assistant_text', content: 'Previous answer', timestamp: 3 },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'thinking',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: 'Switching provider and model...',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', '')
     expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'false')
 
     unmount()

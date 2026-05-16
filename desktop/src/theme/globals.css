@@ -418,115 +418,117 @@
   --radius-full: 9999px;
 }
 
-/* ─── Semantic Aliases — Dark theme (macOS Refined, pure black) ── */
+/* ─── Semantic Aliases — Dark theme (macOS Refined graphite) ── */
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-spacex-accent: #007aff;
-  --color-primary: #e5e5e7;
-  --color-primary-container: #aeaeb2;
-  --color-primary-fixed: #1a1a1a;
-  --color-primary-fixed-dim: #4e4e4e;
+  --color-spacex-accent: #f4f4f5;
+  --color-primary: #f4f4f5;
+  --color-primary-container: #d4d4d8;
+  --color-primary-fixed: #23262a;
+  --color-primary-fixed-dim: #34383e;
 
-  --color-on-primary: #1c1c1e;
-  --color-on-surface: #f5f5f7;
-  --color-on-surface-variant: rgba(245, 245, 247, 0.74);
+  --color-on-primary: #111315;
+  --color-on-surface: #f4f4f5;
+  --color-on-surface-variant: rgba(244, 244, 245, 0.72);
 
-  /* Surface scale — transparency overlays so settings sub-panels match
-     the homepage's `dark:bg-white/[0.0X]` layering. */
-  --color-surface: rgba(255, 255, 255, 0.04);
-  --color-surface-bright: rgba(255, 255, 255, 0.10);
-  --color-surface-dim: rgba(255, 255, 255, 0.04);
-  --color-surface-container: rgba(255, 255, 255, 0.07);
-  --color-surface-container-low: rgba(255, 255, 255, 0.05);
-  --color-surface-container-high: rgba(255, 255, 255, 0.12);
-  --color-surface-container-highest: rgba(255, 255, 255, 0.15);
-  --color-surface-container-lowest: #0a0a0a;
-  --color-surface-variant: rgba(255, 255, 255, 0.04);
-  --color-background: #000000;
+  /* Surface scale mirrors the light theme's stepped hierarchy without
+     falling into pure black. Opaque layers are cheaper to composite than
+     stacked translucent panels in the desktop webview. */
+  --color-surface: #171a1e;
+  --color-surface-bright: #20242a;
+  --color-surface-dim: #111315;
+  --color-surface-container: #191c20;
+  --color-surface-container-low: #14171a;
+  --color-surface-container-high: #22262b;
+  --color-surface-container-highest: #2b3036;
+  --color-surface-container-lowest: #0f1114;
+  --color-surface-variant: #1c2025;
+  --color-background: #111315;
 
-  --color-outline: #aeaeb2;
-  --color-outline-variant: rgba(255, 255, 255, 0.22);
+  --color-outline: #6b7280;
+  --color-outline-variant: rgba(244, 244, 245, 0.13);
 
-  --color-secondary: #cdcdcd;
-  --color-secondary-container: #1a1a1a;
-  --color-tertiary: #b4b4b4;
-  --color-tertiary-container: #262626;
+  --color-secondary: #d4d4d8;
+  --color-secondary-container: #20242a;
+  --color-tertiary: #a1a1aa;
+  --color-tertiary-container: #2b3036;
 
   --color-error: #ff453a;
   --color-error-container: #4d1612;
   --color-on-error-container: #ffd9d6;
 
-  --color-inverse-surface: #f5f5f7;
-  --color-inverse-on-surface: #000000;
-  --color-inverse-primary: #ffffff;
+  --color-inverse-surface: #f8f9fa;
+  --color-inverse-on-surface: #111315;
+  --color-inverse-primary: #f8f9fa;
 
-  --color-success: #777777;
+  --color-success: #8a8f98;
   --color-warning: #ffbd2e;
 
   /* mac glass tokens */
-  --mac-bg: #000000;
-  --mac-text: #ffffff;
-  --mac-sidebar: #0A0A0A;
-  --mac-glass-bg: rgba(10, 10, 10, 0.88);
-  --mac-border: rgba(255, 255, 255, 0.08);
-  --mac-shadow: rgba(0, 0, 0, 0.95);
+  --mac-bg: #111315;
+  --mac-text: #f4f4f5;
+  --mac-sidebar: #15181c;
+  --mac-glass-bg: #191c20;
+  --mac-border: rgba(244, 244, 245, 0.10);
+  --mac-shadow: rgba(0, 0, 0, 0.42);
 
   /* Surface aliases */
-  --color-surface-sidebar: #0A0A0A;
-  --color-surface-hover: rgba(255, 255, 255, 0.05);
-  --color-surface-selected: rgba(255, 255, 255, 0.08);
-  --color-model-option-selected-bg: rgba(0, 122, 255, 0.10);
-  --color-model-option-selected-border: rgba(0, 122, 255, 0.35);
-  --color-sidebar-filter-bg: rgba(255, 255, 255, 0.04);
-  --color-sidebar-filter-border: rgba(255, 255, 255, 0.06);
+  --color-surface-sidebar: #15181c;
+  --color-surface-hover: rgba(244, 244, 245, 0.06);
+  --color-surface-selected: rgba(244, 244, 245, 0.10);
+  --color-model-option-selected-bg: rgba(244, 244, 245, 0.08);
+  --color-model-option-selected-border: rgba(244, 244, 245, 0.22);
+  --color-sidebar-filter-bg: #1a1e23;
+  --color-sidebar-filter-border: rgba(244, 244, 245, 0.09);
   --color-sidebar-filter-icon-bg: transparent;
-  --color-sidebar-search-bg: rgba(255, 255, 255, 0.05);
-  --color-sidebar-search-border: rgba(255, 255, 255, 0.05);
-  --color-sidebar-item-hover: rgba(255, 255, 255, 0.05);
+  --color-sidebar-search-bg: #1a1e23;
+  --color-sidebar-search-border: rgba(244, 244, 245, 0.10);
+  --color-sidebar-item-hover: rgba(244, 244, 245, 0.06);
   --color-sidebar-item-active: var(--color-spacex-accent);
-  --color-sidebar-item-active-border: rgba(0, 122, 255, 0.45);
+  --color-sidebar-item-active-border: rgba(244, 244, 245, 0.22);
   --sidebar-panel-bg-image: none;
 
   /* Borders */
-  --color-border: rgba(255, 255, 255, 0.22);
-  --color-border-focus: rgba(255, 255, 255, 0.55);
-  --color-border-separator: rgba(255, 255, 255, 0.14);
+  --color-border: rgba(244, 244, 245, 0.16);
+  --color-border-focus: rgba(244, 244, 245, 0.38);
+  --color-border-separator: rgba(244, 244, 245, 0.09);
 
   /* Text */
-  --color-text-primary: rgba(255, 255, 255, 0.96);
-  --color-text-secondary: rgba(255, 255, 255, 0.82);
-  --color-text-tertiary: rgba(255, 255, 255, 0.68);
+  --color-text-primary: rgba(244, 244, 245, 0.94);
+  --color-text-secondary: rgba(244, 244, 245, 0.70);
+  --color-text-tertiary: rgba(244, 244, 245, 0.52);
 
-  --color-surface-info: rgba(10, 10, 10, 0.92);
-  --color-brand: #999999;
-  --color-text-accent: #999999;
+  --color-surface-info: #1a1e23;
+  --color-brand: #f4f4f5;
+  --color-text-accent: #f4f4f5;
 
-  /* WeChat message bubble colors - dark mode */
-  --color-message-user-bg: #000000;
-  --color-message-user-fg: #ffffff;
-  --color-message-assistant-bg: #1e1e1e;
-  --color-chat-bg: #111111;
+  /* Chat colors - dark mode */
+  --color-message-user-bg: #f4f4f5;
+  --color-message-user-fg: #111315;
+  --color-message-assistant-bg: #191c20;
+  --color-chat-bg: #111315;
 
-  /* Accent glow tokens — macOS blue for dark mode */
-  --color-accent-glow: rgba(0, 122, 255, 0.15);
-  --color-accent-glow-strong: rgba(0, 122, 255, 0.30);
-  --shadow-accent-glow: 0 0 20px rgba(0, 122, 255, 0.12);
+  /* Accent glow tokens — intentionally muted in dark mode to avoid
+     expensive glow repaints on icon-heavy surfaces. */
+  --color-accent-glow: rgba(244, 244, 245, 0.08);
+  --color-accent-glow-strong: rgba(244, 244, 245, 0.14);
+  --shadow-accent-glow: none;
 
   /* Scan line effect for loading states */
-  --color-scan-line: rgba(0, 122, 255, 0.08);
+  --color-scan-line: rgba(244, 244, 245, 0.06);
 
   /* Noise texture overlay opacity */
-  --noise-opacity: 0.03;
+  --noise-opacity: 0;
 
   /* Shadows */
-  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.50), 0 16px 40px rgba(0, 0, 0, 0.60);
-  --shadow-window: 0 40px 100px -10px rgba(0, 0, 0, 0.85), 0 20px 50px -8px rgba(0, 0, 0, 0.65);
+  --shadow-dropdown: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --shadow-window: 0 28px 70px rgba(0, 0, 0, 0.42), 0 10px 28px rgba(0, 0, 0, 0.24);
   --shadow-sidebar-filter: none;
   /* Focus ring — accent glow */
-  --shadow-focus-ring: 0 0 0 1px rgba(0, 122, 255, 0.35), 0 0 12px rgba(0, 122, 255, 0.10);
-  --shadow-error-ring: 0 0 0 2px rgba(255, 69, 58, 0.40);
-  --shadow-button-primary: 0 4px 12px rgba(0, 122, 255, 0.14);
+  --shadow-focus-ring: 0 0 0 2px rgba(244, 244, 245, 0.12);
+  --shadow-error-ring: 0 0 0 2px rgba(255, 69, 58, 0.32);
+  --shadow-button-primary: none;
 
   --color-btn-primary-bg: var(--color-primary);
   --color-btn-primary-bg-hover: var(--color-primary-container);
@@ -535,11 +537,11 @@
   --gradient-btn-primary: linear-gradient(135deg, var(--color-btn-primary-bg), var(--color-btn-primary-bg-hover));
   --gradient-btn-primary-hover: linear-gradient(135deg, var(--color-btn-primary-bg-hover), var(--color-btn-primary-bg));
 
-  --color-surface-user-msg: rgba(0, 122, 255, 0.06);
+  --color-surface-user-msg: rgba(244, 244, 245, 0.08);
 
-  --color-overlay-scrim: rgba(0, 0, 0, 0.65);
-  --color-surface-glass: rgba(10, 10, 10, 0.84);
-  --color-surface-glass-border: rgba(255, 255, 255, 0.06);
+  --color-overlay-scrim: rgba(0, 0, 0, 0.52);
+  --color-surface-glass: #191c20;
+  --color-surface-glass-border: rgba(244, 244, 245, 0.09);
 
   /* Code + diff */
   --color-code-bg: #050505;
@@ -643,23 +645,23 @@ html, body, #root {
 }
 
 [data-theme="dark"] .settings-ui {
-  --color-background: #111111;
-  --color-surface: #141414;
-  --color-surface-container: #171717;
-  --color-surface-container-low: #101010;
-  --color-surface-container-high: #1f1f1f;
-  --color-surface-container-highest: #262626;
-  --color-surface-container-lowest: #0a0a0a;
-  --color-surface-hover: rgba(255, 255, 255, 0.06);
-  --color-surface-selected: rgba(255, 255, 255, 0.10);
-  --color-border: rgba(255, 255, 255, 0.10);
-  --color-border-focus: rgba(255, 255, 255, 0.28);
-  --color-border-separator: rgba(255, 255, 255, 0.10);
-  --color-brand: #ffffff;
-  --color-text-accent: #ffffff;
-  --shadow-accent-glow: 0 0 0 3px rgba(255, 255, 255, 0.06);
-  --shadow-focus-ring: 0 0 0 2px rgba(255, 255, 255, 0.12);
-  --shadow-window: 0 32px 90px rgba(0, 0, 0, 0.65), 0 12px 34px rgba(0, 0, 0, 0.38);
+  --color-background: #111315;
+  --color-surface: #171a1e;
+  --color-surface-container: #191c20;
+  --color-surface-container-low: #14171a;
+  --color-surface-container-high: #22262b;
+  --color-surface-container-highest: #2b3036;
+  --color-surface-container-lowest: #0f1114;
+  --color-surface-hover: rgba(244, 244, 245, 0.06);
+  --color-surface-selected: rgba(244, 244, 245, 0.10);
+  --color-border: rgba(244, 244, 245, 0.16);
+  --color-border-focus: rgba(244, 244, 245, 0.38);
+  --color-border-separator: rgba(244, 244, 245, 0.09);
+  --color-brand: #f4f4f5;
+  --color-text-accent: #f4f4f5;
+  --shadow-accent-glow: none;
+  --shadow-focus-ring: 0 0 0 2px rgba(244, 244, 245, 0.12);
+  --shadow-window: 0 28px 70px rgba(0, 0, 0, 0.42), 0 10px 28px rgba(0, 0, 0, 0.24);
 }
 
 [data-runtime="tauri"] .tabbar-title {
@@ -748,6 +750,12 @@ h6 { font-size: 12px; line-height: 1.4; }
   letter-spacing: 0.18em;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.cybercode-wordmark-image {
+  display: block;
+  image-rendering: auto;
+  user-select: none;
 }
 
 /* Ghost button — translucent surface + subtle border */
@@ -1143,14 +1151,14 @@ button, input, textarea, select, a, [role="button"] {
 .wechat-message-assistant {
   background-color: var(--color-message-assistant-bg);
   border-radius: 0 6px 6px 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 /* User message (right side) */
 .wechat-message-user {
   background-color: var(--color-message-user-bg);
   border-radius: 6px 0 6px 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 /* Bubble tail for assistant */
@@ -1213,13 +1221,13 @@ button, input, textarea, select, a, [role="button"] {
 
 /* WeChat sidebar style */
 .wechat-sidebar {
-  background-color: #f7f7f7;
-  border-right: 1px solid #e0e0e0;
+  background-color: var(--color-surface-sidebar);
+  border-right: 1px solid var(--color-border-separator);
 }
 
 [data-theme="dark"] .wechat-sidebar {
-  background-color: #1e1e1e;
-  border-right-color: #2a2a2a;
+  background-color: var(--color-surface-sidebar);
+  border-right-color: var(--color-border-separator);
 }
 
 /* WeChat scrollbar - thinner */

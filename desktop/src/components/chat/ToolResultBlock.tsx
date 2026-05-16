@@ -31,7 +31,7 @@ export function ToolResultBlock({ content, isError, toolName, standalone = true 
     <div className={`mb-1.5 overflow-hidden rounded-[10px] ${
       isError
         ? 'bg-red-500/[0.06] dark:bg-red-500/[0.08]'
-        : 'bg-black/[0.03] dark:bg-white/[0.04]'
+        : 'bg-[var(--color-surface-container-low)]'
     }`}>
       <div className="min-w-0">
         {/* Status header */}
@@ -51,7 +51,7 @@ export function ToolResultBlock({ content, isError, toolName, standalone = true 
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
             isError
               ? 'bg-red-500/10 text-[var(--color-error)]'
-              : 'bg-black/5 dark:bg-white/10 text-black/40 dark:text-white/40'
+              : 'bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)]'
           }`}>
             {isError ? t('tool.error') : t('tool.success')}
           </span>
@@ -83,7 +83,7 @@ export function ToolResultBlock({ content, isError, toolName, standalone = true 
         {hasMore && (
           <button
             onClick={() => setExpanded((value) => !value)}
-            className="w-full py-1 text-[10px] font-medium text-black/30 dark:text-white/30 hover:text-black/50 dark:hover:text-white/50 transition-colors"
+            className="w-full py-1 text-[10px] font-medium text-[var(--color-text-tertiary)] transition-colors duration-100 hover:text-[var(--color-text-secondary)]"
           >
             {expanded ? t('tool.showLess') : t('tool.showMore', { count: text.length - 200 })}
           </button>

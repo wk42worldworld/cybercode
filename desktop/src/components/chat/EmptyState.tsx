@@ -41,7 +41,7 @@ type TranslateFn = (key: TranslationKey, params?: Record<string, string | number
 function MinimalEmptyState({ t }: { t: TranslateFn }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-8">
-      <Bot size={48} strokeWidth={1.5} className="mb-4 text-neutral-300" />
+      <Bot size={48} strokeWidth={1.5} className="mb-4 text-[var(--color-text-tertiary)]" />
       <p className="text-[var(--color-text-secondary)]">
         {t('teams.noMessages')}
       </p>
@@ -170,15 +170,15 @@ function HeroEmptyLayout({
 function HeroBlock({ t }: { t: TranslateFn }) {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="mb-[20px] flex h-[64px] w-[64px] items-center justify-center rounded-full border-2 border-neutral-200 bg-white">
-        <div className="h-[24px] w-[24px] rounded-full border-[3px] border-black" />
+      <div className="mb-[20px] flex h-[64px] w-[64px] items-center justify-center rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]">
+        <div className="h-[24px] w-[24px] rounded-full border-[3px] border-[var(--color-text-primary)]" />
       </div>
       <h1
-        className="mb-[8px] !text-[32px] font-bold !leading-[35.2px] !tracking-[0] text-neutral-900"
+        className="mb-[8px] !text-[32px] font-bold !leading-[35.2px] !tracking-[0] text-[var(--color-text-primary)]"
       >
         {t('empty.title')}
       </h1>
-      <p className="max-w-[420px] text-[14px] font-medium leading-[1.6] text-neutral-500">
+      <p className="max-w-[420px] text-[14px] font-medium leading-[1.6] text-[var(--color-text-secondary)]">
         {t('empty.subtitle')}
       </p>
     </div>

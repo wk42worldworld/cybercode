@@ -208,7 +208,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
                   key={optIndex}
                   onClick={() => handleSelect(safeActiveTab, opt.label)}
                   disabled={submitted}
-                  className={`w-full text-left px-4 py-3 rounded-[var(--radius-md)] border transition-all duration-150 cursor-pointer ${
+                  className={`w-full text-left px-4 py-3 rounded-[var(--radius-md)] border transition-colors duration-100 cursor-pointer ${
                     isSelected
                       ? 'border-[var(--color-brand)] bg-[var(--color-accent-glow)] ring-1 ring-[var(--color-brand)]/30'
                       : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-brand)] hover:bg-[var(--color-accent-glow)]'

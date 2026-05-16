@@ -15,6 +15,10 @@ import { FloatingThinkingPanel } from '../components/chat/FloatingThinkingPanel'
 
 const TASK_POLL_INTERVAL_MS = 1000
 const THINKING_RECENT_GRACE_MS = 3200
+const RUNTIME_TRANSITION_STATUS_VERBS = new Set([
+  'Switching provider and model...',
+  'Restarting session with new permissions...',
+])
 
 type ActiveSessionProps = {
   sessionId?: string
@@ -115,11 +119,33 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const t = useTranslation()
   const messages = sessionState?.messages ?? []
   const activeThinkingId = sessionState?.activeThinkingId ?? null
+  const streamingText = sessionState?.streamingText ?? ''
+  const statusVerb = sessionState?.statusVerb ?? ''
+  const isRuntimeTransitionStatus = RUNTIME_TRANSITION_STATUS_VERBS.has(statusVerb)
 
-  const latestUserMessage = [...messages].reverse().find((m): m is Extract<UIMessage, { type: 'user_text' }> => m.type === 'user_text') ?? null
-  const latestThinking = [...messages].reverse().find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking') ?? null
+  let latestUserMessageIndex = -1
+  let latestThinkingIndex = -1
+  let latestAssistantTextIndex = -1
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+    if (!message) continue
+    if (latestUserMessageIndex === -1 && message.type === 'user_text') latestUserMessageIndex = index
+    if (latestThinkingIndex === -1 && message.type === 'thinking') latestThinkingIndex = index
+    if (latestAssistantTextIndex === -1 && message.type === 'assistant_text') latestAssistantTextIndex = index
+    if (latestUserMessageIndex !== -1 && latestThinkingIndex !== -1 && latestAssistantTextIndex !== -1) break
+  }
+
+  const latestUserMessage = latestUserMessageIndex >= 0
+    ? messages[latestUserMessageIndex] as Extract<UIMessage, { type: 'user_text' }>
+    : null
+  const latestThinking = latestThinkingIndex >= 0
+    ? messages[latestThinkingIndex] as Extract<UIMessage, { type: 'thinking' }>
+    : null
   const latestThinkingBelongsToCurrentTurn =
-    !latestUserMessage || (latestThinking?.timestamp ?? 0) >= latestUserMessage.timestamp
+    latestThinkingIndex >= 0 && (latestUserMessageIndex === -1 || latestThinkingIndex >= latestUserMessageIndex)
+  const assistantBodyStartedForCurrentTurn =
+    streamingText.length > 0 ||
+    (latestAssistantTextIndex >= 0 && (latestUserMessageIndex === -1 || latestAssistantTextIndex >= latestUserMessageIndex))
   const latestThinkingIsFresh = latestThinking
     ? Date.now() - latestThinking.timestamp <= THINKING_RECENT_GRACE_MS
     : false
@@ -130,19 +156,30 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
 
   // Active thinking content for the floating indicator. The id can be cleared
   // by later stream events before the UI has had a chance to render it.
-  const activeThinkingCandidate = activeThinkingId
-    ? messages.find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking' && m.id === activeThinkingId) ?? null
+  const activeThinkingCandidateIndex = activeThinkingId
+    ? messages.findIndex((m) => m.type === 'thinking' && m.id === activeThinkingId)
+    : -1
+  const activeThinkingCandidate = activeThinkingCandidateIndex >= 0
+    ? messages[activeThinkingCandidateIndex] as Extract<UIMessage, { type: 'thinking' }>
     : null
   const activeThinking =
-    activeThinkingCandidate && (!latestUserMessage || activeThinkingCandidate.timestamp >= latestUserMessage.timestamp)
+    !isRuntimeTransitionStatus &&
+    activeThinkingCandidate &&
+    (latestUserMessageIndex === -1 || activeThinkingCandidateIndex >= latestUserMessageIndex)
       ? activeThinkingCandidate
-      : fallbackThinking
+      : !isRuntimeTransitionStatus
+        ? fallbackThinking
+        : null
+  const thinkingPanelIsActive =
+    !isRuntimeTransitionStatus &&
+    chatState !== 'idle' &&
+    !assistantBodyStartedForCurrentTurn
   const measuredBottomOverlayHeight = Math.max(bottomOverlayHeight, composerHeight)
 
   if (!sessionId) return null
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden bg-white text-neutral-900 transition-colors duration-300">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--color-background)] text-[var(--color-text-primary)] transition-colors duration-150">
 
       {isMemberSession && (
         <div className="shrink-0 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
@@ -213,7 +250,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
 
         <FloatingThinkingPanel
           content={activeThinking?.content}
-          isActive={chatState !== 'idle'}
+          isActive={thinkingPanelIsActive}
           identityKey={`${sessionId}:${latestUserMessage?.id ?? 'initial'}`}
         />
 

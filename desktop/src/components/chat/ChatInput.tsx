@@ -603,7 +603,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
         {!isMemberSession && slashMenuOpen && filteredCommands.length > 0 && (
           <div
             ref={slashMenuRef}
-            className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-neutral-200 bg-white/95 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-sm"
+            className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]"
           >
             <div className="max-h-[300px] overflow-y-auto py-1">
               {filteredCommands.map((command, index) => (
@@ -614,25 +614,25 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                   onMouseEnter={() => setSlashSelectedIndex(index)}
                   className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
                     index === slashSelectedIndex
-                      ? 'bg-black/5 dark:bg-white/5'
-                      : 'hover:bg-black/5 dark:hover:bg-white/5'
+                      ? 'bg-[var(--color-surface-selected)]'
+                      : 'hover:bg-[var(--color-surface-hover)]'
                   }`}
                 >
-                  <span className="shrink-0 text-[13px] font-semibold text-black/70 dark:text-white/70 font-mono">
+                  <span className="shrink-0 text-[13px] font-semibold text-[var(--color-text-primary)] font-mono">
                     /{command.name}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-black/50 dark:text-white/50">
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--color-text-tertiary)]">
                     {command.description}
                   </span>
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1.5 border-t border-black/5 dark:border-white/10 px-4 py-2 text-[10px] text-black/40 dark:text-white/40">
-              <kbd className="rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Up/Down</kbd>
+            <div className="flex items-center gap-1.5 border-t border-[var(--color-border-separator)] px-4 py-2 text-[10px] text-[var(--color-text-tertiary)]">
+              <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-container)] px-1.5 py-0.5 font-mono text-[9px] font-bold">Up/Down</kbd>
               <span>{t('chat.navigate')}</span>
-              <kbd className="ml-2 rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Enter</kbd>
+              <kbd className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-container)] px-1.5 py-0.5 font-mono text-[9px] font-bold">Enter</kbd>
               <span>{t('chat.select')}</span>
-              <kbd className="ml-2 rounded border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-1.5 py-0.5 font-mono text-[9px] font-bold">Esc</kbd>
+              <kbd className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-container)] px-1.5 py-0.5 font-mono text-[9px] font-bold">Esc</kbd>
               <span>{t('chat.dismiss')}</span>
             </div>
           </div>
@@ -650,7 +650,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
         )}
 
         {/* ── WeChat Style Input ── */}
-        <div className="flex w-full flex-col rounded-[28px] border-2 border-neutral-200 bg-white/95 p-[8px] pt-[12px] transition-colors focus-within:border-black backdrop-blur-sm">
+        <div className="flex w-full flex-col rounded-[28px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] pt-[12px] transition-colors duration-150 focus-within:border-[var(--color-border-focus)]">
           {/* Top toolbar mirrors the reference: two compact icon buttons only. */}
           <div className="flex gap-[12px] px-[16px] pb-[12px]">
             <div className="relative flex items-center" ref={plusMenuRef}>
@@ -660,10 +660,10 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                     type="button"
                     onClick={() => setPlusMenuOpen((v) => !v)}
                     aria-label="Open composer tools"
-                    className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-black"
+                    className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                   >
                     <Plus size={18} strokeWidth={2.5} />
-                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
                       {slashCommandsLabel}
                     </span>
                   </button>
@@ -699,10 +699,10 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   aria-label={addFilesLabel}
-                  className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-black"
+                  className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                 >
                   <Paperclip size={18} strokeWidth={2.5} />
-                  <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                  <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
                     {addFilesLabel}
                   </span>
                 </button>
@@ -726,7 +726,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
               placeholder={composerPlaceholder}
               disabled={isWorkspaceMissing}
               rows={1}
-              className="min-h-[50px] max-h-[200px] w-full flex-1 resize-none bg-transparent px-[8px] py-[8px] text-[15px] font-medium leading-relaxed text-black outline-none placeholder:text-neutral-400 disabled:opacity-50"
+              className="min-h-[50px] max-h-[200px] w-full flex-1 resize-none bg-transparent px-[8px] py-[8px] text-[15px] font-medium leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)] disabled:opacity-50"
             />
 
             {!isMemberSession && (
@@ -737,7 +737,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                     onClick={() => stopGeneration(activeTabId!)}
                     title={t('chat.stopTitle')}
                     aria-label={t('chat.stopTitle')}
-                    className="mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors hover:bg-[#ccfb50] hover:text-black"
+                    className="mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]"
                   >
                     <Square size={16} strokeWidth={2.5} />
                   </button>
@@ -749,8 +749,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                     aria-label={t('common.run')}
                     className={`mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
                       canSubmit
-                        ? 'bg-neutral-100 text-neutral-500 hover:bg-[#ccfb50] hover:text-black'
-                        : 'bg-neutral-100 text-neutral-300 cursor-not-allowed'
+                        ? 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
+                        : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
                     }`}
                   >
                     <ArrowUp size={18} strokeWidth={2.5} />
@@ -766,8 +766,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                 aria-label={t('common.run')}
                 className={`mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
                   canSubmit
-                    ? 'bg-neutral-100 text-neutral-500 hover:bg-[#ccfb50] hover:text-black'
-                    : 'bg-neutral-100 text-neutral-300 cursor-not-allowed'
+                    ? 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
+                    : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
                 }`}
               >
                 <ArrowUp size={18} strokeWidth={2.5} />

@@ -54,7 +54,7 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
 
   return (
     <div
-      className={`overflow-hidden rounded-[10px] bg-black/[0.03] dark:bg-white/[0.04] ${
+      className={`overflow-hidden rounded-[10px] bg-[var(--color-surface-container-low)] ${
         compact ? 'mb-0' : 'mb-1.5'
       }`}
     >
@@ -66,10 +66,10 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
               setExpanded((value) => !value)
             }
           }}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
         >
-          <Icon name={icon} size={12} className="text-black/30 dark:text-white/30" />
-          <span className="text-[11px] font-medium text-black/50 dark:text-white/50">
+          <Icon name={icon} size={12} className="text-[var(--color-text-tertiary)]" />
+          <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
             {toolName}
           </span>
           {filePath ? (
@@ -109,7 +109,7 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
 
         {expandable && expanded && (
           <div
-            className="space-y-2 border-t border-black/[0.04] dark:border-white/[0.06] px-3 py-2.5"
+            className="space-y-2 border-t border-[var(--color-border-separator)] px-3 py-2.5"
             style={{
               animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)',
             }}

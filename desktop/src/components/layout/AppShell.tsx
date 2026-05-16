@@ -81,7 +81,7 @@ export function AppShell() {
 
   if (!ready) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#EBEBEB] dark:bg-[#111] font-sans">
+      <div className="h-screen flex items-center justify-center bg-[var(--color-background)] font-sans">
         <div className="flex flex-col items-center gap-3">
           <div
             className="w-8 h-8 rounded-full border-[3px] border-black/10 dark:border-white/10 border-t-black/50 dark:border-t-white/50"
@@ -93,17 +93,17 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-white font-sans text-neutral-900">
-      <div className="relative flex h-full w-full overflow-hidden bg-white">
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-background)] font-sans text-[var(--color-text-primary)]">
+      <div className="relative flex h-full w-full overflow-hidden bg-[var(--color-background)]">
         <IconRail />
         <div
-          className={`relative z-20 flex h-full shrink-0 overflow-hidden border-r border-neutral-100 bg-[#fafafa] transition-[width] duration-[var(--motion-sidebar-duration)] ease-[var(--motion-sidebar-easing)] ${sidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0'}`}
+          className={`relative z-20 flex h-full shrink-0 overflow-hidden border-r border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] transition-[width] duration-[var(--motion-sidebar-duration)] ease-[var(--motion-sidebar-easing)] ${sidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0'}`}
         >
           <Sidebar />
         </div>
         <main
           id="content-area"
-          className="relative z-10 flex min-w-0 w-0 flex-1 flex-col overflow-hidden bg-white transition-colors duration-300"
+          className="relative z-10 flex min-w-0 w-0 flex-1 flex-col overflow-hidden bg-[var(--color-background)] transition-colors duration-150"
         >
           <TabBar />
           <ContentRouter />

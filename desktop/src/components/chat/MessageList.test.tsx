@@ -697,7 +697,7 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList __testInitialItemCount={100} />)
+    const { container } = render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getByText('Failed to start CLI process.')).toBeTruthy()
     expect(
@@ -705,5 +705,34 @@ describe('MessageList nested tool calls', () => {
         'CLI exited during startup (code 1): Claude Code on Windows requires git-bash (https://git-scm.com/downloads/win).',
       ),
     ).toBeTruthy()
+    expect(container.querySelector('[data-message-shell="error"]')?.className).toContain('max-w-[878px]')
+    expect(container.querySelector('[data-message-error]')?.className).toContain('[overflow-wrap:anywhere]')
+    expect(container.querySelector<HTMLElement>('[data-message-error]')?.style.color).toBe('var(--color-error)')
+    expect(container.querySelector<HTMLElement>('[data-message-error-detail]')?.style.color).toBe('var(--color-error)')
+  })
+
+  it('renders assistant API error text with the red error treatment', () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'assistant-error-1',
+              type: 'assistant_text',
+              content:
+                'Error: API Error: 400 {"error":{"code":"InvalidParameter","message":"Model do not support image input","type":"BadRequest"}}',
+              timestamp: 1,
+            },
+          ],
+        }),
+      },
+    })
+
+    const { container } = render(<MessageList __testInitialItemCount={100} />)
+
+    expect(screen.getByText(/API Error: 400/)).toBeTruthy()
+    expect(container.querySelector('[data-message-shell="assistant"]')).toBeNull()
+    expect(container.querySelector('[data-message-shell="error"]')?.className).toContain('max-w-[878px]')
+    expect(container.querySelector<HTMLElement>('[data-message-error]')?.style.color).toBe('var(--color-error)')
   })
 })

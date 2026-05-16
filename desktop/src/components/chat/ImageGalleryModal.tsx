@@ -75,7 +75,7 @@ export function ImageGalleryModal({ open, images, activeIndex, onClose, onSelect
               <button
                 key={`${image.name}-${index}`}
                 onClick={() => onSelect(index)}
-                className={`overflow-hidden rounded-md border transition-all ${
+                className={`overflow-hidden rounded-md border transition-colors duration-100 ${
                   index === activeIndex
                     ? 'border-[var(--color-brand)] shadow-[0_0_0_1px_var(--color-brand)]'
                     : 'border-[var(--color-border)]'
@@ -90,4 +90,3 @@ export function ImageGalleryModal({ open, images, activeIndex, onClose, onSelect
     </Modal>
   )
 }
-

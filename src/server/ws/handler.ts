@@ -17,7 +17,7 @@ import { computerUseApprovalService } from '../services/computerUseApprovalServi
 import { sessionService } from '../services/sessionService.js'
 import { SettingsService } from '../services/settingsService.js'
 import { ProviderService } from '../services/providerService.js'
-import { deriveTitle, generateTitle, saveAiTitle } from '../services/titleService.js'
+import { deriveTitle, saveAiTitle } from '../services/titleService.js'
 import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
 import {
   LOCAL_COMMAND_STDERR_TAG,
@@ -51,7 +51,6 @@ const sessionTitleState = new Map<string, {
   userMessageCount: number
   hasCustomTitle: boolean
   firstUserMessage: string
-  allUserMessages: string[]
 }>()
 
 const runtimeOverrides = new Map<string, {
@@ -284,11 +283,10 @@ async function handleUserMessage(
   // Track user message for title generation
   let titleState = sessionTitleState.get(sessionId)
   if (!titleState) {
-    titleState = { userMessageCount: 0, hasCustomTitle: false, firstUserMessage: '', allUserMessages: [] }
+    titleState = { userMessageCount: 0, hasCustomTitle: false, firstUserMessage: '' }
     sessionTitleState.set(sessionId, titleState)
   }
   titleState.userMessageCount++
-  titleState.allUserMessages.push(message.content)
   if (titleState.userMessageCount === 1) {
     titleState.firstUserMessage = message.content
   }
@@ -591,31 +589,19 @@ function triggerTitleGeneration(ws: ServerWebSocket<WebSocketData>, sessionId: s
 
   const count = state.userMessageCount
 
-  // Generate on count 1 (first response) and count 3 (with more context)
-  if (count !== 1 && count !== 3) return
+  // Keep session titles tied to the first user message. Do not later replace
+  // them with an AI summary title.
+  if (count !== 1) return
 
-  const text = count === 1
-    ? state.firstUserMessage
-    : state.allUserMessages.join('\n')
-  const runtimeProviderId = runtimeOverrides.get(sessionId)?.providerId
+  const text = state.firstUserMessage
 
-  // Fire-and-forget: derive quick title, then upgrade with AI
+  // Fire-and-forget: derive a quick title from the first message.
   void (async () => {
     try {
-      // Stage 1: quick placeholder (only on first message)
-      if (count === 1) {
-        const placeholder = deriveTitle(text)
-        if (placeholder) {
-          await saveAiTitle(sessionId, placeholder)
-          sendMessage(ws, { type: 'session_title_updated', sessionId, title: placeholder })
-        }
-      }
-
-      // Stage 2: AI-generated title
-      const aiTitle = await generateTitle(text, runtimeProviderId)
-      if (aiTitle) {
-        await saveAiTitle(sessionId, aiTitle)
-        sendMessage(ws, { type: 'session_title_updated', sessionId, title: aiTitle })
+      const placeholder = deriveTitle(text)
+      if (placeholder) {
+        await saveAiTitle(sessionId, placeholder)
+        sendMessage(ws, { type: 'session_title_updated', sessionId, title: placeholder })
       }
     } catch (err) {
       console.error(`[Title] Failed to generate title for ${sessionId}:`, err)

@@ -202,31 +202,33 @@ export function Sidebar() {
   return (
     <aside
       onMouseDown={handleSidebarDrag}
-      className="sidebar-panel native-ui-text relative flex h-full w-full select-none flex-col bg-[#fafafa]"
+      className="sidebar-panel native-ui-text relative flex h-full w-full select-none flex-col bg-[var(--color-surface-sidebar)] text-[var(--color-text-primary)]"
       data-state="open"
       aria-label="Sidebar"
     >
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden pt-[8px]">
 
         {/* ── Top Profile Area ── */}
-        <div className="flex h-[76px] items-center gap-[10px] px-[20px]">
-          <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full border-2 border-neutral-200 bg-white">
-            <div className="h-[12px] w-[12px] rounded-full border-2 border-black" />
-          </div>
-          <span className="text-[17px] font-bold tracking-tight text-neutral-900">CyberCode</span>
+        <div className="flex h-[92px] items-center justify-center px-[10px]">
+          <img
+            src="/brand/cybercode-wordmark-long-flat-v4.png"
+            alt="CyberCode"
+            className="cybercode-wordmark-image h-[50px] w-[240px] object-contain"
+            draggable={false}
+          />
         </div>
 
         {/* ── Search + New Session ── */}
         <div className="px-[16px]">
           <div className="relative">
-            <Search size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Search size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
             <input
               id="sidebar-search"
               type="text"
               placeholder={t('sidebar.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-[44px] w-full rounded-full border-2 border-neutral-200 bg-white pl-[40px] pr-[44px] text-[13px] font-medium text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-black"
+              className="h-[44px] w-full rounded-full border-2 border-[var(--color-sidebar-search-border)] bg-[var(--color-sidebar-search-bg)] pl-[40px] pr-[44px] text-[13px] font-medium text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)]"
             />
             <button
               ref={newSessionButtonRef}
@@ -234,7 +236,7 @@ export function Sidebar() {
               onClick={handleNewSession}
               title={t('sidebar.newSession')}
               aria-label={t('sidebar.newSession')}
-              className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black"
+              className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             >
               <Plus size={16} strokeWidth={1.75} />
             </button>
@@ -266,12 +268,12 @@ export function Sidebar() {
           {error && (
             <div className="rounded-[16px] border border-red-500/20 bg-red-500/5 px-4 py-3">
               <div className="text-[11px] font-medium text-red-500">{t('sidebar.sessionListFailed')}</div>
-              <div className="mt-1 text-[10px] text-black/40 dark:text-white/40 break-words">{error}</div>
+              <div className="mt-1 text-[10px] text-[var(--color-text-tertiary)] break-words">{error}</div>
               <button onClick={() => fetchSessions()} className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-brand)] hover:underline">{t('common.retry')}</button>
             </div>
           )}
           {filteredSessions.length === 0 && (
-            <div className="py-6 text-center text-[11px] italic text-black/40 dark:text-white/40">{searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}</div>
+            <div className="py-6 text-center text-[11px] italic text-[var(--color-text-tertiary)]">{searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}</div>
           )}
           <div className="flex flex-col gap-2">
             {filteredSessions.map((session) => {
@@ -292,7 +294,7 @@ export function Sidebar() {
                         if (e.key === 'Enter') handleFinishRename()
                         if (e.key === 'Escape') { setRenamingSession(null); setRenameValue('') }
                       }}
-                      className="h-[64px] w-full rounded-[12px] border border-neutral-200 bg-white px-[16px] py-[12px] text-[13px] leading-normal text-neutral-900 outline-none focus:border-black"
+                      className="h-[64px] w-full rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-[16px] py-[12px] text-[13px] leading-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
                     />
                   ) : (
                     <button
@@ -302,26 +304,26 @@ export function Sidebar() {
                         void useChatStore.getState().ensureSessionReady(session.id, session.projectPath)
                       }}
                       onContextMenu={(e) => handleContextMenu(e, { id: session.id, projectPath: session.projectPath })}
-                      className={`group relative flex min-h-[64px] w-full items-start justify-between overflow-hidden rounded-[12px] border p-[12px] text-left transition-colors ${
+                      className={`group relative flex min-h-[64px] w-full items-start justify-between overflow-hidden rounded-[12px] border p-[12px] text-left transition-colors duration-100 ${
                         isActive
-                          ? 'border-white/10 bg-black/80 text-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] backdrop-blur-xl hover:border-white/20'
-                          : 'border-neutral-100/80 bg-white text-neutral-700 hover:border-neutral-200 hover:bg-neutral-50'
+                          ? 'border-[var(--color-border-focus)] bg-[var(--color-inverse-surface)] text-[var(--color-inverse-on-surface)] shadow-none'
+                          : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]'
                       }`}
                     >
                       <div className="flex w-full items-center gap-[10px]">
-                        <div className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[12px] text-sm font-bold transition-colors ${isActive ? 'bg-white text-black' : 'bg-neutral-100 text-neutral-400 group-hover:bg-neutral-200'}`}>
+                        <div className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[12px] text-sm font-bold transition-colors duration-100 ${isActive ? 'bg-[var(--color-background)] text-[var(--color-text-primary)]' : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] group-hover:bg-[var(--color-surface-container-highest)]'}`}>
                           {iconStr}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col">
                           <div className="flex items-start justify-between gap-2">
-                            <span className={`w-[130px] truncate text-[13px] font-bold leading-normal ${isActive ? 'text-white' : 'text-neutral-700'}`}>
+                            <span className={`w-[130px] truncate text-[13px] font-bold leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]' : 'text-[var(--color-text-primary)]'}`}>
                               {session.lastMessage || displayTitle}
                             </span>
-                            <span className={`mt-0.5 shrink-0 text-[10px] font-bold ${isActive ? 'text-white/40' : 'text-neutral-300'}`}>
+                            <span className={`mt-0.5 shrink-0 text-[10px] font-bold ${isActive ? 'text-[var(--color-inverse-on-surface)]/45' : 'text-[var(--color-text-tertiary)]'}`}>
                               {formatRelativeTime(session.modifiedAt)}
                             </span>
                           </div>
-                          <p className={`mt-[2px] line-clamp-1 text-left text-[11px] font-medium leading-normal ${isActive ? 'text-white/65' : 'text-neutral-400'}`}>
+                          <p className={`mt-[2px] line-clamp-1 text-left text-[11px] font-medium leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
                             {session.workDir
                               ? (!session.workDirExists ? <span className="text-amber-500" title={session.workDir ?? ''}>{t('sidebar.missingDir')}</span> : session.workDir.split('/').slice(-2).join('/'))
                               : '\u00A0'}
@@ -341,12 +343,12 @@ export function Sidebar() {
 
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-[16px] border border-white/50 dark:border-white/10 bg-white/80 dark:bg-black/80 py-1 shadow-[0_8px_30px_rgba(0,0,0,0.1)]"
+          className="fixed z-50 min-w-[160px] rounded-[16px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] py-1 shadow-[var(--shadow-dropdown)]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button onClick={() => { const session = sessions.find((s) => s.id === contextMenu.id && s.projectPath === contextMenu.projectPath); handleStartRename(contextMenu, session ? getSessionDisplayTitle(session, t) : '') }} className="w-full px-4 py-2.5 text-left text-[13px] text-black/80 dark:text-white/80 transition-colors hover:bg-black/5 dark:hover:bg-white/5 rounded-[8px]">{t('common.rename')}</button>
-          <button onClick={() => handleDelete(contextMenu)} className="w-full px-4 py-2.5 text-left text-[13px] text-red-500 transition-colors hover:bg-black/5 dark:hover:bg-white/5 rounded-[8px]">{t('common.delete')}</button>
+          <button onClick={() => { const session = sessions.find((s) => s.id === contextMenu.id && s.projectPath === contextMenu.projectPath); handleStartRename(contextMenu, session ? getSessionDisplayTitle(session, t) : '') }} className="w-full px-4 py-2.5 text-left text-[13px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)] rounded-[8px]">{t('common.rename')}</button>
+          <button onClick={() => handleDelete(contextMenu)} className="w-full px-4 py-2.5 text-left text-[13px] text-red-500 transition-colors hover:bg-[var(--color-surface-hover)] rounded-[8px]">{t('common.delete')}</button>
         </div>
       )}
 
@@ -432,19 +434,19 @@ function SessionScopeSelector({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="relative h-[44px] w-full rounded-full border-2 border-neutral-200 bg-white pl-[40px] pr-[44px] text-left text-[13px] font-medium text-neutral-900 outline-none transition-colors hover:border-neutral-300 focus:border-black"
+        className="relative h-[44px] w-full rounded-full border-2 border-[var(--color-sidebar-filter-border)] bg-[var(--color-sidebar-filter-bg)] pl-[40px] pr-[44px] text-left text-[13px] font-medium text-[var(--color-text-primary)] outline-none transition-colors duration-100 hover:border-[var(--color-border)] focus:border-[var(--color-border-focus)]"
       >
         {showTemporaryOnly ? (
-          <Zap size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Zap size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
         ) : selectedProject ? (
-          <Folder size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Folder size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
         ) : (
-          <Inbox size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Inbox size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
         )}
-        <span className="block min-w-0 truncate text-neutral-900">
+        <span className="block min-w-0 truncate text-[var(--color-text-primary)]">
           {label}
         </span>
-        <span className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black">
+        <span className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]">
           <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
       </button>
@@ -453,7 +455,7 @@ function SessionScopeSelector({
         <div
           role="menu"
           aria-label={t('sidebar.sessionScope')}
-          className="absolute left-0 right-0 top-[50px] z-50 overflow-hidden rounded-[16px] border border-neutral-200 bg-white p-[6px] shadow-[0_16px_40px_rgba(0,0,0,0.14)]"
+          className="absolute left-0 right-0 top-[50px] z-50 overflow-hidden rounded-[16px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[6px] shadow-[var(--shadow-dropdown)]"
         >
           <SessionScopeMenuItem
             icon={<Inbox size={15} strokeWidth={1.8} />}
@@ -470,7 +472,7 @@ function SessionScopeSelector({
             onClick={() => choose(onSelectTemporary)}
           />
           {projectOptions.length > 0 && (
-            <div className="my-[4px] h-px bg-neutral-100" />
+            <div className="my-[4px] h-px bg-[var(--color-border-separator)]" />
           )}
           {projectOptions.map((option) => (
             <SessionScopeMenuItem
@@ -510,25 +512,25 @@ function SessionScopeMenuItem({
       role="menuitemradio"
       aria-checked={checked}
       onClick={onClick}
-      className={`flex w-full items-center gap-[9px] rounded-[11px] px-[9px] py-[8px] text-left transition-colors ${
-        checked ? 'bg-neutral-100 text-neutral-950' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950'
+      className={`flex w-full items-center gap-[9px] rounded-[11px] px-[9px] py-[8px] text-left transition-colors duration-100 ${
+        checked ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
       }`}
     >
-      <span className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[8px] bg-white text-neutral-500 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+      <span className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[8px] bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)] shadow-none">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-bold">{label}</span>
         {detail && (
-          <span className="mt-[1px] block truncate text-[10px] font-medium text-neutral-400">
+          <span className="mt-[1px] block truncate text-[10px] font-medium text-[var(--color-text-tertiary)]">
             {detail}
           </span>
         )}
       </span>
-      <span className="shrink-0 rounded-full bg-white px-[6px] py-[2px] text-[10px] font-bold text-neutral-400 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+      <span className="shrink-0 rounded-full bg-[var(--color-surface-container)] px-[6px] py-[2px] text-[10px] font-bold text-[var(--color-text-tertiary)] shadow-none">
         {count}
       </span>
-      <span className="flex h-[16px] w-[16px] shrink-0 items-center justify-center text-neutral-900">
+      <span className="flex h-[16px] w-[16px] shrink-0 items-center justify-center text-[var(--color-text-primary)]">
         {checked && <Check size={14} strokeWidth={2} />}
       </span>
     </button>

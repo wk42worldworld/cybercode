@@ -51,7 +51,7 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
                   className={
                     isComposer
                       ? 'overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-colors'
-                      : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-all text-left shadow-sm hover:scale-[1.01]'
+                      : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left transition-colors duration-100 hover:border-[var(--color-brand)]'
                   }
                 >
                   <img
@@ -112,4 +112,3 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
     </>
   )
 }
-

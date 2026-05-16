@@ -28,7 +28,7 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
         {hasText && (
           <div
             data-message-bubble="user"
-            className="max-w-[85%] rounded-[24px] rounded-tr-[8px] bg-black px-[24px] py-[16px] text-white"
+            className="max-w-[85%] rounded-[24px] rounded-tr-[8px] bg-[var(--color-message-user-bg)] px-[24px] py-[16px] text-[var(--color-message-user-fg)]"
           >
             <div className="chat-bubble-text whitespace-pre-wrap break-words text-[15px] font-normal leading-relaxed tracking-normal">
               {content}

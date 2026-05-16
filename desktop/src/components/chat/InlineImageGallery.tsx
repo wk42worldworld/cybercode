@@ -65,7 +65,7 @@ export function InlineImageGallery({ text }: Props) {
               key={img.src}
               type="button"
               onClick={() => setActiveIndex(i)}
-              className="group relative overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left shadow-sm transition-all hover:shadow-md hover:border-[var(--color-border-focus)]"
+              className="group relative overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left transition-colors duration-100 hover:border-[var(--color-border-focus)]"
             >
               <img
                 src={img.src}
@@ -78,8 +78,8 @@ export function InlineImageGallery({ text }: Props) {
                   (e.target as HTMLImageElement).closest('button')!.style.display = 'none'
                 }}
               />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/20 group-hover:opacity-100">
-                <Icon name="fullscreen" size={18} className="rounded-full bg-white/90 p-2 text-[20px] text-[var(--color-text-primary)] shadow-lg" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-[background-color,opacity] duration-100 group-hover:bg-black/20 group-hover:opacity-100">
+                <Icon name="fullscreen" size={18} className="rounded-full bg-[var(--color-surface-container-lowest)] p-2 text-[20px] text-[var(--color-text-primary)] shadow-[0_8px_20px_rgba(0,0,0,0.12)]" />
               </div>
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2.5 pb-2 pt-6">
                 <span className="text-[10px] font-medium text-white/90 drop-shadow-sm">
@@ -103,4 +103,3 @@ export function InlineImageGallery({ text }: Props) {
     </>
   )
 }
-

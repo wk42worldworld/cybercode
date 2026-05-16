@@ -79,7 +79,7 @@ function TabButton({
     <button
       onClick={onClick}
       className={`
-        flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.10em] rounded-full transition-all duration-150
+        flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.10em] rounded-full transition-colors duration-100
         ${active
           ? 'bg-[var(--color-accent-glow)] text-[var(--color-brand)]'
           : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-brand)]'

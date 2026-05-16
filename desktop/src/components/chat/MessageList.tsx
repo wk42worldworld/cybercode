@@ -106,6 +106,52 @@ function getRenderItemId(item: RenderItem): string {
   return item.kind === 'tool_group' ? item.id : item.message.id
 }
 
+function isErrorLikeAssistantText(content: string): boolean {
+  const trimmed = content.trim()
+  if (!trimmed) return false
+  if (!/^(Error:|API Error:)/i.test(trimmed)) return false
+
+  return (
+    /API Error:/i.test(trimmed) ||
+    /BadRequest|InvalidParameter|Request id:/i.test(trimmed) ||
+    /处理过程中发生错误/.test(trimmed) ||
+    /"error"\s*:/.test(trimmed)
+  )
+}
+
+function ErrorMessageBubble({
+  displayMessage,
+  rawDetail,
+}: {
+  displayMessage: string
+  rawDetail?: string
+}) {
+  const normalizedMessage = displayMessage.replace(/^Error:\s*/i, '')
+
+  return (
+    <div className="flex w-full justify-center px-[24px] py-[12px]">
+      <div data-message-shell="error" className="flex w-full max-w-[878px] flex-col items-start">
+        <div
+          data-message-error
+          className="chat-bubble-text w-fit max-w-full overflow-hidden rounded-[20px] rounded-tl-[8px] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/24 px-[20px] py-[14px] text-[14px] font-normal leading-relaxed tracking-normal [overflow-wrap:anywhere]"
+          style={{ color: 'var(--color-error)' }}
+        >
+          <span className="font-medium">Error:</span> {normalizedMessage}
+          {rawDetail && (
+            <div
+              data-message-error-detail
+              className="mt-[8px] max-w-full whitespace-pre-wrap rounded-[12px] border border-[var(--color-error)]/15 bg-[var(--color-error-container)]/18 px-[10px] py-[8px] text-[12px] leading-relaxed [overflow-wrap:anywhere]"
+              style={{ color: 'var(--color-error)' }}
+            >
+              {rawDetail}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 type MessageListProps = {
   sessionId?: string | null
   projectPath?: string
@@ -954,7 +1000,7 @@ export const MessageBlock = memo(function MessageBlock({
   const wrapInAssistantBubble = (content: React.ReactNode) => (
     <div className="flex w-full justify-center px-[24px] py-[12px]">
       <div className="flex w-full max-w-[878px] flex-col items-start">
-        <div className="chat-bubble-text w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-neutral-200 bg-white px-[24px] py-[16px] text-[15px] font-normal leading-relaxed tracking-normal text-neutral-800">
+        <div className="chat-bubble-text w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
           {content}
         </div>
       </div>
@@ -976,6 +1022,9 @@ export const MessageBlock = memo(function MessageBlock({
         />
       )
     case 'assistant_text':
+      if (isErrorLikeAssistantText(message.content)) {
+        return <ErrorMessageBubble displayMessage={message.content} />
+      }
       return (
         <AssistantMessage
           content={message.content}
@@ -1027,14 +1076,10 @@ export const MessageBlock = memo(function MessageBlock({
       const showRawDetail =
         Boolean(message.message) && message.message.trim() !== '' && message.message !== displayMessage
       return (
-        <div className="mb-3 px-4 py-2.5 rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/28 text-sm text-[var(--color-error)]">
-          <strong>Error:</strong> {displayMessage}
-          {showRawDetail && (
-            <div className="mt-1 whitespace-pre-wrap text-xs text-[var(--color-on-error-container)]/85">
-              {message.message}
-            </div>
-          )}
-        </div>
+        <ErrorMessageBubble
+          displayMessage={displayMessage}
+          rawDetail={showRawDetail ? message.message : undefined}
+        />
       )
     }
     case 'task_summary':

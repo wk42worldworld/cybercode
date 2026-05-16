@@ -189,7 +189,7 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
                   void loadDir(entry.path, filter)
                 }}
                 onMouseEnter={() => setSelectedIndex(i)}
-                className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-100 ${
+                className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors duration-100 ${
                   selectedIndex === i ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'
                 }`}
               >
@@ -207,7 +207,7 @@ export const FileSearchMenu = forwardRef<FileSearchMenuHandle, Props>(({ cwd, fi
                   data-index={idx}
                   onClick={() => onSelect(entry.path, entry.name)}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-100 ${
+                  className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors duration-100 ${
                     selectedIndex === idx ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'
                   }`}
                 >

@@ -15,7 +15,7 @@ export function MessageExecutionLog({ toolCalls, resultMap }: Props) {
   if (toolCalls.length === 0) return null
 
   return (
-    <div className="mt-1.5 min-w-full max-h-[150px] overflow-y-auto rounded-[10px] bg-black/[0.03] dark:bg-white/[0.04] px-2.5 py-1 mb-3"
+    <div className="mt-1.5 min-w-full max-h-[150px] overflow-y-auto rounded-[10px] bg-[var(--color-surface-container-low)] px-2.5 py-1 mb-3"
       style={{ scrollbarWidth: 'thin' }}
     >
       {toolCalls.map((tc) => (
@@ -32,7 +32,7 @@ function ExecutionLogItem({ toolCall, result }: { toolCall: ToolCall; result?: T
   const info = getToolInfo(toolCall)
 
   return (
-    <div className="border-b border-black/[0.04] dark:border-white/[0.06] last:border-0"
+    <div className="border-b border-[var(--color-border-separator)] last:border-0"
       style={{ animation: 'fadeInUp 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       <button
@@ -54,8 +54,8 @@ function ExecutionLogItem({ toolCall, result }: { toolCall: ToolCall; result?: T
         </span>
 
         {/* Label + brief */}
-        <span className="text-[11px] text-black/45 dark:text-white/45 truncate flex-1 leading-relaxed">
-          <span className="font-medium text-black/60 dark:text-white/60">{info.label}</span>
+        <span className="text-[11px] text-[var(--color-text-tertiary)] truncate flex-1 leading-relaxed">
+          <span className="font-medium text-[var(--color-text-secondary)]">{info.label}</span>
           {info.brief && <span className="ml-1.5 opacity-70">{info.brief}</span>}
         </span>
 
@@ -63,7 +63,7 @@ function ExecutionLogItem({ toolCall, result }: { toolCall: ToolCall; result?: T
         <Icon
           name="expand_more"
           size={10}
-          className="shrink-0 text-black/20 dark:text-white/20 transition-transform duration-200"
+          className="shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-150"
           style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
         />
       </button>

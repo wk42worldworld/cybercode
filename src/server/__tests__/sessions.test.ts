@@ -754,6 +754,22 @@ describe('SessionService', () => {
     expect(detail!.title).toBe('This is my first real question')
   })
 
+  it('should prefer first user message over AI title when no custom title', async () => {
+    const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    await writeSessionFile('-tmp-project', sessionId, [
+      makeSnapshotEntry(),
+      makeUserEntry('Use this first sentence as the title'),
+      {
+        type: 'ai-title',
+        aiTitle: 'AI summary should not win',
+        timestamp: '2026-01-01T00:03:00.000Z',
+      },
+    ])
+
+    const detail = await service.getSession(sessionId)
+    expect(detail!.title).toBe('Use this first sentence as the title')
+  })
+
   it('should truncate long titles to 80 chars', async () => {
     const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
     const longMessage = 'A'.repeat(120)

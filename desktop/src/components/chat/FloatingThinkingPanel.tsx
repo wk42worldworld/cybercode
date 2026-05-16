@@ -110,15 +110,15 @@ export function FloatingThinkingPanel({
   return (
     <div className="pointer-events-none absolute left-0 right-0 top-[20px] z-30 flex justify-center px-[24px]">
       <div
-        className={`pointer-events-auto w-full max-w-[720px] translate-y-0 overflow-hidden rounded-[18px] border border-black/10 bg-white/[0.92] text-neutral-800 shadow-[0_12px_40px_rgba(0,0,0,0.08)] backdrop-blur-xl transition-[opacity,transform] duration-[180ms] ease-out ${
+        className={`pointer-events-auto w-full max-w-[720px] translate-y-0 overflow-hidden rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-primary)] shadow-[var(--shadow-dropdown)] transition-[opacity,transform] duration-[150ms] ease-out ${
           isShown ? 'opacity-100' : '-translate-y-1 opacity-0'
         }`}
         data-testid="floating-thinking-panel"
       >
-        <div className="flex h-[38px] items-center gap-[8px] border-b border-black/[0.06] px-[16px]">
+        <div className="flex h-[38px] items-center gap-[8px] border-b border-[var(--color-border-separator)] px-[16px]">
           <span className="relative flex h-[7px] w-[7px] shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-black/40 opacity-40" />
-            <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-black/70" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-text-tertiary)] opacity-40" />
+            <span className="relative inline-flex h-[7px] w-[7px] rounded-full bg-[var(--color-text-secondary)]" />
           </span>
           <span
             className="ai-shimmer-text ai-shimmer-thinking text-[12px] font-semibold leading-none"
@@ -135,7 +135,7 @@ export function FloatingThinkingPanel({
           data-testid="floating-thinking-panel-body"
         >
           <div
-            className="whitespace-pre-wrap break-words text-[12.5px] font-normal leading-[1.5] tracking-normal text-neutral-600"
+            className="whitespace-pre-wrap break-words text-[12.5px] font-normal leading-[1.5] tracking-normal text-[var(--color-text-secondary)]"
             data-testid="floating-thinking-panel-content"
           >
             {visibleContent}

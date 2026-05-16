@@ -186,8 +186,8 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
           variant === 'embedded'
             ? `inline-flex h-[24px] w-[24px] items-center justify-center rounded-full transition-colors ${
               isAllSelected
-                ? 'text-neutral-500 hover:bg-neutral-100 hover:text-black'
-                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-black'
+                ? 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
+                : 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
             }`
             : 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-2 text-left text-[14px] text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-surface-hover)]'
         }

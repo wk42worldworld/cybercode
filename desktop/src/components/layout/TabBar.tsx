@@ -16,7 +16,7 @@ export function TabBar() {
   return (
     <div
       data-testid="tab-bar"
-      className="native-ui-text flex h-[76px] w-full shrink-0 select-none items-center border-b border-neutral-200/80 bg-white px-[24px] md:px-[32px]"
+      className="native-ui-text flex h-[76px] w-full shrink-0 select-none items-center border-b border-[var(--color-border-separator)] bg-[var(--color-background)] px-[24px] md:px-[32px]"
     >
       {/* Left title / drag area */}
       <div
@@ -25,7 +25,7 @@ export function TabBar() {
         {...(isTauri ? { 'data-tauri-drag-region': true } : {})}
       >
         {activeTab && isSession && (
-          <div className="tabbar-title max-w-[250px] truncate text-[15px] font-bold tracking-normal text-neutral-800 sm:max-w-[400px] md:max-w-[500px]">
+          <div className="tabbar-title max-w-[250px] truncate text-[15px] font-bold tracking-normal text-[var(--color-text-primary)] sm:max-w-[400px] md:max-w-[500px]">
             {activeTab.title}
           </div>
         )}
@@ -36,7 +36,7 @@ export function TabBar() {
         {isSession && activeTabId && (
           <ModelSelector runtimeKey={activeTabId} disabled={isActive} placement="bottom" align="right" compact />
         )}
-        <div className="flex items-center gap-[12px] text-[13px] font-medium text-neutral-400">
+        <div className="flex items-center gap-[12px] text-[13px] font-medium text-[var(--color-text-tertiary)]">
           <WindowControls />
         </div>
       </div>

@@ -603,15 +603,7 @@ export class SessionService {
       }
     }
 
-    // 2. Look for AI-generated title (written by titleService)
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const e = entries[i]!
-      if (e.type === 'ai-title' && e.aiTitle) {
-        return e.aiTitle as string
-      }
-    }
-
-    // 3. Look for first non-meta user message as title
+    // 2. Look for first non-meta user message as title
     for (const e of entries) {
       if (e.type === 'user' && !e.isMeta && e.message?.role === 'user') {
         const content = e.message.content
@@ -627,6 +619,15 @@ export class SessionService {
         if (text) {
           return text.length > 80 ? text.slice(0, 80) + '...' : text
         }
+      }
+    }
+
+    // 3. Fall back to older AI-generated titles for legacy sessions that do
+    // not have a readable first user message.
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i]!
+      if (e.type === 'ai-title' && e.aiTitle) {
+        return e.aiTitle as string
       }
     }
 

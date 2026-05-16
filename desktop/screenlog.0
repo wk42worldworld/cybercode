@@ -1610,3 +1610,250 @@ $ vite
 [claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
 [claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
 [claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+4:38:23 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+4:40:29 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+4:40:37 AM [vite] (client) hmr update /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+4:44:55 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+4:45:06 AM [vite] (client) page reload src/pages/ActiveSession.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+4:45:20 AM [vite] (client) page reload src/pages/ActiveSession.test.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+4:45:41 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+4:46:06 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+4:48:41 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+4:48:50 AM [vite] (client) hmr update /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+4:53:26 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+4:55:46 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+5:02:03 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+5:06:15 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+5:06:34 AM [vite] (client) hmr update /src/theme/globals.css
+5:06:45 AM [vite] (client) hmr update /src/theme/globals.css
+5:07:13 AM [vite] (client) hmr update /src/components/markdown/MarkdownRenderer.tsx, /src/theme/globals.css
+5:07:21 AM [vite] (client) hmr update /src/components/layout/AppShell.tsx, /src/theme/globals.css
+5:07:37 AM [vite] (client) hmr update /src/components/layout/IconRail.tsx, /src/theme/globals.css
+[claude-server] [WS] Client connected for session: 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [WS] resolveSessionWorkDir: sessionId=78b19b18-5789-410c-bec7-87dfaecdcd42, resolved workDir="/Users/wang/Documents/MyProject/cybercode/desktop", will spawn CLI with workDir=/Users/wang/Documents/MyProject/cybercode/desktop
+[claude-server] [WS] Starting CLI for 78b19b18-5789-410c-bec7-87dfaecdcd42 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 78b19b18-5789-410c-bec7-87dfaecdcd42, cwd: /Users/wang/Documents/MyProject/cybercode/desktop (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK connected for session: 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [WS] Client connected for session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+[claude-server] [WS] resolveSessionWorkDir: sessionId=9b9c53f6-fced-458a-9e81-58aa24c1f51f, resolved workDir="/Users/wang/Documents/MyProject/iosapp/CyberCamera", will spawn CLI with workDir=/Users/wang/Documents/MyProject/iosapp/CyberCamera
+[claude-server] [WS] Starting CLI for 9b9c53f6-fced-458a-9e81-58aa24c1f51f due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 9b9c53f6-fced-458a-9e81-58aa24c1f51f, cwd: /Users/wang/Documents/MyProject/iosapp/CyberCamera (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+5:08:02 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+[claude-server] [ConversationService] CLI started successfully for 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [WS] SDK connected for session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+5:08:24 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+5:08:41 AM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+5:08:47 AM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+5:08:51 AM [vite] (client) hmr update /src/components/chat/UserMessage.tsx, /src/theme/globals.css
+5:08:56 AM [vite] (client) hmr update /src/components/chat/AssistantMessage.tsx, /src/theme/globals.css
+5:09:00 AM [vite] (client) hmr update /src/components/chat/MessageList.tsx, /src/theme/globals.css
+5:09:00 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:09:00 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+5:09:07 AM [vite] (client) hmr update /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+5:09:27 AM [vite] (client) hmr update /src/components/layout/TabBar.tsx, /src/theme/globals.css
+5:09:35 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+5:09:38 AM [vite] (client) hmr update /src/pages/EmptySession.tsx, /src/theme/globals.css
+5:09:50 AM [vite] (client) hmr update /src/components/chat/EmptyState.tsx, /src/theme/globals.css
+5:10:01 AM [vite] (client) hmr update /src/components/chat/FloatingThinkingPanel.tsx, /src/theme/globals.css
+5:10:18 AM [vite] (client) hmr update /src/components/chat/ChatInput.tsx, /src/theme/globals.css
+5:10:24 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+5:10:31 AM [vite] (client) hmr update /src/components/layout/ProjectFilter.tsx, /src/theme/globals.css
+5:10:35 AM [vite] (client) page reload src/components/layout/TitleBar.tsx
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client disconnected from session: 78b19b18-5789-410c-bec7-87dfaecdcd42 (1001: )
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client disconnected from session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f (1001: )
+[claude-server] [WS] Client connected for session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+[claude-server] [WS] Session 99f46293-881d-49e9-a0ac-7fcbba471fd0 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 78b19b18-5789-410c-bec7-87dfaecdcd42 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [WS] SDK disconnected from session: 78b19b18-5789-410c-bec7-87dfaecdcd42 (1000: )
+[claude-server] [ConversationService] CLI process for 78b19b18-5789-410c-bec7-87dfaecdcd42 exited with code 143
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+5:12:15 AM [vite] (client) hmr update /src/components/layout/SettingsPanel.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/InlineImageGallery.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/AttachmentGallery.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/FileSearchMenu.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/ToolCallBlock.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/ToolResultBlock.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/MessageExecutionLog.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr update /src/components/chat/ImageGalleryModal.tsx, /src/theme/globals.css
+5:12:15 AM [vite] (client) hmr invalidate /src/components/chat/InlineImageGallery.tsx Could not Fast Refresh ("extractImagePaths" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:12:15 AM [vite] (client) hmr update /src/theme/globals.css, /src/components/chat/ToolCallBlock.tsx, /src/components/chat/ToolResultBlock.tsx, /src/components/chat/AssistantMessage.tsx
+5:12:27 AM [vite] (client) hmr update /src/components/chat/AskUserQuestion.tsx, /src/theme/globals.css
+[claude-server] [WS] Prewarmed session 9b9c53f6-fced-458a-9e81-58aa24c1f51f idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f (1000: )
+[claude-server] [ConversationService] CLI process for 9b9c53f6-fced-458a-9e81-58aa24c1f51f exited with code 143
+5:14:09 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+5:16:38 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+5:18:00 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+5:23:51 AM [vite] (client) hmr update /src/components/layout/Sidebar.tsx, /src/theme/globals.css
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] Client connected for session: 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [WS] resolveSessionWorkDir: sessionId=78b19b18-5789-410c-bec7-87dfaecdcd42, resolved workDir="/Users/wang/Documents/MyProject/cybercode/desktop", will spawn CLI with workDir=/Users/wang/Documents/MyProject/cybercode/desktop
+[claude-server] [WS] Starting CLI for 78b19b18-5789-410c-bec7-87dfaecdcd42 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 78b19b18-5789-410c-bec7-87dfaecdcd42, cwd: /Users/wang/Documents/MyProject/cybercode/desktop (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK connected for session: 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [ConversationService] CLI started successfully for 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [WS] Prewarmed session 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+[claude-server] [WS] Prewarmed session 78b19b18-5789-410c-bec7-87dfaecdcd42 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 78b19b18-5789-410c-bec7-87dfaecdcd42 (1000: )
+[claude-server] [ConversationService] CLI process for 78b19b18-5789-410c-bec7-87dfaecdcd42 exited with code 143
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to user_message
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 due to user_message
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+5:44:23 AM [vite] (client) hmr update /src/components/chat/MessageList.tsx, /src/theme/globals.css
+5:44:23 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:44:23 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+5:44:34 AM [vite] (client) page reload src/components/chat/MessageList.test.tsx
+[claude-server] [WS] Client disconnected from session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f (1001: )
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client disconnected from session: 78b19b18-5789-410c-bec7-87dfaecdcd42 (1001: )
+[claude-server] [WS] Client disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Session 9b9c53f6-fced-458a-9e81-58aa24c1f51f not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 78b19b18-5789-410c-bec7-87dfaecdcd42 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] Session 99f46293-881d-49e9-a0ac-7fcbba471fd0 not reconnected after 30s, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+5:46:00 AM [vite] (client) hmr update /src/components/chat/MessageList.tsx, /src/theme/globals.css
+5:46:00 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:46:00 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+5:46:04 AM [vite] (client) page reload src/components/chat/MessageList.test.tsx
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+[claude-server] [ConversationService] Starting CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1000: )
+[claude-server] [ConversationService] CLI process for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 exited with code 143
+[claude-server] [WS] SDK connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [ConversationService] CLI started successfully for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Restarted CLI for 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 with runtime override
+5:48:23 AM [vite] (client) hmr update /src/components/chat/MessageList.tsx, /src/theme/globals.css
+5:48:24 AM [vite] (client) hmr invalidate /src/components/chat/MessageList.tsx Could not Fast Refresh ("buildRenderModel" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:48:24 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+5:48:31 AM [vite] (client) page reload src/components/chat/MessageList.test.tsx
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+5:50:35 AM [vite] (client) hmr update /src/pages/ActiveSession.tsx, /src/theme/globals.css
+5:50:47 AM [vite] (client) page reload src/pages/ActiveSession.test.tsx
+[claude-server] [WS] Client disconnected from session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9 (1001: )
+[claude-server] [WS] Client connected for session: 508f8e1e-8cf1-43b4-8e72-e33eb4c2a1b9
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Client connected for session: 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [WS] resolveSessionWorkDir: sessionId=78b19b18-5789-410c-bec7-87dfaecdcd42, resolved workDir="/Users/wang/Documents/MyProject/cybercode/desktop", will spawn CLI with workDir=/Users/wang/Documents/MyProject/cybercode/desktop
+[claude-server] [WS] Starting CLI for 78b19b18-5789-410c-bec7-87dfaecdcd42 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 78b19b18-5789-410c-bec7-87dfaecdcd42, cwd: /Users/wang/Documents/MyProject/cybercode/desktop (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK connected for session: 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [ConversationService] CLI started successfully for 78b19b18-5789-410c-bec7-87dfaecdcd42
+[claude-server] [SessionService] createSession: requested workDir=undefined, resolved=/Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri)
+[claude-server] [WS] Client connected for session: 2ac62755-6f68-4838-94a0-3fecc8ca662d
+[claude-server] [WS] resolveSessionWorkDir: sessionId=2ac62755-6f68-4838-94a0-3fecc8ca662d, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 2ac62755-6f68-4838-94a0-3fecc8ca662d due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 2ac62755-6f68-4838-94a0-3fecc8ca662d, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 2ac62755-6f68-4838-94a0-3fecc8ca662d
+[claude-server] [WS] SDK connected for session: 2ac62755-6f68-4838-94a0-3fecc8ca662d
+[claude-server] [ConversationService] Starting CLI for 2ac62755-6f68-4838-94a0-3fecc8ca662d, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 2ac62755-6f68-4838-94a0-3fecc8ca662d (1000: )
+[claude-server] [ConversationService] CLI process for 2ac62755-6f68-4838-94a0-3fecc8ca662d exited with code 143
+[claude-server] [WS] SDK connected for session: 2ac62755-6f68-4838-94a0-3fecc8ca662d
+[claude-server] [ConversationService] CLI started successfully for 2ac62755-6f68-4838-94a0-3fecc8ca662d
+[claude-server] [WS] Restarted CLI for 2ac62755-6f68-4838-94a0-3fecc8ca662d with runtime override
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Prewarmed session 78b19b18-5789-410c-bec7-87dfaecdcd42 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 78b19b18-5789-410c-bec7-87dfaecdcd42 (1000: )
+[claude-server] [ConversationService] CLI process for 78b19b18-5789-410c-bec7-87dfaecdcd42 exited with code 143
