@@ -1,4 +1,3 @@
-
 import type { UIMessage } from '../../types/chat'
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
 import { MessageActionBar } from './MessageActionBar'
@@ -17,26 +16,48 @@ type Props = {
   resultMap?: Map<string, ToolResult>
 }
 
+function isDocumentLike(content: string): boolean {
+  const trimmed = content.trim()
+  if (!trimmed) return false
+  const paragraphs = trimmed.split(/\n{2,}/).filter((part) => part.trim().length > 0)
+  if (/```/.test(trimmed)) return true
+  if (/^#{1,4}\s+/m.test(trimmed)) return true
+  if (/^\s*[-*]\s+\S/m.test(trimmed) && trimmed.length > 180) return true
+  if (/^\s*\d+\.\s+\S/m.test(trimmed) && trimmed.length > 180) return true
+  if (paragraphs.length >= 3 && trimmed.length > 420) return true
+  return false
+}
+
 export function AssistantMessage({ content, isStreaming, toolCalls, resultMap }: Props) {
+  const layout = !isStreaming && isDocumentLike(content) ? 'document' : 'bubble'
+
   return (
-    <div className="flex justify-start w-full px-8 py-1 group/msg">
-      <div className="flex flex-col w-fit max-w-[75%]">
+    <div className="group/msg flex w-full justify-center px-[24px] py-[12px]">
+      <div
+        data-message-shell="assistant"
+        data-layout={layout}
+        className="flex w-full max-w-[878px] flex-col items-start"
+      >
         <div className="relative">
           <div
-            data-message-shell="assistant"
-            className="w-fit max-w-full bg-[var(--color-message-assistant-bg)] text-[var(--color-text-primary)] rounded-[20px] rounded-bl-[6px] px-4 py-2.5 border border-[var(--color-border-separator)] shadow-sm shadow-black/[0.03] dark:shadow-black/20"
+            data-message-bubble="assistant"
+            className={
+              layout === 'document'
+                ? 'w-full rounded-[24px] rounded-tl-[8px] border border-neutral-200 bg-white px-[24px] py-[16px] text-neutral-800'
+                : 'w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-neutral-200 bg-white px-[24px] py-[16px] text-neutral-800'
+            }
           >
-            <div className="text-[15px] leading-[1.7] tracking-[0.01em]">
+            <div className="chat-bubble-text text-[15px] font-normal leading-relaxed tracking-normal text-neutral-800">
               {isStreaming ? (
                 <span className="whitespace-pre-wrap">{content}</span>
               ) : (
                 <>
-                  <MarkdownRenderer content={content} variant="default" />
+                  <MarkdownRenderer content={content} variant="chat" />
                   <InlineImageGallery text={content} />
                 </>
               )}
               {isStreaming && (
-                <span className="ml-0.5 inline-block h-4 w-0.5 animate-shimmer bg-[var(--color-brand)] align-text-bottom" />
+                <span className="ml-[2px] inline-block h-[20px] w-[2px] animate-shimmer bg-[var(--color-brand)] align-text-bottom" />
               )}
             </div>
           </div>
@@ -46,7 +67,7 @@ export function AssistantMessage({ content, isStreaming, toolCalls, resultMap }:
           <MessageExecutionLog toolCalls={toolCalls} resultMap={resultMap} />
         )}
 
-        <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity mt-0.5">
+        <div className="mt-[2px] opacity-0 transition-opacity group-hover/msg:opacity-100">
           <MessageActionBar
             copyText={isStreaming ? undefined : content}
             copyLabel="Copy reply"

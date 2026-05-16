@@ -175,21 +175,21 @@ export function PluginDetail() {
       <div>
         <button
           onClick={clearSelection}
-          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[14px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
+          className="inline-flex h-[36px] items-center gap-[6px] rounded-full px-[12px] text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
         >
           <Icon name="arrow_back" size={16} />
           {t('settings.plugins.back')}
         </button>
       </div>
 
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-        <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)] lg:items-start">
+      <section className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <div className="grid gap-[20px] px-[20px] py-[20px] lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)] lg:items-start">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
               {t('settings.plugins.entryEyebrow')}
             </div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h3 className="text-[22px] font-semibold leading-tight text-[var(--color-text-primary)] break-all">
+              <h3 className="text-[22px] font-bold leading-tight text-[var(--color-text-primary)] break-all">
                 {selectedPlugin.name}
               </h3>
               <StatusPill enabled={selectedPlugin.enabled} hasErrors={selectedPlugin.hasErrors} />
@@ -238,8 +238,8 @@ export function PluginDetail() {
         </div>
       </section>
 
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-        <div className="flex flex-wrap gap-2">
+      <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[20px] py-[16px]">
+        <div className="flex flex-wrap gap-[8px]">
           {canMutate && (
             selectedPlugin.enabled ? (
               <Button
@@ -309,7 +309,7 @@ export function PluginDetail() {
       </section>
 
       {selectedPlugin.errors.length > 0 && (
-        <section className="rounded-lg border border-[var(--color-error)]/20 bg-[var(--color-error)]/6 px-5 py-4">
+        <section className="rounded-[12px] border border-[var(--color-error)]/20 bg-[var(--color-error)]/6 px-[20px] py-[16px]">
           <div className="flex items-center gap-2 mb-3">
             <Icon name="error" size={18} className="text-[var(--color-error)]" />
             <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
@@ -320,7 +320,7 @@ export function PluginDetail() {
             {selectedPlugin.errors.map((error) => (
               <div
                 key={error}
-                className="rounded-md border border-[var(--color-error)]/15 bg-[var(--color-surface)] px-3 py-3 text-[14px] text-[var(--color-text-secondary)]"
+                className="min-h-[56px] rounded-[12px] border border-[var(--color-error)]/15 bg-[var(--color-surface)] px-[12px] py-[12px] text-[14px] text-[var(--color-text-secondary)]"
               >
                 {error}
               </div>
@@ -329,8 +329,8 @@ export function PluginDetail() {
         </section>
       )}
 
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+      <section className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="min-h-[64px] border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[20px] py-[12px]">
           <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
             {t('settings.plugins.capabilitiesTitle')}
           </h4>
@@ -338,7 +338,7 @@ export function PluginDetail() {
             {t('settings.plugins.capabilitiesHint')}
           </p>
         </div>
-        <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-[16px] p-[16px]">
           <CapabilityPreviewSection
             title={t('settings.plugins.capabilityLabel.skills')}
             count={selectedPlugin.skillEntries.length}
@@ -446,7 +446,7 @@ export function PluginDetail() {
             {otherCapabilityItems.map(({ key, items }) => (
               <div
                 key={key}
-                className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3"
+                className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[16px] py-[12px]"
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">
@@ -461,7 +461,7 @@ export function PluginDetail() {
                     {items.map((item) => (
                       <span
                         key={item}
-                        className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)] break-all"
+                        className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[10px] py-[4px] text-[11px] text-[var(--color-text-secondary)] break-all"
                       >
                         {item}
                       </span>
@@ -513,12 +513,12 @@ function CapabilityPreviewSection({
   hint?: string
 }) {
   return (
-    <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
+    <section className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+      <div className="flex min-h-[56px] items-center justify-between gap-[12px] border-b border-[var(--color-border)] px-[16px] py-[10px]">
         <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{title}</div>
         <div className="text-[11px] text-[var(--color-text-tertiary)]">{count}</div>
       </div>
-      <div className="p-4">
+      <div className="p-[16px]">
         {hint && count > 0 && (
           <div className="mb-3 text-[12px] text-[var(--color-text-tertiary)]">{hint}</div>
         )}
@@ -553,7 +553,7 @@ function SkillPreviewCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="group rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 disabled:cursor-default disabled:opacity-70 disabled:hover:border-[var(--color-border)] disabled:hover:bg-[var(--color-surface)]"
+      className="group min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[16px] py-[12px] text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 disabled:cursor-default disabled:opacity-70 disabled:hover:border-[var(--color-border)] disabled:hover:bg-[var(--color-surface)] dark:focus-visible:ring-white/20"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -563,7 +563,7 @@ function SkillPreviewCard({
               v{version}
             </span>
           )}
-          <span className="rounded-full border-2 border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+          <span className="rounded-full border border-[var(--color-border)] px-[8px] py-[2px] text-[10px] font-medium text-[var(--color-text-tertiary)]">
             {t('settings.skills.slashCommand')}
           </span>
         </div>
@@ -583,7 +583,7 @@ function CommandPreviewCard({
   description: string
 }) {
   return (
-    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+    <div className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[16px] py-[12px]">
       <div className="text-[14px] font-semibold text-[var(--color-text-primary)] break-all">/{name}</div>
       <div className="mt-2 text-[12px] leading-5 text-[var(--color-text-secondary)] break-words">{description}</div>
     </div>
@@ -606,7 +606,7 @@ function AgentPreviewCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="group rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 disabled:cursor-default disabled:opacity-70 disabled:hover:border-[var(--color-border)] disabled:hover:bg-[var(--color-surface)]"
+      className="group min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[16px] py-[12px] text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 disabled:cursor-default disabled:opacity-70 disabled:hover:border-[var(--color-border)] disabled:hover:bg-[var(--color-surface)] dark:focus-visible:ring-white/20"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -637,7 +637,7 @@ function McpPreviewCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="group rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 disabled:cursor-default disabled:opacity-70 disabled:hover:border-[var(--color-border)] disabled:hover:bg-[var(--color-surface)]"
+      className="group min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[16px] py-[12px] text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 disabled:cursor-default disabled:opacity-70 disabled:hover:border-[var(--color-border)] disabled:hover:bg-[var(--color-surface)] dark:focus-visible:ring-white/20"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -665,7 +665,7 @@ function HookPreviewCard({
   actions: string[]
 }) {
   return (
-    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+    <div className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[16px] py-[12px]">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[14px] font-semibold text-[var(--color-text-primary)] break-all">{event}</span>
         {matcher && (
@@ -678,7 +678,7 @@ function HookPreviewCard({
         {actions.map((action) => (
           <span
             key={action}
-            className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2.5 py-1 text-[11px] text-[var(--color-text-secondary)] break-all"
+            className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[10px] py-[4px] text-[11px] text-[var(--color-text-secondary)] break-all"
           >
             {action}
           </span>
@@ -690,7 +690,7 @@ function HookPreviewCard({
 
 function MetaPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
+    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[10px] py-[4px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
       {children}
     </span>
   )
@@ -706,7 +706,7 @@ function DetailStat({
   icon: string
 }) {
   return (
-    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
+    <div className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[12px] py-[12px]">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
         <Icon name={icon} size={14} />
         <span>{label}</span>
@@ -744,4 +744,3 @@ function StatusPill({
     </span>
   )
 }
-

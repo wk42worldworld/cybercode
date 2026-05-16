@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTabStore } from '../stores/tabStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useChatStore } from '../stores/chatStore'
@@ -11,6 +11,7 @@ import { ChatInput } from '../components/chat/ChatInput'
 import { ComputerUsePermissionModal } from '../components/chat/ComputerUsePermissionModal'
 import { TeamStatusBar } from '../components/teams/TeamStatusBar'
 import { SessionTaskBar } from '../components/chat/SessionTaskBar'
+import { FloatingThinkingPanel } from '../components/chat/FloatingThinkingPanel'
 
 const TASK_POLL_INTERVAL_MS = 1000
 const THINKING_RECENT_GRACE_MS = 3200
@@ -35,6 +36,10 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const trackedTaskSessionId = useCLITaskStore((s) => s.sessionId)
   const hasIncompleteTasks = useCLITaskStore((s) => s.tasks.some((task) => task.status !== 'completed'))
   const chatState = sessionState?.chatState ?? 'idle'
+  const bottomOverlayRef = useRef<HTMLDivElement>(null)
+  const composerShellRef = useRef<HTMLDivElement>(null)
+  const [bottomOverlayHeight, setBottomOverlayHeight] = useState(0)
+  const [composerHeight, setComposerHeight] = useState(0)
 
   const session = sessions.find((s) =>
     s.id === sessionId && (!resolvedProjectPath || s.projectPath === resolvedProjectPath),
@@ -75,26 +80,69 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
     fetchSessionTasks,
   ])
 
+  useEffect(() => {
+    const element = composerShellRef.current
+    if (!element) return
+
+    const updateComposerHeight = () => {
+      setComposerHeight(element.getBoundingClientRect().height)
+    }
+
+    updateComposerHeight()
+
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(updateComposerHeight)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [sessionId])
+
+  useEffect(() => {
+    const element = bottomOverlayRef.current
+    if (!element) return
+
+    const updateBottomOverlayHeight = () => {
+      setBottomOverlayHeight(element.getBoundingClientRect().height)
+    }
+
+    updateBottomOverlayHeight()
+
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(updateBottomOverlayHeight)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [sessionId, isMemberSession])
+
   const t = useTranslation()
   const messages = sessionState?.messages ?? []
   const activeThinkingId = sessionState?.activeThinkingId ?? null
 
+  const latestUserMessage = [...messages].reverse().find((m): m is Extract<UIMessage, { type: 'user_text' }> => m.type === 'user_text') ?? null
   const latestThinking = [...messages].reverse().find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking') ?? null
+  const latestThinkingBelongsToCurrentTurn =
+    !latestUserMessage || (latestThinking?.timestamp ?? 0) >= latestUserMessage.timestamp
   const latestThinkingIsFresh = latestThinking
     ? Date.now() - latestThinking.timestamp <= THINKING_RECENT_GRACE_MS
     : false
-  const fallbackThinking = chatState !== 'idle' || latestThinkingIsFresh ? latestThinking : null
+  const fallbackThinking =
+    latestThinkingBelongsToCurrentTurn && (chatState !== 'idle' || latestThinkingIsFresh)
+      ? latestThinking
+      : null
 
   // Active thinking content for the floating indicator. The id can be cleared
   // by later stream events before the UI has had a chance to render it.
-  const activeThinking = activeThinkingId
-    ? messages.find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking' && m.id === activeThinkingId) ?? fallbackThinking
-    : fallbackThinking
+  const activeThinkingCandidate = activeThinkingId
+    ? messages.find((m): m is Extract<UIMessage, { type: 'thinking' }> => m.type === 'thinking' && m.id === activeThinkingId) ?? null
+    : null
+  const activeThinking =
+    activeThinkingCandidate && (!latestUserMessage || activeThinkingCandidate.timestamp >= latestUserMessage.timestamp)
+      ? activeThinkingCandidate
+      : fallbackThinking
+  const measuredBottomOverlayHeight = Math.max(bottomOverlayHeight, composerHeight)
 
   if (!sessionId) return null
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden bg-[var(--color-background)] text-on-surface transition-colors duration-300">
+    <div className="relative flex flex-1 flex-col overflow-hidden bg-white text-neutral-900 transition-colors duration-300">
 
       {isMemberSession && (
         <div className="shrink-0 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
@@ -156,16 +204,40 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
           </div>
         )}
 
-        <MessageList sessionId={sessionId} projectPath={resolvedProjectPath} isActive={isActive} />
+        <MessageList
+          sessionId={sessionId}
+          projectPath={resolvedProjectPath}
+          isActive={isActive}
+          bottomOverlayHeight={measuredBottomOverlayHeight}
+        />
+
+        <FloatingThinkingPanel
+          content={activeThinking?.content}
+          isActive={chatState !== 'idle'}
+          identityKey={`${sessionId}:${latestUserMessage?.id ?? 'initial'}`}
+        />
 
       </div>
 
-      {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
+      {composerHeight > 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-0 right-[12px] z-10 bg-[var(--color-chat-bg)]"
+          style={{ height: Math.ceil(composerHeight / 2) }}
+        />
+      )}
 
-      <TeamStatusBar />
-
-      <div className="shrink-0 z-20">
-        <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" thinkingContent={activeThinking?.content} />
+      <div
+        ref={bottomOverlayRef}
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex flex-col"
+      >
+        <div className="pointer-events-auto">
+          {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
+          <TeamStatusBar />
+        </div>
+        <div ref={composerShellRef} className="pointer-events-none">
+          <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" />
+        </div>
       </div>
 
       {!isMemberSession && sessionId ? (

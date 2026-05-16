@@ -86,7 +86,7 @@ export function PluginList() {
 
   if (plugins.length === 0) {
     return (
-      <div className="text-center py-12 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6">
+      <div className="text-center py-12 rounded-[12px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6">
         <Icon name="extension" size={40} className="text-[var(--color-text-tertiary)] mb-2 block" />
         <p className="text-[14px] text-[var(--color-text-tertiary)]">
           {t('settings.plugins.empty')}
@@ -99,9 +99,9 @@ export function PluginList() {
   }
 
   return (
-    <div className="flex flex-col gap-6 min-w-0">
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-        <div className="grid gap-4 px-5 py-5 min-w-0 2xl:grid-cols-[minmax(0,1.45fr)_minmax(420px,0.95fr)] 2xl:items-end">
+    <div className="flex min-w-0 flex-col gap-[24px]">
+      <section className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <div className="grid min-w-0 gap-[20px] px-[20px] py-[20px] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(420px,0.95fr)] 2xl:items-end">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
               {t('settings.plugins.browserEyebrow')}
@@ -126,7 +126,7 @@ export function PluginList() {
             )}
           </div>
 
-          <div className="flex flex-col gap-3 min-w-0 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+          <div className="flex min-w-0 flex-col gap-[12px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] p-[16px]">
             <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-3">
               <SummaryCard
                 label={t('settings.plugins.summary.total')}
@@ -153,7 +153,7 @@ export function PluginList() {
               <Button
                 variant="secondary"
                 size="sm"
-                className="min-h-9 flex-1 sm:flex-none"
+                className="flex-1 sm:flex-none"
                 onClick={() => void fetchPlugins(currentWorkDir)}
               >
                 <Icon name="refresh" size={16} />
@@ -161,7 +161,7 @@ export function PluginList() {
               </Button>
               <Button
                 size="sm"
-                className="min-h-9 flex-1 sm:flex-none"
+                className="flex-1 sm:flex-none"
                 onClick={handleReload}
                 loading={isApplying}
               >
@@ -174,8 +174,8 @@ export function PluginList() {
       </section>
 
       {marketplaces.length > 0 && (
-        <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
-          <div className="px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <section className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="min-h-[64px] border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[20px] py-[12px]">
             <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
               {t('settings.plugins.marketplacesTitle')}
             </h4>
@@ -183,11 +183,11 @@ export function PluginList() {
               {t('settings.plugins.marketplacesHint')}
             </p>
           </div>
-          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-[12px] p-[16px] md:grid-cols-2 xl:grid-cols-3">
             {marketplaces.map((marketplace) => (
               <div
                 key={marketplace.name}
-                className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3"
+                className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[16px] py-[12px]"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[14px] font-semibold text-[var(--color-text-primary)]">
@@ -244,9 +244,9 @@ function renderGroup(
   return (
     <section
       key={bucket}
-      className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden"
+      className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)]"
     >
-      <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+      <div className="flex min-h-[64px] items-center justify-between gap-[16px] border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[20px] py-[12px]">
         <div className="min-w-0">
           <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
             {t(titleKey)}
@@ -257,18 +257,18 @@ function renderGroup(
         </div>
         <span className="text-[12px] text-[var(--color-text-tertiary)]">{items.length}</span>
       </div>
-      <div className="flex flex-col p-2">
+      <div className="flex flex-col p-[8px]">
         {items.map((plugin) => (
           <button
             key={plugin.id}
             onClick={() => void fetchPluginDetail(plugin.id, cwd)}
-            className="group rounded-md border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+            className="group min-h-[76px] rounded-[10px] border border-transparent px-[12px] py-[12px] text-left transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] dark:focus-visible:ring-white/20"
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-[12px]">
               <Icon
                 name={plugin.hasErrors ? 'warning' : plugin.enabled ? 'extension' : 'extension_off'}
                 size={18}
-                className="mt-0.5 text-[var(--color-text-tertiary)]"
+                className="mt-[2px] text-[var(--color-text-tertiary)]"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -323,8 +323,8 @@ function SummaryCard({
   icon: string
 }) {
   return (
-    <div className="min-w-0 rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-3">
-      <div className="flex min-w-0 items-start gap-1.5 text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+    <div className="min-h-[76px] min-w-0 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[12px] py-[12px]">
+      <div className="flex min-w-0 items-start gap-[6px] text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
         <Icon name={icon} size={14} className="flex-shrink-0" />
         <span className="min-w-0 break-words text-[10px] leading-4 whitespace-normal">
           {label}
@@ -364,7 +364,7 @@ function StatusPill({ plugin }: { plugin: PluginSummary }) {
 function ScopePill({ scope }: { scope: PluginSummary['scope'] }) {
   const t = useTranslation()
   return (
-    <span className="rounded-full border-2 border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+    <span className="rounded-full border border-[var(--color-border)] px-[8px] py-[2px] text-[10px] font-medium text-[var(--color-text-tertiary)]">
       {t(`settings.plugins.scope.${scope}`)}
     </span>
   )

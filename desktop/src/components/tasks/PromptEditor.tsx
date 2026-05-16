@@ -38,19 +38,19 @@ export function PromptEditor({
 }: Props) {
   const t = useTranslation()
   return (
-    <div className="rounded-[var(--radius-lg)] border-2 border-[var(--color-border)] focus-within:border-[var(--color-border-focus)] transition-colors overflow-visible">
+    <div className="overflow-visible rounded-[12px] border border-[var(--color-border)] transition-colors focus-within:border-[var(--color-border-focus)] focus-within:shadow-[var(--shadow-focus-ring)]">
       {/* Prompt textarea */}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={4}
-        className="w-full resize-y bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
+        className="w-full resize-y bg-transparent px-3 py-2.5 text-[13px] font-medium leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
         style={{ minHeight: 120 }}
       />
 
       {/* Bottom toolbar */}
-      <div className="border-t border-[var(--color-border)]/40 px-3 py-2 flex flex-col gap-2 bg-[var(--color-surface-container-low)] rounded-b-[var(--radius-lg)]">
+      <div className="flex flex-col gap-2 rounded-b-[12px] border-t border-[var(--color-border)]/40 bg-[var(--color-surface-container-low)] px-3 py-2">
         {/* Row 1: Permission + Model selectors */}
         <div className="flex items-center justify-between">
           <PermissionModeSelector value={permissionMode} onChange={onPermissionModeChange} workDir={folderPath || undefined} />
@@ -73,4 +73,3 @@ export function PromptEditor({
     </div>
   )
 }
-

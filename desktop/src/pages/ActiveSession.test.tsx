@@ -8,8 +8,25 @@ vi.mock('../components/chat/MessageList', () => ({
 }))
 
 vi.mock('../components/chat/ChatInput', () => ({
-  ChatInput: ({ thinkingContent }: { thinkingContent?: string }) => (
-    <div data-testid="chat-input" data-thinking-content={thinkingContent ?? ''} />
+  ChatInput: () => <div data-testid="chat-input" />,
+}))
+
+vi.mock('../components/chat/FloatingThinkingPanel', () => ({
+  FloatingThinkingPanel: ({
+    content,
+    isActive,
+    identityKey,
+  }: {
+    content?: string
+    isActive?: boolean
+    identityKey?: string
+  }) => (
+    <div
+      data-testid="floating-thinking-panel"
+      data-thinking-content={content ?? ''}
+      data-active={String(Boolean(isActive))}
+      data-identity-key={identityKey ?? ''}
+    />
   ),
 }))
 
@@ -241,7 +258,8 @@ describe('ActiveSession task polling', () => {
 
     const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
 
-    expect(screen.getByTestId('chat-input')).toHaveAttribute('data-thinking-content', 'Reading recent context')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', 'Reading recent context')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'true')
 
     unmount()
   })
@@ -299,7 +317,69 @@ describe('ActiveSession task polling', () => {
 
     const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
 
-    expect(screen.getByTestId('chat-input')).toHaveAttribute('data-thinking-content', 'Brief reasoning burst')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', 'Brief reasoning burst')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'false')
+
+    unmount()
+  })
+
+  it('does not reuse previous thinking after a new user message starts the next turn', () => {
+    const sessionId = 'new-turn-thinking-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'New Turn Thinking Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 3,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'New Turn Thinking Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: 'thinking-old', type: 'thinking', content: 'Old reasoning cache', timestamp: 1 },
+            { id: 'assistant-old', type: 'assistant_text', content: 'Previous answer', timestamp: 2 },
+            { id: 'user-new', type: 'user_text', content: 'Next request', timestamp: 3 },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'thinking',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', '')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'true')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-identity-key', `${sessionId}:user-new`)
 
     unmount()
   })

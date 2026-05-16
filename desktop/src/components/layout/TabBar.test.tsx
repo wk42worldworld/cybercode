@@ -34,7 +34,7 @@ describe('TabBar', () => {
     delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__
   })
 
-  it('does not render the active session as a top-bar tab', async () => {
+  it('renders the active session title without tab close controls', async () => {
     const { TabBar } = await import('./TabBar')
     const { useTabStore } = await import('../../stores/tabStore')
     const { useChatStore } = await import('../../stores/chatStore')
@@ -51,12 +51,12 @@ describe('TabBar', () => {
       render(<TabBar />)
     })
 
-    expect(screen.queryByText('My Session')).not.toBeInTheDocument()
+    expect(screen.getByText('My Session')).toBeInTheDocument()
     expect(screen.queryByLabelText('Close My Session')).not.toBeInTheDocument()
     expect(screen.getByTestId('window-controls')).toBeInTheDocument()
   })
 
-  it('does not render any session labels in the top bar', async () => {
+  it('renders only the active session label in the top bar', async () => {
     const { TabBar } = await import('./TabBar')
     const { useTabStore } = await import('../../stores/tabStore')
     const { useChatStore } = await import('../../stores/chatStore')
@@ -76,7 +76,7 @@ describe('TabBar', () => {
       render(<TabBar />)
     })
 
-    expect(screen.queryByText('Active Session')).not.toBeInTheDocument()
+    expect(screen.getByText('Active Session')).toBeInTheDocument()
     expect(screen.queryByText('Inactive Session')).not.toBeInTheDocument()
   })
 
@@ -102,8 +102,6 @@ describe('TabBar', () => {
     // Gutter should have it
     expect(screen.getByTestId('tab-bar-drag-gutter')).toHaveAttribute('data-tauri-drag-region')
     expect(screen.getByTestId('tab-bar-drag-gutter')).toHaveClass('h-full')
-    expect(screen.getByTestId('tab-bar-drag-gutter-right')).toHaveAttribute('data-tauri-drag-region')
-    expect(screen.getByTestId('tab-bar-drag-gutter-right')).toHaveClass('h-full')
   })
 
   it('does not render terminal labels or close controls in the top bar', async () => {

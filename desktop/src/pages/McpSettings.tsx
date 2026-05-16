@@ -272,14 +272,14 @@ function ToggleSwitch({
       aria-checked={checked}
       disabled={disabled}
       onClick={onChange}
-      className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-        checked ? 'bg-[var(--color-brand)] shadow-[0_0_0_3px_var(--color-accent-glow)]' : 'bg-[var(--color-border)]'
+      className={`relative inline-flex h-[26px] w-[44px] items-center rounded-full transition-colors ${
+        checked ? 'bg-black dark:bg-white' : 'bg-black/15 dark:bg-white/20'
       } ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span
-        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-7' : 'translate-x-1'
-        }`}
+        className={`inline-block h-[22px] w-[22px] transform rounded-full transition-transform ${
+          checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
+        } ${checked ? 'bg-white dark:bg-black' : 'bg-white'}`}
       />
     </button>
   )
@@ -307,8 +307,8 @@ function ArraySection({
   addLabel: string
 }) {
   return (
-    <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
-      <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-4">{title}</div>
+    <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
+      <div className="text-[13px] font-bold text-[var(--color-text-primary)] mb-4">{title}</div>
       <div className="space-y-3">
         {rows.map((row) => (
           <div key={row.id} className={`grid gap-3 ${singleValue ? 'grid-cols-[minmax(0,1fr)_32px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_32px]'}`}>
@@ -337,7 +337,7 @@ function ArraySection({
         <button
           type="button"
           onClick={onAdd}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] bg-[var(--color-surface-hover)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--color-surface-hover)] text-[13px] font-bold text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
         >
           <Icon name="add" size={18} />
           {addLabel}
@@ -349,12 +349,12 @@ function ArraySection({
 
 function StatCard({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] px-5 py-4">
+    <div className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[16px] py-[12px]">
       <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] mb-2">
         <Icon name={icon} size={18} />
         <span className="text-[12px] uppercase tracking-[0.18em] font-semibold">{label}</span>
       </div>
-      <div className="text-3xl font-semibold text-[var(--color-brand)]">{value}</div>
+      <div className="text-[28px] font-bold leading-tight text-[var(--color-text-primary)]">{value}</div>
     </div>
   )
 }
@@ -373,12 +373,12 @@ function ServerRow({
   t: ReturnType<typeof useTranslation>
 }) {
   return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-4 px-6 py-5 border-t border-[var(--color-border-separator)] first:border-t-0">
+    <div className="grid min-h-[76px] grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-[14px] border-t border-[var(--color-border-separator)] px-[16px] py-[12px] first:border-t-0">
       {/* Douyin-style circular icon — distinct shape from provider tiles */}
-      <Avatar seed={server.name} icon={mcpIconFor(server.transport)} variant="circle" size={44} active={server.enabled && server.status === 'connected'} />
+      <Avatar seed={server.name} icon={mcpIconFor(server.transport)} variant="circle" size={36} active={server.enabled && server.status === 'connected'} />
       <div className="min-w-0">
         <div className="flex items-center gap-3 mb-2 min-w-0">
-          <div className="text-[1.05rem] font-semibold text-[var(--color-text-primary)] truncate">{server.name}</div>
+          <div className="truncate text-[14px] font-semibold text-[var(--color-text-primary)]">{server.name}</div>
           <StatusBadge server={server} />
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
@@ -398,7 +398,7 @@ function ServerRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+        className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         aria-label={`Open ${server.name}`}
       >
         <Icon name="settings" size={20} />
@@ -691,7 +691,7 @@ export function McpSettings() {
     const server = view.server
     return (
       <>
-        <div className="mx-auto w-full max-w-5xl min-w-0">
+        <div className="mx-auto w-full max-w-[896px] min-w-0">
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
@@ -703,8 +703,8 @@ export function McpSettings() {
 
           <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">{server.name}</h1>
-              <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">{server.summary}</p>
+              <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">{server.name}</h1>
+              <p className="mt-1 text-[13px] leading-5 text-[var(--color-text-tertiary)]">{server.summary}</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <StatusBadge server={server} />
                 {server.statusDetail && (
@@ -720,7 +720,7 @@ export function McpSettings() {
             )}
           </div>
 
-          <section className="rounded-[var(--radius-xl)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+          <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
             <div className="grid gap-4 md:grid-cols-2">
               <InfoPair label={t('settings.mcp.form.transport')} value={transportLabel(server.transport, t)} />
               <InfoPair label={t('settings.mcp.form.scope')} value={scopeLabel(server, t)} />
@@ -748,7 +748,7 @@ export function McpSettings() {
 
     return (
       <>
-        <div className="mx-auto w-full max-w-5xl min-w-0">
+        <div className="mx-auto w-full max-w-[896px] min-w-0">
           <button
             type="button"
             onClick={() => setView({ type: 'list' })}
@@ -760,10 +760,10 @@ export function McpSettings() {
 
           <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
+              <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">
                 {editing ? t('settings.mcp.form.editTitle', { name: targetServer!.name }) : t('settings.mcp.form.createTitle')}
               </h1>
-              <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">
+              <p className="mt-1 text-[13px] leading-5 text-[var(--color-text-tertiary)]">
                 {editing ? t('settings.mcp.form.editHint') : t('settings.mcp.form.createHint')}
               </p>
               {editing && targetServer && (
@@ -798,7 +798,7 @@ export function McpSettings() {
           </div>
 
           <div className="space-y-4">
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
+          <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
             <Input
               label={t('settings.mcp.form.name')}
               value={draft.name}
@@ -809,8 +809,8 @@ export function McpSettings() {
             />
           </section>
 
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
-            <div className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2">
+          <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
+            <div className="text-[13px] font-bold text-[var(--color-text-primary)] mb-2">
               {t('settings.mcp.form.scope')}
             </div>
             <p className="text-[12px] leading-5 text-[var(--color-text-tertiary)]">
@@ -818,7 +818,7 @@ export function McpSettings() {
             </p>
           </section>
 
-          <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] overflow-hidden">
+          <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] overflow-hidden">
             <div className="grid grid-cols-3">
               {(['stdio', 'http', 'sse'] as TransportKind[]).map((transport) => {
                 const active = draft.transport === transport
@@ -849,7 +849,7 @@ export function McpSettings() {
 
           {draft.transport === 'stdio' ? (
             <>
-              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
+              <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
                 <Input
                   label={t('settings.mcp.form.command')}
                   value={draft.command}
@@ -886,7 +886,7 @@ export function McpSettings() {
             </>
           ) : (
             <>
-              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
+              <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
                 <Input
                   label={draft.transport === 'http' ? t('settings.mcp.form.url') : t('settings.mcp.form.sseUrl')}
                   value={draft.url}
@@ -907,7 +907,7 @@ export function McpSettings() {
                 addLabel={t('settings.mcp.form.addHeader')}
               />
 
-              <section className="rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
+              <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] p-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <Input
                     label={t('settings.mcp.form.oauthClientId')}
@@ -947,13 +947,13 @@ export function McpSettings() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl min-w-0">
-      <div className="flex items-start justify-between gap-6 mb-6">
+    <div className="mx-auto w-full max-w-[896px] min-w-0">
+        <div className="mb-[24px] flex min-h-[76px] items-center justify-between gap-[24px]">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">
             {t('settings.mcp.title')}
           </h1>
-          <p className="mt-1 text-[14px] text-[var(--color-text-tertiary)]">
+          <p className="mt-1 text-[13px] leading-5 text-[var(--color-text-tertiary)]">
             {t('settings.mcp.description')}
           </p>
         </div>
@@ -963,7 +963,7 @@ export function McpSettings() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
+      <div className="mb-[24px] grid gap-[12px] md:grid-cols-3">
         <StatCard label={t('settings.mcp.stats.total')} value={stats.total} icon="dns" />
         <StatCard label={t('settings.mcp.stats.connected')} value={stats.connected} icon="check_circle" />
         <StatCard label={t('settings.mcp.stats.attention')} value={stats.attention} icon="error" />
@@ -1000,13 +1000,13 @@ export function McpSettings() {
 
             return (
               <section key={group}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[1.35rem] font-semibold text-[var(--color-text-primary)]">
+                <div className="mb-[8px] flex min-h-[56px] items-center justify-between">
+                  <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">
                     {group === 'plugin' ? t('settings.mcp.scope.plugin') : t(`settings.mcp.scope.${group}`)}
                   </div>
                   <div className="text-[14px] text-[var(--color-text-tertiary)]">{groupServers.length}</div>
                 </div>
-                <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)] overflow-hidden">
+                <div className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)]">
                   {groupServers.map((server) => (
                     <ServerRow
                       key={`${server.scope}:${server.name}`}
@@ -1030,7 +1030,7 @@ export function McpSettings() {
 
 function InfoPair({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[var(--radius-lg)] bg-[var(--color-surface-container-low)] px-4 py-3">
+    <div className="rounded-[10px] bg-[var(--color-surface-container-low)] px-4 py-3">
       <div className="text-[12px] uppercase tracking-[0.16em] font-semibold text-[var(--color-text-tertiary)] mb-2">{label}</div>
       <div className="text-[14px] text-[var(--color-text-primary)] break-all">{value}</div>
     </div>

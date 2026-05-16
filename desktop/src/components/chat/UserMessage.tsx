@@ -1,38 +1,43 @@
-
-import type { UIAttachment } from '../../types/chat';
-import { AttachmentGallery } from './AttachmentGallery';
-import { MessageActionBar } from './MessageActionBar';
+import type { UIAttachment } from '../../types/chat'
+import { AttachmentGallery } from './AttachmentGallery'
+import { MessageActionBar } from './MessageActionBar'
 
 type Props = {
-  content: string;
-  timestamp?: number | string | Date;
-  attachments?: UIAttachment[];
-  onRewind?: () => void;
-  rewindLabel?: string;
-};
+  content: string
+  timestamp?: number | string | Date
+  attachments?: UIAttachment[]
+  onRewind?: () => void
+  rewindLabel?: string
+}
 
 export function UserMessage({ content, attachments, onRewind, rewindLabel }: Props) {
-  const hasText = content.trim().length > 0;
+  const hasText = content.trim().length > 0
 
   return (
-    <div className="flex justify-end w-full px-8 py-1 group/msg">
-      <div className="flex flex-col items-end max-w-[75%]">
+    <div className="group/msg flex w-full justify-center px-[24px] py-[12px]">
+      <div
+        data-message-shell="user"
+        className="flex w-full max-w-[878px] flex-col items-end gap-[8px]"
+      >
         {attachments && attachments.length > 0 && (
-          <div className="mb-2">
+          <div className="mb-[8px]">
             <AttachmentGallery attachments={attachments} variant="message" />
           </div>
         )}
 
         {hasText && (
-          <div className="bg-[var(--color-message-user-bg)] text-[var(--color-message-user-fg)] rounded-[20px] rounded-br-[6px] px-4 py-2.5 shadow-sm shadow-black/20">
-            <div className="text-[16px] font-semibold leading-[1.55] tracking-[0.01em] whitespace-pre-wrap break-words">
+          <div
+            data-message-bubble="user"
+            className="max-w-[85%] rounded-[24px] rounded-tr-[8px] bg-black px-[24px] py-[16px] text-white"
+          >
+            <div className="chat-bubble-text whitespace-pre-wrap break-words text-[15px] font-normal leading-relaxed tracking-normal">
               {content}
             </div>
           </div>
         )}
 
         {hasText && (
-          <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity mt-0.5">
+          <div className="mt-[2px] opacity-0 transition-opacity group-hover/msg:opacity-100">
             <MessageActionBar
               copyText={content}
               copyLabel="Copy prompt"
@@ -44,5 +49,5 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
         )}
       </div>
     </div>
-  );
+  )
 }

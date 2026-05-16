@@ -150,13 +150,15 @@ describe('Settings > General tab', () => {
     expect(useSettingsStore.getState().setSkipWebFetchPreflight).toHaveBeenCalledWith(false)
   })
 
-  it('keeps extension tabs available alongside the terminal tab', () => {
+  it('omits rail-owned extension tabs from the settings home', () => {
     render(<Settings />)
 
     expect(screen.queryByText('Install')).not.toBeInTheDocument()
-    expect(screen.getByText('Terminal')).toBeInTheDocument()
-    expect(screen.getByText('MCP')).toBeInTheDocument()
-    expect(screen.getByText('Plugins')).toBeInTheDocument()
+    expect(screen.queryByText('Terminal')).not.toBeInTheDocument()
+    expect(screen.queryByText('MCP')).not.toBeInTheDocument()
+    expect(screen.queryByText('Plugins')).not.toBeInTheDocument()
+    expect(screen.queryByText('Providers')).not.toBeInTheDocument()
+    expect(screen.queryByText('Skills')).not.toBeInTheDocument()
   })
 })
 

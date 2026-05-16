@@ -76,8 +76,8 @@ function PanelShell({
   onClose: () => void
 }) {
   return (
-    <div className="absolute bottom-full left-0 right-0 z-50 mb-3 overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]">
-      <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-separator)] px-5 py-4">
+    <div className="absolute bottom-full left-0 right-0 z-50 mb-[12px] overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]">
+      <div className="flex min-h-[64px] items-center justify-between gap-[16px] border-b border-[var(--color-border-separator)] px-[20px] py-[12px]">
         <div>
           <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
           <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{subtitle}</p>
@@ -85,12 +85,12 @@ function PanelShell({
         <button
           type="button"
           onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+          className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
           <Icon name="close" size={16} />
         </button>
       </div>
-      <div className="max-h-[min(620px,72vh)] overflow-y-auto px-5 py-4">{children}</div>
+      <div className="max-h-[min(620px,72vh)] overflow-y-auto px-[20px] py-[16px]">{children}</div>
     </div>
   )
 }
@@ -612,9 +612,9 @@ function SessionInspectorShell({
 }) {
   return (
     <div
-      className="absolute bottom-full left-0 right-0 z-50 mb-4 overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
+      className="absolute bottom-full left-0 right-0 z-50 mb-[12px] overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
     >
-      <div className="grid min-h-[52px] grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border-separator)] px-5">
+      <div className="grid min-h-[64px] grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--color-border-separator)] px-[20px]">
         <div className="font-mono text-[13px] font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">{t('slash.inspector.title')}</div>
         <div className="flex items-center gap-6">
           {tabs.map((tab) => (
@@ -622,7 +622,7 @@ function SessionInspectorShell({
               key={tab.id}
               type="button"
               onClick={() => onSelectTab(tab.id)}
-              className={`relative h-10 px-0 text-[13px] font-medium transition-colors ${
+              className={`relative h-[36px] px-0 text-[13px] font-semibold transition-colors ${
                 selectedTab === tab.id ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
               }`}
             >
@@ -636,13 +636,13 @@ function SessionInspectorShell({
             type="button"
             onClick={onClose}
             aria-label={t('slash.inspector.close')}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
           >
             <Icon name="close" size={16} />
           </button>
         </div>
       </div>
-      <div className="max-h-[min(540px,58vh)] overflow-y-auto px-5 py-5">{children}</div>
+      <div className="max-h-[min(540px,58vh)] overflow-y-auto px-[20px] py-[16px]">{children}</div>
     </div>
   )
 }
@@ -827,11 +827,11 @@ function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
         <div className="space-y-5">
           {['user', 'local', 'project'].filter((scope) => grouped.has(scope)).map((scope) => (
             <section key={scope}>
-              <div className="mb-2 flex items-center justify-between">
+              <div className="mb-[8px] flex min-h-[36px] items-center justify-between">
                 <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{scopeLabel(scope, t)}</div>
                 <div className="text-[12px] text-[var(--color-text-tertiary)]">{grouped.get(scope)?.length ?? 0}</div>
               </div>
-              <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
+              <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
                 {grouped.get(scope)?.map((server) => (
                   <button
                     type="button"
@@ -841,7 +841,7 @@ function McpPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
                       openSettings('mcp')
                       onClose()
                     }}
-                    className="block w-full border-t border-[var(--color-border)] px-4 py-4 text-left first:border-t-0 hover:bg-[var(--color-surface-hover)]"
+                    className="block min-h-[76px] w-full border-t border-[var(--color-border)] px-[16px] py-[12px] text-left transition-colors first:border-t-0 hover:bg-[var(--color-surface-hover)]"
                   >
                     <div className="flex items-center gap-3">
                       <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{server.name}</div>
@@ -905,7 +905,7 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
       ) : skills.length === 0 ? (
         <EmptyState title={t('slash.skills.emptyTitle')} body={t('slash.skills.emptyBody')} />
       ) : (
-        <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
           {skills.map((skill) => (
             <button
               type="button"
@@ -915,7 +915,7 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
                 openSettings('skills')
                 onClose()
               }}
-              className="block w-full border-t border-[var(--color-border)] px-4 py-4 text-left first:border-t-0 hover:bg-[var(--color-surface-hover)]"
+              className="block min-h-[76px] w-full border-t border-[var(--color-border)] px-[16px] py-[12px] text-left transition-colors first:border-t-0 hover:bg-[var(--color-surface-hover)]"
             >
               <div className="flex items-center gap-3">
                 <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">/{skill.name}</div>
@@ -973,7 +973,7 @@ function HelpPanel({
   )
 
   const renderCommand = (command: SlashCommandOption) => (
-    <div key={command.name} className="flex min-w-0 items-start gap-3 border-t border-[var(--color-border)] px-4 py-3 first:border-t-0">
+    <div key={command.name} className="flex min-h-[56px] min-w-0 items-start gap-[12px] border-t border-[var(--color-border)] px-[16px] py-[12px] first:border-t-0">
       <div className="shrink-0 font-[var(--font-mono)] text-[14px] font-semibold text-[var(--color-brand)]">/{command.name}</div>
       <div className="min-w-0 flex-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">{command.description}</div>
     </div>
@@ -994,7 +994,7 @@ function HelpPanel({
           return (
             <section key={group.titleKey}>
               <div className="mb-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{t(group.titleKey)}</div>
-              <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
+              <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
                 {entries.map(renderCommand)}
               </div>
             </section>
@@ -1004,7 +1004,7 @@ function HelpPanel({
         {otherCommands.length > 0 && (
           <section>
             <div className="mb-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{t('slash.help.group.more')}</div>
-            <div className="overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
+            <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
               {otherCommands.map(renderCommand)}
             </div>
             {hiddenOtherCommandCount > 0 && (

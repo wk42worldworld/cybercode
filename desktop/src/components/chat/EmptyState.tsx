@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { Bot } from 'lucide-react'
 
 import { useTranslation, type TranslationKey } from '../../i18n'
 import { useSessionStore } from '../../stores/sessionStore'
@@ -11,7 +12,6 @@ import { useTabStore } from '../../stores/tabStore'
 import { OFFICIAL_DEFAULT_MODEL_ID } from '../../constants/modelCatalog'
 import { ChatInput } from './ChatInput'
 import type { AttachmentRef } from '../../types/chat'
-import { Icon } from '../shared/Icon'
 
 type EmptyStateProps = {
   /** The session this empty state is bound to. Omit for draft (no session yet). */
@@ -41,7 +41,7 @@ type TranslateFn = (key: TranslationKey, params?: Record<string, string | number
 function MinimalEmptyState({ t }: { t: TranslateFn }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-8">
-      <Icon name="smart_toy" size={48} className="mb-4 text-[var(--color-text-tertiary)]" />
+      <Bot size={48} strokeWidth={1.5} className="mb-4 text-neutral-300" />
       <p className="text-[var(--color-text-secondary)]">
         {t('teams.noMessages')}
       </p>
@@ -59,32 +59,10 @@ function HeroEmptyStateForSession({
   t: TranslateFn
 }) {
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center px-6 md:px-12 overflow-y-auto">
-      {/* Subtle radial gradient */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 45%, var(--color-accent-glow), transparent)',
-        }}
-        aria-hidden="true"
-      />
-
-      <div className="relative w-full max-w-[640px] flex flex-col">
-        <HeroBlock t={t} />
-
-        {/* ChatInput hero variant wrapped with accent glow halo */}
-        <div className="relative">
-          <div
-            className="absolute -inset-3 rounded-[14px] pointer-events-none"
-            style={{ boxShadow: '0 0 32px 4px var(--color-accent-glow)' }}
-            aria-hidden="true"
-          />
-          <ChatInput sessionId={sessionId} variant="hero" />
-        </div>
-
-        <KeyboardHints />
-      </div>
-    </div>
+    <HeroEmptyLayout
+      hero={<HeroBlock t={t} />}
+      composer={<ChatInput sessionId={sessionId} variant="hero" />}
+    />
   )
 }
 
@@ -148,78 +126,61 @@ function HeroEmptyStateForDraft({ t }: { t: TranslateFn }) {
   }
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center px-6 md:px-12 overflow-y-auto">
-      {/* Subtle radial gradient */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 45%, var(--color-accent-glow), transparent)',
-        }}
-        aria-hidden="true"
-      />
-
-      <div className="relative w-full max-w-[640px] flex flex-col">
-        <HeroBlock t={t} />
-
-        {/* ChatInput hero variant wrapped with accent glow halo */}
-        <div className="relative">
-          <div
-            className="absolute -inset-3 rounded-[14px] pointer-events-none"
-            style={{ boxShadow: '0 0 32px 4px var(--color-accent-glow)' }}
-            aria-hidden="true"
-          />
-          <ChatInput
-            variant="hero"
-            onSubmit={handleSubmit}
-            workDir={workDir}
-            onWorkDirChange={setWorkDir}
-            runtimeKey={DRAFT_RUNTIME_SELECTION_KEY}
-          />
-        </div>
-
-        <KeyboardHints />
-      </div>
-    </div>
+    <HeroEmptyLayout
+      hero={<HeroBlock t={t} />}
+      composer={
+        <ChatInput
+          variant="hero"
+          onSubmit={handleSubmit}
+          workDir={workDir}
+          onWorkDirChange={setWorkDir}
+          runtimeKey={DRAFT_RUNTIME_SELECTION_KEY}
+        />
+      }
+    />
   )
 }
 
 // ─── Shared sub-components ───────────────────────────────────────────────────
 
-function HeroBlock({ t }: { t: TranslateFn }) {
+function HeroEmptyLayout({
+  hero,
+  composer,
+}: {
+  hero: ReactNode
+  composer: ReactNode
+}) {
   return (
-    <div className="flex flex-col items-center text-center mb-8">
-      {/* Mascot with accent glow ring */}
-      <div className="relative mb-5">
-        <img src="/app-icon.png" alt="CyberCode" className="h-[88px] w-[88px] rounded-[8px]" />
-        <div
-          className="absolute -inset-2 rounded-[12px] pointer-events-none"
-          style={{ boxShadow: '0 0 24px 4px var(--color-accent-glow)' }}
-          aria-hidden="true"
-        />
+    <div className="relative flex flex-1 overflow-hidden px-[24px] md:px-[48px]">
+      <div className="flex flex-1 items-center justify-center pb-[220px] pt-[16px]">
+        <div className="w-full max-w-[896px]">
+          {hero}
+        </div>
       </div>
-      <h1
-        className="mb-2 text-[36px] leading-[1.1] tracking-[-0.02em] text-[var(--color-text-primary)]"
-        style={{ fontFamily: 'var(--font-headline)', fontWeight: 800 }}
-      >
-        {t('empty.title')}
-      </h1>
-      <p className="max-w-[420px] text-[14px] leading-[1.6] text-[var(--color-text-secondary)]">
-        {t('empty.subtitle')}
-      </p>
+
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex justify-center p-[24px]">
+        <div className="pointer-events-auto w-full max-w-[896px]">
+          {composer}
+        </div>
+      </div>
     </div>
   )
 }
 
-function KeyboardHints() {
+function HeroBlock({ t }: { t: TranslateFn }) {
   return (
-    <div className="mt-3 flex items-center justify-center gap-3 text-[10px] text-[var(--color-text-tertiary)]">
-      <span className="btn-ghost px-2 py-1 rounded text-[10px]"><kbd className="font-mono opacity-90">⏎</kbd> Send</span>
-      <span className="opacity-30">·</span>
-      <span className="btn-ghost px-2 py-1 rounded text-[10px]"><kbd className="font-mono opacity-90">⇧⏎</kbd> Newline</span>
-      <span className="opacity-30">·</span>
-      <span className="btn-ghost px-2 py-1 rounded text-[10px]"><kbd className="font-mono opacity-90">/</kbd> Commands</span>
-      <span className="opacity-30">·</span>
-      <span className="btn-ghost px-2 py-1 rounded text-[10px]"><kbd className="font-mono opacity-90">@</kbd> Model</span>
+    <div className="flex flex-col items-center text-center">
+      <div className="mb-[20px] flex h-[64px] w-[64px] items-center justify-center rounded-full border-2 border-neutral-200 bg-white">
+        <div className="h-[24px] w-[24px] rounded-full border-[3px] border-black" />
+      </div>
+      <h1
+        className="mb-[8px] !text-[32px] font-bold !leading-[35.2px] !tracking-[0] text-neutral-900"
+      >
+        {t('empty.title')}
+      </h1>
+      <p className="max-w-[420px] text-[14px] font-medium leading-[1.6] text-neutral-500">
+        {t('empty.subtitle')}
+      </p>
     </div>
   )
 }

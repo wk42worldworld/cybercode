@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { ArrowUp, Paperclip, Plus, Square } from 'lucide-react'
 
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
@@ -10,12 +11,10 @@ import { sessionsApi } from '../../api/sessions'
 import { PermissionModeSelector } from '../controls/PermissionModeSelector'
 import { ModelSelector } from '../controls/ModelSelector'
 import { DirectoryPicker } from '../shared/DirectoryPicker'
-import { Icon } from '../shared/Icon'
 import type { AttachmentRef } from '../../types/chat'
 import { AttachmentGallery } from './AttachmentGallery'
 import { FileSearchMenu, type FileSearchMenuHandle } from './FileSearchMenu'
 import { LocalSlashCommandPanel, type LocalSlashCommandName } from './LocalSlashCommandPanel'
-import { ThinkingIndicator } from './ThinkingIndicator'
 import { StreamingIndicator } from './StreamingIndicator'
 import {
   FALLBACK_SLASH_COMMANDS,
@@ -44,12 +43,9 @@ type ChatInputProps = {
   workDir?: string
   onWorkDirChange?: (dir: string) => void
   runtimeKey?: string
-  thinkingContent?: string
 }
 
-const THINKING_DISPLAY_GRACE_MS = 3200
-
-export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey, thinkingContent }: ChatInputProps) {
+export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey }: ChatInputProps) {
   const t = useTranslation()
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -67,9 +63,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const plusMenuRef = useRef<HTMLDivElement>(null)
   const slashMenuRef = useRef<HTMLDivElement>(null)
   const fileSearchRef = useRef<FileSearchMenuHandle>(null)
+  const wasActiveRef = useRef(false)
   const slashItemRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const [cachedThinkingContent, setCachedThinkingContent] = useState('')
-  const thinkingClearTimerRef = useRef<number | null>(null)
   const { sendMessage, stopGeneration } = useChatStore()
   const globalActiveTabId = useTabStore((s) => s.activeTabId)
   const activeTabId = sessionIdProp ?? globalActiveTabId
@@ -92,55 +87,12 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const canSubmit = !isWorkspaceMissing && (input.trim().length > 0 || (!isMemberSession && attachments.length > 0))
   const isHeroComposer = variant === 'hero' && !isMemberSession
   const resolvedWorkDir = workDirProp ?? (activeSession?.workDir || gitInfo?.workDir || undefined)
-  const hasIncomingThinkingContent = !!thinkingContent?.trim()
-  const liveThinkingContent = isActive && hasIncomingThinkingContent ? thinkingContent : ''
-  const visibleThinkingContent = liveThinkingContent || cachedThinkingContent
-
-  const clearThinkingCacheTimer = useCallback(() => {
-    if (thinkingClearTimerRef.current === null) return
-    window.clearTimeout(thinkingClearTimerRef.current)
-    thinkingClearTimerRef.current = null
-  }, [])
-
-  const scheduleThinkingCacheClear = useCallback(() => {
-    if (thinkingClearTimerRef.current !== null) return
-    thinkingClearTimerRef.current = window.setTimeout(() => {
-      setCachedThinkingContent('')
-      thinkingClearTimerRef.current = null
-    }, THINKING_DISPLAY_GRACE_MS)
-  }, [])
 
   useEffect(() => {
-    clearThinkingCacheTimer()
-    setCachedThinkingContent('')
-  }, [activeTabId, clearThinkingCacheTimer])
-
-  useEffect(() => {
-    if (!thinkingContent?.trim()) return
-    setCachedThinkingContent(thinkingContent)
-
-    if (isActive) {
-      clearThinkingCacheTimer()
-      return
+    if (wasActiveRef.current && !isActive) {
+      textareaRef.current?.focus()
     }
-
-    scheduleThinkingCacheClear()
-  }, [
-    thinkingContent,
-    isActive,
-    clearThinkingCacheTimer,
-    scheduleThinkingCacheClear,
-  ])
-
-  useEffect(() => {
-    if (hasIncomingThinkingContent || !cachedThinkingContent) return
-    scheduleThinkingCacheClear()
-  }, [hasIncomingThinkingContent, cachedThinkingContent, scheduleThinkingCacheClear])
-
-  useEffect(() => clearThinkingCacheTimer, [clearThinkingCacheTimer])
-
-  useEffect(() => {
-    textareaRef.current?.focus()
+    wasActiveRef.current = isActive
   }, [isActive])
 
   useEffect(() => {
@@ -198,8 +150,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    const minHeight = 100
-    const maxHeight = 160
+    const minHeight = 50
+    const maxHeight = 200
     el.style.height = `${Math.max(Math.min(el.scrollHeight, maxHeight), minHeight)}px`
   }, [input])
 
@@ -603,10 +555,15 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
 
   const addFilesLabel = isHeroComposer ? t('empty.addFiles') : t('chat.addFiles')
   const slashCommandsLabel = isHeroComposer ? t('empty.slashCommands') : t('chat.slashCommands')
+  const showComposerContextControls = (isHeroComposer && onWorkDirChange) || (runtimeKey && !isMemberSession)
 
   return (
-    <div className={isHeroComposer ? '' : 'shrink-0 wechat-input-container'}>
-      <div className="w-full relative" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+    <div className={isHeroComposer ? '' : 'wechat-input-container pointer-events-none flex justify-center p-[24px]'}>
+      <div
+        className={isHeroComposer ? 'relative w-full' : 'pointer-events-auto relative w-full max-w-[896px]'}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={handleDrop}
+      >
         {/* Slash / file search menus positioned above the input */}
         {!isMemberSession && fileSearchOpen && (
           <FileSearchMenu
@@ -646,7 +603,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
         {!isMemberSession && slashMenuOpen && filteredCommands.length > 0 && (
           <div
             ref={slashMenuRef}
-            className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-white/50 dark:border-white/10 bg-white/80 dark:bg-black/80 shadow-[0_8px_30px_rgba(0,0,0,0.1)]"
+            className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-neutral-200 bg-white/95 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-sm"
           >
             <div className="max-h-[300px] overflow-y-auto py-1">
               {filteredCommands.map((command, index) => (
@@ -681,20 +638,31 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
           </div>
         )}
 
+        {showComposerContextControls && (
+          <div className="mb-[8px] flex items-center justify-end gap-[12px] px-[4px]">
+            {isHeroComposer && onWorkDirChange && (
+              <DirectoryPicker value={workDirProp || ''} onChange={onWorkDirChange} variant="pill" />
+            )}
+            {runtimeKey && !isMemberSession && (
+              <ModelSelector runtimeKey={runtimeKey} placement="top" align="left" compact variant="pill" />
+            )}
+          </div>
+        )}
+
         {/* ── WeChat Style Input ── */}
-        <div className="flex flex-col bg-[var(--color-background)]">
-          {/* Top Toolbar — grid layout keeps center truly centered regardless of left/right content */}
-          <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem] px-3 h-12">
-            {/* Left: + button (slash commands & @) */}
+        <div className="flex w-full flex-col rounded-[28px] border-2 border-neutral-200 bg-white/95 p-[8px] pt-[12px] transition-colors focus-within:border-black backdrop-blur-sm">
+          {/* Top toolbar mirrors the reference: two compact icon buttons only. */}
+          <div className="flex gap-[12px] px-[16px] pb-[12px]">
             <div className="relative flex items-center" ref={plusMenuRef}>
-              {!isMemberSession && !isHeroComposer && (
+              {!isMemberSession && (
                 <>
                   <button
+                    type="button"
                     onClick={() => setPlusMenuOpen((v) => !v)}
                     aria-label="Open composer tools"
-                    className="group relative w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--color-surface-hover)] transition-all text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+                    className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-black"
                   >
-                    <Icon name="add" size={18} />
+                    <Plus size={18} strokeWidth={2.5} />
                     <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
                       {slashCommandsLabel}
                     </span>
@@ -725,15 +693,15 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
               )}
             </div>
 
-            {/* Attach file button */}
             <div className="relative flex items-center">
-              {!isMemberSession && !isHeroComposer && (
+              {!isMemberSession && (
                 <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
                   aria-label={addFilesLabel}
-                  className="group relative w-8 h-8 flex items-center justify-center rounded-md hover:bg-[var(--color-surface-hover)] transition-all text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+                  className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-black"
                 >
-                  <Icon name="attach_file" size={16} />
+                  <Paperclip size={18} strokeWidth={2.5} />
                   <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
                     {addFilesLabel}
                   </span>
@@ -741,121 +709,80 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
               )}
             </div>
 
-            {/* Center: Thinking / Streaming indicator */}
-            <div className="flex min-w-0 items-center justify-center gap-2 overflow-hidden py-2">
+            <div className="ml-auto flex min-w-0 items-center justify-end overflow-hidden">
               <StreamingIndicator sessionId={activeTabId ?? undefined} />
-              {visibleThinkingContent && (
-                <>
-                  {isActive && (
-                    <span className="h-3 w-px shrink-0 bg-[var(--color-border-separator)]" />
-                  )}
-                  <ThinkingIndicator content={visibleThinkingContent} showDot={false} />
-                </>
-              )}
             </div>
-
-            {/* Right: empty placeholder to balance the grid */}
-            <div />
           </div>
 
-          {/* Textarea area */}
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onCompositionStart={() => { composingRef.current = true }}
-            onCompositionEnd={() => { composingRef.current = false }}
-            onPaste={handlePaste}
-            placeholder={composerPlaceholder}
-            disabled={isWorkspaceMissing}
-            rows={3}
-            className="w-full flex-1 resize-none bg-transparent outline-none text-[15px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] px-4 py-3 leading-relaxed disabled:opacity-50 min-h-[100px]"
-          />
+          <div className="flex items-end gap-[8px] px-[8px] pb-[8px]">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onCompositionStart={() => { composingRef.current = true }}
+              onCompositionEnd={() => { composingRef.current = false }}
+              onPaste={handlePaste}
+              placeholder={composerPlaceholder}
+              disabled={isWorkspaceMissing}
+              rows={1}
+              className="min-h-[50px] max-h-[200px] w-full flex-1 resize-none bg-transparent px-[8px] py-[8px] text-[15px] font-medium leading-relaxed text-black outline-none placeholder:text-neutral-400 disabled:opacity-50"
+            />
+
+            {!isMemberSession && (
+              <>
+                {isActive ? (
+                  <button
+                    type="button"
+                    onClick={() => stopGeneration(activeTabId!)}
+                    title={t('chat.stopTitle')}
+                    aria-label={t('chat.stopTitle')}
+                    className="mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition-colors hover:bg-[#ccfb50] hover:text-black"
+                  >
+                    <Square size={16} strokeWidth={2.5} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={!canSubmit}
+                    aria-label={t('common.run')}
+                    className={`mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                      canSubmit
+                        ? 'bg-neutral-100 text-neutral-500 hover:bg-[#ccfb50] hover:text-black'
+                        : 'bg-neutral-100 text-neutral-300 cursor-not-allowed'
+                    }`}
+                  >
+                    <ArrowUp size={18} strokeWidth={2.5} />
+                  </button>
+                )}
+              </>
+            )}
+            {isMemberSession && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                aria-label={t('common.run')}
+                className={`mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                  canSubmit
+                    ? 'bg-neutral-100 text-neutral-500 hover:bg-[#ccfb50] hover:text-black'
+                    : 'bg-neutral-100 text-neutral-300 cursor-not-allowed'
+                }`}
+              >
+                <ArrowUp size={18} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
 
           {/* Attachments inline */}
           {attachments.length > 0 && (
-            <div className="px-4 pb-2">
+            <div className="px-[16px] pb-[8px]">
               <AttachmentGallery attachments={attachments} variant="composer" onRemove={removeAttachment} />
             </div>
           )}
-
-          {/* ── Bottom Toolbar ── */}
-          <div className="flex items-center justify-between px-3 py-2">
-            <div className="flex items-center gap-2">
-              {isHeroComposer && onWorkDirChange && (
-                <DirectoryPicker value={workDirProp || ''} onChange={onWorkDirChange} />
-              )}
-              {runtimeKey && !isMemberSession && (
-                <ModelSelector runtimeKey={runtimeKey} placement="top" align="left" compact />
-              )}
-            </div>
-
-            {/* Right: Send / Stop */}
-            <div className="flex items-center">
-              {!isMemberSession && (
-                <>
-                  {isActive ? (
-                    <button
-                      type="button"
-                      onClick={() => stopGeneration(activeTabId!)}
-                      title={t('chat.stopTitle')}
-                      aria-label={t('chat.stopTitle')}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)] transition-all"
-                    >
-                      <Icon name="stop_circle" size={16} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={!canSubmit}
-                      aria-label={t('common.run')}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-                        canSubmit
-                          ? 'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)]'
-                          : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
-                      }`}
-                    >
-                      <Icon name="arrow_upward" size={14} />
-                    </button>
-                  )}
-                </>
-              )}
-              {isMemberSession && (
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                  aria-label={t('common.run')}
-                  className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-                    canSubmit
-                      ? 'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)]'
-                      : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
-                  }`}
-                >
-                  <Icon name="arrow_upward" size={14} />
-                </button>
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Hero variant: hints below input */}
-        {isHeroComposer && !isMemberSession && (
-          <div className="mt-2 flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 text-[11px] text-black/40 dark:text-white/40">
-              <span className="font-mono font-semibold">/</span>
-              <span>{t('chat.hintCommand')}</span>
-              <span className="text-black/20 dark:text-white/20 mx-1">&middot;</span>
-              <span className="font-mono font-semibold">@</span>
-              <span>{t('chat.hintFile')}</span>
-              <span className="text-black/20 dark:text-white/20 mx-1">&middot;</span>
-              <span className="font-mono font-semibold">&#8984;K</span>
-              <span>{t('chat.hintSettings')}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />

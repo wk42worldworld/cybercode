@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import { Settings } from '../pages/Settings'
+import { PluginSettings } from '../pages/Settings'
 import { usePluginStore } from '../stores/pluginStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -129,10 +129,6 @@ vi.mock('../stores/mcpStore', () => ({
 
 const noop = vi.fn()
 
-function switchToPluginsTab() {
-  fireEvent.click(screen.getByText('Plugins'))
-}
-
 describe('Settings > Plugins tab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -240,8 +236,7 @@ describe('Settings > Plugins tab', () => {
       summary: { total: 2, enabled: 1, errorCount: 1, marketplaceCount: 1 },
     })
 
-    render(<Settings />)
-    switchToPluginsTab()
+    render(<PluginSettings />)
 
     expect(screen.getByText('Browse installed plugins')).toBeInTheDocument()
     expect(screen.getByText('Plugin Manager')).toBeInTheDocument()
@@ -323,8 +318,7 @@ describe('Settings > Plugins tab', () => {
       },
     })
 
-    render(<Settings />)
-    switchToPluginsTab()
+    render(<PluginSettings />)
 
     expect(screen.getByText('Plugin Detail')).toBeInTheDocument()
     expect(screen.getByText('GitHub integration')).toBeInTheDocument()
@@ -379,8 +373,7 @@ describe('Settings > Plugins tab', () => {
       },
     })
 
-    const { container } = render(<Settings />)
-    switchToPluginsTab()
+    const { container } = render(<PluginSettings />)
 
     expect(screen.getByText('GitHub integration')).toBeInTheDocument()
 
@@ -434,8 +427,7 @@ describe('Settings > Plugins tab', () => {
       },
     })
 
-    render(<Settings />)
-    switchToPluginsTab()
+    render(<PluginSettings />)
 
     fireEvent.click(screen.getByText('access'))
 
@@ -490,8 +482,7 @@ describe('Settings > Plugins tab', () => {
       },
     })
 
-    render(<Settings />)
-    switchToPluginsTab()
+    render(<PluginSettings />)
 
     expect(screen.getAllByText('Enable this plugin and apply changes before opening its skills, agents, or MCP entries in the shared management pages.').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /codex-rescue/i })).toBeDisabled()

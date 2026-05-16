@@ -105,15 +105,15 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-surface-container)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] rounded-md text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors"
+        className="flex h-[36px] items-center gap-[6px] rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[14px] text-[13px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
       >
-        <Icon name={MODE_ICONS[currentMode]} size={14} />
+        <Icon name={MODE_ICONS[currentMode]} size={16} />
         <span>{MODE_LABELS[currentMode]}</span>
-        <Icon name="expand_more" size={12} />
+        <Icon name="expand_more" size={14} />
       </button>
 
       {open && (
-        <div className="absolute left-0 bottom-full mb-1.5 w-[280px] rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)] z-50 py-2 px-1.5">
+        <div className="absolute bottom-full left-0 z-50 mb-[8px] w-[280px] rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] px-[8px] py-[8px] shadow-[var(--shadow-dropdown)]">
           <div className="px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
             {t('permMode.executionPermissions')}
           </div>
@@ -135,7 +135,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
                 setOpen(false)
               }}
               className={`
-                w-full flex items-start gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group
+                group flex min-h-[56px] w-full items-start gap-[8px] rounded-[8px] px-[10px] py-[8px] text-left transition-colors
                 ${item.value === currentMode ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'}
               `}
             >
@@ -158,14 +158,14 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
 
       {/* Bypass confirmation dialog */}
       {confirmDialog && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--color-overlay-scrim)] pl-[var(--sidebar-width)]" onClick={() => setConfirmDialog(false)}>
+        <div className="settings-ui native-ui-text fixed inset-0 z-[100] flex items-center justify-center bg-[var(--color-overlay-scrim)] pl-[var(--sidebar-width)]" onClick={() => setConfirmDialog(false)}>
           <div
-            className="w-[420px] rounded-xl bg-[var(--color-background)] border border-[var(--color-border-separator)] shadow-[var(--shadow-window)] overflow-hidden"
+            className="w-[420px] overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 bg-[var(--color-error)]/8 border-b border-[var(--color-error)]/15">
-              <div className="flex items-center justify-center w-10 h-10 rounded-md bg-[var(--color-error)]/12">
+              <div className="flex items-center justify-center w-10 h-10 rounded-[10px] bg-[var(--color-error)]/12">
                 <Icon name="warning" size={22} className="text-[var(--color-error)]" />
               </div>
               <div>
@@ -177,7 +177,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
             {/* Body */}
             <div className="px-5 py-4">
               <p className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed mb-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t('permMode.enableBypassBody')) }} />
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-surface-container-low)] border border-[var(--color-border-separator)]" title={workDir}>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] bg-[var(--color-surface-container-low)] border border-[var(--color-border-separator)]" title={workDir}>
                 <Icon name="folder" size={16} className="text-[var(--color-text-tertiary)] shrink-0" />
                 <code className="text-[12px] font-mono text-[var(--color-text-secondary)] truncate">{workDir}</code>
               </div>
@@ -201,7 +201,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
             <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
               <button
                 onClick={() => setConfirmDialog(false)}
-                className="px-4 py-2 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-lg transition-colors"
+                className="px-4 py-2 text-[12px] font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] rounded-full transition-colors"
               >
                 {t('common.cancel')}
               </button>
@@ -215,7 +215,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
                   }
                   setConfirmDialog(false)
                 }}
-                className="px-4 py-2 text-[12px] font-semibold text-[var(--color-btn-danger-fg)] bg-[var(--color-error)] hover:opacity-90 rounded-lg transition-colors"
+                className="px-4 py-2 text-[12px] font-bold text-[var(--color-btn-danger-fg)] bg-[var(--color-error)] hover:opacity-90 rounded-full transition-colors"
               >
                 {t('permMode.enableBypassBtn')}
               </button>

@@ -49,9 +49,9 @@ export function SettingsPanel({ visible }: Props) {
       role="region"
       aria-label={getPanelLabel(panelView, t)}
       data-testid="settings-panel"
-      className="absolute inset-0 z-30 flex flex-col items-center justify-center p-4 bg-black/10 dark:bg-black/30 animate-fade-in"
+      className="settings-ui native-ui-text absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/10 p-[16px] animate-fade-in dark:bg-black/45"
     >
-      <div className="w-full max-w-[1100px] h-[88vh] rounded-[10px] shadow-2xl border border-black/10 dark:border-white/30 overflow-hidden bg-[var(--color-background)] flex flex-col">
+      <div className="flex h-[88vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)]">
         <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
           {isSettingsHome ? (
             <MemoSettings />
@@ -71,10 +71,10 @@ export function SettingsPanel({ visible }: Props) {
 
 function PanelHeader({ onClose }: { onClose: () => void }) {
   return (
-    <header className="flex shrink-0 items-center justify-end px-[18px] py-[14px] bg-[var(--color-background)]">
+    <header className="flex h-[76px] shrink-0 items-center justify-end bg-[var(--color-background)] px-[24px] md:px-[32px]">
       <button
         onClick={onClose}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+        className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-surface-hover)] dark:hover:text-[var(--color-text-primary)]"
         aria-label="Close"
         title="Esc"
       >
@@ -87,14 +87,14 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
 function PanelBody({ view, children }: { view: SettingsPanelView; children: ReactNode }) {
   if (view === 'terminal' || view === 'scheduled') {
     return (
-      <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 flex flex-col overflow-hidden bg-[var(--color-background)] pt-[10px]">
         {children}
       </div>
     )
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-background)] px-[24px] pb-[24px] pt-[34px] md:px-[32px]">
       {children}
     </div>
   )

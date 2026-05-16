@@ -61,21 +61,21 @@ export function SkillDetail() {
       <div>
         <button
           onClick={handleBack}
-          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[14px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
+          className="inline-flex h-[36px] items-center gap-[6px] rounded-full px-[12px] text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20"
         >
           <Icon name="arrow_back" size={16} />
           {t('settings.skills.back')}
         </button>
       </div>
 
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-        <div className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)] lg:items-start">
+      <section className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <div className="grid gap-[20px] px-[20px] py-[20px] lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.9fr)] lg:items-start">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
               {t('settings.skills.entryEyebrow')}
             </div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h3 className="text-[22px] font-semibold leading-tight text-[var(--color-text-primary)] break-all">
+              <h3 className="text-[22px] font-bold leading-tight text-[var(--color-text-primary)] break-all">
                 {meta.displayName || meta.name}
               </h3>
               <MetaPill>{t(`settings.skills.source.${meta.source}`)}</MetaPill>
@@ -120,7 +120,7 @@ export function SkillDetail() {
       </section>
 
       {metaEntries.length > 0 && (
-        <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+      <section className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[20px] py-[16px]">
           <div className="flex items-center gap-2 mb-3">
             <Icon name="tune" size={18} className="text-[var(--color-text-tertiary)]" />
             <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
@@ -131,7 +131,7 @@ export function SkillDetail() {
             {metaEntries.map(([key, value]) => (
               <div
                 key={key}
-                className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-3 min-w-0"
+                className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[12px] py-[12px] min-w-0"
               >
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
                   {formatMetaKey(key)}
@@ -145,9 +145,9 @@ export function SkillDetail() {
         </section>
       )}
 
-      <section className="flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)]">
+      <section className="flex flex-1 min-h-0 min-w-0 overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)]">
         <aside className="hidden w-[250px] flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface-container-low)] lg:flex lg:flex-col">
-          <div className="border-b border-[var(--color-border)] px-4 py-3">
+          <div className="min-h-[64px] border-b border-[var(--color-border)] px-[16px] py-[12px]">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-tertiary)]">
               {t('settings.skills.filesPanel')}
             </div>
@@ -166,7 +166,7 @@ export function SkillDetail() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
+          <div className="flex min-h-[64px] flex-wrap items-center justify-between gap-[8px] border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[16px] py-[12px]">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[12px] font-mono text-[var(--color-text-secondary)] break-all">
@@ -184,13 +184,13 @@ export function SkillDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] border-2 border-[var(--color-border)]">
+              <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[10px] py-[4px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
                 {currentFile?.language}
               </span>
             </div>
           </div>
 
-          <div className="lg:hidden border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 overflow-x-auto">
+          <div className="overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)] px-[12px] py-[10px] lg:hidden">
             <div className="flex gap-2 min-w-max">
               {files.map((file) => {
                 const active = file.path === normalizedSelection
@@ -198,7 +198,7 @@ export function SkillDetail() {
                   <button
                     key={file.path}
                     onClick={() => setSelectedFile(file.path)}
-                    className={`rounded-full border px-3 py-1.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 ${
+                    className={`h-[36px] rounded-full border px-[12px] text-[12px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 ${
                       active
                         ? 'border-[var(--color-brand)] bg-[var(--color-primary-fixed)] text-[var(--color-text-primary)]'
                         : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
@@ -284,7 +284,7 @@ function TreeItem({
     <div>
       <button
         onClick={() => (isDir ? setExpanded(!expanded) : onSelect(node.path))}
-        className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 ${
+      className={`flex h-[32px] w-full items-center gap-[6px] rounded-[8px] px-[8px] text-left text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 ${
           isSelected
             ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] font-medium'
             : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
@@ -322,7 +322,7 @@ function DetailStat({
   icon: string
 }) {
   return (
-    <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
+    <div className="min-h-[76px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[12px] py-[12px]">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-tertiary)]">
         <Icon name={icon} size={14} />
         <span>{label}</span>
@@ -336,7 +336,7 @@ function DetailStat({
 
 function MetaPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
+    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[10px] py-[4px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
       {children}
     </span>
   )
@@ -405,4 +405,3 @@ function fileIcon(filename: string): string {
       return 'draft'
   }
 }
-

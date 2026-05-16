@@ -68,8 +68,8 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
     deleteTask(task.id)
   }
 
-  const iconBtn = 'p-1.5 rounded-[var(--radius-sm)] transition-colors'
-  const menuItem = 'flex items-center gap-2.5 w-full px-3 py-2 text-[12px] text-left rounded-[var(--radius-sm)] transition-colors'
+  const iconBtn = 'p-1.5 rounded-full transition-colors'
+  const menuItem = 'flex items-center gap-2.5 w-full px-3 py-2 text-[12px] text-left rounded-[8px] transition-colors'
 
   // Determine status line color:
   // completed = green, running = accent + pulse, pending/disabled = gray
@@ -80,7 +80,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
       : 'bg-[var(--color-text-tertiary)]'
 
   return (
-    <div className="border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)]">
+    <div className="border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)] last:border-b-0">
       <div className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-hover)] transition-colors group relative">
         {/* Left status vertical line */}
         <div className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${statusLineClass}`} />
@@ -153,7 +153,7 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
               </button>
 
               {showMenu && !confirmAction && (
-                <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1">
+                <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-dropdown)] py-1">
                   {/* Edit */}
                   <button
                     onClick={() => { setShowMenu(false); setShowEdit(true) }}
@@ -240,21 +240,21 @@ function ConfirmPopover({ message, confirmLabel, onConfirm, onCancel, cancelLabe
   variant?: 'brand' | 'error'
 }) {
   return (
-    <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg p-3">
+    <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-dropdown)] p-3">
       <p className="text-[12px] text-[var(--color-text-secondary)] mb-2.5">{message}</p>
       <div className="flex justify-end gap-1.5">
         <button
           onClick={onCancel}
-          className="px-2.5 py-1 text-[12px] rounded-[var(--radius-sm)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+          className="px-2.5 py-1 text-[12px] rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors"
         >
           {cancelLabel}
         </button>
         <button
           onClick={onConfirm}
-          className={`px-3 py-1 text-[12px] font-bold tracking-tight rounded-[6px] transition-all ${
+          className={`px-3 py-1 text-[12px] font-bold tracking-tight rounded-full transition-all ${
             variant === 'error'
-              ? 'bg-[#FE2C55] text-white shadow-[0_2px_8px_rgba(254,44,85,0.30)] hover:bg-[#E91E45]'
-              : 'bg-[#FE2C55] text-white shadow-[0_2px_8px_rgba(254,44,85,0.30)] hover:bg-[#E91E45]'
+              ? 'bg-[var(--color-error)] text-white hover:opacity-90'
+              : 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200'
           }`}
         >
           {confirmLabel}

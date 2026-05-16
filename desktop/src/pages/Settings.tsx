@@ -30,7 +30,12 @@ import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
 import { Icon } from '../components/shared/Icon'
 
-const SETTINGS_TABS: SettingsTab[] = ['general', 'permissions', 'agents', 'about']
+const SETTINGS_TABS: SettingsTab[] = [
+  'general',
+  'permissions',
+  'agents',
+  'about',
+]
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
@@ -39,17 +44,18 @@ export function Settings() {
 
   useEffect(() => {
     if (!pendingSettingsTab) return
-    setActiveTab(pendingSettingsTab)
+    if (SETTINGS_TABS.includes(pendingSettingsTab)) {
+      setActiveTab(pendingSettingsTab)
+    }
     useUIStore.getState().setPendingSettingsTab(null)
   }, [pendingSettingsTab])
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-background)]">
-      {/* Top header — close button */}
-      <header className="flex items-center justify-end py-[18px] px-[18px] bg-[var(--color-background)] shrink-0 z-10">
+    <div className="flex flex-1 flex-col overflow-hidden bg-[var(--color-background)]">
+      <header className="z-10 flex h-[76px] shrink-0 items-center justify-end bg-[var(--color-background)] px-[24px] md:px-[32px]">
         <button
           onClick={() => useUIStore.getState().closeSettings()}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] transition-colors"
+          className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-surface-hover)] dark:hover:text-[var(--color-text-primary)]"
           aria-label="Close"
           title="Esc"
         >
@@ -57,10 +63,8 @@ export function Settings() {
         </button>
       </header>
 
-      {/* Tab content */}
       <div className="flex-1 overflow-y-auto bg-[var(--color-background)]">
-        {/* Centered tabs */}
-        <div className="flex items-center justify-center gap-1 pt-8 pb-4 px-4">
+        <div className="flex min-h-[68px] flex-wrap items-center justify-center gap-[6px] px-[24px] pb-[30px] pt-[10px] md:px-[32px]">
           {SETTINGS_TABS.map((key) => {
             const isActive = activeTab === key
             const label = t(`settings.tab.${key}` as never) as string
@@ -68,10 +72,10 @@ export function Settings() {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`flex items-center px-4 py-2 text-[13px] font-medium tracking-tight whitespace-nowrap transition-colors rounded-full ${
+                className={`flex h-[36px] min-w-[72px] items-center justify-center rounded-full px-[16px] text-[13px] font-bold tracking-normal whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10'
-                    : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
+                    ? 'bg-black text-white shadow-[0_4px_16px_rgba(0,0,0,0.10)] dark:bg-white dark:text-black'
+                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-black dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-surface-hover)] dark:hover:text-[var(--color-text-primary)]'
                 }`}
               >
                 {label}
@@ -79,7 +83,7 @@ export function Settings() {
             )
           })}
         </div>
-        <div className="px-6 pb-10">
+        <div className="px-[24px] pb-[40px] md:px-[32px]">
           {activeTab === 'permissions' && <PermissionSettings />}
           {activeTab === 'general' && <GeneralSettings />}
           {activeTab === 'agents' && <AgentsSettings />}
@@ -377,7 +381,7 @@ function ProviderCatalogItem({
   const t = useTranslation()
   return (
     <div
-      className={`relative overflow-hidden rounded-lg border transition-all ${
+      className={`relative overflow-hidden rounded-[12px] border transition-all ${
         isActive
           ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-accent-glow)]'
           : 'border-[var(--color-border)] bg-[var(--color-surface-container)] hover:border-[var(--color-border-focus)]'
@@ -386,7 +390,7 @@ function ProviderCatalogItem({
       {isActive && (
         <span className="absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg bg-[var(--color-brand)]" />
       )}
-      <div className="flex items-center gap-4 px-5 py-4">
+      <div className="flex min-h-[76px] items-center gap-[14px] px-[20px] py-[14px]">
         <ProviderLogo name={name} logoUrl={logoUrl} active={isActive} />
 
         <div className="min-w-0 flex-1">
@@ -420,7 +424,7 @@ function ProviderCatalogItem({
           )}
         </div>
 
-        <div className={`flex shrink-0 items-center gap-1.5 ${isConfigured ? '' : 'opacity-95'}`}>
+        <div className={`flex shrink-0 items-center gap-[8px] ${isConfigured ? '' : 'opacity-95'}`}>
           {actions}
         </div>
       </div>
@@ -472,7 +476,7 @@ function ProviderLogo({
 
   return (
     <div
-      className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border ${
+      className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border ${
         active
           ? 'border-[var(--color-brand)]/40 bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-accent-glow)]'
           : 'border-[var(--color-border)] bg-[var(--color-surface-container-high)]'
@@ -809,7 +813,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3">
+        <div className="flex min-h-[76px] items-start gap-[12px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[16px] py-[12px]">
           <ProviderLogo name={selectedPreset.name} logoUrl={getProviderLogoUrl(selectedPreset)} active={false} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -829,7 +833,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
               type="button"
               onClick={() => openExternalUrl(selectedPreset.websiteUrl)}
               aria-label={t('settings.providers.openProviderSite')}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+              className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
             >
               <Icon name="arrow_outward" size={16} />
             </button>
@@ -854,13 +858,13 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-..."
-                className="h-10 w-full rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 pr-10 text-[14px] text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-brand)] focus:shadow-[var(--shadow-accent-glow)]"
+                className="h-[40px] w-full rounded-[10px] border border-[var(--color-border)] bg-white px-[14px] pr-[40px] text-[13px] font-medium text-[var(--color-text-primary)] outline-none transition-colors duration-150 placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)] dark:bg-[var(--color-surface-container-low)]"
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey((visible) => !visible)}
                 aria-label={showApiKey ? 'Hide API Key' : 'Show API Key'}
-                className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+                className="absolute right-[6px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
               >
                 <Icon name={showApiKey ? 'visibility_off' : 'visibility'} size={16} />
               </button>
@@ -869,7 +873,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
               <button
                 type="button"
                 onClick={() => openExternalUrl(apiKeyUrl)}
-                className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-transparent px-3 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
+                className="h-[40px] flex-shrink-0 cursor-pointer rounded-full border border-[var(--color-border)] bg-transparent px-[14px] text-[13px] font-bold text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
               >
                 {t('settings.providers.getApiKey')}
               </button>
@@ -878,7 +882,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
               type="button"
               onClick={handleTest}
               disabled={isTesting || !baseUrl.trim() || !models.main.trim()}
-              className="h-10 flex-shrink-0 cursor-pointer rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-transparent px-3 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
+              className="h-[40px] flex-shrink-0 cursor-pointer rounded-full border border-[var(--color-border)] bg-transparent px-[14px] text-[13px] font-bold text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:opacity-40"
             >
               {isTesting ? `${t('settings.providers.testConnection')}…` : t('settings.providers.testConnection')}
             </button>
@@ -906,7 +910,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             type="button"
             onClick={() => apiKeyUrl && openExternalUrl(apiKeyUrl)}
             disabled={!apiKeyUrl}
-            className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[var(--radius-sm)] border border-[var(--color-brand)]/30 bg-[var(--color-accent-glow)] px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-brand)]/55 hover:bg-[var(--color-accent-glow)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default disabled:hover:border-[var(--color-brand)]/30 disabled:hover:bg-[var(--color-accent-glow)]"
+            className="group flex w-full cursor-pointer items-start gap-1.5 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2.5 py-1.5 text-left text-[11px] leading-5 text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:cursor-default"
           >
             <Icon name="tips_and_updates" size={18} className="mt-0.5 text-[13px] text-[var(--color-brand)]" />
             <span>{promoText}</span>
@@ -945,7 +949,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                     trigger={
                       <button
                         type="button"
-                        className="flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-left text-[14px] text-[var(--color-text-primary)] outline-none transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-container-low)] focus-visible:border-[var(--color-border-focus)] focus-visible:shadow-[var(--shadow-focus-ring)]"
+                        className="flex h-[40px] w-full items-center gap-[12px] rounded-[10px] border border-[var(--color-border)] bg-white px-[14px] text-left text-[13px] font-medium text-[var(--color-text-primary)] outline-none transition-colors hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-container-low)] focus-visible:border-[var(--color-border-focus)] focus-visible:shadow-[var(--shadow-focus-ring)] dark:bg-[var(--color-surface-container-low)]"
                       >
                         <span className="min-w-0 flex-1 truncate">{selectedApiFormatLabel}</span>
                         <Icon name="expand_more" size={18} className="flex-shrink-0 text-[18px] text-[var(--color-text-secondary)]" />
@@ -959,7 +963,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
               ) : apiFormat !== 'anthropic' ? (
                 <div>
                   <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-1 block">{t('settings.providers.apiFormat')}</label>
-                  <div className="text-[12px] text-[var(--color-text-tertiary)] px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border-2 border-[var(--color-border)]">
+                  <div className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[14px] py-[10px] text-[12px] text-[var(--color-text-tertiary)]">
                     {apiFormat === 'openai_chat' ? t('settings.providers.apiFormatOpenaiChat') : t('settings.providers.apiFormatOpenaiResponses')}
                   </div>
                 </div>
@@ -1012,7 +1016,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                   }}
                   rows={16}
                   spellCheck={false}
-                  className={`w-full text-[12px] px-3 py-3 rounded-[var(--radius-md)] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
+                  className={`w-full text-[12px] px-3 py-3 rounded-[10px] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
                     settingsJsonError
                       ? 'border-[var(--color-error)] focus:border-[var(--color-error)]'
                       : 'border-[var(--color-border)] focus:border-[var(--color-border-focus)]'
@@ -1047,17 +1051,17 @@ export function PermissionSettings() {
 
   return (
     <SettingsPage>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-[8px]">
         {MODES.map(({ mode, icon, label, desc }) => {
           const isSelected = permissionMode === mode
           return (
             <button
               key={mode}
               onClick={() => setPermissionMode(mode)}
-              className={`flex items-center gap-3 rounded-md border-2 px-4 py-3 text-left transition-all duration-200 ${
+              className={`flex min-h-[76px] items-center gap-[12px] rounded-[12px] border px-[16px] py-[12px] text-left transition-colors duration-150 ${
                 isSelected
                   ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-accent-glow)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface-container)] hover:border-[var(--color-border-focus)]'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface-container)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
               }`}
             >
               <Icon
@@ -1066,8 +1070,8 @@ export function PermissionSettings() {
                 className={isSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-tertiary)]'}
               />
               <div className="flex-1">
-                <div className={`text-[14px] font-semibold tracking-[-0.01em] ${isSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-primary)]'}`}>{label}</div>
-                <div className={`text-[12px] mt-0.5 ${isSelected ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-tertiary)]'}`}>{desc}</div>
+                <div className={`text-[14px] font-semibold tracking-normal ${isSelected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-primary)]'}`}>{label}</div>
+                <div className={`mt-[3px] text-[12px] leading-[18px] ${isSelected ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-tertiary)]'}`}>{desc}</div>
               </div>
               {isSelected && (
                 <Icon name="check_circle" size={18} className="text-[var(--color-brand)]" />
@@ -1214,13 +1218,13 @@ export function AgentsSettings() {
           </button>
         </div>
       ) : listedAgents.length === 0 ? (
-        <div className="text-center py-12 px-4 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+        <div className="text-center py-12 px-4 rounded-[12px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
           <Icon name="account_tree" size={40} className="text-[var(--color-text-tertiary)] mb-3 block" />
           <p className="text-[14px] text-[var(--color-text-secondary)] mb-1">{t('settings.agents.empty')}</p>
           <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.agents.emptyHint')}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2 min-w-0">
+        <div className="flex min-w-0 flex-col gap-[8px]">
           {listedAgents.map((agent) => {
             const sourceLabel = t(`settings.agents.source.${agent.source}`)
             const isSelected = isSameAgent(agent, selectedAgent)
@@ -1229,14 +1233,14 @@ export function AgentsSettings() {
               <article
                 key={`${agent.source}-${agent.agentType}`}
                 aria-current={isSelected ? 'true' : undefined}
-                className={`rounded-lg border px-4 py-3 transition-colors min-w-0 ${
+                className={`min-h-[76px] rounded-[12px] border px-[16px] py-[12px] transition-colors min-w-0 ${
                   isSelected
                     ? 'border-[var(--color-border-focus)] bg-[var(--color-brand)]/5'
-                    : 'border-[var(--color-border)] bg-[var(--color-surface)]'
+                    : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)]'
                 }`}
               >
                 <div className="flex items-start gap-3 min-w-0">
-                  <span className="relative mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
+                  <span className="relative mt-[2px] flex h-[36px] w-[36px] flex-shrink-0 items-center justify-center rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
                     <Icon
                       name="account_tree"
                       size={17}
@@ -1312,7 +1316,7 @@ function getAgentSourceRank(source: AgentSource) {
 
 function MetaPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
+    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[10px] py-[4px] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-tertiary)]">
       {children}
     </span>
   )
@@ -1360,13 +1364,13 @@ export function SkillSettings() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
-      <header className="flex flex-col gap-1.5 pb-2">
-        <h1 className="text-[24px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+    <div className="mx-auto flex w-full max-w-[896px] flex-col gap-[24px]">
+      <header className="flex min-h-[76px] flex-col justify-center gap-[6px] pb-[4px]">
+        <h1 className="text-[22px] font-bold tracking-normal text-[var(--color-text-primary)]">
           {t('settings.skills.title')}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[13px] leading-[1.6] text-[var(--color-text-secondary)]">
+          <p className="text-[13px] leading-[20px] text-[var(--color-text-secondary)]">
             {t('settings.skills.description')}
           </p>
           <Button
@@ -1376,7 +1380,7 @@ export function SkillSettings() {
             onClick={openConfigDir}
             loading={openingConfig}
             icon={<Icon name="folder_open" size={14} />}
-            className="h-7 max-w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 font-mono text-[11px] font-medium normal-case tracking-normal text-[var(--color-text-secondary)]"
+            className="h-[36px] max-w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[12px] font-mono text-[11px] font-medium normal-case tracking-normal text-[var(--color-text-secondary)]"
             aria-label={t('settings.skills.openConfigPath')}
             title={t('settings.skills.openConfigPath')}
           >
@@ -1488,7 +1492,7 @@ export function AboutSettings() {
     <div className="w-full min-w-0 max-w-[480px] mx-auto flex flex-col items-center py-10">
       {/* Logo + App Name + Version */}
       <img src="/app-icon.png" alt="CyberCode" className="w-24 h-24 mb-5 rounded-[22px]" />
-      <h1 className="text-[26px] font-semibold tracking-tight text-[var(--color-text-primary)]">CyberCode</h1>
+      <h1 className="text-[24px] font-bold tracking-tight text-[var(--color-text-primary)]">CyberCode</h1>
       {version && (
         <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--color-text-secondary)]">
           <span>{t('settings.about.version')} {version}</span>
@@ -1506,7 +1510,7 @@ export function AboutSettings() {
       <div className="mt-6 w-full">
         <button
           onClick={() => openUrl(GITHUB_STAR_URL)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-md border-2 border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+          className="flex min-h-[76px] w-full cursor-pointer items-center gap-[12px] rounded-[12px] border border-[var(--color-border)] px-[16px] py-[12px] transition-colors hover:bg-[var(--color-surface-hover)]"
         >
           <img src="/icons/github.svg" alt="GitHub" className="w-5 h-5 opacity-70" />
           <div className="flex-1 text-left">
@@ -1516,7 +1520,7 @@ export function AboutSettings() {
         </button>
       </div>
 
-      <div className="mt-4 w-full rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-4">
+      <div className="mt-4 w-full rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-[16px]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[14px] font-medium text-[var(--color-text-primary)]">{t('settings.about.updates')}</div>
@@ -1534,7 +1538,7 @@ export function AboutSettings() {
           </Button>
         </div>
 
-        <div className="mt-4 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3">
+        <div className="mt-4 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] px-[12px] py-[12px]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
@@ -1588,7 +1592,7 @@ export function AboutSettings() {
           )}
 
           {releaseNotes && availableVersion && (
-            <div className="mt-3 rounded-lg bg-[var(--color-surface-container-low)] px-3 py-3">
+            <div className="mt-3 rounded-[12px] bg-[var(--color-surface-container-low)] px-3 py-3">
               <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
                 {t('update.releaseNotes')}
               </div>
@@ -1618,7 +1622,7 @@ export function AboutSettings() {
       <div className="mt-6 w-full">
         <button
           onClick={() => openUrl(GITHUB_ISSUES)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-md border-2 border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+          className="flex min-h-[76px] w-full cursor-pointer items-center gap-[12px] rounded-[12px] border border-[var(--color-border)] px-[16px] py-[12px] transition-colors hover:bg-[var(--color-surface-hover)]"
         >
           <Icon name="feedback" size={20} className="text-[var(--color-text-tertiary)]" />
           <div className="flex-1 text-left">

@@ -12,12 +12,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   stencil?: boolean
 }
 
-// Cyberpunk-refined: accent gradient CTA, terminal console glow.
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)] hover:shadow-[var(--shadow-accent-glow)] active:opacity-90 shadow-[var(--shadow-button-primary)]',
+    'bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] hover:bg-[var(--color-btn-primary-bg-hover)] active:opacity-90 shadow-[0_4px_14px_rgba(0,0,0,0.10)]',
   secondary:
-    'bg-[var(--color-surface-container)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:border-[var(--color-border-focus)]',
+    'bg-[var(--color-surface-container)] border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-border-focus)]',
   danger:
     'bg-[var(--color-error)] text-[var(--color-btn-danger-fg)] hover:opacity-90 shadow-[0_4px_14px_rgba(255,59,48,0.30)]',
   ghost:
@@ -25,9 +24,9 @@ const variantStyles: Record<ButtonVariant, string> = {
 }
 
 const sizeStyles = {
-  sm: 'h-8 px-3.5 text-[12px]',
-  md: 'h-9 px-5 text-[13px]',
-  lg: 'h-11 px-6 text-[14px]',
+  sm: 'h-[36px] px-[14px] text-[13px]',
+  md: 'h-[40px] px-[18px] text-[13px]',
+  lg: 'h-[44px] px-[22px] text-[14px]',
 }
 
 export function Button({
@@ -48,7 +47,7 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={`
-        inline-flex items-center justify-center gap-1.5 rounded-[8px]
+        inline-flex items-center justify-center gap-1.5 rounded-full
         ${stencilClass} transition-all duration-200 cursor-pointer
         focus:shadow-[var(--shadow-focus-ring)]
         disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none

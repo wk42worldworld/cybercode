@@ -24,7 +24,7 @@ function StatusIcon({ ok }: { ok: boolean | null }) {
 
 function StatusRow({ label, ok, detail }: { label: string; ok: boolean | null; detail: string }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 px-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container)]">
+    <div className="flex items-center gap-3 py-2.5 px-4 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)]">
       <StatusIcon ok={ok} />
       <div className="flex-1 min-w-0">
         <span className="text-[14px] font-medium text-[var(--color-text-primary)]">{label}</span>
@@ -207,7 +207,7 @@ export function ComputerUseSettings() {
       ) : status ? (
         <>
           {!status.supported && (
-            <div className="px-4 py-3 rounded-lg bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/40 text-[14px] text-[var(--color-warning)]">
+            <div className="px-4 py-3 rounded-[12px] bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/40 text-[14px] text-[var(--color-warning)]">
               {t('settings.computerUse.notSupported')}
             </div>
           )}
@@ -257,13 +257,13 @@ export function ComputerUseSettings() {
                 }
               />
               {(accessibilityNeedsAttention || screenRecordingNeedsAttention) && (
-                <div className="flex flex-col gap-2 px-4 py-3 rounded-lg bg-[var(--color-warning)]/5 border border-[var(--color-warning)]/30">
+                <div className="flex flex-col gap-2 px-4 py-3 rounded-[12px] bg-[var(--color-warning)]/5 border border-[var(--color-warning)]/30">
                   <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('settings.computerUse.permRestartHint')}</p>
                   <div className="flex gap-2">
                     {accessibilityNeedsAttention && (
                       <button
                         onClick={() => openSystemSettings('Privacy_Accessibility')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-brand)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold text-[var(--color-brand)] border border-[var(--color-border)] rounded-full hover:bg-[var(--color-surface-hover)]"
                       >
                         <Icon name="open_in_new" size={14} />
                         {t('settings.computerUse.openAccessibility')}
@@ -272,7 +272,7 @@ export function ComputerUseSettings() {
                     {screenRecordingNeedsAttention && (
                       <button
                         onClick={() => openSystemSettings('Privacy_ScreenCapture')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-[var(--color-brand)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-surface-hover)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold text-[var(--color-brand)] border border-[var(--color-border)] rounded-full hover:bg-[var(--color-surface-hover)]"
                       >
                         <Icon name="open_in_new" size={14} />
                         {t('settings.computerUse.openScreenRecording')}
@@ -285,14 +285,14 @@ export function ComputerUseSettings() {
           )}
 
           {allReady && (status.platform !== 'darwin' || (status.permissions.accessibility && screenRecordingReady)) && (
-            <div className="px-4 py-3 rounded-lg bg-[var(--color-success)]/10 border border-[var(--color-brand)]/40 text-[14px] text-[var(--color-success)] flex items-center gap-2">
+            <div className="px-4 py-3 rounded-[12px] bg-[var(--color-success)]/10 border border-[var(--color-brand)]/40 text-[14px] text-[var(--color-success)] flex items-center gap-2">
               <Icon name="verified" size={18} />
               {t('settings.computerUse.allReady')}
             </div>
           )}
 
           {setupResult && (
-            <div className={`rounded-lg border p-4 space-y-2 ${setupResult.success ? 'bg-[var(--color-success)]/5 border-[var(--color-success)]/30' : 'bg-[var(--color-error)]/5 border-[var(--color-error)]/30'}`}>
+            <div className={`rounded-[12px] border p-4 space-y-2 ${setupResult.success ? 'bg-[var(--color-success)]/5 border-[var(--color-success)]/30' : 'bg-[var(--color-error)]/5 border-[var(--color-error)]/30'}`}>
               <div className={`text-[14px] font-medium ${setupResult.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                 {setupResult.success ? t('settings.computerUse.setupSuccess') : t('settings.computerUse.setupFail')}
               </div>
@@ -384,7 +384,7 @@ export function ComputerUseSettings() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={t('settings.computerUse.appsSearch')}
-                  className="w-full pl-9 pr-4 py-2 text-[14px] bg-[var(--color-surface-container-low)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-brand)] focus:shadow-[var(--shadow-accent-glow)]"
+                  className="h-[40px] w-full rounded-[10px] border border-[var(--color-border)] bg-white py-2 pl-9 pr-4 text-[13px] font-medium text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)] dark:bg-[var(--color-surface-container-low)]"
                 />
               </div>
 
@@ -398,7 +398,7 @@ export function ComputerUseSettings() {
                   {t('settings.computerUse.appsEmpty')}
                 </div>
               ) : (
-                <div className="max-h-[400px] overflow-y-auto rounded-lg border border-[var(--color-border)]">
+                <div className="max-h-[400px] overflow-y-auto rounded-[12px] border border-[var(--color-border)]">
                   {sortedApps.map(app => {
                     const isAuthorized = authorizedBundleIds.has(app.bundleId)
                     return (

@@ -13,7 +13,7 @@ function RunOutput({ run }: { run: TaskRun }) {
   // Show error prominently if present
   if (run.error) {
     return (
-      <div className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-[var(--radius-sm)] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/28 p-2.5 text-[12px] text-[var(--color-error)]">
+      <div className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-[10px] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/28 p-2.5 text-[12px] text-[var(--color-error)]">
         {run.error}
       </div>
     )
@@ -23,7 +23,7 @@ function RunOutput({ run }: { run: TaskRun }) {
 
   if (!text) {
     return (
-      <div className="mt-2 p-2.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-container)] text-[12px] text-[var(--color-text-tertiary)] italic">
+      <div className="mt-2 rounded-[10px] bg-[var(--color-surface-container)] p-2.5 text-[12px] italic text-[var(--color-text-tertiary)]">
         {run.sessionId ? t('tasks.outputHintSession') : t('tasks.noOutputText')}
       </div>
     )
@@ -31,7 +31,7 @@ function RunOutput({ run }: { run: TaskRun }) {
 
   // Render AI text response with proper formatting (not monospace <pre>)
   return (
-    <div className="mt-2 p-2.5 rounded-[var(--radius-sm)] bg-[var(--color-surface-container)] text-[12px] text-[var(--color-text-secondary)] whitespace-pre-wrap break-words max-h-48 overflow-y-auto leading-relaxed">
+    <div className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap break-words rounded-[10px] bg-[var(--color-surface-container)] p-2.5 text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
       {text}
     </div>
   )
@@ -102,7 +102,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
   }, [hasRunning, taskId, refreshKey])
 
   return (
-    <div className="mt-2 mb-1 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+    <div className="mb-1 mt-2 overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[var(--color-surface-container)]">
         <span className="text-[12px] font-medium text-[var(--color-text-primary)]">{t('tasks.logsTitle')}</span>
@@ -162,7 +162,7 @@ export function TaskRunsPanel({ taskId, onClose, refreshKey }: Props) {
                       {run.sessionId && run.status !== 'running' && (
                         <button
                           onClick={() => openSession(run.sessionId!, run.taskName)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-[#FE2C55] bg-[#FE2C55]/[0.08] hover:bg-[#FE2C55]/[0.16] rounded-[var(--radius-sm)] transition-colors"
+                          className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-container-low)] px-2 py-1 text-[12px] font-bold text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)]"
                         >
                           <Icon name="open_in_new" size={14} />
                           {t('tasks.openSession')}

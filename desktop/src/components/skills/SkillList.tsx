@@ -17,10 +17,10 @@ const SOURCE_ICONS: Record<SkillSource, string> = {
 }
 
 const SOURCE_ACCENT_CLASSES: Record<SkillSource, string> = {
-  user: 'bg-[var(--color-primary-fixed)] text-[var(--color-brand)]',
-  project: 'bg-[var(--color-success-container)] text-[var(--color-success)]',
-  plugin: 'bg-[var(--color-warning-container)] text-[var(--color-warning)]',
-  mcp: 'bg-[var(--color-info-container)] text-[var(--color-info)]',
+  user: 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]',
+  project: 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]',
+  plugin: 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]',
+  mcp: 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]',
   bundled: 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)]',
 }
 
@@ -77,7 +77,7 @@ export function SkillList() {
 
   if (skills.length === 0) {
     return (
-      <div className="text-center py-12 rounded-lg border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6">
+      <div className="text-center py-12 rounded-[12px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-6">
         <Icon name="auto_awesome" size={40} className="text-[var(--color-text-tertiary)] mb-2 block" />
         <p className="text-[14px] text-[var(--color-text-tertiary)]">
           {t('settings.skills.empty')}
@@ -90,7 +90,7 @@ export function SkillList() {
   }
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="min-w-0 overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="divide-y divide-[var(--color-border)]">
         {SOURCE_ORDER.map((source) => {
           const group = grouped[source]
@@ -107,15 +107,15 @@ export function SkillList() {
               key={source}
               className="min-w-0"
             >
-              <div className="flex min-h-10 items-center justify-between gap-3 bg-[var(--color-surface-container-low)] px-4 py-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className={`inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${SOURCE_ACCENT_CLASSES[source]}`}>
+              <div className="flex min-h-[56px] items-center justify-between gap-[16px] bg-[var(--color-surface-container-low)] px-[16px] py-[10px]">
+                <div className="flex min-w-0 items-center gap-[8px]">
+                  <span className={`inline-flex h-[28px] w-[28px] flex-shrink-0 items-center justify-center rounded-lg ${SOURCE_ACCENT_CLASSES[source]}`}>
                     <Icon name={SOURCE_ICONS[source]} size={14} />
                   </span>
                   <h4 className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
                     {sourceLabel}
                   </h4>
-                  <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+                    <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[8px] py-[2px] text-[10px] font-medium text-[var(--color-text-tertiary)]">
                     {group.length}
                   </span>
                 </div>
@@ -134,7 +134,7 @@ export function SkillList() {
                   return (
                     <div
                       key={`${skill.source}-${skill.name}`}
-                      className={`group flex min-h-16 w-full items-stretch transition-colors hover:bg-[var(--color-surface-hover)] ${
+                      className={`group flex min-h-[76px] w-full items-stretch transition-colors hover:bg-[var(--color-surface-hover)] ${
                         isEnabled ? '' : 'bg-[var(--color-surface-container-low)]'
                       }`}
                     >
@@ -145,7 +145,7 @@ export function SkillList() {
                           fetchSkillDetail(skill.source, skill.name, currentWorkDir, 'skills')
                         }
                         disabled={!skill.hasDirectory}
-                        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-inset disabled:cursor-default disabled:opacity-60"
+                        className="flex min-w-0 flex-1 items-start gap-[12px] px-[16px] py-[12px] text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 focus-visible:ring-inset disabled:cursor-default disabled:opacity-60 dark:focus-visible:ring-white/20"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -169,17 +169,17 @@ export function SkillList() {
                               </span>
                             )}
                           </div>
-                          <p className="mt-0.5 line-clamp-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">
+                          <p className="mt-[3px] line-clamp-1 text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
                             {skill.description}
                           </p>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
+                          <div className="mt-[6px] flex flex-wrap items-center gap-x-[10px] gap-y-[4px] text-[11px] text-[var(--color-text-tertiary)]">
                             <span>{t('settings.skills.tokenEstimateShort', { count: String(estimateTokens(skill.contentLength)) })}</span>
                             <span>{skill.hasDirectory ? t('settings.skills.ready') : t('settings.skills.unavailable')}</span>
                           </div>
                         </div>
                         <Icon name="chevron_right" size={16} className="mt-2 flex-shrink-0 text-[var(--color-text-tertiary)] opacity-50 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
                       </button>
-                      <div className={`flex flex-shrink-0 items-center gap-2 pr-4 ${isPending ? 'opacity-60' : ''}`}>
+                      <div className={`flex flex-shrink-0 items-center gap-[8px] pr-[16px] ${isPending ? 'opacity-60' : ''}`}>
                         <span className="hidden text-[11px] font-medium text-[var(--color-text-tertiary)] sm:inline">
                           {isEnabled ? t('settings.skills.enabled') : t('settings.skills.disabled')}
                         </span>

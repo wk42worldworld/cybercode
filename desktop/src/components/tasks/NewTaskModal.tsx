@@ -150,7 +150,7 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
     }
   }
 
-  const selectClass = 'w-full h-10 px-3 pr-8 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] appearance-none cursor-pointer'
+  const selectClass = 'w-full h-10 px-3 pr-8 rounded-[10px] border border-[var(--color-border)] bg-white text-[13px] font-medium text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)] appearance-none cursor-pointer dark:bg-[var(--color-surface-container-low)]'
 
   return (
     <Modal
@@ -167,7 +167,7 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
       }
     >
       {/* Info banner */}
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] mb-5">
+      <div className="mb-5 flex items-center gap-2.5 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-3.5 py-2.5">
         <Icon name="info" size={18} className="text-[var(--color-text-secondary)]" />
         <span className="text-[12px] text-[var(--color-text-secondary)]">
           {t('newTask.localWarning')}
@@ -208,7 +208,7 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
 
         {/* Frequency */}
         <div className="flex flex-col gap-1">
-          <label className="text-[14px] font-medium text-[var(--color-text-primary)]">{t('newTask.frequency')}</label>
+          <label className="text-[13px] font-bold text-[var(--color-text-primary)]">{t('newTask.frequency')}</label>
           <div className="relative">
             <select
               value={frequency}
@@ -294,7 +294,7 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
               value={customCron}
               onChange={(e) => setCustomCron(e.target.value)}
               placeholder={t('newTask.cronFormatHint')}
-              className="w-full h-10 px-3 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] text-[14px] text-[var(--color-text-primary)] font-[var(--font-mono)] outline-none focus:border-[var(--color-border-focus)]"
+              className="h-10 w-full rounded-[10px] border border-[var(--color-border)] bg-white px-3 font-mono text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)] dark:bg-[var(--color-surface-container-low)]"
             />
             <span className="text-[12px] text-[var(--color-text-tertiary)]">{t('newTask.cronFormatHint')}</span>
             {customCron.trim() && !isValidCron(customCron) && (
@@ -310,14 +310,14 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="w-auto h-10 px-3 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] bg-[var(--color-surface)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+              className="h-10 w-auto rounded-[10px] border border-[var(--color-border)] bg-white px-3 text-[13px] font-medium text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)] dark:bg-[var(--color-surface-container-low)]"
               style={{ maxWidth: 120 }}
             />
           </div>
         )}
 
         {/* Notification */}
-        <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] p-3">
+        <div className="flex flex-col gap-3 rounded-[12px] border border-[var(--color-border)] p-3">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -326,7 +326,7 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
               className="w-4 h-4 rounded border-[var(--color-border)] accent-[var(--color-brand)]"
             />
             <div>
-              <span className="text-[14px] font-medium text-[var(--color-text-primary)]">{t('newTask.notifyOnComplete')}</span>
+              <span className="text-[14px] font-bold text-[var(--color-text-primary)]">{t('newTask.notifyOnComplete')}</span>
               <p className="text-[12px] text-[var(--color-text-tertiary)]">{t('newTask.notifyHint')}</p>
             </div>
           </label>
@@ -379,7 +379,7 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
         </div>
 
         {/* Cron preview */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-md)] bg-[var(--color-surface-container)] text-[12px] text-[var(--color-text-secondary)]">
+        <div className="flex items-center gap-2 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
           <Icon name="schedule" size={16} />
           <span>
             {frequency === 'customCron' && customCron.trim() && !isValidCron(customCron)
@@ -396,4 +396,3 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
     </Modal>
   )
 }
-

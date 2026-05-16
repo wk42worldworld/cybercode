@@ -502,6 +502,8 @@ describe('MessageList nested tool calls', () => {
 
     const userShell = screen.getByText('请把这条 prompt 放在右侧').closest('[data-message-shell="user"]')
     const assistantShell = screen.getByText('这条回复应该停在左侧。').closest('[data-message-shell="assistant"]')
+    const userBubble = screen.getByText('请把这条 prompt 放在右侧').closest('[data-message-bubble="user"]')
+    const assistantBubble = screen.getByText('这条回复应该停在左侧。').closest('[data-message-bubble="assistant"]')
     const userActions = screen.getByRole('button', { name: 'Copy prompt' }).closest('[data-message-actions]')
     const assistantActions = screen.getByRole('button', { name: 'Copy reply' }).closest('[data-message-actions]')
 
@@ -510,6 +512,11 @@ describe('MessageList nested tool calls', () => {
     expect(assistantShell).toBeTruthy()
     expect(assistantShell?.className).not.toContain('items-end')
     expect(assistantShell?.className).not.toContain('ml-10')
+    expect(userBubble?.className).toContain('px-[24px]')
+    expect(userBubble?.className).toContain('py-[16px]')
+    expect(assistantBubble?.className).toContain('px-[24px]')
+    expect(assistantBubble?.className).toContain('py-[16px]')
+    expect(assistantBubble?.className).not.toContain('p-[20px]')
     expect(userActions?.getAttribute('data-align')).toBe('end')
     expect(assistantActions?.getAttribute('data-align')).toBe('start')
   })
@@ -544,9 +551,12 @@ describe('MessageList nested tool calls', () => {
     render(<MessageList __testInitialItemCount={100} />)
 
     const assistantShell = screen.getByText('交付结果').closest('[data-message-shell="assistant"]')
+    const assistantBubble = screen.getByText('交付结果').closest('[data-message-bubble="assistant"]')
     expect(assistantShell?.getAttribute('data-layout')).toBe('document')
     expect(assistantShell?.className).toContain('w-full')
     expect(assistantShell?.className).not.toContain('ml-10')
+    expect(assistantBubble?.className).toContain('px-[24px]')
+    expect(assistantBubble?.className).toContain('py-[16px]')
   })
 
   it('opens a rewind preview modal for user messages', async () => {

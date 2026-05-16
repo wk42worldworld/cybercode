@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo, memo, useState, useCallback } from 'react'
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
+import { useRef, useEffect, useMemo, memo, useState, useCallback, forwardRef } from 'react'
+import { Virtuoso, type ScrollerProps, type VirtuosoHandle } from 'react-virtuoso'
 import { ApiError } from '../../api/client'
 import { sessionsApi, type SessionRewindResponse } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
@@ -110,12 +110,31 @@ type MessageListProps = {
   sessionId?: string | null
   projectPath?: string
   isActive?: boolean
+  bottomOverlayHeight?: number
   /** Forces Virtuoso to render this many items on the first render,
    * regardless of viewport size. Used for testing in jsdom. */
   __testInitialItemCount?: number
 }
 
-export function MessageList({ sessionId, projectPath, isActive: _isActive = true, __testInitialItemCount }: MessageListProps = {}) {
+const MessageScroller = forwardRef<HTMLDivElement, ScrollerProps>(function MessageScroller({ style, ...props }, ref) {
+  return (
+    <div
+      {...props}
+      ref={ref}
+      className="message-scrollbar scrollbar-no-track"
+      style={{
+        ...style,
+        overflowY: 'scroll',
+        scrollbarGutter: 'stable',
+      }}
+    />
+  )
+})
+
+const MIN_BOTTOM_SPACER_HEIGHT = 176
+const BOTTOM_SPACER_CLEARANCE = 8
+
+export function MessageList({ sessionId, projectPath, isActive: _isActive = true, bottomOverlayHeight = 0, __testInitialItemCount }: MessageListProps = {}) {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const resolvedSessionId = sessionId ?? activeTabId
   const sessionState = useChatStore((s) =>
@@ -140,16 +159,27 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const loadMoreHistory = useChatStore((s) => s.loadMoreHistory)
   const loadMoreRecent = useChatStore((s) => s.loadMoreRecent)
   const recentBuffer = sessionState?.recentBuffer ?? []
+  const listIdentity = `${resolvedSessionId ?? 'no-session'}:${projectPath ?? ''}`
+  const bottomSpacerHeight = bottomOverlayHeight > 0
+    ? Math.max(MIN_BOTTOM_SPACER_HEIGHT, Math.ceil(bottomOverlayHeight) + BOTTOM_SPACER_CLEARANCE)
+    : MIN_BOTTOM_SPACER_HEIGHT
 
   const virtuosoRef = useRef<VirtuosoHandle>(null)
-  // Tracks which session has already received its initial scroll-to-bottom.
-  // Resets on every (re)mount because the component is destroyed on session switch.
-  const sessionScrolledRef = useRef<string | null>(null)
+  const scrollerElementRef = useRef<HTMLElement | null>(null)
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   // Track whether the user is near the bottom of the list. Used to decide whether
   // auto-scroll during streaming is appropriate. If the user has scrolled up to
   // read history, we must NOT force them back to the bottom.
   const isNearBottomRef = useRef(true)
+  const autoFollowCurrentTurnRef = useRef(false)
+  const initialBottomKeyRef = useRef(listIdentity)
+  const pendingInitialBottomRef = useRef(!__testInitialItemCount)
+  const initialBottomRangeIncludesLastRef = useRef(false)
+  const initialBottomLayoutVersionRef = useRef(0)
+  const initialBottomScrollRafRef = useRef<number | null>(null)
+  const initialBottomCompleteFirstRafRef = useRef<number | null>(null)
+  const initialBottomCompleteSecondRafRef = useRef<number | null>(null)
+  const initialBottomCompleteThirdRafRef = useRef<number | null>(null)
 
   const t = useTranslation()
   const [rewindTarget, setRewindTarget] = useState<{
@@ -176,6 +206,14 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     () => buildRenderModel(messages),
     [messages],
   )
+  const renderItemsLengthRef = useRef(renderItems.length)
+  renderItemsLengthRef.current = renderItems.length
+  const latestRenderItem = renderItems[renderItems.length - 1]
+  const latestRenderItemKey = latestRenderItem
+    ? `${listIdentity}:${getRenderItemId(latestRenderItem)}`
+    : `${listIdentity}:empty`
+  const latestRenderItemIsUserMessage = latestRenderItem?.kind === 'message' && latestRenderItem.message.type === 'user_text'
+  const latestRenderItemKeyRef = useRef(latestRenderItemKey)
 
   // Standard order: oldest at top, newest at bottom.
   // firstItemIndex starts at 0 and DECREASES when older history is prepended at the
@@ -188,6 +226,19 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   // back to the bottom.
   const firstItemIndexRef = useRef(0)
   const prevRenderItemsRef = useRef<RenderItem[]>([])
+  const listIdentityRef = useRef(listIdentity)
+
+  if (listIdentityRef.current !== listIdentity) {
+    listIdentityRef.current = listIdentity
+    initialBottomKeyRef.current = listIdentity
+    firstItemIndexRef.current = 0
+    prevRenderItemsRef.current = []
+    pendingInitialBottomRef.current = !__testInitialItemCount
+    initialBottomRangeIncludesLastRef.current = false
+    initialBottomLayoutVersionRef.current = 0
+    isNearBottomRef.current = true
+    autoFollowCurrentTurnRef.current = false
+  }
 
   // Compute firstItemIndex synchronously during render.
   // firstItemIndex must reflect the actual change in renderItems (the data Virtuoso sees),
@@ -236,25 +287,215 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   // at the last (newest) message immediately. For async-loaded sessions
   // (renderItems.length === 0 at mount), fall back to 0 (default top); then
   // followOutput handles scrolling to bottom once messages arrive.
-  const initialScrollTarget = useRef<number | { index: number; align: 'end' }>(
-    renderItems.length > 0
-      ? { index: firstItemIndex + renderItems.length - 1, align: 'end' as const }
-      : 0,
+  const initialScrollTarget = useMemo<number | { index: 'LAST'; align: 'end' }>(
+    () => (
+      __testInitialItemCount
+        ? 0
+        : renderItems.length > 0
+          ? { index: 'LAST' as const, align: 'end' as const }
+          : 0
+    ),
+    [__testInitialItemCount, listIdentity, renderItems.length],
   )
 
-  // Scroll to bottom (newest message) the first time data is available for this session.
-  // Uses a per-mount ref so it fires exactly once per session instance — not on every
-  // render, not when loadMoreHistory grows the list, not when streaming appends messages.
-  // followOutput keeps the list at bottom for subsequent streaming messages.
-  useEffect(() => {
-    if (renderItems.length === 0) return
-    if (sessionScrolledRef.current === resolvedSessionId) return
-    sessionScrolledRef.current = resolvedSessionId
-    const lastIndex = firstItemIndex + renderItems.length - 1
+  const cancelInitialBottomFrames = useCallback(() => {
+    if (initialBottomScrollRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomScrollRafRef.current)
+      initialBottomScrollRafRef.current = null
+    }
+    if (initialBottomCompleteFirstRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomCompleteFirstRafRef.current)
+      initialBottomCompleteFirstRafRef.current = null
+    }
+    if (initialBottomCompleteSecondRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomCompleteSecondRafRef.current)
+      initialBottomCompleteSecondRafRef.current = null
+    }
+    if (initialBottomCompleteThirdRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomCompleteThirdRafRef.current)
+      initialBottomCompleteThirdRafRef.current = null
+    }
+  }, [])
+
+  const setScrollerRef = useCallback((ref: HTMLElement | Window | null) => {
+    scrollerElementRef.current = ref && 'scrollTop' in ref ? ref : null
+  }, [])
+
+  const scrollScrollerToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const scroller = scrollerElementRef.current
+    if (!scroller) return
+
+    const top = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+    if (behavior === 'auto' || typeof scroller.scrollTo !== 'function') {
+      scroller.scrollTop = top
+      return
+    }
+
+    scroller.scrollTo({ top, behavior })
+  }, [])
+
+  const scrollToLatest = useCallback((behavior: 'auto' | 'smooth' = 'auto', key = initialBottomKeyRef.current) => {
+    if (key !== initialBottomKeyRef.current) return
+    if (renderItemsLengthRef.current === 0) return
+    virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior })
+    if (behavior === 'auto') {
+      virtuosoRef.current?.autoscrollToBottom()
+    }
     requestAnimationFrame(() => {
-      virtuosoRef.current?.scrollToIndex({ index: lastIndex, align: 'end', behavior: 'auto' })
+      if (key !== initialBottomKeyRef.current) return
+      scrollScrollerToBottom(behavior)
+      if (behavior === 'auto') {
+        requestAnimationFrame(() => {
+          if (key !== initialBottomKeyRef.current) return
+          scrollScrollerToBottom('auto')
+        })
+      }
     })
-  }, [resolvedSessionId, renderItems.length, firstItemIndex])
+  }, [scrollScrollerToBottom])
+
+  const completeInitialBottom = useCallback((key = initialBottomKeyRef.current) => {
+    if (key !== initialBottomKeyRef.current) return
+    if (!pendingInitialBottomRef.current) return
+    pendingInitialBottomRef.current = false
+    initialBottomRangeIncludesLastRef.current = false
+    isNearBottomRef.current = true
+    cancelInitialBottomFrames()
+  }, [cancelInitialBottomFrames])
+
+  const scheduleInitialBottomCompletion = useCallback((key = initialBottomKeyRef.current) => {
+    if (key !== initialBottomKeyRef.current) return
+    if (!pendingInitialBottomRef.current) return
+    if (renderItemsLengthRef.current === 0) return
+    if (!initialBottomRangeIncludesLastRef.current) return
+
+    const layoutVersion = initialBottomLayoutVersionRef.current
+
+    if (initialBottomCompleteFirstRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomCompleteFirstRafRef.current)
+      initialBottomCompleteFirstRafRef.current = null
+    }
+    if (initialBottomCompleteSecondRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomCompleteSecondRafRef.current)
+      initialBottomCompleteSecondRafRef.current = null
+    }
+    if (initialBottomCompleteThirdRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomCompleteThirdRafRef.current)
+      initialBottomCompleteThirdRafRef.current = null
+    }
+
+    initialBottomCompleteFirstRafRef.current = requestAnimationFrame(() => {
+      initialBottomCompleteFirstRafRef.current = null
+      if (key !== initialBottomKeyRef.current || !pendingInitialBottomRef.current) return
+      if (layoutVersion !== initialBottomLayoutVersionRef.current) return
+
+      initialBottomCompleteSecondRafRef.current = requestAnimationFrame(() => {
+        initialBottomCompleteSecondRafRef.current = null
+        if (key !== initialBottomKeyRef.current || !pendingInitialBottomRef.current) return
+        if (layoutVersion !== initialBottomLayoutVersionRef.current) return
+
+        scrollToLatest('auto', key)
+
+        initialBottomCompleteThirdRafRef.current = requestAnimationFrame(() => {
+          initialBottomCompleteThirdRafRef.current = null
+          if (key !== initialBottomKeyRef.current) return
+          if (layoutVersion !== initialBottomLayoutVersionRef.current) return
+          completeInitialBottom(key)
+        })
+      })
+    })
+  }, [completeInitialBottom, scrollToLatest])
+
+  const scheduleInitialBottomScroll = useCallback((key = initialBottomKeyRef.current) => {
+    if (key !== initialBottomKeyRef.current) return
+    if (!pendingInitialBottomRef.current) return
+    if (renderItemsLengthRef.current === 0) return
+
+    if (initialBottomScrollRafRef.current !== null) {
+      cancelAnimationFrame(initialBottomScrollRafRef.current)
+      initialBottomScrollRafRef.current = null
+    }
+
+    initialBottomScrollRafRef.current = requestAnimationFrame(() => {
+      initialBottomScrollRafRef.current = null
+      if (key !== initialBottomKeyRef.current || !pendingInitialBottomRef.current) return
+      scrollToLatest('auto', key)
+
+      initialBottomScrollRafRef.current = requestAnimationFrame(() => {
+        initialBottomScrollRafRef.current = null
+        if (key !== initialBottomKeyRef.current || !pendingInitialBottomRef.current) return
+        scrollToLatest('auto', key)
+        scheduleInitialBottomCompletion(key)
+      })
+    })
+  }, [scheduleInitialBottomCompletion, scrollToLatest])
+
+  useEffect(() => {
+    return () => cancelInitialBottomFrames()
+  }, [listIdentity, cancelInitialBottomFrames])
+
+  // On a session switch, keep the list locked to the newest message until
+  // Virtuoso has data, has rendered the last row, and its measured height has
+  // settled. This prevents cached sessions, async-loaded sessions, and tall
+  // markdown/tool-result sessions from landing at different scroll positions.
+  useEffect(() => {
+    if (__testInitialItemCount) return
+    const key = listIdentity
+    if (renderItems.length === 0) {
+      if (historyLoadState === 'loaded') {
+        completeInitialBottom(key)
+      }
+      return
+    }
+
+    if (!pendingInitialBottomRef.current) return
+    isNearBottomRef.current = true
+    initialBottomLayoutVersionRef.current += 1
+    scheduleInitialBottomScroll(key)
+  }, [
+    listIdentity,
+    renderItems.length,
+    historyLoadState,
+    __testInitialItemCount,
+    completeInitialBottom,
+    scheduleInitialBottomScroll,
+  ])
+
+  useEffect(() => {
+    if (__testInitialItemCount) return
+    if (renderItems.length === 0) return
+    if (!pendingInitialBottomRef.current && !isNearBottomRef.current && !autoFollowCurrentTurnRef.current) return
+
+    initialBottomLayoutVersionRef.current += 1
+    if (pendingInitialBottomRef.current) {
+      scheduleInitialBottomScroll(listIdentity)
+      return
+    }
+
+    requestAnimationFrame(() => scrollToLatest('auto', listIdentity))
+  }, [
+    __testInitialItemCount,
+    bottomSpacerHeight,
+    listIdentity,
+    renderItems.length,
+    scheduleInitialBottomScroll,
+    scrollToLatest,
+  ])
+
+  useEffect(() => {
+    const previousLatestKey = latestRenderItemKeyRef.current
+    latestRenderItemKeyRef.current = latestRenderItemKey
+    if (previousLatestKey === latestRenderItemKey) return
+    if (!latestRenderItemIsUserMessage) return
+
+    isNearBottomRef.current = true
+    autoFollowCurrentTurnRef.current = true
+    requestAnimationFrame(() => scrollToLatest('smooth', listIdentity))
+  }, [
+    latestRenderItemIsUserMessage,
+    latestRenderItemKey,
+    listIdentity,
+    scrollToLatest,
+  ])
 
   // Track previous chatState so we can detect the exact moment the AI starts
   // responding (idle -> streaming/thinking/tool_executing) and scroll immediately.
@@ -263,13 +504,17 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     const prevChatState = prevChatStateRef.current
     prevChatStateRef.current = chatState
 
+    if (chatState === 'idle') {
+      autoFollowCurrentTurnRef.current = false
+    }
+
     // 1) AI just started responding — scroll to bottom only if the user was near
     //    the bottom. If the user was reading history (scrolled up), don't pull
     //    them back down — they can scroll down manually when ready.
     if (prevChatState === 'idle' && chatState !== 'idle') {
       if (isNearBottomRef.current) {
         requestAnimationFrame(() => {
-          virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'smooth' })
+          scrollToLatest('smooth')
         })
       }
       return
@@ -277,13 +522,13 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
     // 2) AI is actively streaming text — keep following ONLY if the user is near
     //    the bottom. If they scrolled up to read history, respect that.
-    if (chatState !== 'idle' && streamingText && isNearBottomRef.current) {
+    if (chatState !== 'idle' && streamingText && (isNearBottomRef.current || autoFollowCurrentTurnRef.current)) {
       const timer = setTimeout(() => {
-        virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'smooth' })
+        scrollToLatest('smooth')
       }, 50)
       return () => clearTimeout(timer)
     }
-  }, [streamingText, chatState])
+  }, [streamingText, chatState, scrollToLatest])
 
 
   // Rewind preview fetch
@@ -362,6 +607,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
   // Load older history when user scrolls to the TOP (startReached).
   const handleStartReached = useCallback(() => {
+    if (pendingInitialBottomRef.current) return
     if (!resolvedSessionId || isLoadingMoreHistory) return
     if (allMessagesLoaded && (sessionState?.historyBuffer?.length ?? 0) === 0) return
     setIsLoadingMoreHistory(true)
@@ -373,6 +619,43 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     if (!resolvedSessionId || recentBuffer.length === 0) return
     loadMoreRecent(resolvedSessionId)
   }, [resolvedSessionId, recentBuffer.length, loadMoreRecent])
+
+  const handleRangeChanged = useCallback((range: { startIndex: number; endIndex: number }) => {
+    if (!pendingInitialBottomRef.current) return
+    const lastItemIndex = firstItemIndexRef.current + renderItemsLengthRef.current - 1
+    if (renderItemsLengthRef.current > 0 && range.endIndex >= lastItemIndex) {
+      initialBottomRangeIncludesLastRef.current = true
+      scheduleInitialBottomScroll()
+    }
+  }, [scheduleInitialBottomScroll])
+
+  const handleItemsRendered = useCallback((items: Array<{ index: number }>) => {
+    if (!pendingInitialBottomRef.current) return
+    const lastItemIndex = firstItemIndexRef.current + renderItemsLengthRef.current - 1
+    if (renderItemsLengthRef.current > 0 && items.some((item) => item.index >= lastItemIndex)) {
+      initialBottomRangeIncludesLastRef.current = true
+      scheduleInitialBottomScroll()
+    }
+  }, [scheduleInitialBottomScroll])
+
+  const handleAtBottomStateChange = useCallback((isAtBottom: boolean) => {
+    if (pendingInitialBottomRef.current) {
+      isNearBottomRef.current = true
+      if (isAtBottom) {
+        scheduleInitialBottomCompletion()
+      } else {
+        scheduleInitialBottomScroll()
+      }
+      return
+    }
+    isNearBottomRef.current = autoFollowCurrentTurnRef.current ? true : isAtBottom
+  }, [scheduleInitialBottomCompletion, scheduleInitialBottomScroll])
+
+  const handleTotalListHeightChanged = useCallback(() => {
+    if (!pendingInitialBottomRef.current) return
+    initialBottomLayoutVersionRef.current += 1
+    scheduleInitialBottomScroll()
+  }, [scheduleInitialBottomScroll])
 
   const getItemContent = useCallback(
     (index: number, item: RenderItem | undefined) => {
@@ -441,7 +724,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const showEmptyOverlay = messages.length === 0 && historyLoadState !== 'loaded'
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden wechat-chat-bg wechat-scrollbar">
+    <div className="wechat-chat-bg scrollbar-no-track flex flex-1 flex-col overflow-hidden">
       {showEmptyOverlay && historyLoadState === 'error' && (
         <div className="mx-auto my-6 flex max-w-[420px] flex-col items-center gap-3 rounded-[10px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-5 py-5 text-center">
           <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">聊天记录加载失败</div>
@@ -472,30 +755,39 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
       {!showEmptyOverlay && (
         <Virtuoso
+          key={listIdentity}
           ref={virtuosoRef}
           data={renderItems}
           firstItemIndex={firstItemIndex}
           itemContent={getItemContent}
-          initialTopMostItemIndex={initialScrollTarget.current}
+          initialTopMostItemIndex={initialScrollTarget}
           startReached={handleStartReached}
           endReached={handleEndReached}
+          rangeChanged={handleRangeChanged}
+          itemsRendered={handleItemsRendered}
+          atBottomStateChange={handleAtBottomStateChange}
+          totalListHeightChanged={handleTotalListHeightChanged}
+          scrollerRef={setScrollerRef}
           followOutput={(isAtBottom) => {
             // Track whether the user is near the bottom for other scroll effects.
-            isNearBottomRef.current = isAtBottom
+            isNearBottomRef.current = pendingInitialBottomRef.current || autoFollowCurrentTurnRef.current ? true : isAtBottom
+            if (pendingInitialBottomRef.current) return 'auto'
             // Always respect the user's scroll position. If they scrolled up to
             // read history, don't force them back to the bottom — even during
             // streaming. When they're at the bottom, follow output smoothly.
-            return isAtBottom ? 'smooth' : false
+            return isAtBottom || autoFollowCurrentTurnRef.current ? 'smooth' : false
           }}
           increaseViewportBy={{ top: 400, bottom: 400 }}
           initialItemCount={__testInitialItemCount}
           style={{ height: '100%' }}
           components={{
+            Scroller: MessageScroller,
             Header: isLoadingMoreHistory ? LoadingMoreHistoryHeader : undefined,
             Footer: () => (
               <ListFooter
                 streamingText={streamingText}
                 chatState={chatState}
+                bottomSpacerHeight={bottomSpacerHeight}
               />
             ),
           }}
@@ -620,17 +912,18 @@ function LoadingMoreHistoryHeader() {
 function ListFooter({
   streamingText,
   chatState,
+  bottomSpacerHeight,
 }: {
   streamingText: string
   chatState: string
+  bottomSpacerHeight: number
 }) {
   return (
     <div>
       {streamingText && (
         <AssistantMessage content={streamingText} isStreaming={chatState === 'streaming'} />
       )}
-      {/* Small spacer for visual breathing room */}
-      <div className="h-4" />
+      <div className="shrink-0" style={{ height: bottomSpacerHeight }} />
     </div>
   )
 }
@@ -659,9 +952,9 @@ export const MessageBlock = memo(function MessageBlock({
 
   // Wrap non-user/assistant messages in iMessage-style assistant bubble
   const wrapInAssistantBubble = (content: React.ReactNode) => (
-    <div className="flex justify-start w-full px-8 py-1">
-      <div className="flex flex-col w-fit max-w-[75%]">
-        <div className="bg-[var(--color-message-assistant-bg)] text-[var(--color-text-primary)] rounded-[20px] rounded-bl-[6px] px-4 py-2.5 border border-[var(--color-border-separator)] shadow-sm shadow-black/[0.03] dark:shadow-black/20">
+    <div className="flex w-full justify-center px-[24px] py-[12px]">
+      <div className="flex w-full max-w-[878px] flex-col items-start">
+        <div className="chat-bubble-text w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-neutral-200 bg-white px-[24px] py-[16px] text-[15px] font-normal leading-relaxed tracking-normal text-neutral-800">
           {content}
         </div>
       </div>
@@ -691,7 +984,7 @@ export const MessageBlock = memo(function MessageBlock({
         />
       )
     case 'thinking':
-      // Thinking is shown exclusively in the floating ThinkingIndicator above ChatInput.
+      // Thinking is shown exclusively in the floating panel above the message list.
       // Never render it as a chat bubble in the message list.
       return null
     case 'tool_use':

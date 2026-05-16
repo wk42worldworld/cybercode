@@ -197,7 +197,7 @@ export function AdapterSettings() {
                 {t('settings.adapters.pairedUsers')}
               </h4>
               {allPairedUsers.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-4 py-5 text-center text-[13px] text-[var(--color-text-tertiary)]">
+                <p className="rounded-[12px] border border-dashed border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-4 py-5 text-center text-[13px] text-[var(--color-text-tertiary)]">
                   {t('settings.adapters.noPairedUsers')}
                 </p>
               ) : (
@@ -205,7 +205,7 @@ export function AdapterSettings() {
                   {allPairedUsers.map((user) => (
                     <div
                       key={`${user.platform}-${user.userId}`}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-3 py-2.5"
+                      className="flex items-center justify-between gap-3 rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-3 py-2.5"
                     >
                       <div className="min-w-0 flex items-center gap-2">
                         <span className="rounded bg-[var(--color-surface-container)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-text-secondary)]">

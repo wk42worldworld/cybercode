@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { ChevronRight, Folder, FolderOpen, GitBranch } from 'lucide-react'
 import { sessionsApi, type RecentProject } from '../../api/sessions'
 import { filesystemApi } from '../../api/filesystem'
 import { useTranslation } from '../../i18n'
@@ -8,6 +9,7 @@ import { Icon } from './Icon'
 type Props = {
   value: string
   onChange: (path: string) => void
+  variant?: 'default' | 'pill'
 }
 
 type DirEntry = { name: string; path: string; isDirectory: boolean }
@@ -21,7 +23,7 @@ function isTauriRuntime() {
   return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 }
 
-export function DirectoryPicker({ value, onChange }: Props) {
+export function DirectoryPicker({ value, onChange, variant = 'default' }: Props) {
   const t = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [mode, setMode] = useState<'recent' | 'browse'>('recent')
@@ -137,6 +139,9 @@ export function DirectoryPicker({ value, onChange }: Props) {
 
   // Find selected project info
   const selectedProject = projects.find((p) => p.realPath === value)
+  const triggerClassName = variant === 'pill'
+    ? 'flex h-[36px] items-center gap-[8px] rounded-full border border-neutral-200 bg-white px-[16px] text-[13px] font-bold leading-[16px] text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-black'
+    : 'flex h-[32px] items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 text-[12px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
 
   return (
     <div ref={ref} className="relative">
@@ -145,30 +150,48 @@ export function DirectoryPicker({ value, onChange }: Props) {
         <button
           ref={triggerRef}
           onClick={() => { setIsOpen(!isOpen); setMode('recent') }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-surface-container-low)] hover:bg-[var(--color-surface-hover)] rounded-md text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors"
+          className={triggerClassName}
         >
-          {selectedProject?.isGit ? (
+          {variant === 'pill' ? (
+            selectedProject?.isGit ? (
+              <GitBranch size={14} strokeWidth={1.75} className="shrink-0 text-neutral-500" />
+            ) : (
+              <Folder size={14} strokeWidth={1.75} className="shrink-0 text-neutral-500" />
+            )
+          ) : selectedProject?.isGit ? (
             <Icon name="account_tree" size={14} className="shrink-0 text-[var(--color-text-secondary)]" />
           ) : (
             <Icon name="folder" size={14} className="shrink-0" />
           )}
-          <span className="truncate max-w-[120px] text-[var(--color-text-primary)]">
+          <span className={`truncate ${variant === 'pill' ? 'max-w-[120px] text-neutral-700' : 'max-w-[120px] text-[var(--color-text-primary)]'}`}>
             {selectedProject?.repoName || selectedProject?.projectName || value.split('/').pop()}
           </span>
           {selectedProject?.branch && (
-            <span className="text-[var(--color-text-tertiary)] truncate max-w-[72px]">{selectedProject.branch}</span>
+            <span className={`truncate max-w-[72px] ${variant === 'pill' ? 'text-neutral-400' : 'text-[var(--color-text-tertiary)]'}`}>{selectedProject.branch}</span>
           )}
-          <Icon name="expand_more" size={12} className="shrink-0" />
+          {variant === 'pill' ? (
+            <ChevronRight size={14} strokeWidth={2} className="shrink-0 rotate-90" />
+          ) : (
+            <Icon name="expand_more" size={12} className="shrink-0" />
+          )}
         </button>
       ) : (
         <button
           ref={triggerRef}
           onClick={() => { setIsOpen(!isOpen); setMode('recent') }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--color-surface-container-low)] hover:bg-[var(--color-surface-hover)] rounded-md text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors"
+          className={triggerClassName}
         >
-          <Icon name="folder_open" size={14} />
+          {variant === 'pill' ? (
+            <FolderOpen size={14} strokeWidth={1.75} className="shrink-0 text-neutral-500" />
+          ) : (
+            <Icon name="folder_open" size={14} />
+          )}
           <span>{t('dirPicker.selectProject')}</span>
-          <Icon name="expand_more" size={12} />
+          {variant === 'pill' ? (
+            <ChevronRight size={14} strokeWidth={2} className="shrink-0 rotate-90" />
+          ) : (
+            <Icon name="expand_more" size={12} />
+          )}
         </button>
       )}
 
@@ -176,7 +199,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
       {isOpen && dropdownPos && createPortal(
         <div
           ref={dropdownRef}
-          className="w-[320px] overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
+          className="settings-ui native-ui-text w-[320px] overflow-hidden rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
           style={{
             position: 'fixed',
             left: dropdownPos.left,
@@ -203,7 +226,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
                       <button
                         key={project.projectPath}
                         onClick={() => handleSelect(project.realPath)}
-                        className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group ${
+                        className={`w-full flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-left transition-colors group ${
                           isSelected ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'
                         }`}
                       >
@@ -265,7 +288,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
                 ) : (
                   <>
                     {browseParent && browseParent !== browsePath && (
-                      <button onClick={() => loadBrowseDir(browseParent)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors">
+                      <button onClick={() => loadBrowseDir(browseParent)} className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] text-left hover:bg-[var(--color-surface-hover)] transition-colors">
                         <Icon name="arrow_upward" size={14} className="text-[var(--color-text-tertiary)]" />
                         <span className="text-[12px] text-[var(--color-text-secondary)]">..</span>
                       </button>
@@ -275,13 +298,13 @@ export function DirectoryPicker({ value, onChange }: Props) {
                     ) : browseEntries.map((entry) => (
                       <button
                         key={entry.path}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] text-left hover:bg-[var(--color-surface-hover)] transition-colors"
                       >
                         <span onClick={() => loadBrowseDir(entry.path)}>
                           <Icon name="folder" size={14} className="text-[var(--color-text-tertiary)]" />
                         </span>
                         <span className="text-[12px] text-[var(--color-text-secondary)] flex-1" onClick={() => loadBrowseDir(entry.path)}>{entry.name}</span>
-                        <button onClick={() => handleSelect(entry.path)} className="px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded transition-colors">
+                        <button onClick={() => handleSelect(entry.path)} className="px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)] rounded-full transition-colors">
                           {t('common.select')}
                         </button>
                       </button>
@@ -293,7 +316,7 @@ export function DirectoryPicker({ value, onChange }: Props) {
               {/* Use current folder */}
               <div className="px-3 py-2 border-t border-[var(--color-border-separator)] flex justify-between items-center">
                 <span className="text-[10px] text-[var(--color-text-tertiary)] font-mono truncate">{browsePath}</span>
-                <button onClick={() => handleSelect(browsePath)} className="px-3 py-1.5 bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] text-[12px] font-semibold rounded-lg hover:bg-[var(--color-btn-primary-bg-hover)] transition-colors">
+                <button onClick={() => handleSelect(browsePath)} className="px-3 py-1.5 bg-[var(--color-btn-primary-bg)] text-[var(--color-btn-primary-fg)] text-[12px] font-bold rounded-full hover:bg-[var(--color-btn-primary-bg-hover)] transition-colors">
                   {t('dirPicker.useThisFolder')}
                 </button>
               </div>

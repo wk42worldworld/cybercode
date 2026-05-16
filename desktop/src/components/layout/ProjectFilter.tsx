@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { Folder } from 'lucide-react'
 import { sessionsApi, type RecentProject } from '../../api/sessions'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTranslation } from '../../i18n'
@@ -183,17 +184,17 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
         title={triggerLabel}
         className={
           variant === 'embedded'
-            ? `inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors duration-200 ${
+            ? `inline-flex h-[24px] w-[24px] items-center justify-center rounded-full transition-colors ${
               isAllSelected
-                ? 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
-                : 'text-[var(--color-text-secondary)] bg-[var(--color-surface-selected)] hover:bg-[var(--color-surface-hover)]'
+                ? 'text-neutral-500 hover:bg-neutral-100 hover:text-black'
+                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-black'
             }`
             : 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-2 text-left text-[14px] text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-surface-hover)]'
         }
       >
         {variant === 'embedded' ? (
           <span className="relative flex items-center justify-center">
-            <Icon name="folder" size={14} />
+            <Folder size={14} strokeWidth={1.75} />
             {!isAllSelected && (
               <span className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-[var(--color-text-secondary)]" />
             )}
@@ -202,7 +203,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
           <>
             <Icon name="folder" size={14} className="text-[var(--color-text-secondary)]" />
             <span className="min-w-0">
-              <span className="block truncate text-[14px] font-semibold tracking-tight">{label}</span>
+              <span className="block truncate text-[14px] font-semibold">{label}</span>
             </span>
             <span className="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center text-[var(--color-text-tertiary)] transition-colors">
               <Icon name="expand_more" size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -241,7 +242,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                     key={option.projectPath}
                     type="button"
                     onClick={() => toggleProject(option.projectPath)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left group ${
+                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group ${
                       checked
                         ? 'bg-[var(--color-surface-selected)]'
                         : 'hover:bg-[var(--color-surface-hover)]'

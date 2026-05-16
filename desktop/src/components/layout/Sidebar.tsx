@@ -1,26 +1,38 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { Check, ChevronDown, Folder, Inbox, Plus, Search, Zap } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
-import { ProjectFilter } from './ProjectFilter'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useTabStore } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
 import { getDefaultSessionTitle, getSessionDisplayTitle } from '../../utils/sessionTitle'
-import { Icon } from '../shared/Icon'
 import { NewSessionMenu } from './NewSessionMenu'
+import type { SessionListItem } from '../../types/session'
 
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 type SessionRef = { id: string; projectPath?: string }
+type SidebarProjectOption = {
+  projectPath: string
+  title: string
+  subtitle: string | null
+  count: number
+  modifiedAt: string | null
+}
 
 function sessionKey(id: string, projectPath?: string): string {
   return `${id}:${projectPath ?? ''}`
+}
+
+function isTemporarySession(session: SessionListItem) {
+  return !session.workDir || !session.projectPath
 }
 
 export function Sidebar() {
   const sessions = useSessionStore((s) => s.sessions)
   const selectedProjects = useSessionStore((s) => s.selectedProjects)
   const availableProjects = useSessionStore((s) => s.availableProjects)
+  const setSelectedProjects = useSessionStore((s) => s.setSelectedProjects)
   const error = useSessionStore((s) => s.error)
   const fetchSessions = useSessionStore((s) => s.fetchSessions)
   const deleteSession = useSessionStore((s) => s.deleteSession)
@@ -33,6 +45,7 @@ export function Sidebar() {
   const disconnectSession = useChatStore((s) => s.disconnectSession)
   const t = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
+  const [showTemporaryOnly, setShowTemporaryOnly] = useState(false)
   const [pendingSessionKey, setPendingSessionKey] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<(SessionRef & { x: number; y: number }) | null>(null)
   const [pendingDeleteSession, setPendingDeleteSession] = useState<SessionRef | null>(null)
@@ -63,7 +76,9 @@ export function Sidebar() {
 
   const filteredSessions = useMemo(() => {
     let result = sessions
-    if (selectedProjects.length > 0) {
+    if (showTemporaryOnly) {
+      result = result.filter(isTemporarySession)
+    } else if (selectedProjects.length > 0) {
       result = result.filter((s) => selectedProjects.includes(s.projectPath))
     }
     if (searchQuery) {
@@ -71,7 +86,21 @@ export function Sidebar() {
       result = result.filter((s) => getSessionDisplayTitle(s, t).toLowerCase().includes(q))
     }
     return result
-  }, [sessions, selectedProjects, searchQuery, t])
+  }, [sessions, selectedProjects, showTemporaryOnly, searchQuery, t])
+
+  const temporarySessionCount = useMemo(
+    () => sessions.filter(isTemporarySession).length,
+    [sessions],
+  )
+
+  const projectOptions = useMemo(
+    () => buildSidebarProjectOptions(sessions, availableProjects, t('sidebar.other')),
+    [availableProjects, sessions, t],
+  )
+
+  useEffect(() => {
+    if (showTemporaryOnly && selectedProjects.length > 0) setShowTemporaryOnly(false)
+  }, [selectedProjects, showTemporaryOnly])
 
   const selectedProject = useMemo(() => {
     if (selectedProjects.length !== 1) return undefined
@@ -173,73 +202,78 @@ export function Sidebar() {
   return (
     <aside
       onMouseDown={handleSidebarDrag}
-      className="sidebar-panel relative h-full w-full flex flex-col select-none bg-transparent"
+      className="sidebar-panel native-ui-text relative flex h-full w-full select-none flex-col bg-[#fafafa]"
       data-state="open"
       aria-label="Sidebar"
     >
-      <div className="flex-1 flex flex-col overflow-hidden pt-4">
+      <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* ── Top Profile Area ── */}
-        <div className="flex items-center px-6 pb-4">
-          <div className="group/logo flex items-center gap-3 p-2 -ml-2 text-black/90 dark:text-white/90 cursor-default"
-               style={{ perspective: '200px' }}>
-            <div className="relative w-9 h-9 rounded-[14px] flex items-center justify-center shrink-0 transition-transform duration-75 ease-out group-hover/logo:scale-[0.92]"
-                 style={{ willChange: 'transform' }}>
-              <div className="absolute inset-0 bg-white/60 dark:bg-white/10 border border-white/40 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.05)] rounded-[14px]" />
-              <div className="relative w-4 h-4 border-[3px] border-black dark:border-white rounded-md opacity-80 transition-all duration-75 ease-out group-hover/logo:opacity-100 group-hover/logo:scale-110"
-                   style={{ willChange: 'transform, opacity' }} />
-            </div>
-            <span className="text-[15px] font-semibold tracking-tight transition-transform duration-75 ease-out group-hover/logo:translate-x-[1px]"
-                  style={{ willChange: 'transform' }}>CyberCode</span>
+        <div className="flex h-[76px] items-center gap-[10px] px-[20px]">
+          <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full border-2 border-neutral-200 bg-white">
+            <div className="h-[12px] w-[12px] rounded-full border-2 border-black" />
           </div>
+          <span className="text-[17px] font-bold tracking-tight text-neutral-900">CyberCode</span>
         </div>
 
         {/* ── Search + New Session ── */}
-        <div className="px-5 pb-4">
-          <div className="relative group flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                id="sidebar-search"
-                type="text"
-                placeholder={t('sidebar.searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/40 dark:bg-black/20 border border-white/50 dark:border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[20px] px-4 py-2.5 pl-10 pr-10 text-[14px] focus:outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/5 transition-all placeholder:text-black/40 dark:placeholder:text-white/40 text-black dark:text-white font-medium"
-              />
-              <Icon name="search" size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/30 dark:text-white/30" />
-              {availableProjects.length > 1 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <ProjectFilter variant="embedded" />
-                </span>
-              )}
-            </div>
+        <div className="px-[16px]">
+          <div className="relative">
+            <Search size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+            <input
+              id="sidebar-search"
+              type="text"
+              placeholder={t('sidebar.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-[44px] w-full rounded-full border-2 border-neutral-200 bg-white pl-[40px] pr-[44px] text-[13px] font-medium text-neutral-900 outline-none transition-colors placeholder:text-neutral-400 focus:border-black"
+            />
             <button
               ref={newSessionButtonRef}
               type="button"
               onClick={handleNewSession}
               title={t('sidebar.newSession')}
               aria-label={t('sidebar.newSession')}
-              className="shrink-0 flex h-[42px] w-[42px] items-center justify-center rounded-[20px] bg-white/40 dark:bg-black/20 border border-white/50 dark:border-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.02)] text-black/60 dark:text-white/60 hover:bg-black/[0.08] dark:hover:bg-white/[0.12] hover:text-black dark:hover:text-white transition-all"
+              className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black"
             >
-              <Icon name="add" size={18} className="opacity-70" />
+              <Plus size={16} strokeWidth={1.75} />
             </button>
           </div>
+          <SessionScopeSelector
+            projectOptions={projectOptions}
+            selectedProjects={selectedProjects}
+            showTemporaryOnly={showTemporaryOnly}
+            totalCount={sessions.length}
+            temporaryCount={temporarySessionCount}
+            onSelectAll={() => {
+              setShowTemporaryOnly(false)
+              setSelectedProjects([])
+            }}
+            onSelectTemporary={() => {
+              setShowTemporaryOnly(true)
+              setSelectedProjects([])
+            }}
+            onSelectProject={(projectPath) => {
+              setShowTemporaryOnly(false)
+              setSelectedProjects([projectPath])
+            }}
+          />
         </div>
 
         {/* ── Sessions List ── */}
-        <div data-testid="sidebar-session-list-section" className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
-          <div className="pb-6">
+        <div data-testid="sidebar-session-list-section" className="scrollbar-no-track flex-1 overflow-y-auto no-scrollbar scroll-smooth">
+          <div className="mt-[20px] flex flex-col gap-[8px] px-[12px] pb-[16px]">
           {error && (
-            <div className="mx-4 mt-2 rounded-[16px] border border-red-500/20 bg-red-500/5 px-4 py-3">
+            <div className="rounded-[16px] border border-red-500/20 bg-red-500/5 px-4 py-3">
               <div className="text-[11px] font-medium text-red-500">{t('sidebar.sessionListFailed')}</div>
               <div className="mt-1 text-[10px] text-black/40 dark:text-white/40 break-words">{error}</div>
               <button onClick={() => fetchSessions()} className="mt-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-brand)] hover:underline">{t('common.retry')}</button>
             </div>
           )}
           {filteredSessions.length === 0 && (
-            <div className="px-4 py-6 text-center text-[11px] italic text-black/40 dark:text-white/40">{searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}</div>
+            <div className="py-6 text-center text-[11px] italic text-black/40 dark:text-white/40">{searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}</div>
           )}
-          <div>
+          <div className="flex flex-col gap-2">
             {filteredSessions.map((session) => {
               const currentKey = sessionKey(session.id, session.projectPath)
               const activeKey = activeTab ? sessionKey(activeTab.sessionId, activeTab.projectPath) : activeTabId
@@ -258,7 +292,7 @@ export function Sidebar() {
                         if (e.key === 'Enter') handleFinishRename()
                         if (e.key === 'Escape') { setRenamingSession(null); setRenameValue('') }
                       }}
-                      className="ml-1 w-[calc(100%-0.5rem)] rounded-[16px] border border-white/50 dark:border-white/10 bg-white/60 dark:bg-black/40 px-4 py-2 text-[14px] text-black dark:text-white outline-none focus:ring-2 focus:ring-black/5"
+                      className="h-[64px] w-full rounded-[12px] border border-neutral-200 bg-white px-[16px] py-[12px] text-[13px] leading-normal text-neutral-900 outline-none focus:border-black"
                     />
                   ) : (
                     <button
@@ -268,26 +302,26 @@ export function Sidebar() {
                         void useChatStore.getState().ensureSessionReady(session.id, session.projectPath)
                       }}
                       onContextMenu={(e) => handleContextMenu(e, { id: session.id, projectPath: session.projectPath })}
-                      className={`w-full flex px-5 py-4 rounded-none transition-colors duration-100 group relative ${
+                      className={`group relative flex min-h-[64px] w-full items-start justify-between overflow-hidden rounded-[12px] border p-[12px] text-left transition-colors ${
                         isActive
-                          ? 'bg-white/80 dark:bg-white/10 text-black dark:text-white'
-                          : 'bg-transparent hover:bg-white/90 dark:hover:bg-white/20 text-black/70 dark:text-white/70'
+                          ? 'border-white/10 bg-black/80 text-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] backdrop-blur-xl hover:border-white/20'
+                          : 'border-neutral-100/80 bg-white text-neutral-700 hover:border-neutral-200 hover:bg-neutral-50'
                       }`}
                     >
-                      <div className="flex items-center gap-3 w-full">
-                        <div className={`w-10 h-10 rounded-[4px] flex items-center justify-center shrink-0 text-[13px] font-semibold transition-colors ${isActive ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' : 'bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50'}`}>
+                      <div className="flex w-full items-center gap-[10px]">
+                        <div className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[12px] text-sm font-bold transition-colors ${isActive ? 'bg-white text-black' : 'bg-neutral-100 text-neutral-400 group-hover:bg-neutral-200'}`}>
                           {iconStr}
                         </div>
-                        <div className="flex-1 min-w-0 flex flex-col">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className={`text-[11px] font-medium leading-none truncate ${isActive ? 'text-black dark:text-white opacity-90' : ''}`}>
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className={`w-[130px] truncate text-[13px] font-bold leading-normal ${isActive ? 'text-white' : 'text-neutral-700'}`}>
                               {session.lastMessage || displayTitle}
                             </span>
-                            <span className={`text-[10px] shrink-0 font-medium ${isActive ? 'text-black/40 dark:text-white/50' : 'text-black/30 dark:text-white/30'}`}>
+                            <span className={`mt-0.5 shrink-0 text-[10px] font-bold ${isActive ? 'text-white/40' : 'text-neutral-300'}`}>
                               {formatRelativeTime(session.modifiedAt)}
                             </span>
                           </div>
-                          <p className="mt-0.5 text-[12px] leading-[1.4] text-black/50 dark:text-white/60 line-clamp-1 text-left">
+                          <p className={`mt-[2px] line-clamp-1 text-left text-[11px] font-medium leading-normal ${isActive ? 'text-white/65' : 'text-neutral-400'}`}>
                             {session.workDir
                               ? (!session.workDirExists ? <span className="text-amber-500" title={session.workDir ?? ''}>{t('sidebar.missingDir')}</span> : session.workDir.split('/').slice(-2).join('/'))
                               : '\u00A0'}
@@ -336,6 +370,228 @@ export function Sidebar() {
       />
     </aside>
   )
+}
+
+function SessionScopeSelector({
+  projectOptions,
+  selectedProjects,
+  showTemporaryOnly,
+  totalCount,
+  temporaryCount,
+  onSelectAll,
+  onSelectTemporary,
+  onSelectProject,
+}: {
+  projectOptions: SidebarProjectOption[]
+  selectedProjects: string[]
+  showTemporaryOnly: boolean
+  totalCount: number
+  temporaryCount: number
+  onSelectAll: () => void
+  onSelectTemporary: () => void
+  onSelectProject: (projectPath: string) => void
+}) {
+  const t = useTranslation()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selectedProject = selectedProjects.length === 1
+    ? projectOptions.find((option) => option.projectPath === selectedProjects[0])
+    : null
+  const label = showTemporaryOnly
+    ? t('sidebar.temporarySessions')
+    : selectedProject
+      ? selectedProject.title
+      : t('sidebar.allSessions')
+  useEffect(() => {
+    if (!open) return
+
+    const handleClick = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleClick, true)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClick, true)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  const choose = (action: () => void) => {
+    action()
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative mt-[8px]">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="relative h-[44px] w-full rounded-full border-2 border-neutral-200 bg-white pl-[40px] pr-[44px] text-left text-[13px] font-medium text-neutral-900 outline-none transition-colors hover:border-neutral-300 focus:border-black"
+      >
+        {showTemporaryOnly ? (
+          <Zap size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+        ) : selectedProject ? (
+          <Folder size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+        ) : (
+          <Inbox size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-neutral-400" />
+        )}
+        <span className="block min-w-0 truncate text-neutral-900">
+          {label}
+        </span>
+        <span className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black">
+          <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          aria-label={t('sidebar.sessionScope')}
+          className="absolute left-0 right-0 top-[50px] z-50 overflow-hidden rounded-[16px] border border-neutral-200 bg-white p-[6px] shadow-[0_16px_40px_rgba(0,0,0,0.14)]"
+        >
+          <SessionScopeMenuItem
+            icon={<Inbox size={15} strokeWidth={1.8} />}
+            label={t('sidebar.allSessions')}
+            count={totalCount}
+            checked={!showTemporaryOnly && selectedProjects.length === 0}
+            onClick={() => choose(onSelectAll)}
+          />
+          <SessionScopeMenuItem
+            icon={<Zap size={15} strokeWidth={1.8} />}
+            label={t('sidebar.temporarySessions')}
+            count={temporaryCount}
+            checked={showTemporaryOnly}
+            onClick={() => choose(onSelectTemporary)}
+          />
+          {projectOptions.length > 0 && (
+            <div className="my-[4px] h-px bg-neutral-100" />
+          )}
+          {projectOptions.map((option) => (
+            <SessionScopeMenuItem
+              key={option.projectPath}
+              icon={<Folder size={15} strokeWidth={1.8} />}
+              label={option.title}
+              detail={option.subtitle}
+              count={option.count}
+              checked={!showTemporaryOnly && selectedProjects.length === 1 && selectedProjects[0] === option.projectPath}
+              onClick={() => choose(() => onSelectProject(option.projectPath))}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SessionScopeMenuItem({
+  icon,
+  label,
+  detail,
+  count,
+  checked,
+  onClick,
+}: {
+  icon: ReactNode
+  label: string
+  detail?: string | null
+  count: number
+  checked: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={checked}
+      onClick={onClick}
+      className={`flex w-full items-center gap-[9px] rounded-[11px] px-[9px] py-[8px] text-left transition-colors ${
+        checked ? 'bg-neutral-100 text-neutral-950' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-950'
+      }`}
+    >
+      <span className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-[8px] bg-white text-neutral-500 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-bold">{label}</span>
+        {detail && (
+          <span className="mt-[1px] block truncate text-[10px] font-medium text-neutral-400">
+            {detail}
+          </span>
+        )}
+      </span>
+      <span className="shrink-0 rounded-full bg-white px-[6px] py-[2px] text-[10px] font-bold text-neutral-400 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+        {count}
+      </span>
+      <span className="flex h-[16px] w-[16px] shrink-0 items-center justify-center text-neutral-900">
+        {checked && <Check size={14} strokeWidth={2} />}
+      </span>
+    </button>
+  )
+}
+
+function buildSidebarProjectOptions(
+  sessions: SessionListItem[],
+  availableProjects: string[],
+  fallbackLabel: string,
+): SidebarProjectOption[] {
+  const availableSet = new Set(availableProjects)
+  const optionsByPath = new Map<string, SidebarProjectOption>()
+
+  for (const session of sessions) {
+    if (!session.projectPath || !availableSet.has(session.projectPath)) continue
+
+    const previous = optionsByPath.get(session.projectPath)
+    const title = session.workDir
+      ? basename(session.workDir)
+      : fallbackProjectTitle(session.projectPath, fallbackLabel)
+    const modifiedAt = session.modifiedAt || null
+    const isNewer = modifiedAt && (!previous?.modifiedAt || modifiedAt > previous.modifiedAt)
+
+    optionsByPath.set(session.projectPath, {
+      projectPath: session.projectPath,
+      title: previous && !isNewer ? previous.title : title,
+      subtitle: previous && !isNewer ? previous.subtitle : session.workDir,
+      count: (previous?.count ?? 0) + 1,
+      modifiedAt: previous && !isNewer ? previous.modifiedAt : modifiedAt,
+    })
+  }
+
+  for (const projectPath of availableProjects) {
+    if (optionsByPath.has(projectPath)) continue
+    optionsByPath.set(projectPath, {
+      projectPath,
+      title: fallbackProjectTitle(projectPath, fallbackLabel),
+      subtitle: null,
+      count: 0,
+      modifiedAt: null,
+    })
+  }
+
+  return [...optionsByPath.values()].sort((a, b) => {
+    if (a.modifiedAt && b.modifiedAt && a.modifiedAt !== b.modifiedAt) {
+      return b.modifiedAt.localeCompare(a.modifiedAt)
+    }
+    if (a.modifiedAt && !b.modifiedAt) return -1
+    if (!a.modifiedAt && b.modifiedAt) return 1
+    return a.title.localeCompare(b.title)
+  })
+}
+
+function basename(path: string) {
+  return path.split('/').filter(Boolean).pop() || path
+}
+
+function fallbackProjectTitle(projectPath: string, fallback: string) {
+  if (!projectPath || projectPath === '_unknown') return fallback
+  if (projectPath.includes('/')) return basename(projectPath) || fallback
+  const segments = projectPath.split('-').filter(Boolean)
+  return segments[segments.length - 1] || projectPath || fallback
 }
 
 function formatRelativeTime(dateStr: string): string {

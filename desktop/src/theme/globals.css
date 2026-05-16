@@ -244,12 +244,12 @@
   --color-success: #777777;
   --color-warning: #ffbd2e;
 
-  /* Fonts — Geist (display/body/label) + JetBrains Mono (code) */
-  --font-sans: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-headline: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-body: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-label: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Fonts — exact Tailwind `font-sans` stack used by cybercode-refined */
+  --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-display: var(--font-sans);
+  --font-headline: var(--font-sans);
+  --font-body: var(--font-sans);
+  --font-label: var(--font-sans);
   --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Type scale — slightly tighter than industrial scale */
@@ -277,7 +277,7 @@
   color-scheme: light;
 
   /* Layout dimensions */
-  --sidebar-width: 240px;
+  --sidebar-width: 260px;
   --sidebar-rail-width: 72px;
   --titlebar-height: 40px;
   --statusbar-height: 36px;
@@ -293,8 +293,8 @@
   --mac-shadow: rgba(0, 0, 0, 0.10);
 
   /* Surface aliases */
-  --color-surface-sidebar: #f8f9fa;
-  --color-surface-hover: rgba(0, 0, 0, 0.04);
+  --color-surface-sidebar: #fafafa;
+  --color-surface-hover: rgba(0, 0, 0, 0.05);
   --color-surface-selected: rgba(0, 0, 0, 0.06);
   --color-model-option-selected-bg: rgba(0, 122, 255, 0.10);
   --color-model-option-selected-border: rgba(0, 122, 255, 0.35);
@@ -311,7 +311,7 @@
   /* Border aliases */
   --color-border: rgba(0, 0, 0, 0.22);
   --color-border-focus: rgba(0, 0, 0, 0.55);
-  --color-border-separator: rgba(0, 0, 0, 0.12);
+  --color-border-separator: rgba(229, 229, 229, 0.85);
 
   /* Text aliases */
   --color-text-primary: rgba(0, 0, 0, 0.88);
@@ -320,15 +320,15 @@
 
   --color-surface-info: var(--color-surface-container-low);
 
-  --color-brand: #555555;
-  --color-text-accent: #555555;
-  --color-spacex-accent: #555555;
+  --color-brand: #000000;
+  --color-text-accent: #000000;
+  --color-spacex-accent: #000000;
 
   /* WeChat message bubble colors */
-  --color-message-user-bg: #FF5C5C;
+  --color-message-user-bg: #000000;
   --color-message-user-fg: #ffffff;
   --color-message-assistant-bg: #ffffff;
-  --color-chat-bg: #f5f5f5;
+  --color-chat-bg: #ffffff;
 
   /* Accent glow tokens — macOS blue for light mode */
   --color-accent-glow: rgba(0, 122, 255, 0.15);
@@ -503,7 +503,7 @@
   --color-text-accent: #999999;
 
   /* WeChat message bubble colors - dark mode */
-  --color-message-user-bg: #FF5C5C;
+  --color-message-user-bg: #000000;
   --color-message-user-fg: #ffffff;
   --color-message-assistant-bg: #1e1e1e;
   --color-chat-bg: #111111;
@@ -606,6 +606,70 @@ html, body, #root {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-feature-settings: 'cv11', 'ss01', 'ss02';
+}
+
+.native-ui-text,
+.native-ui-text :where(div, button, span, p, li, h1, h2, h3, h4, strong, em, a, blockquote),
+.chat-bubble-text,
+.chat-bubble-text :where(div, p, li, h1, h2, h3, h4, strong, em, a, span, blockquote) {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: auto;
+  font-feature-settings: normal;
+  font-variant-ligatures: normal;
+  font-kerning: auto;
+}
+
+.settings-ui {
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-container: #ffffff;
+  --color-surface-container-low: #fafafa;
+  --color-surface-container-high: #f5f5f5;
+  --color-surface-container-highest: #eeeeee;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-hover: rgba(0, 0, 0, 0.04);
+  --color-surface-selected: rgba(0, 0, 0, 0.07);
+  --color-border: rgba(0, 0, 0, 0.10);
+  --color-border-focus: rgba(0, 0, 0, 0.28);
+  --color-border-separator: rgba(0, 0, 0, 0.08);
+  --color-brand: #000000;
+  --color-text-accent: #000000;
+  --shadow-accent-glow: 0 0 0 3px rgba(0, 0, 0, 0.045);
+  --shadow-focus-ring: 0 0 0 2px rgba(0, 0, 0, 0.08);
+  --shadow-window: 0 28px 80px rgba(0, 0, 0, 0.18), 0 10px 28px rgba(0, 0, 0, 0.10);
+  font-family: var(--font-sans);
+}
+
+[data-theme="dark"] .settings-ui {
+  --color-background: #111111;
+  --color-surface: #141414;
+  --color-surface-container: #171717;
+  --color-surface-container-low: #101010;
+  --color-surface-container-high: #1f1f1f;
+  --color-surface-container-highest: #262626;
+  --color-surface-container-lowest: #0a0a0a;
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-surface-selected: rgba(255, 255, 255, 0.10);
+  --color-border: rgba(255, 255, 255, 0.10);
+  --color-border-focus: rgba(255, 255, 255, 0.28);
+  --color-border-separator: rgba(255, 255, 255, 0.10);
+  --color-brand: #ffffff;
+  --color-text-accent: #ffffff;
+  --shadow-accent-glow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  --shadow-focus-ring: 0 0 0 2px rgba(255, 255, 255, 0.12);
+  --shadow-window: 0 32px 90px rgba(0, 0, 0, 0.65), 0 12px 34px rgba(0, 0, 0, 0.38);
+}
+
+[data-runtime="tauri"] .tabbar-title {
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+[data-runtime="tauri"] [data-testid="tab-bar"] .model-selector-compact {
+  font-weight: 700;
+  color: #4a4a4a;
 }
 
 /* Heading defaults — readable, NOT all-caps. Tight tracking, modern weight. */
@@ -1060,7 +1124,7 @@ button, input, textarea, select, a, [role="button"] {
 /* WeChat chat background */
 .wechat-chat-bg {
   background-color: var(--color-chat-bg);
-  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Ccircle cx='25' cy='25' r='1'/%3E%3Ccircle cx='75' cy='75' r='1'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: none;
 }
 
 /* WeChat message bubble */
@@ -1140,11 +1204,11 @@ button, input, textarea, select, a, [role="button"] {
 
 /* WeChat input area */
 .wechat-input-container {
-  background-color: #ffffff;
+  background-color: transparent;
 }
 
 [data-theme="dark"] .wechat-input-container {
-  background-color: #1e1e1e;
+  background-color: transparent;
 }
 
 /* WeChat sidebar style */
@@ -1170,4 +1234,51 @@ button, input, textarea, select, a, [role="button"] {
 
 [data-theme="dark"] .wechat-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.scrollbar-no-track::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-no-track::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-no-track::-webkit-scrollbar-thumb {
+  background: #e5e5e5;
+  border-radius: 10px;
+}
+
+.scrollbar-no-track::-webkit-scrollbar-thumb:hover {
+  background: #d4d4d8;
+}
+
+.message-scrollbar {
+  overflow-y: scroll !important;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+.message-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+
+.message-scrollbar::-webkit-scrollbar-track,
+.message-scrollbar::-webkit-scrollbar-track-piece {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.message-scrollbar::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 999px;
+}
+
+.message-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #c7c7cc;
 }

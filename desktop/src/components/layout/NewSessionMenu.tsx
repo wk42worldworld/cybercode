@@ -13,6 +13,8 @@ type CurrentProject = {
 type MenuPosition = {
   top: number
   left: number
+  width: number
+  maxHeight: number
 }
 
 type NewSessionMenuProps = {
@@ -25,6 +27,18 @@ type NewSessionMenuProps = {
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
+}
+
+const MENU_WIDTH = 336
+const MENU_MAX_HEIGHT = 460
+const MENU_MIN_HEIGHT = 220
+const VIEWPORT_MARGIN = 12
+
+function cssPixelVar(name: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name)
+  const parsed = Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 function projectTitle(project: RecentProject): string {
@@ -66,14 +80,22 @@ export function NewSessionMenu({
     const anchor = anchorRef.current
     if (!anchor) return
     const rect = anchor.getBoundingClientRect()
-    const width = 336
-    const margin = 12
+    const railWidth = cssPixelVar('--sidebar-rail-width', 72)
+    const width = Math.min(MENU_WIDTH, Math.max(260, window.innerWidth - VIEWPORT_MARGIN * 2))
+    const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN)
+    const minLeft = Math.min(railWidth + VIEWPORT_MARGIN, maxLeft)
+    const top = rect.bottom + 8
+    const availableBelow = window.innerHeight - top - VIEWPORT_MARGIN
+    const maxHeight = Math.min(
+      MENU_MAX_HEIGHT,
+      Math.max(MENU_MIN_HEIGHT, availableBelow),
+    )
+
     setPosition({
-      top: rect.bottom + 8,
-      left: Math.min(
-        Math.max(margin, rect.right - width),
-        Math.max(margin, window.innerWidth - width - margin),
-      ),
+      top,
+      left: Math.min(Math.max(rect.right - width, minLeft), maxLeft),
+      width,
+      maxHeight,
     })
   }, [anchorRef])
 
@@ -152,10 +174,15 @@ export function NewSessionMenu({
       data-new-session-menu="true"
       role="menu"
       aria-label={t('newSession.title')}
-      className="fixed z-50 w-[336px] overflow-hidden rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
-      style={{ top: position.top, left: position.left }}
+      className="fixed z-[9999] flex flex-col overflow-hidden rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
+      style={{
+        top: position.top,
+        left: position.left,
+        width: position.width,
+        maxHeight: position.maxHeight,
+      }}
     >
-      <div className="max-h-[360px] overflow-y-auto p-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {currentProject && (
           <>
             <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">
@@ -202,7 +229,7 @@ export function NewSessionMenu({
         )}
       </div>
 
-      <div className="border-t border-[var(--color-border-separator)] p-1.5">
+      <div className="shrink-0 border-t border-[var(--color-border-separator)] p-1.5">
         <ActionMenuItem
           icon="folder_open"
           title={t('newSession.chooseFolder')}

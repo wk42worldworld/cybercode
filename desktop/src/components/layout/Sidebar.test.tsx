@@ -24,6 +24,10 @@ vi.mock('../../i18n', () => ({
       'sidebar.terminal': 'Terminal',
       'sidebar.settings': 'Settings',
       'sidebar.searchPlaceholder': 'Search sessions',
+      'sidebar.allSessions': 'All sessions',
+      'sidebar.temporarySessions': 'Temporary sessions',
+      'sidebar.sessionScope': 'Session scope',
+      'sidebar.other': 'Other',
       'sidebar.noSessions': 'No sessions',
       'sidebar.noMatching': 'No matching sessions',
       'sidebar.sessionListFailed': 'Session list failed',
@@ -299,8 +303,44 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 
-  it('renders the embedded project filter when multiple projects are available', () => {
+  it('filters sessions by all sessions, temporary sessions, and project', async () => {
+    const now = new Date().toISOString()
     useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-alpha',
+          title: 'Alpha Session',
+          lastMessage: 'alpha transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-alpha',
+          workDir: '/workspace/alpha',
+          workDirExists: true,
+        },
+        {
+          id: 'session-beta',
+          title: 'Beta Session',
+          lastMessage: 'beta transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-beta',
+          workDir: '/workspace/beta',
+          workDirExists: true,
+        },
+        {
+          id: 'session-temp',
+          title: 'Temporary Session',
+          lastMessage: 'temp transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '',
+          workDir: null,
+          workDirExists: true,
+        },
+      ],
       availableProjects: [
         '-workspace-alpha',
         '-workspace-beta',
@@ -309,7 +349,31 @@ describe('Sidebar', () => {
 
     render(<Sidebar />)
 
-    expect(screen.getByTestId('project-filter')).toBeInTheDocument()
+    expect(screen.getByText('alpha transcript')).toBeInTheDocument()
+    expect(screen.getByText('beta transcript')).toBeInTheDocument()
+    expect(screen.getByText('temp transcript')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /All sessions/ }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitemradio', { name: /Temporary sessions/ }))
+    })
+
+    expect(screen.queryByText('alpha transcript')).not.toBeInTheDocument()
+    expect(screen.queryByText('beta transcript')).not.toBeInTheDocument()
+    expect(screen.getByText('temp transcript')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Temporary sessions/ }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitemradio', { name: /alpha/ }))
+    })
+
+    expect(screen.getByText('alpha transcript')).toBeInTheDocument()
+    expect(screen.queryByText('beta transcript')).not.toBeInTheDocument()
+    expect(screen.queryByText('temp transcript')).not.toBeInTheDocument()
   })
 
   it('keeps the session list section in a constrained flex column for scrolling', () => {

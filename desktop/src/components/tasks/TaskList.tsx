@@ -15,14 +15,14 @@ export function TaskList({ tasks }: Props) {
   return (
     <div>
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-3 gap-3">
         <StatCard label={t('tasks.totalTasks')} value={String(tasks.length)} />
         <StatCard label={t('tasks.active')} value={String(enabledCount)} />
         <StatCard label={t('tasks.disabled')} value={String(tasks.length - enabledCount)} />
       </div>
 
       {/* Task rows — accordion: only one logs panel open at a time */}
-      <div className="flex flex-col">
+      <div className="overflow-hidden rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)]">
         {tasks.map((task) => (
           <TaskRow
             key={task.id}
@@ -38,8 +38,8 @@ export function TaskList({ tasks }: Props) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="px-4 py-3 rounded-[var(--radius-lg)] bg-[var(--color-surface-container)] border-l-2 border-[var(--color-brand)]">
-      <div className="text-2xl font-bold text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-headline)', fontWeight: 800 }}>{value}</div>
+    <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-4 py-3">
+      <div className="text-[28px] font-bold leading-tight text-[var(--color-text-primary)]">{value}</div>
       <div className="text-[12px] text-[var(--color-text-secondary)]">{label}</div>
     </div>
   )

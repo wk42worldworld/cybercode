@@ -192,13 +192,13 @@ export function TerminalSettings({
   }
 
   return (
-    <div className={`flex h-full flex-col overflow-hidden ${workspace ? 'min-h-0 bg-[var(--color-surface)] px-5 py-4' : 'min-h-[620px]'}`}>
+    <div className={`flex h-full flex-col overflow-hidden ${workspace ? 'min-h-0 bg-[var(--color-background)] px-6 py-5' : 'min-h-[620px]'}`}>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
+          <h1 className="text-[22px] font-bold text-[var(--color-text-primary)]">
             {t('settings.terminal.title')}
           </h1>
-          <p className="mt-1 max-w-2xl text-[14px] text-[var(--color-text-tertiary)]">
+          <p className="mt-1 max-w-2xl text-[13px] leading-5 text-[var(--color-text-tertiary)]">
             {t('settings.terminal.description')}
           </p>
         </div>
@@ -207,7 +207,7 @@ export function TerminalSettings({
             <button
               type="button"
               onClick={onNewTerminal}
-              className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] px-2.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2.5 text-[12px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             >
               <Icon name="add" size={16} />
               {t('terminal.newTab')}
@@ -217,7 +217,7 @@ export function TerminalSettings({
             type="button"
             onClick={clearTerminal}
             disabled={!terminalRef.current}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] px-2.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2.5 text-[12px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="mop" size={16} />
             {t('settings.terminal.clear')}
@@ -225,7 +225,7 @@ export function TerminalSettings({
           <button
             type="button"
             onClick={() => void startTerminal()}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] border-2 border-[var(--color-border)] px-2.5 text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2.5 text-[12px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon name="restart_alt" size={16} />
             {t('settings.terminal.restart')}
@@ -245,13 +245,13 @@ export function TerminalSettings({
       </div>
 
       {error && (
-        <div className="mb-3 rounded-[var(--radius-md)] border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 px-3 py-2 text-[14px] text-[var(--color-error)]">
+        <div className="mb-3 rounded-[12px] border border-[var(--color-error)]/20 bg-[var(--color-error)]/10 px-3 py-2 text-[14px] text-[var(--color-error)]">
           {error}
         </div>
       )}
 
       {status === 'unavailable' ? (
-        <div className="flex flex-1 items-center justify-center rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-8 text-center">
+        <div className="flex flex-1 items-center justify-center rounded-[12px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-8 text-center">
           <div>
             <Icon name="desktop_windows" size={18} className="mb-3 block text-[32px] text-[var(--color-text-tertiary)]" />
             <p className="text-[14px] font-medium text-[var(--color-text-primary)]">
@@ -263,7 +263,7 @@ export function TerminalSettings({
           </div>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--color-terminal-border)] bg-[var(--color-terminal-bg)]">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-[12px] border border-[var(--color-terminal-border)] bg-[var(--color-terminal-bg)]">
           <div className="flex h-8 items-center gap-2 border-b border-[var(--color-terminal-border)] bg-[var(--color-terminal-header)] px-3">
             <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-terminal-danger)]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-terminal-warning)]" />
@@ -294,10 +294,9 @@ function StatusPill({ status, label }: { status: TerminalStatus; label: string }
           : 'bg-[var(--color-text-tertiary)]'
 
   return (
-    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
+    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2.5 text-[11px] font-medium text-[var(--color-text-secondary)]">
       <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
       {label}
     </span>
   )
 }
-

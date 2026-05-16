@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { OFFICIAL_DEFAULT_MODEL_ID, OFFICIAL_MODELS } from '../../constants/modelCatalog'
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
@@ -25,6 +26,7 @@ type Props = {
   placement?: 'top' | 'bottom'
   align?: 'left' | 'right'
   compact?: boolean
+  variant?: 'default' | 'pill'
 }
 
 function officialChoices(availableModels: ModelInfo[], isDefault: boolean, officialName: string): ProviderChoice {
@@ -112,6 +114,7 @@ export function ModelSelector({
   placement = 'top',
   align = 'right',
   compact = false,
+  variant = 'default',
 }: Props = {}) {
   const t = useTranslation()
   const {
@@ -232,6 +235,10 @@ export function ModelSelector({
     }
     setOpen(false)
   }
+  const compactClassName = variant === 'pill'
+    ? 'model-selector-compact h-[36px] rounded-full border border-neutral-200 bg-white px-[16px] text-[13px] font-bold leading-normal text-neutral-600 hover:bg-neutral-50 hover:text-black'
+    : 'model-selector-compact h-[36px] rounded-full border border-neutral-200 bg-white px-[16px] text-[13px] font-bold leading-normal text-neutral-600 hover:bg-neutral-50 hover:text-black'
+  const compactLabelClassName = variant === 'pill' ? 'max-w-[120px]' : 'max-w-[100px]'
 
   return (
     <div ref={ref} className="relative">
@@ -239,24 +246,26 @@ export function ModelSelector({
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
         className={`
-          flex items-center gap-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50
+          flex items-center gap-[8px] transition-colors disabled:cursor-not-allowed disabled:opacity-50
           ${compact
-            ? 'px-2.5 py-1 rounded-full text-[11px] font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
+            ? compactClassName
             : 'max-w-[280px] gap-2 rounded-md bg-[var(--color-surface-container)] border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)]'
           }
         `}
       >
-        <span className={`min-w-0 truncate ${compact ? 'max-w-[100px]' : 'flex-1 text-[14px] font-semibold text-[var(--color-text-primary)]'}`} style={compact ? undefined : { fontFamily: 'var(--font-headline)' }}>
-          {compact
-            ? (buttonModelLabel.length > 12 ? buttonModelLabel.slice(0, 10) + '…' : buttonModelLabel)
-            : buttonModelLabel}
+        <span className={`min-w-0 truncate ${compact ? compactLabelClassName : 'flex-1 text-[14px] font-semibold text-[var(--color-text-primary)]'}`} style={compact ? undefined : { fontFamily: 'var(--font-headline)' }}>
+          {buttonModelLabel}
         </span>
         {!compact && buttonProviderLabel && (
           <span className="max-w-[108px] flex-shrink-0 truncate text-[11px] text-[var(--color-text-tertiary)]">
             {buttonProviderLabel}
           </span>
         )}
-        <Icon name="expand_more" size={compact ? 14 : 18} className={`flex-shrink-0 ${compact ? 'text-[10px] opacity-50' : 'text-[12px]'}`} />
+        {compact ? (
+          <ChevronRight size={14} strokeWidth={2} className="shrink-0 rotate-90" />
+        ) : (
+          <Icon name="expand_more" size={18} className="flex-shrink-0 text-[12px]" />
+        )}
       </button>
 
       {open && (
@@ -270,13 +279,13 @@ export function ModelSelector({
             {isRuntimeScoped ? (
               <div className="space-y-2">
                 {providerChoices.map((choice) => (
-                  <div key={choice.providerId ?? 'official'} className="space-y-0.5">
-                    <div className="flex items-center justify-between px-2.5 py-1">
-                      <span className="truncate text-[12px] font-semibold text-[var(--color-text-secondary)]">
+                  <div key={choice.providerId ?? 'official'} className="space-y-1">
+                    <div className="mx-1 inline-flex w-fit max-w-[calc(100%-0.5rem)] items-center gap-2 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                      <span className="min-w-0 truncate text-[14px] font-bold tracking-tight text-[var(--color-text-primary)]">
                         {choice.providerName}
                       </span>
                       {choice.isDefault && (
-                        <span className="flex-shrink-0 text-[9px] font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider">
+                        <span className="flex-shrink-0 rounded-md bg-[var(--color-surface-selected)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
                           {t('settings.providers.default')}
                         </span>
                       )}
@@ -292,7 +301,7 @@ export function ModelSelector({
                             key={`${choice.providerId ?? 'official'}:${model.id}`}
                             onClick={() => handleRuntimeSelect({ providerId: choice.providerId, modelId: model.id })}
                             className={`
-                              w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group
+                              w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group
                               ${isSelected
                                 ? 'bg-[var(--color-surface-selected)]'
                                 : 'hover:bg-[var(--color-surface-hover)]'
@@ -335,7 +344,7 @@ export function ModelSelector({
                         setOpen(false)
                       }}
                       className={`
-                        w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-all duration-150 group
+                        w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group
                         ${isSelected
                           ? 'bg-[var(--color-surface-selected)]'
                           : 'hover:bg-[var(--color-surface-hover)]'
@@ -378,7 +387,7 @@ export function ModelSelector({
                         setOpen(false)
                       }}
                       className={`
-                        flex-1 rounded-lg py-1.5 text-center text-[11px] font-medium transition-all duration-150
+                        flex-1 rounded-lg py-1.5 text-center text-[11px] font-medium transition-colors
                         ${isSelected
                           ? 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] font-semibold'
                           : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-secondary)]'
