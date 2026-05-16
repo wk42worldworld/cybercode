@@ -315,8 +315,10 @@ export const en = {
   'settings.agents.source.built-in': 'Built-in',
 
   // Settings > Skills
-  'settings.skills.title': 'Installed Skills',
-  'settings.skills.description': 'Skills extend Claude with specialized capabilities. Manage skills in ~/.claude/skills/',
+  'settings.skills.title': 'Skills',
+  'settings.skills.description': 'Skill configuration',
+  'settings.skills.openConfigPath': 'Open skills folder',
+  'settings.skills.openConfigFailed': 'Failed to open skills folder',
   'settings.skills.browserTitle': 'Browse installed skills',
   'settings.skills.browserEyebrow': 'Skill Browser',
   'settings.skills.browserDescription': 'Inspect bundled, project, and user skills, compare their scope, and open each skill folder to read its docs and source files.',
@@ -333,6 +335,10 @@ export const en = {
   'settings.skills.groupHint': '{count} skills available from {source}',
   'settings.skills.ready': 'Ready',
   'settings.skills.unavailable': 'Unavailable',
+  'settings.skills.enabled': 'Enabled',
+  'settings.skills.disabled': 'Disabled',
+  'settings.skills.toggleEnable': 'Enable {name}',
+  'settings.skills.toggleDisable': 'Disable {name}',
   'settings.skills.empty': 'No skills installed',
   'settings.skills.emptyHint': 'Add skills to ~/.claude/skills/ to get started',
   'settings.skills.back': 'Back to list',

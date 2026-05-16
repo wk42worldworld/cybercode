@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSkillStore } from '../../stores/skillStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTranslation } from '../../i18n'
 import type { SkillMeta, SkillSource } from '../../types/skill'
 import { Icon } from '../shared/Icon'
+import { Switch } from '../settings/SettingsLayout'
 
 const SOURCE_ORDER: SkillSource[] = ['user', 'project', 'plugin', 'mcp', 'bundled']
 
@@ -28,8 +29,9 @@ function estimateTokens(contentLength: number) {
 }
 
 export function SkillList() {
-  const { skills, isLoading, error, fetchSkills, fetchSkillDetail } =
+  const { skills, isLoading, error, fetchSkills, fetchSkillDetail, setSkillEnabled } =
     useSkillStore()
+  const [pendingSkillKey, setPendingSkillKey] = useState<string | null>(null)
   const sessions = useSessionStore((s) => s.sessions)
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
   const t = useTranslation()
@@ -40,6 +42,18 @@ export function SkillList() {
     fetchSkills(currentWorkDir)
   }, [fetchSkills, currentWorkDir])
 
+  const toggleSkill = async (skill: SkillMeta, enabled: boolean) => {
+    const key = `${skill.source}:${skill.name}`
+    if (pendingSkillKey === key) return
+
+    setPendingSkillKey(key)
+    try {
+      await setSkillEnabled(skill.source, skill.name, enabled, currentWorkDir)
+    } finally {
+      setPendingSkillKey(null)
+    }
+  }
+
   const grouped = useMemo(() => {
     const result: Partial<Record<SkillSource, SkillMeta[]>> = {}
     for (const skill of skills) {
@@ -48,16 +62,6 @@ export function SkillList() {
     }
     return result
   }, [skills])
-
-  const totalTokens = useMemo(
-    () => skills.reduce((sum, skill) => sum + estimateTokens(skill.contentLength), 0),
-    [skills],
-  )
-
-  const visibleGroupCount = useMemo(
-    () => SOURCE_ORDER.filter((source) => (grouped[source] ?? []).length > 0).length,
-    [grouped],
-  )
 
   if (isLoading) {
     return (
@@ -86,49 +90,8 @@ export function SkillList() {
   }
 
   return (
-    <div className="flex flex-col gap-6 min-w-0">
-      <section className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] overflow-hidden">
-        <div className="grid gap-4 px-5 py-5 min-w-0 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] xl:items-end">
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)] mb-2">
-              {t('settings.skills.browserEyebrow')}
-            </div>
-            <div className="flex items-center gap-3 mb-2">
-              <Icon name="auto_awesome" size={22} className="text-[var(--color-brand)]" />
-              <h3 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
-                {t('settings.skills.browserTitle')}
-              </h3>
-            </div>
-            <p className="text-[14px] leading-6 text-[var(--color-text-secondary)] max-w-3xl">
-              {t('settings.skills.browserDescription')}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 min-w-0 sm:grid-cols-3">
-            <SummaryCard
-              label={t('settings.skills.summary.totalSkills')}
-              value={String(skills.length)}
-              icon="auto_awesome"
-            />
-            <SummaryCard
-              label={t('settings.skills.summary.sources')}
-              value={String(
-                SOURCE_ORDER.filter((source) => (grouped[source] ?? []).length > 0)
-                  .length,
-              )}
-              icon="layers"
-            />
-            <SummaryCard
-              label={t('settings.skills.summary.tokens')}
-              value={t('settings.skills.tokenEstimateShort', { count: String(totalTokens) })}
-              icon="notes"
-              className="col-span-2 sm:col-span-1"
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className={`grid gap-4 ${visibleGroupCount >= 2 ? 'xl:grid-cols-2' : ''}`}>
+    <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <div className="divide-y divide-[var(--color-border)]">
         {SOURCE_ORDER.map((source) => {
           const group = grouped[source]
           if (!group?.length) return null
@@ -142,77 +105,98 @@ export function SkillList() {
           return (
             <section
               key={source}
-              className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden min-w-0"
+              className="min-w-0"
             >
-              <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-container-low)]">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${SOURCE_ACCENT_CLASSES[source]}`}>
-                      <Icon name={SOURCE_ICONS[source]} size={16} />
-                    </span>
-                    <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
-                      {sourceLabel}
-                    </h4>
-                    <span className="text-[12px] text-[var(--color-text-tertiary)]">
-                      {group.length}
-                    </span>
-                  </div>
-                  <p className="text-[12px] leading-5 text-[var(--color-text-tertiary)]">
-                    {t('settings.skills.groupHint', {
-                      source: sourceLabel,
-                      count: String(group.length),
-                    })}
-                  </p>
+              <div className="flex min-h-10 items-center justify-between gap-3 bg-[var(--color-surface-container-low)] px-4 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${SOURCE_ACCENT_CLASSES[source]}`}>
+                    <Icon name={SOURCE_ICONS[source]} size={14} />
+                  </span>
+                  <h4 className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    {sourceLabel}
+                  </h4>
+                  <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+                    {group.length}
+                  </span>
                 </div>
-                <div className="text-[11px] text-[var(--color-text-tertiary)] whitespace-nowrap">
+                <div className="flex-shrink-0 text-[11px] text-[var(--color-text-tertiary)]">
                   {t('settings.skills.tokenEstimateShort', { count: String(sourceTokenCount) })}
                 </div>
               </div>
 
-              <div className="flex flex-col p-2">
-                {group.map((skill) => (
-                  <button
-                    key={`${skill.source}-${skill.name}`}
-                    onClick={() =>
-                      skill.hasDirectory &&
-                      fetchSkillDetail(skill.source, skill.name, currentWorkDir, 'skills')
-                    }
-                    disabled={!skill.hasDirectory}
-                    className="group rounded-md border border-transparent px-3 py-3 text-left transition-all hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:opacity-60 disabled:cursor-default disabled:hover:bg-transparent disabled:hover:border-transparent"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 material-symbols-outlined text-[18px] text-[var(--color-text-tertiary)]">
-                        auto_awesome
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[14px] font-semibold text-[var(--color-text-primary)] break-all">
-                            {skill.displayName || skill.name}
-                          </span>
-                          {skill.version && (
-                            <span className="rounded-full bg-[var(--color-surface-container-high)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
-                              v{skill.version}
+              <div className="divide-y divide-[var(--color-border)]">
+                {group.map((skill) => {
+                  const skillKey = `${skill.source}:${skill.name}`
+                  const isPending = pendingSkillKey === skillKey
+                  const displayName = skill.displayName || skill.name
+                  const isEnabled = skill.enabled !== false
+
+                  return (
+                    <div
+                      key={`${skill.source}-${skill.name}`}
+                      className={`group flex min-h-16 w-full items-stretch transition-colors hover:bg-[var(--color-surface-hover)] ${
+                        isEnabled ? '' : 'bg-[var(--color-surface-container-low)]'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          skill.hasDirectory &&
+                          fetchSkillDetail(skill.source, skill.name, currentWorkDir, 'skills')
+                        }
+                        disabled={!skill.hasDirectory}
+                        className="flex min-w-0 flex-1 items-start gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black/15 dark:focus-visible:ring-white/20 focus-visible:ring-inset disabled:cursor-default disabled:opacity-60"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <span
+                              className={`break-all text-[14px] font-semibold ${
+                                isEnabled
+                                  ? 'text-[var(--color-text-primary)]'
+                                  : 'text-[var(--color-text-tertiary)]'
+                              }`}
+                            >
+                              {displayName}
                             </span>
-                          )}
-                          {skill.userInvocable && (
-                            <span className="rounded-full border-2 border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
-                              {t('settings.skills.slashCommand')}
-                            </span>
-                          )}
+                            {skill.version && (
+                              <span className="rounded-full bg-[var(--color-surface-container-high)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+                                v{skill.version}
+                              </span>
+                            )}
+                            {skill.userInvocable && (
+                              <span className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+                                {t('settings.skills.slashCommand')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 line-clamp-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">
+                            {skill.description}
+                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
+                            <span>{t('settings.skills.tokenEstimateShort', { count: String(estimateTokens(skill.contentLength)) })}</span>
+                            <span>{skill.hasDirectory ? t('settings.skills.ready') : t('settings.skills.unavailable')}</span>
+                          </div>
                         </div>
-                        <p className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)] break-words">
-                          {skill.description}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
-                          <span>{sourceLabel}</span>
-                          <span>{t('settings.skills.tokenEstimateShort', { count: String(estimateTokens(skill.contentLength)) })}</span>
-                          <span>{skill.hasDirectory ? t('settings.skills.ready') : t('settings.skills.unavailable')}</span>
-                        </div>
+                        <Icon name="chevron_right" size={16} className="mt-2 flex-shrink-0 text-[var(--color-text-tertiary)] opacity-50 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
+                      </button>
+                      <div className={`flex flex-shrink-0 items-center gap-2 pr-4 ${isPending ? 'opacity-60' : ''}`}>
+                        <span className="hidden text-[11px] font-medium text-[var(--color-text-tertiary)] sm:inline">
+                          {isEnabled ? t('settings.skills.enabled') : t('settings.skills.disabled')}
+                        </span>
+                        <Switch
+                          checked={isEnabled}
+                          onChange={(next) => void toggleSkill(skill, next)}
+                          ariaLabel={t(
+                            isEnabled
+                              ? 'settings.skills.toggleDisable'
+                              : 'settings.skills.toggleEnable',
+                            { name: displayName },
+                          )}
+                        />
                       </div>
-                      <Icon name="chevron_right" size={18} className="text-[var(--color-text-tertiary)] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
                     </div>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
             </section>
           )
@@ -221,28 +205,3 @@ export function SkillList() {
     </div>
   )
 }
-
-function SummaryCard({
-  label,
-  value,
-  icon,
-  className = '',
-}: {
-  label: string
-  value: string
-  icon: string
-  className?: string
-}) {
-  return (
-    <div className={`rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-3 min-w-0 ${className}`}>
-      <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.12em] text-[var(--color-text-tertiary)] min-w-0">
-        <Icon name={icon} size={14} className="flex-shrink-0" />
-        <span className="truncate">{label}</span>
-      </div>
-      <div className="mt-2 text-[18px] font-semibold text-[var(--color-text-primary)] truncate">
-        {value}
-      </div>
-    </div>
-  )
-}
-

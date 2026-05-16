@@ -156,6 +156,7 @@ import {
   clearSkillCaches,
   getDynamicSkills,
 } from './skills/loadSkillsDir.js'
+import { isSkillCommandEnabled } from './skills/skillEnablement.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
 import { getBuiltinPluginSkillCommands } from './plugins/builtinPlugins.js'
 import {
@@ -479,7 +480,10 @@ export async function getCommands(cwd: string): Promise<Command[]> {
 
   // Build base commands without dynamic skills
   const baseCommands = allCommands.filter(
-    _ => meetsAvailabilityRequirement(_) && isCommandEnabled(_),
+    _ =>
+      meetsAvailabilityRequirement(_) &&
+      isCommandEnabled(_) &&
+      isSkillCommandEnabled(_),
   )
 
   if (dynamicSkills.length === 0) {
@@ -492,7 +496,8 @@ export async function getCommands(cwd: string): Promise<Command[]> {
     s =>
       !baseCommandNames.has(s.name) &&
       meetsAvailabilityRequirement(s) &&
-      isCommandEnabled(s),
+      isCommandEnabled(s) &&
+      isSkillCommandEnabled(s),
   )
 
   if (uniqueDynamicSkills.length === 0) {
@@ -550,7 +555,8 @@ export function getMcpSkillCommands(
       cmd =>
         cmd.type === 'prompt' &&
         cmd.loadedFrom === 'mcp' &&
-        !cmd.disableModelInvocation,
+        !cmd.disableModelInvocation &&
+        isSkillCommandEnabled(cmd),
     )
   }
   return []

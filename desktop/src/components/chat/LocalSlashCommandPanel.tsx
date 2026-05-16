@@ -895,7 +895,7 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
     skillsApi.list(cwd)
       .then((response) => {
         if (cancelled) return
-        setSkills(response.skills.filter((skill) => skill.userInvocable))
+        setSkills(response.skills.filter((skill) => skill.userInvocable && skill.enabled !== false))
       })
       .catch((err) => {
         if (cancelled) return

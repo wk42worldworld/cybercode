@@ -8,6 +8,8 @@
 
 import * as path from 'path'
 import * as fs from 'fs/promises'
+import { spawn } from 'node:child_process'
+import { homedir } from 'node:os'
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { getProjectDirsUpToHome } from '../../utils/markdownConfigLoader.js'
@@ -15,6 +17,13 @@ import { getCwd } from '../../utils/cwd.js'
 import { loadAllPluginsCacheOnly } from '../../utils/plugins/pluginLoader.js'
 import type { LoadedPlugin } from '../../types/plugin.js'
 import { ApiError, errorResponse } from '../middleware/errorHandler.js'
+import {
+  getDisabledSkillKeys,
+  isSkillEnabled,
+  isToggleableSkillSource,
+  type ToggleableSkillSource,
+  updateSkillEnablement,
+} from '../../skills/skillEnablement.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +36,7 @@ type SkillMeta = {
   version?: string
   contentLength: number
   hasDirectory: boolean
+  enabled: boolean
   pluginName?: string
 }
 
@@ -46,6 +56,11 @@ type SkillFile = {
   frontmatter?: Record<string, unknown>
   body?: string
   isEntry?: boolean
+}
+
+type SkillsConfig = {
+  userSkillsDir: string
+  displayPath: string
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -84,6 +99,45 @@ function getUserSkillsDir(): string {
   return path.join(getClaudeConfigHomeDir(), 'skills')
 }
 
+function displayPath(filePath: string): string {
+  const home = homedir().normalize('NFC')
+  const normalized = filePath.normalize('NFC')
+  return normalized === home || normalized.startsWith(`${home}${path.sep}`)
+    ? `~${normalized.slice(home.length)}`
+    : normalized
+}
+
+function getSkillsConfig(): SkillsConfig {
+  const userSkillsDir = getUserSkillsDir()
+  return {
+    userSkillsDir,
+    displayPath: displayPath(userSkillsDir),
+  }
+}
+
+async function openDirectory(dirPath: string): Promise<void> {
+  await fs.mkdir(dirPath, { recursive: true })
+
+  const command =
+    process.platform === 'darwin'
+      ? 'open'
+      : process.platform === 'win32'
+        ? 'explorer.exe'
+        : 'xdg-open'
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(command, [dirPath], {
+      detached: true,
+      stdio: 'ignore',
+    })
+    child.once('error', reject)
+    child.once('spawn', () => {
+      child.unref()
+      resolve()
+    })
+  })
+}
+
 function getRequestedCwd(url: URL): string {
   return url.searchParams.get('cwd') || getCwd()
 }
@@ -97,6 +151,7 @@ async function loadSkillMeta(
   skillName: string,
   source: SkillSource,
   pluginName?: string,
+  disabledSkillKeys = getDisabledSkillKeys(),
 ): Promise<SkillMeta | null> {
   const skillFile = path.join(skillDir, 'SKILL.md')
   try {
@@ -120,6 +175,7 @@ async function loadSkillMeta(
       version: frontmatter.version != null ? String(frontmatter.version) : undefined,
       contentLength: raw.length,
       hasDirectory: true,
+      enabled: isSkillEnabled(source, skillName, disabledSkillKeys),
       pluginName,
     }
   } catch {
@@ -211,6 +267,7 @@ async function buildFileTree(
 async function collectSkillsFromRoots(
   skillRoots: string[],
   source: SkillSource,
+  disabledSkillKeys = getDisabledSkillKeys(),
 ): Promise<SkillMeta[]> {
   const skills: SkillMeta[] = []
   const seenNames = new Set<string>()
@@ -228,7 +285,13 @@ async function collectSkillsFromRoots(
         continue
       }
 
-      const meta = await loadSkillMeta(path.join(root, entry.name), entry.name, source)
+      const meta = await loadSkillMeta(
+        path.join(root, entry.name),
+        entry.name,
+        source,
+        undefined,
+        disabledSkillKeys,
+      )
       if (!meta) continue
 
       seenNames.add(entry.name)
@@ -336,7 +399,9 @@ async function collectPluginSkillDirectories(): Promise<Map<string, PluginSkillL
   return locations
 }
 
-async function collectPluginSkills(): Promise<SkillMeta[]> {
+async function collectPluginSkills(
+  disabledSkillKeys = getDisabledSkillKeys(),
+): Promise<SkillMeta[]> {
   const locations = await collectPluginSkillDirectories()
   const skills: SkillMeta[] = []
 
@@ -346,6 +411,7 @@ async function collectPluginSkills(): Promise<SkillMeta[]> {
       name,
       'plugin',
       location.pluginName,
+      disabledSkillKeys,
     )
     if (meta) {
       skills.push(meta)
@@ -363,15 +429,31 @@ export async function handleSkillsApi(
   segments: string[],
 ): Promise<Response> {
   try {
+    const sub = segments[2]
+
+    if (sub === 'open-config') {
+      if (req.method !== 'GET' && req.method !== 'POST') {
+        throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
+      }
+      return await openSkillConfigDir()
+    }
+
+    if (sub === 'enabled') {
+      if (req.method !== 'PATCH' && req.method !== 'PUT') {
+        throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
+      }
+      return await setSkillEnabled(req)
+    }
+
     if (req.method !== 'GET') {
       throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
     }
 
-    const sub = segments[2]
-
     switch (sub) {
       case undefined:
         return await listSkills(url)
+      case 'config':
+        return Response.json({ config: getSkillsConfig() })
       case 'detail':
         return await getSkillDetail(url)
       default:
@@ -386,15 +468,70 @@ export async function handleSkillsApi(
 
 async function listSkills(url: URL): Promise<Response> {
   const cwd = getRequestedCwd(url)
+  const disabledSkillKeys = getDisabledSkillKeys()
   const [userSkills, projectSkills, pluginSkills] = await Promise.all([
-    collectSkillsFromRoots([getUserSkillsDir()], 'user'),
-    collectSkillsFromRoots(getProjectSkillsDirs(cwd), 'project'),
-    collectPluginSkills(),
+    collectSkillsFromRoots([getUserSkillsDir()], 'user', disabledSkillKeys),
+    collectSkillsFromRoots(getProjectSkillsDirs(cwd), 'project', disabledSkillKeys),
+    collectPluginSkills(disabledSkillKeys),
   ])
 
   const skills = [...userSkills, ...projectSkills, ...pluginSkills]
   skills.sort((a, b) => a.name.localeCompare(b.name))
   return Response.json({ skills })
+}
+
+async function openSkillConfigDir(): Promise<Response> {
+  await openDirectory(getUserSkillsDir())
+  return Response.json({ ok: true })
+}
+
+async function clearCommandCaches(): Promise<void> {
+  const { clearCommandsCache } = await import('../../commands.js')
+  clearCommandsCache()
+}
+
+async function setSkillEnabled(req: Request): Promise<Response> {
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    throw ApiError.badRequest('Invalid JSON body')
+  }
+
+  const { source, name, enabled } =
+    body && typeof body === 'object'
+      ? (body as { source?: unknown; name?: unknown; enabled?: unknown })
+      : {}
+
+  if (typeof source !== 'string' || !isToggleableSkillSource(source)) {
+    throw ApiError.badRequest('Invalid skill source')
+  }
+
+  if (
+    typeof name !== 'string' ||
+    name.length === 0 ||
+    name.includes('..') ||
+    name.includes('/') ||
+    name.includes('\\')
+  ) {
+    throw ApiError.badRequest('Invalid skill name')
+  }
+
+  if (typeof enabled !== 'boolean') {
+    throw ApiError.badRequest('Invalid enabled value')
+  }
+
+  const { disabledSkills, error } = updateSkillEnablement(
+    source as ToggleableSkillSource,
+    name,
+    enabled,
+  )
+  if (error) {
+    throw new ApiError(500, error.message, 'SETTINGS_WRITE_FAILED')
+  }
+
+  await clearCommandCaches()
+  return Response.json({ ok: true, disabledSkills })
 }
 
 async function getSkillDetail(url: URL): Promise<Response> {
@@ -433,6 +570,7 @@ async function getSkillDetail(url: URL): Promise<Response> {
     name,
     source,
     pluginLocation?.pluginName,
+    getDisabledSkillKeys(),
   )
   if (!meta) {
     throw ApiError.notFound(`Skill missing SKILL.md: ${name}`)

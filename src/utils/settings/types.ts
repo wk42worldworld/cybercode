@@ -413,6 +413,12 @@ export const SettingsSchema = lazySchema(() =>
         .array(z.string())
         .optional()
         .describe('List of rejected MCP servers from .mcp.json'),
+      disabledSkills: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'List of disabled skill identifiers, formatted as source:name.',
+        ),
       // Enterprise allowlist of MCP servers
       allowedMcpServers: z
         .array(AllowedMcpServerEntrySchema())

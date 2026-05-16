@@ -63,6 +63,10 @@ import { isRestrictedToPluginOnly } from '../utils/settings/pluginOnlyPolicy.js'
 import { HooksSchema, type HooksSettings } from '../utils/settings/types.js'
 import { createSignal } from '../utils/signal.js'
 import { registerMCPSkillBuilders } from './mcpSkillBuilders.js'
+import {
+  filterEnabledSkillCommands,
+  isSkillCommandEnabled,
+} from './skillEnablement.js'
 
 export type LoadedFrom =
   | 'commands_DEPRECATED'
@@ -671,7 +675,9 @@ export const getSkillDirCommands = memoize(
         ),
       )
       // No dedup needed — explicit dirs, user controls uniqueness.
-      return additionalSkillsNested.flat().map(s => s.skill)
+      return filterEnabledSkillCommands(
+        additionalSkillsNested.flat().map(s => s.skill),
+      )
     }
 
     // Load from /skills/ directories, additional dirs, and legacy /commands/ in parallel
@@ -768,10 +774,16 @@ export const getSkillDirCommands = memoize(
       logForDebugging(`Deduplicated ${duplicatesRemoved} skills (same file)`)
     }
 
+    const enabledSkills = filterEnabledSkillCommands(deduplicatedSkills)
+    const disabledSkillsSkipped = deduplicatedSkills.length - enabledSkills.length
+    if (disabledSkillsSkipped > 0) {
+      logForDebugging(`[skills] Skipped ${disabledSkillsSkipped} disabled skills`)
+    }
+
     // Separate conditional skills (with paths frontmatter) from unconditional ones
     const unconditionalSkills: Command[] = []
     const newConditionalSkills: Command[] = []
-    for (const skill of deduplicatedSkills) {
+    for (const skill of enabledSkills) {
       if (
         skill.type === 'prompt' &&
         skill.paths &&
@@ -796,7 +808,7 @@ export const getSkillDirCommands = memoize(
     }
 
     logForDebugging(
-      `Loaded ${deduplicatedSkills.length} unique skills (${unconditionalSkills.length} unconditional, ${newConditionalSkills.length} conditional, managed: ${managedSkills.length}, user: ${userSkills.length}, project: ${projectSkillsNested.flat().length}, additional: ${additionalSkillsNested.flat().length}, legacy commands: ${legacyCommands.length})`,
+      `Loaded ${enabledSkills.length} enabled unique skills (${unconditionalSkills.length} unconditional, ${newConditionalSkills.length} conditional, managed: ${managedSkills.length}, user: ${userSkills.length}, project: ${projectSkillsNested.flat().length}, additional: ${additionalSkillsNested.flat().length}, legacy commands: ${legacyCommands.length})`,
     )
 
     return unconditionalSkills
@@ -944,7 +956,7 @@ export async function addSkillDirectories(dirs: string[]): Promise<void> {
   // Process in reverse order (shallower first) so deeper paths override
   for (let i = loadedSkills.length - 1; i >= 0; i--) {
     for (const { skill } of loadedSkills[i] ?? []) {
-      if (skill.type === 'prompt') {
+      if (skill.type === 'prompt' && isSkillCommandEnabled(skill)) {
         dynamicSkills.set(skill.name, skill)
       }
     }
@@ -979,7 +991,7 @@ export async function addSkillDirectories(dirs: string[]): Promise<void> {
  * These are skills discovered from file paths during the session.
  */
 export function getDynamicSkills(): Command[] {
-  return Array.from(dynamicSkills.values())
+  return filterEnabledSkillCommands(Array.from(dynamicSkills.values()))
 }
 
 /**
@@ -1005,6 +1017,11 @@ export function activateConditionalSkillsForPaths(
   const activated: string[] = []
 
   for (const [name, skill] of conditionalSkills) {
+    if (!isSkillCommandEnabled(skill)) {
+      conditionalSkills.delete(name)
+      continue
+    }
+
     if (skill.type !== 'prompt' || !skill.paths || skill.paths.length === 0) {
       continue
     }

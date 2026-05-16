@@ -4,6 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { getCwdState, setCwdState } from '../../bootstrap/state.js'
 import { handleSkillsApi } from '../api/skills.js'
+import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
 
 let tmpHome: string
 let originalHome: string | undefined
@@ -11,9 +12,12 @@ let originalUserProfile: string | undefined
 let originalClaudeConfigDir: string | undefined
 let originalCwdState: string
 
-function makeRequest(urlStr: string): { req: Request; url: URL; segments: string[] } {
+function makeRequest(
+  urlStr: string,
+  init: RequestInit = {},
+): { req: Request; url: URL; segments: string[] } {
   const url = new URL(urlStr, 'http://localhost:3456')
-  const req = new Request(url.toString(), { method: 'GET' })
+  const req = new Request(url.toString(), { method: 'GET', ...init })
   return {
     req,
     url,
@@ -38,6 +42,7 @@ describe('Skills API', () => {
     process.env.HOME = tmpHome
     process.env.USERPROFILE = tmpHome
     process.env.CLAUDE_CONFIG_DIR = path.join(tmpHome, '.claude')
+    resetSettingsCache()
     setCwdState(tmpHome)
   })
 
@@ -61,6 +66,7 @@ describe('Skills API', () => {
     }
 
     setCwdState(originalCwdState)
+    resetSettingsCache()
     await fs.rm(tmpHome, { recursive: true, force: true })
   })
 
@@ -87,6 +93,62 @@ describe('Skills API', () => {
     const body = await res.json() as { skills: Array<{ name: string; source: string }> }
     expect(body.skills).toContainEqual(expect.objectContaining({ name: 'user-skill', source: 'user' }))
     expect(body.skills).toContainEqual(expect.objectContaining({ name: 'project-skill', source: 'project' }))
+  })
+
+  it('returns the user skills configuration path', async () => {
+    const { req, url, segments } = makeRequest('/api/skills/config')
+    const res = await handleSkillsApi(req, url, segments)
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { config: { userSkillsDir: string; displayPath: string } }
+    expect(body.config.userSkillsDir).toBe(path.join(tmpHome, '.claude', 'skills'))
+    expect(body.config.displayPath).toBe(path.join(tmpHome, '.claude', 'skills'))
+  })
+
+  it('marks disabled skills and persists enablement updates', async () => {
+    const userSkillsRoot = path.join(tmpHome, '.claude', 'skills')
+    await writeSkill(
+      userSkillsRoot,
+      'alpha',
+      ['---', 'description: Alpha scope', '---', '', '# Alpha skill'].join('\n'),
+    )
+
+    const disableRequest = makeRequest('/api/skills/enabled', {
+      method: 'PATCH',
+      body: JSON.stringify({ source: 'user', name: 'alpha', enabled: false }),
+    })
+    const disableRes = await handleSkillsApi(
+      disableRequest.req,
+      disableRequest.url,
+      disableRequest.segments,
+    )
+
+    expect(disableRes.status).toBe(200)
+    const disabledBody = await disableRes.json() as { disabledSkills: string[] }
+    expect(disabledBody.disabledSkills).toContain('user:alpha')
+
+    const { req, url, segments } = makeRequest('/api/skills')
+    const res = await handleSkillsApi(req, url, segments)
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { skills: Array<{ name: string; enabled: boolean }> }
+    expect(body.skills).toContainEqual(
+      expect.objectContaining({ name: 'alpha', enabled: false }),
+    )
+
+    const enableRequest = makeRequest('/api/skills/enabled', {
+      method: 'PATCH',
+      body: JSON.stringify({ source: 'user', name: 'alpha', enabled: true }),
+    })
+    const enableRes = await handleSkillsApi(
+      enableRequest.req,
+      enableRequest.url,
+      enableRequest.segments,
+    )
+    const enabledBody = await enableRes.json() as { disabledSkills: string[] }
+
+    expect(enableRes.status).toBe(200)
+    expect(enabledBody.disabledSkills).not.toContain('user:alpha')
   })
 
   it('resolves project skill details from the nearest project skills directory', async () => {

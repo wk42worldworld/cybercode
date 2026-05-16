@@ -317,8 +317,10 @@ export const zh: Record<TranslationKey, string> = {
   'settings.agents.source.built-in': '内置',
 
   // Settings > Skills
-  'settings.skills.title': '已安装技能',
-  'settings.skills.description': '技能扩展 Claude 的能力。在 ~/.claude/skills/ 中管理技能。',
+  'settings.skills.title': '技能',
+  'settings.skills.description': '技能配置',
+  'settings.skills.openConfigPath': '打开技能目录',
+  'settings.skills.openConfigFailed': '打开技能目录失败',
   'settings.skills.browserTitle': '浏览已安装技能',
   'settings.skills.browserEyebrow': '技能浏览器',
   'settings.skills.browserDescription': '查看内置、项目和用户技能，比较它们的来源与规模，并打开技能目录阅读文档和源码文件。',
@@ -335,6 +337,10 @@ export const zh: Record<TranslationKey, string> = {
   'settings.skills.groupHint': '{source}中有 {count} 个技能可用',
   'settings.skills.ready': '可查看',
   'settings.skills.unavailable': '不可用',
+  'settings.skills.enabled': '已启用',
+  'settings.skills.disabled': '已关闭',
+  'settings.skills.toggleEnable': '启用{name}',
+  'settings.skills.toggleDisable': '关闭{name}',
   'settings.skills.empty': '暂无已安装技能',
   'settings.skills.emptyHint': '在 ~/.claude/skills/ 中添加技能即可开始',
   'settings.skills.back': '返回列表',

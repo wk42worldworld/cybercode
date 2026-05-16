@@ -9,6 +9,7 @@ export type SkillMeta = {
   version?: string
   contentLength: number
   hasDirectory: boolean
+  enabled?: boolean
   pluginName?: string
 }
 

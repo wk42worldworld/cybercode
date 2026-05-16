@@ -17,6 +17,7 @@ import { useSessionStore } from '../stores/sessionStore'
 import type { AgentDefinition, AgentSource } from '../api/agents'
 import { MarkdownRenderer } from '../components/markdown/MarkdownRenderer'
 import { useSkillStore } from '../stores/skillStore'
+import { skillsApi, type SkillsConfig } from '../api/skills'
 import { SkillList } from '../components/skills/SkillList'
 import { SkillDetail } from '../components/skills/SkillDetail'
 import { usePluginStore } from '../stores/pluginStore'
@@ -1504,9 +1505,37 @@ function DetailStat({
 }
 // ─── Skill Settings ──────────────────────────────────────
 
-function SkillSettings() {
+export function SkillSettings() {
   const selectedSkill = useSkillStore((s) => s.selectedSkill)
   const t = useTranslation()
+  const [config, setConfig] = useState<SkillsConfig | null>(null)
+  const [openingConfig, setOpeningConfig] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    skillsApi.config()
+      .then(({ config }) => {
+        if (!cancelled) setConfig(config)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const openConfigDir = async () => {
+    setOpeningConfig(true)
+    try {
+      await skillsApi.openConfig()
+    } catch (error) {
+      useUIStore.getState().addToast({
+        type: 'error',
+        message: error instanceof Error ? error.message : t('settings.skills.openConfigFailed'),
+      })
+    } finally {
+      setOpeningConfig(false)
+    }
+  }
 
   if (selectedSkill) {
     return (
@@ -1517,9 +1546,32 @@ function SkillSettings() {
   }
 
   return (
-    <SettingsPage icon="auto_awesome" title={t('settings.skills.title')} description={t('settings.skills.description')}>
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6">
+      <header className="flex flex-col gap-1.5 pb-2">
+        <h1 className="text-[24px] font-semibold tracking-tight text-[var(--color-text-primary)]">
+          {t('settings.skills.title')}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[13px] leading-[1.6] text-[var(--color-text-secondary)]">
+            {t('settings.skills.description')}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={openConfigDir}
+            loading={openingConfig}
+            icon={<Icon name="folder_open" size={14} />}
+            className="h-7 max-w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 font-mono text-[11px] font-medium normal-case tracking-normal text-[var(--color-text-secondary)]"
+            aria-label={t('settings.skills.openConfigPath')}
+            title={t('settings.skills.openConfigPath')}
+          >
+            <span className="truncate">{config?.displayPath ?? '~/.claude/skills'}</span>
+          </Button>
+        </div>
+      </header>
       <SkillList />
-    </SettingsPage>
+    </div>
   )
 }
 

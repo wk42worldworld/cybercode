@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import { Settings } from '../pages/Settings'
+import { SkillSettings } from '../pages/Settings'
 import { useSkillStore } from '../stores/skillStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -56,11 +56,8 @@ vi.mock('../components/chat/CodeViewer', () => ({
 
 const MOCK_FETCH_SKILLS = vi.fn()
 const MOCK_FETCH_SKILL_DETAIL = vi.fn()
+const MOCK_SET_SKILL_ENABLED = vi.fn()
 const MOCK_CLEAR_SELECTION = vi.fn()
-
-function switchToSkillsTab() {
-  fireEvent.click(screen.getByText('Skills'))
-}
 
 describe('Settings > Skills tab', () => {
   beforeEach(() => {
@@ -96,11 +93,12 @@ describe('Settings > Skills tab', () => {
       error: null,
       fetchSkills: MOCK_FETCH_SKILLS,
       fetchSkillDetail: MOCK_FETCH_SKILL_DETAIL,
+      setSkillEnabled: MOCK_SET_SKILL_ENABLED,
       clearSelection: MOCK_CLEAR_SELECTION,
     })
   })
 
-  it('renders browser summary and grouped skill cards', () => {
+  it('renders a compact grouped skill list', () => {
     useSkillStore.setState({
       skills: [
         {
@@ -112,6 +110,7 @@ describe('Settings > Skills tab', () => {
           version: '1.0.0',
           contentLength: 400,
           hasDirectory: true,
+          enabled: true,
         },
         {
           name: 'beta',
@@ -120,6 +119,7 @@ describe('Settings > Skills tab', () => {
           userInvocable: false,
           contentLength: 200,
           hasDirectory: true,
+          enabled: false,
         },
         {
           name: 'telegram:access',
@@ -130,16 +130,15 @@ describe('Settings > Skills tab', () => {
           userInvocable: true,
           contentLength: 280,
           hasDirectory: true,
+          enabled: true,
         },
       ],
     })
 
-    render(<Settings />)
-    switchToSkillsTab()
+    render(<SkillSettings />)
 
-    expect(screen.getByText('Browse installed skills')).toBeInTheDocument()
-    expect(screen.getByText('Skill Browser')).toBeInTheDocument()
-    expect(screen.getByText('Total skills')).toBeInTheDocument()
+    expect(screen.getByText('Skill configuration')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open skills folder' })).toHaveTextContent('~/.claude/skills')
     expect(screen.getByText('Alpha Skill')).toBeInTheDocument()
     expect(screen.getByText('Second skill description')).toBeInTheDocument()
     expect(screen.getAllByText('Plugin').length).toBeGreaterThan(0)
@@ -156,11 +155,11 @@ describe('Settings > Skills tab', () => {
       error: null,
       fetchSkills,
       fetchSkillDetail: MOCK_FETCH_SKILL_DETAIL,
+      setSkillEnabled: MOCK_SET_SKILL_ENABLED,
       clearSelection: MOCK_CLEAR_SELECTION,
     })
 
-    render(<Settings />)
-    switchToSkillsTab()
+    render(<SkillSettings />)
 
     expect(fetchSkills).toHaveBeenCalledWith('/workspace/project')
   })
@@ -177,6 +176,7 @@ describe('Settings > Skills tab', () => {
           version: '1.0.0',
           contentLength: 400,
           hasDirectory: true,
+          enabled: true,
         },
         tree: [
           { name: 'SKILL.md', path: 'SKILL.md', type: 'file' },
@@ -207,8 +207,7 @@ describe('Settings > Skills tab', () => {
       selectedSkillReturnTab: 'skills',
     })
 
-    render(<Settings />)
-    switchToSkillsTab()
+    render(<SkillSettings />)
 
     expect(screen.getByText('Skill metadata')).toBeInTheDocument()
     expect(screen.getByText('/slash')).toBeInTheDocument()
@@ -216,6 +215,36 @@ describe('Settings > Skills tab', () => {
     expect(screen.getByText('Read, Edit')).toBeInTheDocument()
     expect(screen.getByText('Hello')).toBeInTheDocument()
     expect(screen.queryByText(/^---$/)).not.toBeInTheDocument()
+  })
+
+  it('toggles skill enablement from the compact list', async () => {
+    useSkillStore.setState({
+      skills: [
+        {
+          name: 'alpha',
+          displayName: 'Alpha Skill',
+          description: 'First skill description',
+          source: 'user',
+          userInvocable: true,
+          contentLength: 400,
+          hasDirectory: true,
+          enabled: true,
+        },
+      ],
+    })
+
+    render(<SkillSettings />)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Disable Alpha Skill' }))
+
+    await waitFor(() => {
+      expect(MOCK_SET_SKILL_ENABLED).toHaveBeenCalledWith(
+        'user',
+        'alpha',
+        false,
+        '/workspace/project',
+      )
+    })
   })
 
   it('returns to plugins tab when skill detail was opened from plugins', () => {
@@ -229,6 +258,7 @@ describe('Settings > Skills tab', () => {
           userInvocable: true,
           contentLength: 200,
           hasDirectory: true,
+          enabled: true,
         },
         tree: [{ name: 'SKILL.md', path: 'SKILL.md', type: 'file' }],
         files: [
@@ -245,11 +275,11 @@ describe('Settings > Skills tab', () => {
       selectedSkillReturnTab: 'plugins',
     })
 
-    render(<Settings />)
-    switchToSkillsTab()
+    render(<SkillSettings />)
 
     fireEvent.click(screen.getByText('Back to list'))
 
-    expect(screen.getByText('Installed Plugins')).toBeInTheDocument()
+    expect(MOCK_CLEAR_SELECTION).toHaveBeenCalled()
+    expect(useUIStore.getState().pendingSettingsTab).toBe('plugins')
   })
 })
