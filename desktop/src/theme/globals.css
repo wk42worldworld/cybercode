@@ -666,12 +666,18 @@ html, body, #root {
 
 [data-runtime="tauri"] .tabbar-title {
   font-weight: 700;
-  color: #1f1f1f;
+  color: var(--color-text-primary);
 }
 
 [data-runtime="tauri"] [data-testid="tab-bar"] .model-selector-compact {
   font-weight: 700;
-  color: #4a4a4a;
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"][data-runtime="tauri"] [data-testid="tab-bar"] .model-selector-compact {
+  border-color: var(--color-border-separator);
+  background: var(--color-surface-container);
+  color: var(--color-text-secondary);
 }
 
 /* Heading defaults — readable, NOT all-caps. Tight tracking, modern weight. */
@@ -754,8 +760,14 @@ h6 { font-size: 12px; line-height: 1.4; }
 
 .cybercode-wordmark-image {
   display: block;
+  filter: none;
   image-rendering: auto;
+  transition: filter 150ms ease, opacity 150ms ease;
   user-select: none;
+}
+
+[data-theme="dark"] .cybercode-wordmark-image {
+  filter: invert(1) brightness(1.08) contrast(1.05);
 }
 
 /* Ghost button — translucent surface + subtle border */

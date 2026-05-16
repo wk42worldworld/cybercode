@@ -383,13 +383,10 @@ function ProviderCatalogItem({
     <div
       className={`relative overflow-hidden rounded-[12px] border transition-all ${
         isActive
-          ? 'border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-accent-glow)]'
+          ? 'border-[3px] border-[var(--color-brand)] bg-[var(--color-surface-container)] shadow-[var(--shadow-accent-glow)]'
           : 'border-[var(--color-border)] bg-[var(--color-surface-container)] hover:border-[var(--color-border-focus)]'
       }`}
     >
-      {isActive && (
-        <span className="absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg bg-[var(--color-brand)]" />
-      )}
       <div className="flex min-h-[76px] items-center gap-[14px] px-[20px] py-[14px]">
         <ProviderLogo name={name} logoUrl={logoUrl} active={isActive} />
 

@@ -1857,3 +1857,33 @@ $ vite
 [claude-server] [WS] Prewarmed session 78b19b18-5789-410c-bec7-87dfaecdcd42 idle for 300000ms, stopping CLI subprocess
 [claude-server] [WS] SDK disconnected from session: 78b19b18-5789-410c-bec7-87dfaecdcd42 (1000: )
 [claude-server] [ConversationService] CLI process for 78b19b18-5789-410c-bec7-87dfaecdcd42 exited with code 143
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Client connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] resolveSessionWorkDir: sessionId=99f46293-881d-49e9-a0ac-7fcbba471fd0, resolved workDir="/Users/wang", will spawn CLI with workDir=/Users/wang
+[claude-server] [WS] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0 due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 99f46293-881d-49e9-a0ac-7fcbba471fd0, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [ConversationService] CLI started successfully for 99f46293-881d-49e9-a0ac-7fcbba471fd0
+[claude-server] [WS] SDK connected for session: 99f46293-881d-49e9-a0ac-7fcbba471fd0
+6:05:46 AM [vite] (client) hmr update /src/theme/globals.css
+6:06:39 AM [vite] (client) hmr update /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Prewarmed session 99f46293-881d-49e9-a0ac-7fcbba471fd0 idle for 300000ms, stopping CLI subprocess
+[claude-server] [WS] SDK disconnected from session: 99f46293-881d-49e9-a0ac-7fcbba471fd0 (1000: )
+[claude-server] [ConversationService] CLI process for 99f46293-881d-49e9-a0ac-7fcbba471fd0 exited with code 143
+[claude-server] [WS] Client connected for session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+[claude-server] [WS] resolveSessionWorkDir: sessionId=9b9c53f6-fced-458a-9e81-58aa24c1f51f, resolved workDir="/Users/wang/Documents/MyProject/iosapp/CyberCamera", will spawn CLI with workDir=/Users/wang/Documents/MyProject/iosapp/CyberCamera
+[claude-server] [WS] Starting CLI for 9b9c53f6-fced-458a-9e81-58aa24c1f51f due to prewarm_session
+[claude-server] [ConversationService] Starting CLI for 9b9c53f6-fced-458a-9e81-58aa24c1f51f, cwd: /Users/wang/Documents/MyProject/iosapp/CyberCamera (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK connected for session: 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+[claude-server] [ConversationService] CLI started successfully for 9b9c53f6-fced-458a-9e81-58aa24c1f51f
+6:11:01 AM [vite] (client) hmr update /src/pages/Settings.tsx, /src/theme/globals.css
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [WS] Unknown CLI message type: keep_alive {"type":"keep_alive"}
+[claude-server] [ConversationService] Starting CLI for 2ac62755-6f68-4838-94a0-3fecc8ca662d, cwd: /Users/wang (process.cwd()=/Users/wang/Documents/MyProject/cybercode/desktop/src-tauri, CALLER_DIR will be pinned to workDir)
+[claude-server] [WS] SDK disconnected from session: 2ac62755-6f68-4838-94a0-3fecc8ca662d (1000: )
+[claude-server] [ConversationService] CLI process for 2ac62755-6f68-4838-94a0-3fecc8ca662d exited with code 143
+[claude-server] [ConversationService] CLI started successfully for 2ac62755-6f68-4838-94a0-3fecc8ca662d
+[claude-server] [WS] Restarted CLI for 2ac62755-6f68-4838-94a0-3fecc8ca662d with runtime override
+[claude-server] [WS] SDK connected for session: 2ac62755-6f68-4838-94a0-3fecc8ca662d
