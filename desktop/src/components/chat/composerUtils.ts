@@ -7,14 +7,65 @@ export const PANEL_SLASH_COMMANDS = [
   { name: 'status', description: 'Show session status, usage, and context' },
   { name: 'cost', description: 'Show session usage and costs' },
   { name: 'context', description: 'Show current context usage' },
+  { name: 'doctor', description: 'Show desktop diagnostics' },
+  { name: 'memory', description: 'Inspect memory files for this session' },
+  { name: 'bug', description: 'Open feedback and bug report options' },
 ] as const
 
 export const SETTINGS_SLASH_COMMANDS = [
   { name: 'plugin', description: 'Open desktop plugin controls in Settings', tab: 'plugins' as const },
+  { name: 'config', description: 'Open desktop configuration', tab: 'general' as const },
+  { name: 'permissions', description: 'View or manage tool permissions', tab: 'permissions' as const },
+  { name: 'terminal-setup', description: 'Set up terminal integration', tab: 'terminal' as const },
+  { name: 'login', description: 'Open account and provider sign-in settings', tab: 'providers' as const },
+  { name: 'logout', description: 'Open account and provider sign-out settings', tab: 'providers' as const },
+  { name: 'agents', description: 'Open agent configuration', tab: 'agents' as const },
 ] as const
 
 export const SLASH_COMMAND_ALIASES = [
   { name: 'plugins', target: 'plugin' },
+  { name: 'feedback', target: 'bug' },
+] as const
+
+export const DESKTOP_UNSUPPORTED_SLASH_COMMANDS = [
+  'add-dir',
+  'branch',
+  'remote-control',
+  'btw',
+  'buddy',
+  'chrome',
+  'color',
+  'copy',
+  'desktop',
+  'diff',
+  'effort',
+  'exit',
+  'export',
+  'extra-usage',
+  'fast',
+  'hooks',
+  'ide',
+  'install-github-app',
+  'mobile',
+  'output-style',
+  'passes',
+  'plan',
+  'privacy-settings',
+  'rate-limit-options',
+  'remote-env',
+  'web-setup',
+  'rename',
+  'resume',
+  'sandbox',
+  'session',
+  'stats',
+  'tag',
+  'tasks',
+  'theme',
+  'think-back',
+  'upgrade',
+  'usage',
+  'vim',
 ] as const
 
 export const FALLBACK_SLASH_COMMANDS = [
@@ -26,16 +77,7 @@ export const FALLBACK_SLASH_COMMANDS = [
   { name: 'commit', description: 'Create a git commit' },
   { name: 'pr', description: 'Create a pull request' },
   { name: 'init', description: 'Initialize project CLAUDE.md' },
-  { name: 'bug', description: 'Report a bug' },
-  { name: 'config', description: 'Open configuration' },
-  { name: 'doctor', description: 'Diagnose installation issues' },
-  { name: 'login', description: 'Switch Anthropic accounts' },
-  { name: 'logout', description: 'Sign out of current account' },
-  { name: 'memory', description: 'Edit CLAUDE.md memory files' },
   { name: 'model', description: 'Switch AI model' },
-  { name: 'permissions', description: 'View or manage tool permissions' },
-  { name: 'terminal-setup', description: 'Set up terminal integration' },
-  { name: 'vim', description: 'Toggle vim editing mode' },
 ]
 
 export type SlashCommandOption = {
@@ -52,9 +94,32 @@ export type SlashUiAction =
       type: 'settings'
       tab: SettingsTab
     }
+  | {
+      type: 'model'
+    }
+  | {
+      type: 'unsupported'
+      command: typeof DESKTOP_UNSUPPORTED_SLASH_COMMANDS[number]
+    }
+
+export function getSlashCommandName(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('/')) return null
+
+  const command = trimmed.slice(1).trim().split(/\s+/, 1)[0]
+  return command || null
+}
 
 export function resolveSlashUiAction(value: string): SlashUiAction | null {
   const normalizedValue = SLASH_COMMAND_ALIASES.find((alias) => alias.name === value)?.target ?? value
+  if (DESKTOP_UNSUPPORTED_SLASH_COMMANDS.some((command) => command === normalizedValue)) {
+    return { type: 'unsupported', command: normalizedValue as typeof DESKTOP_UNSUPPORTED_SLASH_COMMANDS[number] }
+  }
+
+  if (normalizedValue === 'model') {
+    return { type: 'model' }
+  }
+
   const panelCommand = PANEL_SLASH_COMMANDS.find((command) => command.name === normalizedValue)
   if (panelCommand) {
     return { type: 'panel', command: panelCommand.name }
@@ -73,9 +138,11 @@ export function mergeSlashCommands(
   fallback: ReadonlyArray<SlashCommandOption> = FALLBACK_SLASH_COMMANDS,
 ): SlashCommandOption[] {
   const merged = new Map<string, SlashCommandOption>()
+  const unsupportedCommands = new Set<string>(DESKTOP_UNSUPPORTED_SLASH_COMMANDS)
 
   for (const command of preferred) {
     if (!command?.name) continue
+    if (unsupportedCommands.has(command.name)) continue
     merged.set(command.name, {
       name: command.name,
       description: command.description?.trim() || '',
@@ -84,6 +151,7 @@ export function mergeSlashCommands(
 
   for (const command of fallback) {
     if (!command?.name) continue
+    if (unsupportedCommands.has(command.name)) continue
     const existing = merged.get(command.name)
     if (existing) {
       if (!existing.description && command.description) {

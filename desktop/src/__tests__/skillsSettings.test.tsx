@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
@@ -58,10 +58,22 @@ const MOCK_FETCH_SKILLS = vi.fn()
 const MOCK_FETCH_SKILL_DETAIL = vi.fn()
 const MOCK_SET_SKILL_ENABLED = vi.fn()
 const MOCK_CLEAR_SELECTION = vi.fn()
+const MOCK_TAURI_INVOKE = vi.hoisted(() => vi.fn())
+const MOCK_TAURI_OPEN = vi.hoisted(() => vi.fn())
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: MOCK_TAURI_INVOKE,
+}))
+
+vi.mock('@tauri-apps/plugin-shell', () => ({
+  open: MOCK_TAURI_OPEN,
+}))
 
 describe('Settings > Skills tab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllGlobals()
+    delete (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
     useSettingsStore.setState({ locale: 'en' })
     useSessionStore.setState({
       sessions: [
@@ -96,6 +108,11 @@ describe('Settings > Skills tab', () => {
       setSkillEnabled: MOCK_SET_SKILL_ENABLED,
       clearSelection: MOCK_CLEAR_SELECTION,
     })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete (window as typeof window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
   })
 
   it('renders a compact grouped skill list', () => {
@@ -162,6 +179,72 @@ describe('Settings > Skills tab', () => {
     render(<SkillSettings />)
 
     expect(fetchSkills).toHaveBeenCalledWith('/workspace/project')
+  })
+
+  it('opens the skills folder through Tauri on desktop', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: {},
+    })
+    MOCK_TAURI_INVOKE.mockResolvedValue(undefined)
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        config: {
+          userSkillsDir: '/Users/wang/.claude/skills',
+          displayPath: '~/.claude/skills',
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<SkillSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open skills folder' }))
+
+    await waitFor(() => {
+      expect(MOCK_TAURI_INVOKE).toHaveBeenCalledWith('open_skills_config_dir')
+    })
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/skills/open-config'),
+      expect.anything(),
+    )
+  })
+
+  it('falls back to Tauri shell open instead of HTTP when the desktop command is unavailable', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: {},
+    })
+    MOCK_TAURI_INVOKE.mockRejectedValue(new Error('unknown command'))
+    MOCK_TAURI_OPEN.mockResolvedValue(undefined)
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        config: {
+          userSkillsDir: '/Users/wang/custom-claude/skills',
+          displayPath: '~/custom-claude/skills',
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<SkillSettings />)
+
+    await screen.findByText('~/custom-claude/skills')
+    fireEvent.click(screen.getByRole('button', { name: 'Open skills folder' }))
+
+    await waitFor(() => {
+      expect(MOCK_TAURI_OPEN).toHaveBeenCalledWith('/Users/wang/custom-claude/skills')
+    })
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/skills/open-config'),
+      expect.anything(),
+    )
   })
 
   it('opens skill detail with metadata cards and parsed markdown body', () => {

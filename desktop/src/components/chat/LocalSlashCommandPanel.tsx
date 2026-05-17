@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { skillsApi } from '../../api/skills'
 import { mcpApi } from '../../api/mcp'
+import { statusApi, type StatusDiagnosticsResponse, type StatusHealthResponse } from '../../api/status'
 import {
   sessionsApi,
   type SessionContextSnapshot,
@@ -15,8 +16,10 @@ import type { McpServerRecord } from '../../types/mcp'
 import type { SkillMeta } from '../../types/skill'
 import type { SlashCommandOption } from './composerUtils'
 import { Icon } from '../shared/Icon'
+import { CopyButton } from '../shared/CopyButton'
+import { formatBytes } from '../../lib/formatBytes'
 
-export type LocalSlashCommandName = 'mcp' | 'skills' | 'help' | 'status' | 'cost' | 'context'
+export type LocalSlashCommandName = 'mcp' | 'skills' | 'help' | 'status' | 'cost' | 'context' | 'doctor' | 'memory' | 'bug'
 
 type Props = {
   command: LocalSlashCommandName
@@ -29,6 +32,14 @@ type Props = {
 
 type SessionInspectorTab = 'status' | 'usage' | 'context'
 type Translate = ReturnType<typeof useTranslation>
+
+const GITHUB_ISSUES_URL = 'https://github.com/wk42worldworld/cybercode/issues'
+
+function openExternalTarget(target: string) {
+  import('@tauri-apps/plugin-shell')
+    .then((mod) => mod.open(target))
+    .catch(() => window.open(target, '_blank'))
+}
 
 function toneForStatus(status: McpServerRecord['status']) {
   switch (status) {
@@ -76,21 +87,21 @@ function PanelShell({
   onClose: () => void
 }) {
   return (
-    <div className="absolute bottom-full left-0 right-0 z-50 mb-[12px] overflow-hidden rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]">
-      <div className="flex min-h-[64px] items-center justify-between gap-[16px] border-b border-[var(--color-border-separator)] px-[20px] py-[12px]">
+    <div className="absolute bottom-full left-0 right-0 z-50 mb-[12px] overflow-hidden rounded-[24px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] shadow-[var(--shadow-dropdown)]">
+      <div className="flex min-h-[64px] items-center justify-between gap-[16px] rounded-[16px] bg-[var(--color-surface-container-low)] px-[14px] py-[10px]">
         <div>
-          <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
-          <p className="mt-0.5 text-[12px] text-[var(--color-text-tertiary)]">{subtitle}</p>
+          <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
+          <p className="mt-[2px] text-[12px] font-medium text-[var(--color-text-tertiary)]">{subtitle}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+          className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-transparent text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-border-separator)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
         >
           <Icon name="close" size={16} />
         </button>
       </div>
-      <div className="max-h-[min(620px,72vh)] overflow-y-auto px-[20px] py-[16px]">{children}</div>
+      <div className="max-h-[min(620px,72vh)] overflow-y-auto px-[10px] py-[12px]">{children}</div>
     </div>
   )
 }
@@ -131,6 +142,11 @@ function formatDuration(seconds: number | undefined) {
   const minutes = Math.floor(total / 60)
   const remaining = total % 60
   return remaining ? `${minutes}m ${remaining}s` : `${minutes}m`
+}
+
+function formatMilliseconds(ms: number | undefined) {
+  const total = Math.max(0, Math.round((ms ?? 0) / 1000))
+  return formatDuration(total)
 }
 
 function formatPercent(value: number | undefined) {
@@ -935,7 +951,7 @@ function SkillsPanel({ cwd, onClose }: { cwd?: string; onClose: () => void }) {
 const COMMAND_GROUPS = [
   {
     titleKey: 'slash.help.group.context',
-    names: ['clear', 'compact', 'context', 'cost'],
+    names: ['clear', 'compact', 'context', 'cost', 'status', 'memory'],
   },
   {
     titleKey: 'slash.help.group.project',
@@ -943,9 +959,208 @@ const COMMAND_GROUPS = [
   },
   {
     titleKey: 'slash.help.group.desktop',
-    names: ['mcp', 'skills', 'plugin', 'help'],
+    names: ['help', 'model', 'config', 'permissions', 'terminal-setup', 'login', 'logout', 'agents', 'mcp', 'skills', 'plugin', 'doctor', 'bug'],
   },
 ] satisfies Array<{ titleKey: TranslationKey; names: string[] }>
+
+function DoctorPanel({ onClose }: { onClose: () => void }) {
+  const t = useTranslation()
+  const [health, setHealth] = useState<StatusHealthResponse | null>(null)
+  const [diagnostics, setDiagnostics] = useState<StatusDiagnosticsResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    Promise.all([statusApi.health(), statusApi.diagnostics()])
+      .then(([nextHealth, nextDiagnostics]) => {
+        setHealth(nextHealth)
+        setDiagnostics(nextDiagnostics)
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const payload = JSON.stringify({ health, diagnostics }, null, 2)
+
+  return (
+    <PanelShell title={t('slash.doctor.title')} subtitle={t('slash.doctor.subtitle')} onClose={onClose}>
+      {loading ? (
+        <LoadingState label={t('slash.doctor.loading')} />
+      ) : error ? (
+        <ErrorState message={error} />
+      ) : !health || !diagnostics ? (
+        <EmptyState title={t('slash.doctor.emptyTitle')} body={t('slash.doctor.emptyBody')} />
+      ) : (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyButton
+              text={payload}
+              label={t('slash.doctor.copy')}
+              copiedLabel={t('app.copiedDiagnostics')}
+              displayLabel={t('slash.doctor.copy')}
+              displayCopiedLabel={t('app.copiedDiagnostics')}
+              className="border border-[var(--color-border)] bg-[var(--color-surface-container)]"
+            />
+            <button
+              type="button"
+              onClick={load}
+              className="inline-flex h-[30px] items-center rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-2.5 text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              {t('slash.doctor.refresh')}
+            </button>
+          </div>
+          <KeyValueRows
+            rows={[
+              [t('slash.doctor.status'), health.status],
+              [t('slash.doctor.version'), health.version],
+              [t('slash.doctor.uptime'), formatMilliseconds(health.uptime)],
+              [t('slash.doctor.runtime'), `Node ${diagnostics.nodeVersion} · Bun ${diagnostics.bunVersion}`],
+              [t('slash.doctor.platform'), `${diagnostics.platform} ${diagnostics.arch}`],
+              [t('slash.doctor.configDir'), <span className="font-mono text-[13px]">{diagnostics.configDir}</span>],
+              [t('slash.doctor.memory'), `${formatBytes(diagnostics.memory.heapUsed)} / ${formatBytes(diagnostics.memory.heapTotal)} heap · ${formatBytes(diagnostics.memory.rss)} RSS`],
+            ]}
+          />
+        </div>
+      )}
+    </PanelShell>
+  )
+}
+
+function MemoryPanel({
+  sessionId,
+  projectPath,
+  onClose,
+}: {
+  sessionId?: string
+  projectPath?: string
+  onClose: () => void
+}) {
+  const t = useTranslation()
+  const [data, setData] = useState<SessionInspectionResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!sessionId) {
+      setLoading(false)
+      setError(t('slash.inspector.error.noActiveSession'))
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    setData(null)
+    sessionsApi.getInspection(sessionId, { includeContext: true, timeout: 45_000, projectPath })
+      .then((response) => {
+        if (!cancelled) setData(assertSessionInspectionResponse(response, t))
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId, projectPath, t])
+
+  const context = data?.context ?? data?.contextEstimate
+  const memoryFiles = context?.memoryFiles ?? []
+
+  return (
+    <PanelShell title={t('slash.memory.title')} subtitle={t('slash.memory.subtitle')} onClose={onClose}>
+      {loading ? (
+        <LoadingState label={t('slash.memory.loading')} />
+      ) : error ? (
+        <ErrorState message={error} />
+      ) : memoryFiles.length === 0 ? (
+        <EmptyState title={t('slash.memory.emptyTitle')} body={t('slash.memory.emptyBody')} />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {memoryFiles.map((file) => (
+            <div key={`${file.type}:${file.path}`} className="grid min-h-[76px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-[var(--color-border)] px-[16px] py-[12px] first:border-t-0">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[var(--color-surface-hover)] px-2 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
+                    {file.type}
+                  </span>
+                  <span className="text-[12px] text-[var(--color-text-tertiary)]">
+                    {t('slash.memory.tokens', { count: formatNumber(file.tokens) })}
+                  </span>
+                </div>
+                <div className="mt-2 truncate font-mono text-[13px] text-[var(--color-text-primary)]" title={file.path}>
+                  {file.path}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CopyButton
+                  text={file.path}
+                  label={t('slash.memory.copyPath')}
+                  copiedLabel={t('slash.memory.copiedPath')}
+                  displayLabel={t('slash.memory.copyPath')}
+                  displayCopiedLabel={t('slash.memory.copiedPath')}
+                />
+                <button
+                  type="button"
+                  onClick={() => openExternalTarget(file.path)}
+                  className="inline-flex h-[30px] items-center rounded-[var(--radius-md)] px-2.5 text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-brand)]"
+                >
+                  {t('slash.memory.openFile')}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </PanelShell>
+  )
+}
+
+function BugPanel({ onClose }: { onClose: () => void }) {
+  const t = useTranslation()
+  const openSettings = useUIStore((s) => s.openSettings)
+
+  return (
+    <PanelShell title={t('slash.bug.title')} subtitle={t('slash.bug.subtitle')} onClose={onClose}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => openExternalTarget(GITHUB_ISSUES_URL)}
+          className="min-h-[96px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+        >
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--color-text-primary)]">
+            <Icon name="feedback" size={18} className="text-[var(--color-text-tertiary)]" />
+            {t('slash.bug.openIssue')}
+          </div>
+          <p className="mt-2 text-[12px] leading-5 text-[var(--color-text-tertiary)]">{t('slash.bug.openIssueDesc')}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            openSettings('about')
+            onClose()
+          }}
+          className="min-h-[96px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-4 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+        >
+          <div className="flex items-center gap-2 text-[14px] font-semibold text-[var(--color-text-primary)]">
+            <Icon name="info" size={18} className="text-[var(--color-text-tertiary)]" />
+            {t('slash.bug.openAbout')}
+          </div>
+          <p className="mt-2 text-[12px] leading-5 text-[var(--color-text-tertiary)]">{t('slash.bug.openAboutDesc')}</p>
+        </button>
+      </div>
+    </PanelShell>
+  )
+}
 
 function HelpPanel({
   commands,
@@ -1022,6 +1237,9 @@ function HelpPanel({
 export function LocalSlashCommandPanel({ command, sessionId, projectPath, cwd, commands, onClose }: Props) {
   if (command === 'mcp') return <McpPanel cwd={cwd} onClose={onClose} />
   if (command === 'skills') return <SkillsPanel cwd={cwd} onClose={onClose} />
+  if (command === 'doctor') return <DoctorPanel onClose={onClose} />
+  if (command === 'memory') return <MemoryPanel sessionId={sessionId} projectPath={projectPath} onClose={onClose} />
+  if (command === 'bug') return <BugPanel onClose={onClose} />
   if (command === 'status' || command === 'cost' || command === 'context') {
     return <SessionInspectorPanel command={command} sessionId={sessionId} projectPath={projectPath} commands={commands} onClose={onClose} />
   }

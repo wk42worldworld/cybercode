@@ -33,17 +33,24 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
   if (attachments.length === 0) return null
 
   const isComposer = variant === 'composer'
+  const messageAttachmentSurfaceStyle = isComposer
+    ? undefined
+    : {
+        background: 'color-mix(in srgb, var(--color-message-user-fg) 10%, transparent)',
+        borderColor: 'color-mix(in srgb, var(--color-message-user-fg) 14%, transparent)',
+        color: 'var(--color-message-user-fg)',
+      }
 
   return (
     <>
-      <div className={isComposer ? 'flex flex-wrap items-center gap-2' : 'grid grid-cols-1 gap-2 sm:grid-cols-2'}>
+      <div className={isComposer ? 'flex flex-wrap items-center gap-2' : 'grid max-w-full grid-cols-1 gap-2 sm:grid-cols-2'}>
         {attachments.map((attachment, index) => {
           if (attachment.type === 'image' && (attachment.previewUrl || attachment.data)) {
             const src = attachment.previewUrl || attachment.data || ''
             return (
               <div
                 key={attachment.id || `${attachment.name}-${index}`}
-                className={isComposer ? 'group relative' : ''}
+                className={isComposer ? 'group relative' : 'min-w-0'}
               >
                 <button
                   type="button"
@@ -51,8 +58,9 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
                   className={
                     isComposer
                       ? 'overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-colors'
-                      : 'overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-left transition-colors duration-100 hover:border-[var(--color-brand)]'
+                      : 'block max-w-full overflow-hidden rounded-[14px] border text-left transition-opacity duration-100 hover:opacity-90'
                   }
+                  style={messageAttachmentSurfaceStyle}
                 >
                   <img
                     src={src}
@@ -60,7 +68,7 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
                     className={
                       isComposer
                         ? 'h-16 w-16 object-cover'
-                        : 'max-h-[340px] w-full max-w-[360px] object-cover'
+                        : 'block max-h-[340px] w-auto max-w-full object-contain'
                     }
                   />
                 </button>
@@ -81,7 +89,12 @@ export function AttachmentGallery({ attachments, variant = 'message', onRemove }
           return (
             <div
               key={attachment.id || `${attachment.name}-${index}`}
-              className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] hover:border-[var(--color-brand)] transition-colors px-3 py-2 text-[12px] text-[var(--color-text-secondary)]"
+              className={
+                isComposer
+                  ? 'flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-3 py-2 text-[12px] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-brand)]'
+                  : 'flex min-w-0 items-center gap-2 rounded-[12px] border px-3 py-2 text-[12px] transition-opacity hover:opacity-90'
+              }
+              style={messageAttachmentSurfaceStyle}
             >
               <Icon name="attach_file" size={14} />
               <span className="max-w-[220px] truncate">{attachment.name}</span>

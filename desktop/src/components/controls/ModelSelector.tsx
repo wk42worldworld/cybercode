@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { Check, ChevronRight } from 'lucide-react'
 import { OFFICIAL_DEFAULT_MODEL_ID, OFFICIAL_MODELS } from '../../constants/modelCatalog'
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
@@ -27,6 +27,7 @@ type Props = {
   align?: 'left' | 'right'
   compact?: boolean
   variant?: 'default' | 'pill'
+  openSignal?: number
 }
 
 function officialChoices(availableModels: ModelInfo[], isDefault: boolean, officialName: string): ProviderChoice {
@@ -115,6 +116,7 @@ export function ModelSelector({
   align = 'right',
   compact = false,
   variant = 'default',
+  openSignal,
 }: Props = {}) {
   const t = useTranslation()
   const {
@@ -171,6 +173,11 @@ export function ModelSelector({
       document.removeEventListener('keydown', handleEsc)
     }
   }, [open])
+
+  useEffect(() => {
+    if (openSignal === undefined || disabled) return
+    setOpen(true)
+  }, [openSignal, disabled])
 
   const roleLabels = useMemo(
     () => ({
@@ -236,9 +243,9 @@ export function ModelSelector({
     setOpen(false)
   }
   const compactClassName = variant === 'pill'
-    ? 'model-selector-compact h-[36px] rounded-full border border-neutral-200 bg-white px-[16px] text-[13px] font-bold leading-normal text-neutral-600 hover:bg-neutral-50 hover:text-black'
-    : 'model-selector-compact h-[36px] rounded-full border border-neutral-200 bg-white px-[16px] text-[13px] font-bold leading-normal text-neutral-600 hover:bg-neutral-50 hover:text-black'
-  const compactLabelClassName = variant === 'pill' ? 'max-w-[120px]' : 'max-w-[100px]'
+    ? 'model-selector-compact h-[34px] max-w-[176px] rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[12px] text-[12px] font-semibold leading-normal text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
+    : 'model-selector-compact h-[34px] max-w-[176px] rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[12px] text-[12px] font-semibold leading-normal text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
+  const compactLabelClassName = variant === 'pill' ? 'max-w-[118px]' : 'max-w-[118px]'
 
   return (
     <div ref={ref} className="relative">
@@ -262,36 +269,43 @@ export function ModelSelector({
           </span>
         )}
         {compact ? (
-          <ChevronRight size={14} strokeWidth={2} className="shrink-0 rotate-90" />
+          <ChevronRight size={14} strokeWidth={2} className={`shrink-0 ${placement === 'top' ? '-rotate-90' : 'rotate-90'}`} />
         ) : (
           <Icon name="expand_more" size={18} className="flex-shrink-0 text-[12px]" />
         )}
       </button>
 
       {open && (
-        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} z-50 w-[280px] rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)] overflow-hidden animate-fade-in ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
-          <div className="max-h-[380px] overflow-y-auto py-2 px-1.5">
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} z-[140] w-[320px] overflow-hidden rounded-[24px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)] animate-fade-in ${placement === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-[10px]'}`}>
+          <div className="max-h-[420px] overflow-y-auto p-[8px]">
             {/* Section label */}
-            <div className="px-2.5 py-2 text-[13px] font-semibold text-[var(--color-text-primary)]">
-              {t('model.configuration')}
+            <div className="flex items-center justify-between px-[10px] py-[8px]">
+              <div className="text-[13px] font-semibold leading-tight text-[var(--color-text-primary)]">
+                {t('model.configuration')}
+              </div>
+              {buttonProviderLabel && (
+                <div className="max-w-[132px] truncate rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-[9px] py-[4px] text-[11px] font-medium text-[var(--color-text-tertiary)]">
+                  {buttonProviderLabel}
+                </div>
+              )}
             </div>
 
             {isRuntimeScoped ? (
-              <div className="space-y-2">
+              <div className="space-y-[8px]">
                 {providerChoices.map((choice) => (
-                  <div key={choice.providerId ?? 'official'} className="space-y-1">
-                    <div className="mx-1 inline-flex w-fit max-w-[calc(100%-0.5rem)] items-center gap-2 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                      <span className="min-w-0 truncate text-[14px] font-bold tracking-tight text-[var(--color-text-primary)]">
+                  <div key={choice.providerId ?? 'official'} className="rounded-[18px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] p-[6px]">
+                    <div className="flex items-center gap-[8px] px-[8px] py-[6px]">
+                      <span className="min-w-0 truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
                         {choice.providerName}
                       </span>
                       {choice.isDefault && (
-                        <span className="flex-shrink-0 rounded-md bg-[var(--color-surface-selected)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">
+                        <span className="shrink-0 rounded-full bg-[var(--color-surface-selected)] px-[8px] py-[3px] text-[10px] font-semibold text-[var(--color-text-secondary)]">
                           {t('settings.providers.default')}
                         </span>
                       )}
                     </div>
 
-                    <div>
+                    <div className="space-y-[3px]">
                       {choice.models.map((model) => {
                         const isSelected =
                           activeRuntimeSelection?.providerId === choice.providerId &&
@@ -301,7 +315,7 @@ export function ModelSelector({
                             key={`${choice.providerId ?? 'official'}:${model.id}`}
                             onClick={() => handleRuntimeSelect({ providerId: choice.providerId, modelId: model.id })}
                             className={`
-                              w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group
+                              group flex min-h-[48px] w-full items-center gap-[10px] rounded-[14px] px-[10px] py-[8px] text-left transition-colors
                               ${isSelected
                                 ? 'bg-[var(--color-surface-selected)]'
                                 : 'hover:bg-[var(--color-surface-hover)]'
@@ -309,17 +323,19 @@ export function ModelSelector({
                             `}
                           >
                             <div className="min-w-0 flex-1">
-                              <div className={`truncate text-[12px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                              <div className={`truncate text-[13px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                                 {model.name}
                               </div>
                               {model.description && (
-                                <div className="mt-px truncate text-[10px] text-[var(--color-text-tertiary)]">
+                                <div className="mt-[2px] truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">
                                   {model.description}
                                 </div>
                               )}
                             </div>
                             {isSelected && (
-                              <Icon name="check" size={14} className="shrink-0 text-[var(--color-brand)]" />
+                              <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--color-text-primary)] text-[var(--color-background)]">
+                                <Check size={13} strokeWidth={2.4} />
+                              </div>
                             )}
                           </button>
                         )
@@ -329,7 +345,7 @@ export function ModelSelector({
                 ))}
               </div>
             ) : (
-              <div className="space-y-0.5">
+              <div className="space-y-[3px]">
                 {availableModels.map((model) => {
                   const isSelected = model.id === selectedModel?.id
                   return (
@@ -344,7 +360,7 @@ export function ModelSelector({
                         setOpen(false)
                       }}
                       className={`
-                        w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group
+                        group flex min-h-[48px] w-full items-center gap-[10px] rounded-[14px] px-[10px] py-[8px] text-left transition-colors
                         ${isSelected
                           ? 'bg-[var(--color-surface-selected)]'
                           : 'hover:bg-[var(--color-surface-hover)]'
@@ -352,17 +368,19 @@ export function ModelSelector({
                       `}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className={`truncate text-[12px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                        <div className={`truncate text-[13px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                           {model.name}
                         </div>
                         {model.description && (
-                          <div className="mt-px truncate text-[10px] text-[var(--color-text-tertiary)]">
+                          <div className="mt-[2px] truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">
                             {model.description}
                           </div>
                         )}
                       </div>
                       {isSelected && (
-                        <Icon name="check" size={14} className="shrink-0 text-[var(--color-brand)]" />
+                        <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--color-text-primary)] text-[var(--color-background)]">
+                          <Check size={13} strokeWidth={2.4} />
+                        </div>
                       )}
                     </button>
                   )

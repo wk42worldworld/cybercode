@@ -93,8 +93,8 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-background)] font-sans text-[var(--color-text-primary)]">
-      <div className="relative flex h-full w-full overflow-hidden bg-[var(--color-background)]">
+    <div className="flex h-screen w-screen overflow-hidden bg-transparent font-sans text-[var(--color-text-primary)]">
+      <div className="relative flex h-full w-full overflow-hidden bg-transparent">
         <IconRail />
         <div
           className={`relative z-20 flex h-full shrink-0 overflow-hidden border-r border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] transition-[width] duration-[var(--motion-sidebar-duration)] ease-[var(--motion-sidebar-easing)] ${sidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0'}`}

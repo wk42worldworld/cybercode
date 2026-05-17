@@ -250,6 +250,7 @@
   --font-headline: var(--font-sans);
   --font-body: var(--font-sans);
   --font-label: var(--font-sans);
+  --font-chat: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
   --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Type scale — slightly tighter than industrial scale */
@@ -610,11 +611,26 @@ html, body, #root {
   font-feature-settings: 'cv11', 'ss01', 'ss02';
 }
 
+html[data-runtime="tauri"],
+html[data-runtime="tauri"] body,
+html[data-runtime="tauri"] #root {
+  background-color: transparent;
+}
+
 .native-ui-text,
-.native-ui-text :where(div, button, span, p, li, h1, h2, h3, h4, strong, em, a, blockquote),
+.native-ui-text :where(div, button, span, p, li, h1, h2, h3, h4, strong, em, a, blockquote) {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: auto;
+  font-feature-settings: normal;
+  font-variant-ligatures: normal;
+  font-kerning: auto;
+}
+
 .chat-bubble-text,
 .chat-bubble-text :where(div, p, li, h1, h2, h3, h4, strong, em, a, span, blockquote) {
-  font-family: var(--font-sans);
+  font-family: var(--font-chat);
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
   text-rendering: auto;
@@ -805,6 +821,37 @@ h6 { font-size: 12px; line-height: 1.4; }
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--mac-border);
+}
+
+.icon-rail-glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(1.2) blur(18px);
+  -webkit-backdrop-filter: saturate(1.2) blur(18px);
+  box-shadow: inset -1px 0 0 var(--color-border-separator);
+}
+
+html[data-runtime="tauri"] .icon-rail-glass {
+  background: rgba(255, 255, 255, 0.48);
+  backdrop-filter: saturate(1.4) blur(22px);
+  -webkit-backdrop-filter: saturate(1.4) blur(22px);
+}
+
+[data-theme="dark"] .icon-rail-glass {
+  background: rgba(15, 17, 20, 0.72);
+  backdrop-filter: saturate(1.15) blur(16px);
+  -webkit-backdrop-filter: saturate(1.15) blur(16px);
+}
+
+html[data-runtime="tauri"][data-theme="dark"] .icon-rail-glass {
+  background: rgba(16, 18, 21, 0.52);
+  backdrop-filter: saturate(1.28) blur(22px);
+  -webkit-backdrop-filter: saturate(1.28) blur(22px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .icon-rail-glass {
+    background: var(--color-surface-container-lowest);
+  }
 }
 
 /* Tauri drag region */

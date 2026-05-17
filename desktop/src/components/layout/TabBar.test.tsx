@@ -7,12 +7,6 @@ vi.mock('./WindowControls', () => ({
   showWindowControls: true,
 }))
 
-vi.mock('../controls/ModelSelector', () => ({
-  ModelSelector: ({ runtimeKey, disabled }: { runtimeKey: string; disabled?: boolean }) => (
-    <div data-testid="model-selector" data-runtime-key={runtimeKey} data-disabled={String(disabled)} />
-  ),
-}))
-
 describe('TabBar', () => {
   beforeEach(() => {
     Object.defineProperty(window, '__TAURI__', {
@@ -148,7 +142,7 @@ describe('TabBar', () => {
     expect(screen.getByTestId('window-controls')).toBeInTheDocument()
   })
 
-  it('renders ModelSelector for session tabs and hides it for terminal tabs', async () => {
+  it('keeps the model selector out of the top bar', async () => {
     const { TabBar } = await import('./TabBar')
     const { useTabStore } = await import('../../stores/tabStore')
     const { useChatStore } = await import('../../stores/chatStore')
@@ -165,7 +159,8 @@ describe('TabBar', () => {
 
     await act(async () => {})
 
-    expect(screen.getByTestId('model-selector')).toHaveAttribute('data-runtime-key', 'tab-1')
+    expect(screen.queryByTestId('model-selector')).not.toBeInTheDocument()
+    expect(screen.getByTestId('window-controls')).toBeInTheDocument()
 
     unmount()
 

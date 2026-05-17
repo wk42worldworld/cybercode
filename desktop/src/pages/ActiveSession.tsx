@@ -162,16 +162,21 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const activeThinkingCandidate = activeThinkingCandidateIndex >= 0
     ? messages[activeThinkingCandidateIndex] as Extract<UIMessage, { type: 'thinking' }>
     : null
+  const thinkingPanelIdentityKey = `${sessionId}:${latestUserMessage?.id ?? 'initial'}`
+  const isThinkingPanelDismissed =
+    sessionState?.dismissedThinkingPanelIdentityKey === thinkingPanelIdentityKey
   const activeThinking =
     !isRuntimeTransitionStatus &&
+    !isThinkingPanelDismissed &&
     activeThinkingCandidate &&
     (latestUserMessageIndex === -1 || activeThinkingCandidateIndex >= latestUserMessageIndex)
       ? activeThinkingCandidate
-      : !isRuntimeTransitionStatus
+      : !isRuntimeTransitionStatus && !isThinkingPanelDismissed
         ? fallbackThinking
         : null
   const thinkingPanelIsActive =
     !isRuntimeTransitionStatus &&
+    !isThinkingPanelDismissed &&
     chatState !== 'idle' &&
     !assistantBodyStartedForCurrentTurn
   const measuredBottomOverlayHeight = Math.max(bottomOverlayHeight, composerHeight)
@@ -251,7 +256,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
         <FloatingThinkingPanel
           content={activeThinking?.content}
           isActive={thinkingPanelIsActive}
-          identityKey={`${sessionId}:${latestUserMessage?.id ?? 'initial'}`}
+          identityKey={thinkingPanelIdentityKey}
         />
 
       </div>
@@ -273,7 +278,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
           <TeamStatusBar />
         </div>
         <div ref={composerShellRef} className="pointer-events-none">
-          <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" />
+          <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" runtimeKey={sessionId} />
         </div>
       </div>
 

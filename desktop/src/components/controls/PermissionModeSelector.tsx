@@ -1,6 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import DOMPurify from 'dompurify'
 import { createPortal } from 'react-dom'
+import {
+  Check,
+  ChevronUp,
+  ClipboardList,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useChatStore } from '../../stores/chatStore'
 import { useSessionStore } from '../../stores/sessionStore'
@@ -9,12 +19,12 @@ import { useTranslation } from '../../i18n'
 import type { PermissionMode } from '../../types/settings'
 import { Icon } from '../shared/Icon'
 
-const MODE_ICONS: Record<PermissionMode, string> = {
-  default: 'verified_user',
-  acceptEdits: 'bolt',
-  plan: 'architecture',
-  bypassPermissions: 'gavel',
-  dontAsk: 'gavel',
+const MODE_ICONS: Record<PermissionMode, LucideIcon> = {
+  default: Shield,
+  acceptEdits: Zap,
+  plan: ClipboardList,
+  bypassPermissions: ShieldAlert,
+  dontAsk: ShieldAlert,
 }
 
 type Props = {
@@ -23,9 +33,10 @@ type Props = {
   value?: PermissionMode
   /** Controlled mode: called on change instead of updating global store */
   onChange?: (mode: PermissionMode) => void
+  variant?: 'pill' | 'icon'
 }
 
-export function PermissionModeSelector({ workDir: workDirProp, value, onChange }: Props = {}) {
+export function PermissionModeSelector({ workDir: workDirProp, value, onChange, variant = 'pill' }: Props = {}) {
   const t = useTranslation()
   const { permissionMode: storeMode, setPermissionMode } = useSettingsStore()
   const setSessionPermissionMode = useChatStore((s) => s.setSessionPermissionMode)
@@ -38,38 +49,39 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
 
   const isControlled = value !== undefined
   const currentMode = isControlled ? value : storeMode
+  const isIconVariant = variant === 'icon'
 
   const PERMISSION_ITEMS: Array<{
     value: PermissionMode
     label: string
     description: string
-    icon: string
+    icon: LucideIcon
     color?: string
   }> = [
     {
       value: 'default',
       label: t('permMode.askPermissions'),
       description: t('permMode.askPermDesc'),
-      icon: 'verified_user',
+      icon: Shield,
     },
     {
       value: 'acceptEdits',
       label: t('permMode.autoAccept'),
       description: t('permMode.autoAcceptDesc'),
-      icon: 'bolt',
+      icon: Zap,
     },
     {
       value: 'plan',
       label: t('permMode.planMode'),
       description: t('permMode.planModeDesc'),
-      icon: 'architecture',
+      icon: ClipboardList,
       color: 'text-[var(--color-text-tertiary)]',
     },
     {
       value: 'bypassPermissions',
       label: t('permMode.bypass'),
       description: t('permMode.bypassDesc'),
-      icon: 'gavel',
+      icon: ShieldAlert,
       color: 'text-[var(--color-error)]',
     },
   ]
@@ -84,6 +96,7 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
 
   const activeSession = sessions.find((s) => s.id === activeSessionId)
   const workDir = workDirProp || activeSession?.workDir || '~'
+  const CurrentModeIcon = isIconVariant ? Shield : MODE_ICONS[currentMode] ?? ShieldCheck
 
   useEffect(() => {
     if (!open) return
@@ -104,55 +117,95 @@ export function PermissionModeSelector({ workDir: workDirProp, value, onChange }
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex h-[36px] items-center gap-[6px] rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[14px] text-[13px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+        aria-label={MODE_LABELS[currentMode]}
+        title={isIconVariant ? MODE_LABELS[currentMode] : undefined}
+        className={isIconVariant
+          ? `group relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border transition-colors duration-100 ${
+              open
+                ? 'border-[var(--color-border-separator)] bg-[var(--color-surface-hover)] text-[var(--color-text-primary)]'
+                : 'border-transparent text-[var(--color-text-tertiary)] hover:border-[var(--color-border-separator)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
+            }`
+          : 'flex h-[36px] items-center gap-[6px] rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[14px] text-[13px] font-bold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'}
       >
-        <Icon name={MODE_ICONS[currentMode]} size={16} />
-        <span>{MODE_LABELS[currentMode]}</span>
-        <Icon name="expand_more" size={14} />
+        <CurrentModeIcon size={isIconVariant ? 18 : 16} strokeWidth={2.15} />
+        {isIconVariant ? (
+          !open && (
+            <span className="pointer-events-none absolute bottom-full left-0 z-50 mb-1.5 whitespace-nowrap rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100">
+              {MODE_LABELS[currentMode]}
+            </span>
+          )
+        ) : (
+          <>
+            <span>{MODE_LABELS[currentMode]}</span>
+            <ChevronUp size={14} strokeWidth={2.2} />
+          </>
+        )}
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-50 mb-[8px] w-[280px] rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] px-[8px] py-[8px] shadow-[var(--shadow-dropdown)]">
-          <div className="px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-text-tertiary)]">
-            {t('permMode.executionPermissions')}
-          </div>
-          {PERMISSION_ITEMS.map((item) => (
-            <button
-              key={item.value}
-              onClick={() => {
-                if (item.value === 'bypassPermissions') {
-                  setOpen(false)
-                  setConfirmDialog(true)
-                  return
-                }
-                if (isControlled) {
-                  onChange?.(item.value)
-                } else {
-                  void setPermissionMode(item.value)
-                  if (activeTabId) setSessionPermissionMode(activeTabId, item.value)
-                }
-                setOpen(false)
-              }}
-              className={`
-                group flex min-h-[56px] w-full items-start gap-[8px] rounded-[8px] px-[10px] py-[8px] text-left transition-colors
-                ${item.value === currentMode ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'}
-              `}
-            >
-              <Icon name={item.icon} size={16} className={`mt-0.5 shrink-0 ${item.color || 'text-[var(--color-text-tertiary)]'}`} />
-              <div className="flex-1 min-w-0">
-                <div className={`truncate text-[13px] ${item.value === currentMode ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
-                  {item.label}
-                </div>
-                <div className="text-[10px] text-[var(--color-text-tertiary)] mt-px leading-relaxed">
-                  {item.description}
-                </div>
+        <div className="absolute bottom-full left-0 z-[140] mb-[10px] w-[320px] overflow-hidden rounded-[24px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] shadow-[var(--shadow-dropdown)]">
+          <div className="flex items-center gap-[10px] px-[10px] py-[8px]">
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] text-[var(--color-text-secondary)]">
+              <ShieldCheck size={16} strokeWidth={2.1} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold leading-tight text-[var(--color-text-primary)]">
+                {t('permMode.executionPermissions')}
               </div>
-              {item.value === currentMode && (
-                <Icon name="check" size={14} className="shrink-0 mt-0.5 text-[var(--color-text-tertiary)]" />
-              )}
-            </button>
-          ))}
+              <div className="mt-[2px] text-[11px] font-medium leading-tight text-[var(--color-text-tertiary)]">
+                {MODE_LABELS[currentMode]}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-[4px]">
+            {PERMISSION_ITEMS.map((item) => {
+              const ItemIcon = item.icon
+              const isSelected = item.value === currentMode
+              return (
+                <button
+                  key={item.value}
+                  onClick={() => {
+                    if (item.value === 'bypassPermissions') {
+                      setOpen(false)
+                      setConfirmDialog(true)
+                      return
+                    }
+                    if (isControlled) {
+                      onChange?.(item.value)
+                    } else {
+                      void setPermissionMode(item.value)
+                      if (activeTabId) setSessionPermissionMode(activeTabId, item.value)
+                    }
+                    setOpen(false)
+                  }}
+                  className={`
+                    group flex min-h-[64px] w-full items-center gap-[10px] rounded-[16px] px-[10px] py-[9px] text-left transition-colors
+                    ${isSelected ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'}
+                  `}
+                >
+                  <div className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] ${item.color || 'text-[var(--color-text-secondary)]'}`}>
+                    <ItemIcon size={17} strokeWidth={2.05} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className={`truncate text-[13px] ${isSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                      {item.label}
+                    </div>
+                    <div className="mt-[2px] line-clamp-2 text-[11px] font-medium leading-[1.35] text-[var(--color-text-tertiary)]">
+                      {item.description}
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[var(--color-text-primary)] text-[var(--color-background)]">
+                      <Check size={13} strokeWidth={2.4} />
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 

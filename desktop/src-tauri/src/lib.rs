@@ -139,6 +139,44 @@ fn prepare_for_update_install(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn claude_config_home_dir() -> Result<PathBuf, String> {
+    if let Ok(path) = std::env::var("CLAUDE_CONFIG_DIR") {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            return Ok(PathBuf::from(trimmed));
+        }
+    }
+
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .ok_or_else(|| "home directory is unavailable".to_string())?;
+
+    Ok(PathBuf::from(home).join(".claude"))
+}
+
+#[tauri::command]
+fn open_skills_config_dir() -> Result<(), String> {
+    let skills_dir = claude_config_home_dir()?.join("skills");
+    std::fs::create_dir_all(&skills_dir)
+        .map_err(|err| format!("create skills directory: {err}"))?;
+
+    #[cfg(target_os = "macos")]
+    let mut command = StdCommand::new("open");
+    #[cfg(target_os = "windows")]
+    let mut command = StdCommand::new("explorer.exe");
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    let mut command = StdCommand::new("xdg-open");
+
+    command
+        .arg(&skills_dir)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|err| format!("open skills directory: {err}"))
+}
+
 fn mark_app_quitting(app: &AppHandle) {
     if let Some(state) = app.try_state::<AppExitState>() {
         if let Ok(mut is_quitting) = state.is_quitting.lock() {
@@ -975,6 +1013,7 @@ pub fn run() {
             get_server_url,
             restart_adapters_sidecar,
             prepare_for_update_install,
+            open_skills_config_dir,
             terminal_spawn,
             terminal_write,
             terminal_resize,

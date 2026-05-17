@@ -8,7 +8,7 @@ vi.mock('../components/chat/MessageList', () => ({
 }))
 
 vi.mock('../components/chat/ChatInput', () => ({
-  ChatInput: () => <div data-testid="chat-input" />,
+  ChatInput: ({ runtimeKey }: { runtimeKey?: string }) => <div data-testid="chat-input" data-runtime-key={runtimeKey ?? ''} />,
 }))
 
 vi.mock('../components/chat/FloatingThinkingPanel', () => ({
@@ -487,6 +487,67 @@ describe('ActiveSession task polling', () => {
           tokenUsage: { input_tokens: 0, output_tokens: 0 },
           elapsedSeconds: 0,
           statusVerb: 'Switching provider and model...',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-thinking-content', '')
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveAttribute('data-active', 'false')
+
+    unmount()
+  })
+
+  it('hides the current thinking panel after generation is stopped', () => {
+    const sessionId = 'stopped-thinking-session'
+    const userMessageId = 'user-1'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Stopped Thinking Session',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 2,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Stopped Thinking Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [
+            { id: userMessageId, type: 'user_text', content: 'Please think', timestamp: 1 },
+            { id: 'thinking-1', type: 'thinking', content: 'Current reasoning cache', timestamp: Date.now() },
+          ],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'idle',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          dismissedThinkingPanelIdentityKey: `${sessionId}:${userMessageId}`,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
           slashCommands: [],
           agentTaskNotifications: {},
           elapsedTimer: null,

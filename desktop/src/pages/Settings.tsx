@@ -32,8 +32,6 @@ import { Icon } from '../components/shared/Icon'
 
 const SETTINGS_TABS: SettingsTab[] = [
   'general',
-  'permissions',
-  'agents',
   'about',
 ]
 
@@ -84,9 +82,7 @@ export function Settings() {
           })}
         </div>
         <div className="px-[24px] pb-[40px] md:px-[32px]">
-          {activeTab === 'permissions' && <PermissionSettings />}
           {activeTab === 'general' && <GeneralSettings />}
-          {activeTab === 'agents' && <AgentsSettings />}
           {activeTab === 'about' && <AboutSettings />}
         </div>
       </div>
@@ -1341,6 +1337,28 @@ export function SkillSettings() {
   const openConfigDir = async () => {
     setOpeningConfig(true)
     try {
+      if (isTauriRuntime()) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core')
+          await invoke('open_skills_config_dir')
+          return
+        } catch (desktopError) {
+          console.warn('[skills] open_skills_config_dir failed, falling back to shell open', desktopError)
+        }
+
+        if (config?.userSkillsDir) {
+          try {
+            const { open } = await import('@tauri-apps/plugin-shell')
+            await open(config.userSkillsDir)
+            return
+          } catch (shellError) {
+            console.warn('[skills] shell open failed', shellError)
+          }
+        }
+
+        throw new Error(t('settings.skills.openConfigFailed'))
+      }
+
       await skillsApi.openConfig()
     } catch (error) {
       useUIStore.getState().addToast({

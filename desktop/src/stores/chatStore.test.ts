@@ -18,6 +18,11 @@ const {
   resetCompletedTasksMock,
   refreshTasksMock,
   cliTaskStoreSnapshot,
+  updateTabTitleMock,
+  updateTabStatusMock,
+  tabStoreSnapshot,
+  updateSessionTitleMock,
+  sessionStoreSnapshot,
 } = vi.hoisted(() => ({
   sendMock: vi.fn(),
   getMemberBySessionIdMock: vi.fn<(sessionId: string) => any>(() => null),
@@ -34,6 +39,15 @@ const {
   cliTaskStoreSnapshot: {
     tasks: [] as Array<{ id: string; subject: string; status: string; activeForm?: string }>,
     sessionId: null as string | null,
+  },
+  updateTabTitleMock: vi.fn(),
+  updateTabStatusMock: vi.fn(),
+  tabStoreSnapshot: {
+    tabs: [] as Array<{ sessionId: string; title: string; type: string; status: string }>,
+  },
+  updateSessionTitleMock: vi.fn(),
+  sessionStoreSnapshot: {
+    sessions: [] as Array<{ id: string; title: string }>,
   },
 }))
 
@@ -70,8 +84,9 @@ vi.mock('./teamStore', () => ({
 vi.mock('./tabStore', () => ({
   useTabStore: {
     getState: () => ({
-      updateTabStatus: vi.fn(),
-      updateTabTitle: vi.fn(),
+      tabs: tabStoreSnapshot.tabs,
+      updateTabStatus: updateTabStatusMock,
+      updateTabTitle: updateTabTitleMock,
     }),
   },
 }))
@@ -79,7 +94,8 @@ vi.mock('./tabStore', () => ({
 vi.mock('./sessionStore', () => ({
   useSessionStore: {
     getState: () => ({
-      updateSessionTitle: vi.fn(),
+      sessions: sessionStoreSnapshot.sessions,
+      updateSessionTitle: updateSessionTitleMock,
     }),
   },
 }))
@@ -99,13 +115,42 @@ vi.mock('./cliTaskStore', () => ({
   },
 }))
 
-import { mapHistoryMessagesToUiMessages, useChatStore } from './chatStore'
+import { mapHistoryMessagesToUiMessages, useChatStore, type PerSessionState } from './chatStore'
 
 const TEST_SESSION_ID = 'test-session-1'
 const initialState = useChatStore.getState()
 
+function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionState {
+  return {
+    messages: [],
+    historyBuffer: [],
+    recentBuffer: [],
+    historyLoadState: 'loaded',
+    allMessagesLoaded: true,
+    chatState: 'idle',
+    connectionState: 'connected',
+    streamingText: '',
+    streamingToolInput: '',
+    activeToolUseId: null,
+    activeToolName: null,
+    activeThinkingId: null,
+    pendingPermission: null,
+    pendingComputerUsePermission: null,
+    tokenUsage: { input_tokens: 0, output_tokens: 0 },
+    elapsedSeconds: 0,
+    statusVerb: '',
+    slashCommands: [],
+    agentTaskNotifications: {},
+    elapsedTimer: null,
+    ...overrides,
+  }
+}
+
 describe('chatStore history mapping', () => {
   beforeEach(() => {
+    for (const session of Object.values(useChatStore.getState().sessions)) {
+      if (session.elapsedTimer) clearInterval(session.elapsedTimer)
+    }
     sendMock.mockReset()
     getMemberBySessionIdMock.mockReset()
     getMemberBySessionIdMock.mockReturnValue(null)
@@ -116,6 +161,11 @@ describe('chatStore history mapping', () => {
     markCompletedAndDismissedMock.mockReset()
     resetCompletedTasksMock.mockReset()
     refreshTasksMock.mockReset()
+    updateTabTitleMock.mockReset()
+    updateTabStatusMock.mockReset()
+    updateSessionTitleMock.mockReset()
+    tabStoreSnapshot.tabs = []
+    sessionStoreSnapshot.sessions = []
     cliTaskStoreSnapshot.tasks = []
     cliTaskStoreSnapshot.sessionId = null
     useSessionRuntimeStore.setState({ selections: {} })
@@ -232,6 +282,63 @@ describe('chatStore history mapping', () => {
         attachments: [{ type: 'file', name: 'report.md' }],
       },
     ])
+  })
+
+  it('uses the first user message as the initial session tab title', () => {
+    tabStoreSnapshot.tabs = [{
+      sessionId: TEST_SESSION_ID,
+      title: '新会话',
+      type: 'session',
+      status: 'idle',
+    }]
+    sessionStoreSnapshot.sessions = [{ id: TEST_SESSION_ID, title: '新会话' }]
+
+    useChatStore.getState().sendMessage(
+      TEST_SESSION_ID,
+      '现在 会话选项卡的 标题 要是用户发的第一句话\n而不是 AI 回复',
+    )
+
+    const expectedTitle = '现在 会话选项卡的 标题 要是用户发的第一句话 而不是 AI 回复'
+    expect(updateSessionTitleMock).toHaveBeenCalledWith(TEST_SESSION_ID, expectedTitle)
+    expect(updateTabTitleMock).toHaveBeenCalledWith(TEST_SESSION_ID, expectedTitle)
+  })
+
+  it('keeps title updates tied to the first local user message', () => {
+    tabStoreSnapshot.tabs = [{
+      sessionId: TEST_SESSION_ID,
+      title: 'AI reply first sentence',
+      type: 'session',
+      status: 'idle',
+    }]
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          messages: [
+            {
+              id: 'user-1',
+              type: 'user_text',
+              content: '用户发的第一句话',
+              timestamp: 1,
+            },
+            {
+              id: 'assistant-1',
+              type: 'assistant_text',
+              content: 'AI reply first sentence',
+              timestamp: 2,
+            },
+          ],
+        }),
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'session_title_updated',
+      sessionId: TEST_SESSION_ID,
+      title: 'AI reply first sentence',
+    })
+
+    expect(updateSessionTitleMock).toHaveBeenCalledWith(TEST_SESSION_ID, '用户发的第一句话')
+    expect(updateTabTitleMock).toHaveBeenCalledWith(TEST_SESSION_ID, '用户发的第一句话')
   })
 
   it('keeps parent tool linkage for live tool events', () => {

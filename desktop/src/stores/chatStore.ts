@@ -9,7 +9,7 @@ import { useSessionRuntimeStore } from './sessionRuntimeStore'
 import { useTabStore } from './tabStore'
 import { t } from '../i18n'
 import { randomSpinnerVerb } from '../config/spinnerVerbs'
-import { getDefaultSessionTitle } from '../utils/sessionTitle'
+import { getDefaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitle'
 import type { MessageEntry } from '../types/session'
 import {
   mapHistoryMessages as mapHistoryMessagesImpl,
@@ -69,6 +69,7 @@ export type PerSessionState = {
   activeToolUseId: string | null
   activeToolName: string | null
   activeThinkingId: string | null
+  dismissedThinkingPanelIdentityKey?: string | null
   pendingPermission: {
     requestId: string
     toolName: string
@@ -106,6 +107,7 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   activeToolUseId: null,
   activeToolName: null,
   activeThinkingId: null,
+  dismissedThinkingPanelIdentityKey: null,
   pendingPermission: null,
   pendingComputerUsePermission: null,
   tokenUsage: { input_tokens: 0, output_tokens: 0 },
@@ -119,6 +121,14 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
 
 function createDefaultSessionState(): PerSessionState {
   return { ...DEFAULT_SESSION_STATE, messages: [], tokenUsage: { input_tokens: 0, output_tokens: 0 } }
+}
+
+function getThinkingPanelIdentityKey(sessionId: string, messages: UIMessage[]): string {
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((message): message is Extract<UIMessage, { type: 'user_text' }> => message.type === 'user_text')
+
+  return `${sessionId}:${latestUserMessage?.id ?? 'initial'}`
 }
 
 type ChatStore = {
@@ -167,6 +177,54 @@ type ChatStore = {
 
 const TASK_TOOL_NAMES = new Set(['TaskCreate', 'TaskUpdate', 'TaskGet', 'TaskList', 'TodoWrite'])
 const pendingTaskToolUseIds = new Set<string>()
+const USER_TITLE_MAX_LEN = 80
+
+function deriveUserMessageTitle(content: string): string | null {
+  const title = content.replace(/\s+/g, ' ').trim()
+  if (!title) return null
+  return title.length > USER_TITLE_MAX_LEN
+    ? `${title.slice(0, USER_TITLE_MAX_LEN)}...`
+    : title
+}
+
+function getFirstUserMessageTitle(messages: UIMessage[]): string | null {
+  const firstUserMessage = messages.find(
+    (message): message is Extract<UIMessage, { type: 'user_text' }> =>
+      message.type === 'user_text' && Boolean(message.content.trim()),
+  )
+  return firstUserMessage ? deriveUserMessageTitle(firstUserMessage.content) : null
+}
+
+function currentSessionTitle(sessionId: string): string | null {
+  const tabTitle = useTabStore.getState().tabs.find((tab) => tab.sessionId === sessionId)?.title
+  if (tabTitle) return tabTitle
+  return useSessionStore.getState().sessions.find((session) => session.id === sessionId)?.title ?? null
+}
+
+function shouldApplyFirstUserTitle(sessionId: string, title: string): boolean {
+  const currentTitle = currentSessionTitle(sessionId)
+  return !currentTitle || isDefaultSessionTitle(currentTitle) || currentTitle === title
+}
+
+function resolveSessionTitleUpdate(sessionId: string, incomingTitle: string): string {
+  const firstUserTitle = getFirstUserMessageTitle(
+    useChatStore.getState().sessions[sessionId]?.messages ?? [],
+  )
+  if (!firstUserTitle) return incomingTitle
+
+  const currentTitle = currentSessionTitle(sessionId)
+  if (
+    !currentTitle ||
+    isDefaultSessionTitle(currentTitle) ||
+    currentTitle === incomingTitle ||
+    currentTitle === firstUserTitle ||
+    incomingTitle === firstUserTitle
+  ) {
+    return firstUserTitle
+  }
+
+  return currentTitle
+}
 
 let msgCounter = 0
 const nextId = () => `msg-${++msgCounter}-${Date.now()}`
@@ -428,6 +486,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const userFacingContent =
       options?.displayContent?.trim() || content.trim()
     const isMemberSession = !!useTeamStore.getState().getMemberBySessionId(sessionId)
+    const existingSession = get().sessions[sessionId]
+    const firstUserTitle = !isMemberSession && !getFirstUserMessageTitle(existingSession?.messages ?? [])
+      ? deriveUserMessageTitle(userFacingContent)
+      : null
     const uiAttachments: UIAttachment[] | undefined =
       attachments && attachments.length > 0
         ? attachments.map((a) => ({
@@ -490,6 +552,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chatState: 'thinking',
             elapsedSeconds: 0,
             streamingText: '',
+            dismissedThinkingPanelIdentityKey: null,
             statusVerb: isMemberSession ? '' : randomSpinnerVerb(),
             elapsedTimer: timer,
             connectionState: isMemberSession ? 'connected' : session.connectionState,
@@ -497,6 +560,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         },
       }
     })
+
+    if (firstUserTitle && shouldApplyFirstUserTitle(sessionId, firstUserTitle)) {
+      useSessionStore.getState().updateSessionTitle(sessionId, firstUserTitle)
+      useTabStore.getState().updateTabTitle(sessionId, firstUserTitle)
+    }
 
     if (isMemberSession) {
       void useTeamStore.getState().sendMessageToMember(sessionId, userFacingContent)
@@ -581,7 +649,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chatState: 'idle',
             pendingPermission: null,
             pendingComputerUsePermission: null,
+            activeThinkingId: null,
+            dismissedThinkingPanelIdentityKey: getThinkingPanelIdentityKey(sessionId, session.messages),
             elapsedTimer: null,
+            statusVerb: '',
           },
         },
       }
@@ -948,7 +1019,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   clearMessages: (sessionId) => {
-    set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ messages: [], streamingText: '', chatState: 'idle' })) }))
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, () => ({
+        messages: [],
+        streamingText: '',
+        activeThinkingId: null,
+        dismissedThinkingPanelIdentityKey: null,
+        chatState: 'idle',
+      })),
+    }))
   },
 
   handleServerMessage: (sessionId, msg) => {
@@ -1198,8 +1277,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'task_update':
         break
       case 'session_title_updated':
-        useSessionStore.getState().updateSessionTitle(msg.sessionId, msg.title)
-        useTabStore.getState().updateTabTitle(msg.sessionId, msg.title)
+        {
+          const title = resolveSessionTitleUpdate(msg.sessionId, msg.title)
+          useSessionStore.getState().updateSessionTitle(msg.sessionId, title)
+          useTabStore.getState().updateTabTitle(msg.sessionId, title)
+        }
         break
       case 'system_notification':
         if (msg.subtype === 'slash_commands' && Array.isArray(msg.data)) {
@@ -1220,6 +1302,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             activeToolUseId: null,
             activeToolName: null,
             activeThinkingId: null,
+            dismissedThinkingPanelIdentityKey: null,
             pendingPermission: null,
             pendingComputerUsePermission: null,
             chatState: 'idle',

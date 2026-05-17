@@ -1,7 +1,5 @@
 import { useTabStore } from '../../stores/tabStore'
-import { useChatStore } from '../../stores/chatStore'
 import { WindowControls } from './WindowControls'
-import { ModelSelector } from '../controls/ModelSelector'
 
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 
@@ -10,8 +8,6 @@ export function TabBar() {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const activeTab = tabs.find((t) => t.sessionId === activeTabId)
   const isSession = activeTab?.type === 'session'
-  const chatState = useChatStore((s) => (activeTabId ? s.sessions[activeTabId]?.chatState : 'idle'))
-  const isActive = chatState !== 'idle'
 
   return (
     <div
@@ -31,11 +27,8 @@ export function TabBar() {
         )}
       </div>
 
-      {/* Right: Model selector + Window controls */}
+      {/* Right: Window controls */}
       <div className="flex shrink-0 items-center gap-[12px]" onMouseDown={(e) => e.stopPropagation()}>
-        {isSession && activeTabId && (
-          <ModelSelector runtimeKey={activeTabId} disabled={isActive} placement="bottom" align="right" compact />
-        )}
         <div className="flex items-center gap-[12px] text-[13px] font-medium text-[var(--color-text-tertiary)]">
           <WindowControls />
         </div>

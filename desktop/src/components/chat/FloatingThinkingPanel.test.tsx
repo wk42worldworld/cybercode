@@ -55,6 +55,20 @@ describe('FloatingThinkingPanel', () => {
     expect(screen.queryByTestId('floating-thinking-panel')).not.toBeInTheDocument()
   })
 
+  it('clears immediately when thinking content is dismissed', () => {
+    const { rerender } = render(
+      <FloatingThinkingPanel content="Stop-sensitive reasoning" isActive identityKey="session-a" />,
+    )
+
+    expect(screen.getByText('Stop-sensitive reasoning')).toBeInTheDocument()
+
+    rerender(
+      <FloatingThinkingPanel content="" isActive={false} identityKey="session-a" />,
+    )
+
+    expect(screen.queryByTestId('floating-thinking-panel')).not.toBeInTheDocument()
+  })
+
   it('keeps paragraph breaks while collapsing excessive empty space', () => {
     render(
       <FloatingThinkingPanel

@@ -12,6 +12,7 @@ type Props = {
 
 export function UserMessage({ content, attachments, onRewind, rewindLabel }: Props) {
   const hasText = content.trim().length > 0
+  const hasAttachments = Boolean(attachments && attachments.length > 0)
 
   return (
     <div className="group/msg flex w-full justify-center px-[24px] py-[12px]">
@@ -19,24 +20,23 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
         data-message-shell="user"
         className="flex w-full max-w-[878px] flex-col items-end gap-[8px]"
       >
-        {attachments && attachments.length > 0 && (
-          <div className="mb-[8px]">
-            <AttachmentGallery attachments={attachments} variant="message" />
-          </div>
-        )}
-
-        {hasText && (
+        {(hasText || hasAttachments) && (
           <div
             data-message-bubble="user"
-            className="max-w-[85%] rounded-[24px] rounded-tr-[8px] bg-[var(--color-message-user-bg)] px-[24px] py-[16px] text-[var(--color-message-user-fg)]"
+            className="flex max-w-[85%] flex-col gap-[10px] rounded-[24px] rounded-tr-[8px] bg-[var(--color-message-user-bg)] px-[24px] py-[16px] text-[var(--color-message-user-fg)]"
           >
-            <div className="chat-bubble-text whitespace-pre-wrap break-words text-[15px] font-normal leading-relaxed tracking-normal">
-              {content}
-            </div>
+            {hasAttachments && (
+              <AttachmentGallery attachments={attachments!} variant="message" />
+            )}
+            {hasText && (
+              <div className="chat-bubble-text whitespace-pre-wrap break-words text-[15px] font-normal leading-relaxed tracking-normal">
+                {content}
+              </div>
+            )}
           </div>
         )}
 
-        {hasText && (
+        {(hasText || hasAttachments) && (
           <div className="mt-[2px] opacity-0 transition-opacity group-hover/msg:opacity-100">
             <MessageActionBar
               copyText={content}

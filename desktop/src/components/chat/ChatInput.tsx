@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { ArrowUp, Paperclip, Plus, Square } from 'lucide-react'
+import { ArrowUp, Folder, Paperclip, Plus, Square } from 'lucide-react'
 
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
@@ -19,6 +19,8 @@ import { StreamingIndicator } from './StreamingIndicator'
 import {
   FALLBACK_SLASH_COMMANDS,
   findSlashTrigger,
+  getSlashCommandName,
+  insertSlashTrigger,
   mergeSlashCommands,
   replaceSlashToken,
   resolveSlashUiAction,
@@ -45,6 +47,10 @@ type ChatInputProps = {
   runtimeKey?: string
 }
 
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
+}
+
 export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey }: ChatInputProps) {
   const t = useTranslation()
   const [input, setInput] = useState('')
@@ -57,6 +63,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const [atCursorPos, setAtCursorPos] = useState(-1)
   const [slashFilter, setSlashFilter] = useState('')
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
+  const [modelSelectorOpenSignal, setModelSelectorOpenSignal] = useState(0)
   const composingRef = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -236,6 +243,14 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     return filteredCommands.find((command) => command.name.toLowerCase() === normalized) ?? null
   }, [filteredCommands, slashFilter])
 
+  const selectedSlashCommand = useMemo(() => {
+    const normalized = slashFilter.trim().toLowerCase()
+    if (exactSlashCommand && normalized === exactSlashCommand.name.toLowerCase()) {
+      return exactSlashCommand
+    }
+    return filteredCommands[slashSelectedIndex] ?? filteredCommands[0] ?? null
+  }, [exactSlashCommand, filteredCommands, slashFilter, slashSelectedIndex])
+
   useEffect(() => {
     setSlashSelectedIndex(0)
   }, [slashFilter])
@@ -317,10 +332,17 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   }, [input])
 
   const handleSubmit = () => {
-    const text = input.trim()
+    const text = (() => {
+      if (!isMemberSession && slashMenuOpen && selectedSlashCommand) {
+        const cursorPos = textareaRef.current?.selectionStart ?? input.length
+        return replaceSlashToken(input, cursorPos, selectedSlashCommand.name).value.trim()
+      }
+      return input.trim()
+    })()
     if ((!text && (!attachments.length || isMemberSession)) || isWorkspaceMissing) return
 
-    const slashUiAction = !isMemberSession && text.startsWith('/') ? resolveSlashUiAction(text.slice(1)) : null
+    const slashCommandName = !isMemberSession ? getSlashCommandName(text) : null
+    const slashUiAction = slashCommandName ? resolveSlashUiAction(slashCommandName) : null
     if (slashUiAction?.type === 'panel') {
       setLocalSlashPanel(slashUiAction.command as LocalSlashCommandName)
       setInput('')
@@ -332,6 +354,31 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
 
     if (slashUiAction?.type === 'settings') {
       useUIStore.getState().openSettings(slashUiAction.tab)
+      setInput('')
+      setSlashMenuOpen(false)
+      setFileSearchOpen(false)
+      setPlusMenuOpen(false)
+      return
+    }
+
+    if (slashUiAction?.type === 'model') {
+      setModelSelectorOpenSignal((value) => value + 1)
+      setInput('')
+      setSlashMenuOpen(false)
+      setFileSearchOpen(false)
+      setPlusMenuOpen(false)
+      return
+    }
+
+    if (slashUiAction?.type === 'unsupported') {
+      const unsupportedMessage =
+        slashUiAction.command === 'vim'
+          ? t('slash.unsupported.vim')
+          : t('slash.unsupported.desktopCommand', { command: `/${slashUiAction.command}` })
+      useUIStore.getState().addToast({
+        type: 'info',
+        message: unsupportedMessage,
+      })
       setInput('')
       setSlashMenuOpen(false)
       setFileSearchOpen(false)
@@ -357,6 +404,12 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     setSlashMenuOpen(false)
     setFileSearchOpen(false)
     setLocalSlashPanel(null)
+  }
+
+  const handleSubmitMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!isMemberSession && slashMenuOpen) {
+      event.stopPropagation()
+    }
   }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -498,6 +551,50 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     event.target.value = ''
   }
 
+  const insertTextAtCursor = useCallback((text: string) => {
+    const sanitizedText = text.replace(/[\r\n]+/g, ' ')
+    const el = textareaRef.current
+    const start = el?.selectionStart ?? input.length
+    const end = el?.selectionEnd ?? input.length
+    const before = input.slice(0, start)
+    const after = input.slice(end)
+    const prefix = before && !/\s$/.test(before) ? ' ' : ''
+    const suffix = after && !/^\s/.test(after) ? ' ' : ''
+    const nextInput = `${before}${prefix}${sanitizedText}${suffix}${after}`
+    const nextCursor = before.length + prefix.length + sanitizedText.length
+
+    setInput(nextInput)
+    requestAnimationFrame(() => {
+      const target = textareaRef.current
+      target?.focus()
+      target?.setSelectionRange(nextCursor, nextCursor)
+    })
+  }, [input])
+
+  const handleProjectFolderSelect = useCallback(async () => {
+    if (isMemberSession) return
+    setPlusMenuOpen(false)
+
+    try {
+      let selectedPath: string | null = null
+      if (isTauriRuntime()) {
+        const { open } = await import('@tauri-apps/plugin-dialog')
+        const selected = await open({
+          directory: true,
+          multiple: false,
+          title: t('dirPicker.chooseProjectFolder'),
+        })
+        selectedPath = Array.isArray(selected) ? selected[0] ?? null : selected
+      } else {
+        selectedPath = window.prompt(t('dirPicker.chooseProjectFolder'))?.trim() || null
+      }
+
+      if (selectedPath) insertTextAtCursor(selectedPath)
+    } catch (error) {
+      console.error('[ChatInput] Failed to choose project folder:', error)
+    }
+  }, [insertTextAtCursor, isMemberSession, t])
+
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
     if (isMemberSession) return
@@ -516,7 +613,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     if (isMemberSession) return
     const el = textareaRef.current
     const cursorPos = el?.selectionStart ?? input.length
-    const replacement = replaceSlashToken(input, cursorPos, '', { trailingSpace: false })
+    const replacement = insertSlashTrigger(input, cursorPos)
     setInput(replacement.value)
     setPlusMenuOpen(false)
     setSlashFilter('')
@@ -554,8 +651,10 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
           : t('chat.placeholder')
 
   const addFilesLabel = isHeroComposer ? t('empty.addFiles') : t('chat.addFiles')
+  const addProjectFolderLabel = t('dirPicker.chooseProjectFolder')
   const slashCommandsLabel = isHeroComposer ? t('empty.slashCommands') : t('chat.slashCommands')
-  const showComposerContextControls = (isHeroComposer && onWorkDirChange) || (runtimeKey && !isMemberSession)
+  const showWorkDirControl = isHeroComposer && onWorkDirChange
+  const composerToolButtonClassName = 'group relative flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-transparent text-[var(--color-text-tertiary)] transition-colors duration-100 hover:border-[var(--color-border-separator)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
 
   return (
     <div className={isHeroComposer ? '' : 'wechat-input-container pointer-events-none flex justify-center p-[24px]'}>
@@ -603,118 +702,53 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
         {!isMemberSession && slashMenuOpen && filteredCommands.length > 0 && (
           <div
             ref={slashMenuRef}
-            className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-[20px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]"
+            className="absolute bottom-full left-0 right-0 z-50 mb-[10px] overflow-hidden rounded-[24px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] shadow-[var(--shadow-dropdown)]"
           >
-            <div className="max-h-[300px] overflow-y-auto py-1">
+            <div className="max-h-[320px] overflow-y-auto">
               {filteredCommands.map((command, index) => (
                 <button
                   key={command.name}
                   ref={(el) => { slashItemRefs.current[index] = el }}
                   onClick={() => selectSlashCommand(command.name)}
                   onMouseEnter={() => setSlashSelectedIndex(index)}
-                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                  className={`group flex min-h-[48px] w-full items-center gap-[10px] rounded-[16px] px-[10px] py-[8px] text-left transition-colors ${
                     index === slashSelectedIndex
                       ? 'bg-[var(--color-surface-selected)]'
                       : 'hover:bg-[var(--color-surface-hover)]'
                   }`}
                 >
-                  <span className="shrink-0 text-[13px] font-semibold text-[var(--color-text-primary)] font-mono">
+                  <span className="flex h-[34px] min-w-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-[8px] font-mono text-[12px] font-semibold text-[var(--color-text-primary)]">
                     /{command.name}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--color-text-tertiary)]">
-                    {command.description}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-[var(--color-text-primary)]">/{command.name}</span>
+                    <span className="mt-[2px] block truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">
+                      {command.description}
+                    </span>
                   </span>
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1.5 border-t border-[var(--color-border-separator)] px-4 py-2 text-[10px] text-[var(--color-text-tertiary)]">
-              <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface-container)] px-1.5 py-0.5 font-mono text-[9px] font-bold">Up/Down</kbd>
+            <div className="mt-[6px] flex items-center gap-1.5 rounded-[16px] bg-[var(--color-surface-container-low)] px-[10px] py-[8px] text-[10px] font-medium text-[var(--color-text-tertiary)]">
+              <kbd className="rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-2 py-0.5 font-mono text-[9px] font-semibold">Up/Down</kbd>
               <span>{t('chat.navigate')}</span>
-              <kbd className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-container)] px-1.5 py-0.5 font-mono text-[9px] font-bold">Enter</kbd>
+              <kbd className="ml-2 rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-2 py-0.5 font-mono text-[9px] font-semibold">Enter</kbd>
               <span>{t('chat.select')}</span>
-              <kbd className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-container)] px-1.5 py-0.5 font-mono text-[9px] font-bold">Esc</kbd>
+              <kbd className="ml-2 rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-2 py-0.5 font-mono text-[9px] font-semibold">Esc</kbd>
               <span>{t('chat.dismiss')}</span>
             </div>
           </div>
         )}
 
-        {showComposerContextControls && (
+        {showWorkDirControl && (
           <div className="mb-[8px] flex items-center justify-end gap-[12px] px-[4px]">
-            {isHeroComposer && onWorkDirChange && (
-              <DirectoryPicker value={workDirProp || ''} onChange={onWorkDirChange} variant="pill" />
-            )}
-            {runtimeKey && !isMemberSession && (
-              <ModelSelector runtimeKey={runtimeKey} placement="top" align="left" compact variant="pill" />
-            )}
+            <DirectoryPicker value={workDirProp || ''} onChange={onWorkDirChange} variant="pill" />
           </div>
         )}
 
         {/* ── WeChat Style Input ── */}
         <div className="flex w-full flex-col rounded-[28px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] pt-[12px] transition-colors duration-150 focus-within:border-[var(--color-border-focus)]">
-          {/* Top toolbar mirrors the reference: two compact icon buttons only. */}
-          <div className="flex gap-[12px] px-[16px] pb-[12px]">
-            <div className="relative flex items-center" ref={plusMenuRef}>
-              {!isMemberSession && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setPlusMenuOpen((v) => !v)}
-                    aria-label="Open composer tools"
-                    className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-                  >
-                    <Plus size={18} strokeWidth={2.5} />
-                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
-                      {slashCommandsLabel}
-                    </span>
-                  </button>
-
-                  {plusMenuOpen && (
-                    <div className="absolute bottom-full left-0 z-50 mb-2 w-[220px] rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-dropdown)]">
-                      <button
-                        onClick={insertSlashCommand}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
-                      >
-                        <span className="text-[14px] font-bold text-[var(--color-text-secondary)] font-mono">/</span>
-                        <span className="text-[13px] text-[var(--color-text-primary)]">{slashCommandsLabel}</span>
-                      </button>
-                      <button
-                        onClick={insertAtTrigger}
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]"
-                      >
-                        <span className="text-[14px] font-bold text-[var(--color-text-secondary)] font-mono">@</span>
-                        <span className="text-[13px] text-[var(--color-text-primary)]">{t('chat.addFileRef')}</span>
-                      </button>
-                      <div className="px-3 py-2 border-t border-[var(--color-border-separator)]">
-                        <PermissionModeSelector />
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="relative flex items-center">
-              {!isMemberSession && (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label={addFilesLabel}
-                  className="group relative flex h-[30px] w-[30px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-                >
-                  <Paperclip size={18} strokeWidth={2.5} />
-                  <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
-                    {addFilesLabel}
-                  </span>
-                </button>
-              )}
-            </div>
-
-            <div className="ml-auto flex min-w-0 items-center justify-end overflow-hidden">
-              <StreamingIndicator sessionId={activeTabId ?? undefined} />
-            </div>
-          </div>
-
-          <div className="flex items-end gap-[8px] px-[8px] pb-[8px]">
+          <div className="flex px-[8px]">
             <textarea
               ref={textareaRef}
               value={input}
@@ -728,51 +762,6 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
               rows={1}
               className="min-h-[50px] max-h-[200px] w-full flex-1 resize-none bg-transparent px-[8px] py-[8px] text-[15px] font-medium leading-relaxed text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)] disabled:opacity-50"
             />
-
-            {!isMemberSession && (
-              <>
-                {isActive ? (
-                  <button
-                    type="button"
-                    onClick={() => stopGeneration(activeTabId!)}
-                    title={t('chat.stopTitle')}
-                    aria-label={t('chat.stopTitle')}
-                    className="mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]"
-                  >
-                    <Square size={16} strokeWidth={2.5} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    aria-label={t('common.run')}
-                    className={`mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
-                      canSubmit
-                        ? 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
-                        : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
-                    }`}
-                  >
-                    <ArrowUp size={18} strokeWidth={2.5} />
-                  </button>
-                )}
-              </>
-            )}
-            {isMemberSession && (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canSubmit}
-                aria-label={t('common.run')}
-                className={`mb-[2px] flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
-                  canSubmit
-                    ? 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
-                    : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
-                }`}
-              >
-                <ArrowUp size={18} strokeWidth={2.5} />
-              </button>
-            )}
           </div>
 
           {/* Attachments inline */}
@@ -781,6 +770,154 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
               <AttachmentGallery attachments={attachments} variant="composer" onRemove={removeAttachment} />
             </div>
           )}
+
+          <div className="flex items-center gap-[8px] px-[8px] pb-[8px] pt-[4px]">
+            <div className="flex items-center gap-[12px]">
+              <div className="relative flex items-center" ref={plusMenuRef}>
+                {!isMemberSession && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setPlusMenuOpen((v) => !v)}
+                      aria-label="Open composer tools"
+                      className={composerToolButtonClassName}
+                    >
+                      <Plus size={18} strokeWidth={2.5} />
+                      <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                        {slashCommandsLabel}
+                      </span>
+                    </button>
+
+                    {plusMenuOpen && (
+                      <div className="absolute bottom-full left-0 z-50 mb-[10px] w-[260px] overflow-hidden rounded-[24px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] shadow-[var(--shadow-dropdown)]">
+                        <button
+                          onClick={insertSlashCommand}
+                          className="group flex min-h-[54px] w-full items-center gap-[10px] rounded-[16px] px-[10px] py-[8px] text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+                        >
+                          <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] font-mono text-[15px] font-semibold text-[var(--color-text-secondary)]">/</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{slashCommandsLabel}</span>
+                            <span className="mt-[2px] block truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">{t('chat.select')}</span>
+                          </span>
+                        </button>
+                        <button
+                          onClick={insertAtTrigger}
+                          className="group flex min-h-[54px] w-full items-center gap-[10px] rounded-[16px] px-[10px] py-[8px] text-left transition-colors hover:bg-[var(--color-surface-hover)]"
+                        >
+                          <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] font-mono text-[14px] font-semibold text-[var(--color-text-secondary)]">@</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{t('chat.addFileRef')}</span>
+                            <span className="mt-[2px] block truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">{t('fileSearch.attach')}</span>
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="relative flex items-center">
+                {!isMemberSession && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label={addFilesLabel}
+                    className={composerToolButtonClassName}
+                  >
+                    <Paperclip size={16} strokeWidth={2.25} />
+                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                      {addFilesLabel}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex items-center">
+                {!isMemberSession && (
+                  <button
+                    type="button"
+                    onClick={handleProjectFolderSelect}
+                    aria-label={addProjectFolderLabel}
+                    className={composerToolButtonClassName}
+                  >
+                    <Folder size={17} strokeWidth={2.2} />
+                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
+                      {addProjectFolderLabel}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {!isMemberSession && (
+                <PermissionModeSelector variant="icon" />
+              )}
+            </div>
+
+            <div className="ml-auto flex min-w-0 items-center justify-end gap-[8px] overflow-visible">
+              <StreamingIndicator sessionId={activeTabId ?? undefined} />
+
+              {runtimeKey && !isMemberSession && (
+                <div className="min-w-0 shrink">
+                  <ModelSelector
+                    runtimeKey={runtimeKey}
+                    disabled={isActive}
+                    placement="top"
+                    align="right"
+                    compact
+                    variant="pill"
+                    openSignal={modelSelectorOpenSignal || undefined}
+                  />
+                </div>
+              )}
+
+              {!isMemberSession && (
+                <>
+                  {isActive ? (
+                    <button
+                      type="button"
+                      onClick={() => stopGeneration(activeTabId!)}
+                      title={t('chat.stopTitle')}
+                      aria-label={t('chat.stopTitle')}
+                      className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]"
+                    >
+                      <Square size={16} strokeWidth={2.5} />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      onMouseDown={handleSubmitMouseDown}
+                      disabled={!canSubmit}
+                      aria-label={t('common.run')}
+                      className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                        canSubmit
+                          ? 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
+                          : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
+                      }`}
+                    >
+                      <ArrowUp size={18} strokeWidth={2.5} />
+                    </button>
+                  )}
+                </>
+              )}
+              {isMemberSession && (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  onMouseDown={handleSubmitMouseDown}
+                  disabled={!canSubmit}
+                  aria-label={t('common.run')}
+                  className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full transition-colors ${
+                    canSubmit
+                      ? 'bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
+                      : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] cursor-not-allowed'
+                  }`}
+                >
+                  <ArrowUp size={18} strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
       </div>

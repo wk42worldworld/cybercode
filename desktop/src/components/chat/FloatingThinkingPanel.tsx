@@ -77,13 +77,20 @@ export function FloatingThinkingPanel({
   }, [identityKey, clearTimers])
 
   useEffect(() => {
-    if (!displayContent) return
+    if (!displayContent) {
+      if (!isActive) {
+        clearTimers()
+        setVisibleContent('')
+        setIsShown(false)
+      }
+      return
+    }
 
     clearTimers()
     shouldAutoFollowRef.current = true
     setVisibleContent(displayContent)
     setIsShown(true)
-  }, [displayContent, clearTimers])
+  }, [displayContent, isActive, clearTimers])
 
   useEffect(() => {
     if (isActive) return

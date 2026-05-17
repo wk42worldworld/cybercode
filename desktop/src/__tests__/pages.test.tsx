@@ -542,7 +542,7 @@ describe('Content-only pages render without errors', () => {
 
 describe('Chat attachments', () => {
   it('UserMessage opens image gallery when an attachment is clicked', () => {
-    render(
+    const { container } = render(
       <UserMessage
         content=""
         attachments={[
@@ -555,7 +555,14 @@ describe('Chat attachments', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button'))
+    const image = screen.getByRole('img', { name: 'diagram.png' })
+    const userBubble = image.closest('[data-message-bubble="user"]') as HTMLElement | null
+    expect(userBubble).toBeTruthy()
+    expect(container.querySelector('[data-message-shell="user"]')).toContainElement(userBubble)
+
+    const imageButton = image.closest('button')
+    expect(imageButton).toBeTruthy()
+    fireEvent.click(imageButton!)
     expect(screen.getByText('diagram.png')).toBeInTheDocument()
   })
 })

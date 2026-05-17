@@ -61,7 +61,7 @@ function HeroEmptyStateForSession({
   return (
     <HeroEmptyLayout
       hero={<HeroBlock t={t} />}
-      composer={<ChatInput sessionId={sessionId} variant="hero" />}
+      composer={<ChatInput sessionId={sessionId} variant="hero" runtimeKey={sessionId} />}
     />
   )
 }
