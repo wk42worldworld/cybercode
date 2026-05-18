@@ -7,16 +7,20 @@
   </picture>
 </p>
 
+<p align="center">
+  <strong>언어:</strong>
+  <a href="README.md">English</a> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.ja.md">日本語</a> ·
+  <strong>한국어</strong>
+</p>
+
 <div align="center">
 
 [![GitHub Stars](https://img.shields.io/github/stars/wk42worldworld/cybercode?style=social)](https://github.com/wk42worldworld/cybercode/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/wk42worldworld/cybercode?style=social)](https://github.com/wk42worldworld/cybercode/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/pulls)
-[![English](https://img.shields.io/badge/English-Available-green)](README.md)
-[![中文](https://img.shields.io/badge/中文-可用-green)](README.zh-CN.md)
-[![日本語](https://img.shields.io/badge/日本語-Available-green)](README.ja.md)
-[![한국어](https://img.shields.io/badge/한국어-현재-blue)](README.ko.md)
 [![Docs](https://img.shields.io/badge/Documentation-Visit-D97757)](https://github.com/wk42worldworld/cybercode)
 
 </div>
