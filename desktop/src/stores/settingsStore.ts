@@ -12,7 +12,7 @@ function getStoredLocale(): Locale {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY)
     if (isLocale(stored)) return stored
   } catch { /* localStorage unavailable */ }
-  return 'en'
+  return 'zh'
 }
 
 type SettingsStore = {
