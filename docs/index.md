@@ -6,7 +6,8 @@ hero:
   text: 本地可运行的 AI 编码客户端
   tagline: 高度借鉴 Claude Code 设计，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）
   image:
-    src: /images/logo-horizontal.png
+    light: /images/cybercode-wordmark.png
+    dark: /images/cybercode-wordmark-dark.png
     alt: CyberCode
   actions:
     - theme: brand

@@ -599,4 +599,3 @@ bindSessionContext closure
 ## Related Documentation
 
 - [Computer Use Guide](./computer-use.md) — Usage, quick start, environment variables
-- [Source Fixes](/en/reference/fixes) — Detailed records of other fixes and patches

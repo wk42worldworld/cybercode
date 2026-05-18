@@ -10,8 +10,6 @@
 
 ## 一、界面布局
 
-![桌面端界面总览](../images/desktop_ui/01_full_ui.png)
-
 桌面端采用**三栏 + 标签页**的经典 IDE 布局，从左到右分为：
 
 | 区域 | 位置 | 功能 |
@@ -72,8 +70,6 @@
 
 ### 斜杠命令
 
-![斜杠命令菜单](../images/desktop_ui/09_slash_command.png)
-
 输入 `/` 触发命令自动补全菜单：
 
 ```
@@ -90,8 +86,6 @@
 - 命令列表由服务端动态提供，支持搜索过滤
 
 ### @ 文件引用
-
-![文件搜索菜单](../images/desktop_ui/09_file_search.png)
 
 输入 `@` 触发文件搜索菜单，快速将文件引入对话上下文：
 
@@ -171,8 +165,6 @@ AI 回复时实时流式展示，支持：
 ---
 
 ## 四、权限控制
-
-![权限请求与 AI 提问](../images/desktop_ui/03_ask_question_and_permission.png)
 
 Claude Code 在执行文件修改、Shell 命令等操作前，会请求你的权限。
 

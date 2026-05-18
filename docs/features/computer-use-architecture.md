@@ -604,4 +604,3 @@ bindSessionContext 闭包
 ## 相关文档
 
 - [Computer Use 功能指南](./computer-use.md) — 使用方式、快速开始、环境变量
-- [源码修复记录](/reference/fixes) — 其他修复和补丁的详细记录

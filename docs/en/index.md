@@ -6,7 +6,8 @@ hero:
   text: Local AI Coding Client
   tagline: Heavily inspired by Claude Code, supports any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.)
   image:
-    src: /images/logo-horizontal.png
+    light: /images/cybercode-wordmark.png
+    dark: /images/cybercode-wordmark-dark.png
     alt: CyberCode
   actions:
     - theme: brand
