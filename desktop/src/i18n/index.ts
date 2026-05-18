@@ -2,10 +2,12 @@ import { useCallback } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { en, type TranslationKey } from './locales/en'
 import { zh } from './locales/zh'
+import { ja } from './locales/ja'
+import { ko } from './locales/ko'
+import { localeOptions } from './localeConfig'
+import type { Locale } from './localeConfig'
 
-export type Locale = 'en' | 'zh'
-
-const translations: Record<Locale, Record<string, string>> = { en, zh }
+const translations: Record<Locale, Partial<Record<TranslationKey, string>>> = { en, zh, ja, ko }
 
 /**
  * Translate a key with optional interpolation params.
@@ -55,4 +57,5 @@ export function t(key: TranslationKey, params?: Record<string, string | number>)
   return translate(locale, key, params)
 }
 
-export type { TranslationKey }
+export { localeOptions }
+export type { Locale, TranslationKey }

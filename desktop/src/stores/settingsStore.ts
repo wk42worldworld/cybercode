@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { settingsApi } from '../api/settings'
 import { modelsApi } from '../api/models'
 import type { PermissionMode, EffortLevel, ModelInfo, ThemeMode } from '../types/settings'
-import type { Locale } from '../i18n'
+import { isLocale, type Locale } from '../i18n/localeConfig'
 import { useUIStore } from './uiStore'
 
 const LOCALE_STORAGE_KEY = 'cybercode-locale'
@@ -10,9 +10,9 @@ const LOCALE_STORAGE_KEY = 'cybercode-locale'
 function getStoredLocale(): Locale {
   try {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY)
-    if (stored === 'en' || stored === 'zh') return stored
+    if (isLocale(stored)) return stored
   } catch { /* localStorage unavailable */ }
-  return 'zh'
+  return 'en'
 }
 
 type SettingsStore = {

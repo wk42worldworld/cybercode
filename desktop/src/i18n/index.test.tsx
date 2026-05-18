@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { useSettingsStore } from '../stores/settingsStore'
-import { useTranslation } from '.'
+import { localeOptions, translate, useTranslation } from '.'
 
 describe('useTranslation', () => {
   afterEach(() => {
@@ -25,5 +25,18 @@ describe('useTranslation', () => {
       useSettingsStore.getState().setLocale('en')
     })
     expect(result.current).not.toBe(initial)
+  })
+
+  it('supports English, Chinese, Japanese, and Korean homepage locales', () => {
+    expect(localeOptions.map((item) => item.value)).toEqual(['en', 'zh', 'ja', 'ko'])
+    expect(translate('en', 'empty.title')).toBe('New session')
+    expect(translate('zh', 'empty.title')).toBe('新建会话')
+    expect(translate('ja', 'empty.title')).toBe('新しいセッション')
+    expect(translate('ko', 'empty.title')).toBe('새 세션')
+  })
+
+  it('falls back to English when a partial locale is missing a key', () => {
+    expect(translate('ja', 'settings.providers.title')).toBe('Providers')
+    expect(translate('ko', 'settings.providers.title')).toBe('Providers')
   })
 })

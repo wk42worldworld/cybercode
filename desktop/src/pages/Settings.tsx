@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useProviderStore } from '../stores/providerStore'
-import { useTranslation } from '../i18n'
+import { localeOptions, useTranslation } from '../i18n'
 import { Modal } from '../components/shared/Modal'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { Input } from '../components/shared/Input'
 import { Button } from '../components/shared/Button'
 import { Dropdown } from '../components/shared/Dropdown'
 import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
-import type { Locale } from '../i18n'
 import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat } from '../types/provider'
 import type { ProviderPreset } from '../types/providerPreset'
 import { useAgentStore } from '../stores/agentStore'
@@ -1097,11 +1096,6 @@ export function GeneralSettings() {
     { value: 'dark', label: t('settings.general.appearance.dark') },
   ]
 
-  const localeItems: Array<{ value: Locale; label: string }> = [
-    { value: 'en', label: 'English' },
-    { value: 'zh', label: '中文' },
-  ]
-
   const effortItems: Array<{ value: EffortLevel; label: string }> = [
     { value: 'low', label: t('settings.general.effort.low') },
     { value: 'medium', label: t('settings.general.effort.medium') },
@@ -1116,7 +1110,7 @@ export function GeneralSettings() {
           <SegmentedControl items={themeItems} value={theme} onChange={(v) => void setTheme(v)} />
         </SettingsRow>
         <SettingsRow label={t('settings.general.languageTitle')} hint={t('settings.general.languageDescription')}>
-          <SegmentedControl items={localeItems} value={locale} onChange={(v) => setLocale(v)} />
+          <SegmentedControl items={localeOptions} value={locale} onChange={(v) => setLocale(v)} />
         </SettingsRow>
         <SettingsRow label={t('settings.general.effortTitle')} hint={t('settings.general.effortDescription')}>
           <SegmentedControl items={effortItems} value={effortLevel} onChange={(v) => setEffort(v)} />

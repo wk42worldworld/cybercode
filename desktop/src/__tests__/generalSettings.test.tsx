@@ -139,6 +139,17 @@ describe('Settings > General tab', () => {
     expect(toggle).toBeChecked()
   })
 
+  it('offers English, Chinese, Japanese, and Korean language choices', () => {
+    render(<Settings />)
+
+    fireEvent.click(screen.getByText('General'))
+
+    expect(screen.getByRole('button', { name: 'English' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '中文' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '日本語' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '한국어' })).toBeInTheDocument()
+  })
+
   it('lets the user disable WebFetch preflight skipping', () => {
     render(<Settings />)
 
