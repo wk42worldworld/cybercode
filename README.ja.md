@@ -1,7 +1,10 @@
 # CyberCode
 
 <p align="center">
-  <img src="docs/images/logo-horizontal.png" alt="CyberCode" width="480">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/cybercode-wordmark-dark.png">
+    <img src="docs/images/cybercode-wordmark.png" alt="CyberCode" width="520">
+  </picture>
 </p>
 
 <div align="center">
