@@ -204,7 +204,7 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('menu', { name: 'New Session' })).not.toBeInTheDocument()
   })
 
-  it('requires confirmation before deleting a session from the sidebar', async () => {
+  it('requires confirmation before deleting a session from the hover action', async () => {
     deleteSession.mockResolvedValue(undefined)
     useSessionStore.setState({
       sessions: [
@@ -227,9 +227,10 @@ describe('Sidebar', () => {
 
     render(<Sidebar />)
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: /Open Session/ }))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const sessionCard = screen.getByText('Open Session').closest('button')
+    expect(sessionCard).toBeTruthy()
+    fireEvent.mouseEnter(sessionCard!)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: Open Session' }))
 
     expect(deleteSession).not.toHaveBeenCalled()
     const dialog = screen.getByRole('dialog')

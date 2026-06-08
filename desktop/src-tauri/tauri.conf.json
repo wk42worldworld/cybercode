@@ -5,7 +5,7 @@
   "identifier": "com.cybercode.desktop",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://127.0.0.1:1420",
     "beforeDevCommand": "bun run build:sidecars && bun run dev",
     "beforeBuildCommand": "bun run build && bun run build:sidecars"
   },

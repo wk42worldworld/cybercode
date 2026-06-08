@@ -658,6 +658,8 @@ export const zh: Record<TranslationKey, string> = {
   'chat.select': '选择',
   'chat.dismiss': '关闭',
   'chat.stopTitle': '停止生成 (Cmd+.)',
+  'chat.scrollToTop': '回到顶部',
+  'chat.scrollToBottom': '回到底部',
   'chat.rewindAction': '回滚到这里',
   'chat.rewindModalTitle': '回滚对话',
   'chat.rewindConfirm': '执行回滚',

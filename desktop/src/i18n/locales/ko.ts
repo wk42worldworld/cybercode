@@ -119,6 +119,8 @@ export const ko = {
   'chat.hintSettings': '설정',
   'chat.navigate': '이동',
   'chat.select': '선택',
+  'chat.scrollToTop': '맨 위로 이동',
+  'chat.scrollToBottom': '맨 아래로 이동',
   'chat.dismiss': '닫기',
 
   'model.selectModel': '모델 선택',

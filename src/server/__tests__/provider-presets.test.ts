@@ -67,6 +67,7 @@ describe('provider presets API', () => {
     const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
     const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
     const minimax = PROVIDER_PRESETS.find((preset) => preset.id === 'minimax')
+    const xiaomi = PROVIDER_PRESETS.find((preset) => preset.id === 'xiaomimimo')
 
     expect(lmstudio?.baseUrl).toBe('http://localhost:1234')
     expect(lmstudio?.apiFormat).toBe('anthropic')
@@ -85,6 +86,8 @@ describe('provider presets API', () => {
     expect(kimi?.baseUrl).toBe('https://api.kimi.com/coding')
     expect(kimi?.defaultModels.main).toBe('kimi-k2.6')
     expect(minimax?.defaultModels.main).toBe('MiniMax-M2.7')
+    expect(xiaomi?.defaultModels.sonnet).toBe('mimo-v2.5')
+    expect(xiaomi?.defaultModels.opus).toBe('mimo-v2.5-pro')
   })
 
   test('configured presets can expose optional API key and promo metadata', () => {

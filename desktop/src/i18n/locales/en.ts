@@ -656,6 +656,8 @@ export const en = {
   'chat.select': 'select',
   'chat.dismiss': 'dismiss',
   'chat.stopTitle': 'Stop generation (Cmd+.)',
+  'chat.scrollToTop': 'Scroll to top',
+  'chat.scrollToBottom': 'Scroll to bottom',
   'chat.rewindAction': 'Rewind to here',
   'chat.rewindModalTitle': 'Rewind Conversation',
   'chat.rewindConfirm': 'Rewind here',

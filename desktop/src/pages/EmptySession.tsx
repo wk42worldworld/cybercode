@@ -1,9 +1,30 @@
-import { EmptyState } from '../components/chat/EmptyState'
+import { useMemo } from 'react'
+import { NewSessionChooser, resolveCurrentProject } from '../components/layout/NewSessionChooser'
+import { useCreateAndOpenSession } from '../hooks/useCreateAndOpenSession'
+import { useTranslation } from '../i18n'
+import { useSessionStore } from '../stores/sessionStore'
 
 export function EmptySession() {
+  const t = useTranslation()
+  const sessions = useSessionStore((state) => state.sessions)
+  const selectedProjects = useSessionStore((state) => state.selectedProjects)
+  const createAndOpenSession = useCreateAndOpenSession()
+  const currentProject = useMemo(
+    () => resolveCurrentProject(selectedProjects, sessions),
+    [selectedProjects, sessions],
+  )
+
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden bg-[var(--color-background)] text-[var(--color-text-primary)] transition-colors duration-150">
-      <EmptyState variant="hero" />
+      <div className="flex min-h-0 flex-1 items-center justify-center px-[24px] py-[48px]">
+        <div
+          role="menu"
+          aria-label={t('newSession.title')}
+          className="flex max-h-[460px] min-h-[220px] w-full max-w-[336px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
+        >
+          <NewSessionChooser currentProject={currentProject} onCreate={createAndOpenSession} />
+        </div>
+      </div>
     </div>
   )
 }

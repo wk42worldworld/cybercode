@@ -6,8 +6,11 @@ import { useTranslation } from '../../i18n'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { useTabStore } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
-import { getDefaultSessionTitle, getSessionDisplayTitle } from '../../utils/sessionTitle'
+import { getSessionDisplayTitle } from '../../utils/sessionTitle'
 import { NewSessionMenu } from './NewSessionMenu'
+import { resolveCurrentProject } from './NewSessionChooser'
+import { Icon } from '../shared/Icon'
+import { useCreateAndOpenSession } from '../../hooks/useCreateAndOpenSession'
 import type { SessionListItem } from '../../types/session'
 
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
@@ -102,28 +105,20 @@ export function Sidebar() {
     if (showTemporaryOnly && selectedProjects.length > 0) setShowTemporaryOnly(false)
   }, [selectedProjects, showTemporaryOnly])
 
-  const selectedProject = useMemo(() => {
-    if (selectedProjects.length !== 1) return undefined
-    const projectPath = selectedProjects[0]!
-    const latestSession = sessions
-      .filter((session) =>
-        session.projectPath === projectPath &&
-        session.workDir &&
-        session.workDirExists,
-      )
-      .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime())[0]
-    if (!latestSession?.workDir) return undefined
-    const title = latestSession.workDir.split('/').filter(Boolean).pop() || latestSession.workDir
-    return { projectPath, workDir: latestSession.workDir, title }
-  }, [selectedProjects, sessions])
+  const selectedProject = useMemo(
+    () => resolveCurrentProject(selectedProjects, sessions),
+    [selectedProjects, sessions],
+  )
 
   const handleContextMenu = useCallback((e: React.MouseEvent, session: SessionRef) => {
     e.preventDefault()
+    setNewSessionMenuOpen(false)
     setContextMenu({ ...session, x: e.clientX, y: e.clientY })
   }, [])
 
   const handleDelete = useCallback((session: SessionRef) => {
     setContextMenu(null)
+    setNewSessionMenuOpen(false)
     setPendingDeleteSession(session)
   }, [])
 
@@ -137,6 +132,7 @@ export function Sidebar() {
 
   const handleStartRename = useCallback((session: SessionRef, currentTitle: string) => {
     setContextMenu(null)
+    setNewSessionMenuOpen(false)
     setRenamingSession(session)
     setRenameValue(currentTitle)
   }, [])
@@ -170,24 +166,7 @@ export function Sidebar() {
     startDraggingRef.current?.()
   }, [])
 
-  const createSession = useSessionStore((state) => state.createSession)
-
-  const createAndOpenSession = useCallback(async (workDir?: string): Promise<boolean> => {
-    try {
-      const newSessionId = await createSession(workDir)
-      const createdSession = useSessionStore.getState().sessions.find((session) => session.id === newSessionId)
-      useTabStore.getState().openTab(newSessionId, getDefaultSessionTitle(t), 'session', createdSession?.projectPath)
-      void useChatStore.getState().ensureSessionReady(newSessionId, createdSession?.projectPath)
-      useUIStore.getState().setRailSettingsView(null)
-      return true
-    } catch (error) {
-      useUIStore.getState().addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : t('empty.failedToCreate'),
-      })
-      return false
-    }
-  }, [createSession, t])
+  const createAndOpenSession = useCreateAndOpenSession()
 
   const handleNewSession = useCallback(() => {
     setContextMenu(null)
@@ -283,7 +262,7 @@ export function Sidebar() {
               const displayTitle = getSessionDisplayTitle(session, t)
               const iconStr = (displayTitle || 'U').charAt(0).toUpperCase()
               return (
-                <div key={currentKey} className="relative">
+                <div key={currentKey} className="group/session relative">
                   {renamingSession?.id === session.id && renamingSession.projectPath === session.projectPath ? (
                     <input
                       ref={renameInputRef}
@@ -297,21 +276,23 @@ export function Sidebar() {
                       className="h-[64px] w-full rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-[16px] py-[12px] text-[13px] leading-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
                     />
                   ) : (
+                    <>
                     <button
                       onClick={() => {
+                        setNewSessionMenuOpen(false)
                         setPendingSessionKey(currentKey)
                         useTabStore.getState().switchToSession(session.id, displayTitle, session.projectPath)
                         void useChatStore.getState().ensureSessionReady(session.id, session.projectPath)
                       }}
                       onContextMenu={(e) => handleContextMenu(e, { id: session.id, projectPath: session.projectPath })}
-                      className={`group relative flex min-h-[64px] w-full items-start justify-between overflow-hidden rounded-[12px] border p-[12px] text-left transition-colors duration-100 ${
+                      className={`relative flex min-h-[64px] w-full items-start justify-between overflow-hidden rounded-[12px] border p-[12px] text-left transition-colors duration-100 ${
                         isActive
                           ? 'border-[var(--color-border-focus)] bg-[var(--color-inverse-surface)] text-[var(--color-inverse-on-surface)] shadow-none'
-                          : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]'
+                          : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] group-hover/session:border-[var(--color-border)] group-hover/session:bg-[var(--color-surface-hover)]'
                       }`}
                     >
                       <div className="flex w-full items-center gap-[10px]">
-                        <div className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[12px] text-sm font-bold transition-colors duration-100 ${isActive ? 'bg-[var(--color-background)] text-[var(--color-text-primary)]' : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] group-hover:bg-[var(--color-surface-container-highest)]'}`}>
+                        <div className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[12px] text-sm font-bold transition-colors duration-100 ${isActive ? 'bg-[var(--color-background)] text-[var(--color-text-primary)]' : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] group-hover/session:bg-[var(--color-surface-container-highest)]'}`}>
                           {iconStr}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col">
@@ -323,7 +304,7 @@ export function Sidebar() {
                               {formatRelativeTime(session.modifiedAt)}
                             </span>
                           </div>
-                          <p className={`mt-[2px] line-clamp-1 text-left text-[11px] font-medium leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
+                          <p className={`mt-[2px] line-clamp-1 pr-[24px] text-left text-[11px] font-medium leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
                             {session.workDir
                               ? (!session.workDirExists ? <span className="text-amber-500" title={session.workDir ?? ''}>{t('sidebar.missingDir')}</span> : session.workDir.split('/').slice(-2).join('/'))
                               : '\u00A0'}
@@ -331,6 +312,23 @@ export function Sidebar() {
                         </div>
                       </div>
                     </button>
+                    <button
+                      type="button"
+                      aria-label={`${t('common.delete')}: ${displayTitle}`}
+                      title={t('common.delete')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete({ id: session.id, projectPath: session.projectPath })
+                      }}
+                      className={`absolute bottom-[8px] right-[9px] flex h-[17px] w-[17px] items-center justify-center rounded-full border opacity-0 shadow-none backdrop-blur-sm transition duration-100 group-hover/session:opacity-100 focus-visible:opacity-100 ${
+                        isActive
+                          ? 'border-white/10 bg-white/7 text-[var(--color-inverse-on-surface)]/45 hover:bg-white/12 hover:text-[var(--color-inverse-on-surface)]/72'
+                          : 'border-[var(--color-border)]/35 bg-[var(--color-surface-container-high)]/48 text-[var(--color-text-tertiary)] hover:border-[var(--color-border)]/55 hover:bg-[var(--color-surface-container-highest)]/72 hover:text-[var(--color-text-secondary)]'
+                      }`}
+                    >
+                      <Icon name="close_one" size={9} />
+                    </button>
+                    </>
                   )}
                 </div>
               )
@@ -343,12 +341,18 @@ export function Sidebar() {
 
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-[16px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] py-1 shadow-[var(--shadow-dropdown)]"
+          className="fixed z-50 min-w-[136px] rounded-[8px] border border-[var(--color-border)] bg-[var(--color-background)] p-[4px] shadow-[0_10px_28px_rgba(0,0,0,0.14)]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button onClick={() => { const session = sessions.find((s) => s.id === contextMenu.id && s.projectPath === contextMenu.projectPath); handleStartRename(contextMenu, session ? getSessionDisplayTitle(session, t) : '') }} className="w-full px-4 py-2.5 text-left text-[13px] text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-hover)] rounded-[8px]">{t('common.rename')}</button>
-          <button onClick={() => handleDelete(contextMenu)} className="w-full px-4 py-2.5 text-left text-[13px] text-red-500 transition-colors hover:bg-[var(--color-surface-hover)] rounded-[8px]">{t('common.delete')}</button>
+          <button
+            type="button"
+            onClick={() => { const session = sessions.find((s) => s.id === contextMenu.id && s.projectPath === contextMenu.projectPath); handleStartRename(contextMenu, session ? getSessionDisplayTitle(session, t) : '') }}
+            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+          >
+            <Icon name="edit" size={13} className="text-[var(--color-text-tertiary)]" />
+            <span>{t('common.rename')}</span>
+          </button>
         </div>
       )}
 

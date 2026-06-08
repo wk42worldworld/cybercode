@@ -11,6 +11,7 @@ import type { TranslationKey } from '../../i18n/locales/en'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
 
+import { ToolCallGroup } from './ToolCallGroup'
 import { ToolCallBlock } from './ToolCallBlock'
 import { ToolResultBlock } from './ToolResultBlock'
 import { PermissionDialog } from './PermissionDialog'
@@ -213,6 +214,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const virtuosoRef = useRef<VirtuosoHandle>(null)
   const scrollerElementRef = useRef<HTMLElement | null>(null)
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
+  const [isAtBottom, setIsAtBottom] = useState(true)
   // Track whether the user is near the bottom of the list. Used to decide whether
   // auto-scroll during streaming is appropriate. If the user has scrolled up to
   // read history, we must NOT force them back to the bottom.
@@ -248,9 +250,16 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     }
   }, [resolvedSessionId, projectPath, historyLoadState, loadHistory])
 
-  const { toolResultMap, childToolCallsByParent, renderItems } = useMemo(
+  const renderModel = useMemo(
     () => buildRenderModel(messages),
     [messages],
+  )
+  const { toolResultMap, childToolCallsByParent } = renderModel
+  const renderItems = useMemo(
+    () => renderModel.renderItems.filter(
+      (item) => !(item.kind === 'message' && item.message.type === 'thinking'),
+    ),
+    [renderModel.renderItems],
   )
   const renderItemsLengthRef = useRef(renderItems.length)
   renderItemsLengthRef.current = renderItems.length
@@ -380,6 +389,18 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     scroller.scrollTo({ top, behavior })
   }, [])
 
+  const scrollScrollerToTop = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const scroller = scrollerElementRef.current
+    if (!scroller) return
+
+    if (behavior === 'auto' || typeof scroller.scrollTo !== 'function') {
+      scroller.scrollTop = 0
+      return
+    }
+
+    scroller.scrollTo({ top: 0, behavior })
+  }, [])
+
   const scrollToLatest = useCallback((behavior: 'auto' | 'smooth' = 'auto', key = initialBottomKeyRef.current) => {
     if (key !== initialBottomKeyRef.current) return
     if (renderItemsLengthRef.current === 0) return
@@ -398,6 +419,16 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       }
     })
   }, [scrollScrollerToBottom])
+
+  const scrollToEarliest = useCallback((behavior: 'auto' | 'smooth' = 'smooth') => {
+    if (renderItemsLengthRef.current === 0) return
+    virtuosoRef.current?.scrollToIndex({
+      index: firstItemIndexRef.current,
+      align: 'start',
+      behavior,
+    })
+    requestAnimationFrame(() => scrollScrollerToTop(behavior))
+  }, [scrollScrollerToTop])
 
   const completeInitialBottom = useCallback((key = initialBottomKeyRef.current) => {
     if (key !== initialBottomKeyRef.current) return
@@ -685,6 +716,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   }, [scheduleInitialBottomScroll])
 
   const handleAtBottomStateChange = useCallback((isAtBottom: boolean) => {
+    setIsAtBottom(isAtBottom)
     if (pendingInitialBottomRef.current) {
       isNearBottomRef.current = true
       if (isAtBottom) {
@@ -696,6 +728,23 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     }
     isNearBottomRef.current = autoFollowCurrentTurnRef.current ? true : isAtBottom
   }, [scheduleInitialBottomCompletion, scheduleInitialBottomScroll])
+
+  const handleScrollJumpClick = useCallback(() => {
+    if (isAtBottom) {
+      pendingInitialBottomRef.current = false
+      cancelInitialBottomFrames()
+      autoFollowCurrentTurnRef.current = false
+      isNearBottomRef.current = false
+      setIsAtBottom(false)
+      scrollToEarliest('smooth')
+      return
+    }
+
+    autoFollowCurrentTurnRef.current = chatState !== 'idle'
+    isNearBottomRef.current = true
+    setIsAtBottom(true)
+    scrollToLatest('smooth')
+  }, [cancelInitialBottomFrames, chatState, isAtBottom, scrollToEarliest, scrollToLatest])
 
   const handleTotalListHeightChanged = useCallback(() => {
     if (!pendingInitialBottomRef.current) return
@@ -711,7 +760,19 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
       // Fallback: standalone tool_group that wasn't merged into an assistant message.
       if (item.kind === 'tool_group') {
-        return <div className="px-4 py-2" />
+        return (
+          <div className="flex w-full justify-center px-[24px] py-[12px]">
+            <div className="w-full max-w-[878px]">
+              <ToolCallGroup
+                toolCalls={item.toolCalls}
+                resultMap={toolResultMap}
+                childToolCallsByParent={childToolCallsByParent}
+                agentTaskNotifications={agentTaskNotifications}
+                isStreaming={chatState === 'tool_executing'}
+              />
+            </div>
+          </div>
+        )
       }
 
       const msg = item.message
@@ -768,9 +829,11 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
   // Error / loading states are shown outside Virtuoso when there are no messages
   const showEmptyOverlay = messages.length === 0 && historyLoadState !== 'loaded'
+  const showScrollJumpButton = !showEmptyOverlay && (renderItems.length > 1 || streamingText.length > 0)
+  const scrollJumpLabel = isAtBottom ? t('chat.scrollToTop') : t('chat.scrollToBottom')
 
   return (
-    <div className="wechat-chat-bg scrollbar-no-track flex flex-1 flex-col overflow-hidden">
+    <div className="wechat-chat-bg scrollbar-no-track relative flex flex-1 flex-col overflow-hidden">
       {showEmptyOverlay && historyLoadState === 'error' && (
         <div className="mx-auto my-6 flex max-w-[420px] flex-col items-center gap-3 rounded-[10px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-5 py-5 text-center">
           <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">聊天记录加载失败</div>
@@ -838,6 +901,26 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
             ),
           }}
         />
+      )}
+
+      {showScrollJumpButton && (
+        <button
+          type="button"
+          aria-label={scrollJumpLabel}
+          title={scrollJumpLabel}
+          data-testid="chat-scroll-jump"
+          onClick={handleScrollJumpClick}
+          className="absolute right-[18px] z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)]/55 bg-[var(--color-surface-container-high)]/55 text-[var(--color-text-tertiary)] opacity-75 shadow-[0_7px_15px_rgba(0,0,0,0.075)] backdrop-blur-md transition hover:-translate-y-px hover:border-[var(--color-text-tertiary)]/70 hover:bg-[var(--color-surface-container-high)]/78 hover:text-[var(--color-text-primary)] hover:opacity-95 active:translate-y-0"
+          style={{ bottom: Math.max(18, Math.ceil(bottomOverlayHeight) + 18) }}
+        >
+          <span className="grid h-[15px] w-[15px] place-items-center">
+            <Icon
+              name={isAtBottom ? 'arrow_upward' : 'arrow_downward'}
+              size={15}
+              style={{ transform: isAtBottom ? 'translateY(0.5px)' : 'translateY(-0.5px)' }}
+            />
+          </span>
+        </button>
       )}
 
       <Modal

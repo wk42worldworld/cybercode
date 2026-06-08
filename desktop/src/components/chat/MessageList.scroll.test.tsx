@@ -1,4 +1,4 @@
-import { act, render, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MessageList } from './MessageList'
 import { useChatStore } from '../../stores/chatStore'
@@ -123,6 +123,24 @@ function userMessage(id: string, content: string, timestamp = 1): UIMessage {
   return {
     id,
     type: 'user_text',
+    content,
+    timestamp,
+  }
+}
+
+function assistantMessage(id: string, content: string, timestamp = 1): UIMessage {
+  return {
+    id,
+    type: 'assistant_text',
+    content,
+    timestamp,
+  }
+}
+
+function thinkingMessage(id: string, content: string, timestamp = 1): UIMessage {
+  return {
+    id,
+    type: 'thinking',
     content,
     timestamp,
   }
@@ -281,6 +299,32 @@ describe('MessageList initial bottom positioning', () => {
     })
   })
 
+  it('toggles the floating scroll control between top and bottom', async () => {
+    render(<MessageList sessionId="session-a" projectPath="/tmp/a" />)
+
+    const jumpToTop = await screen.findByRole('button', { name: 'Scroll to top' })
+
+    virtuosoMock.scrollToIndex.mockClear()
+    fireEvent.click(jumpToTop)
+
+    expect(virtuosoMock.scrollToIndex).toHaveBeenCalledWith({
+      index: 0,
+      align: 'start',
+      behavior: 'smooth',
+    })
+
+    const jumpToBottom = await screen.findByRole('button', { name: 'Scroll to bottom' })
+
+    virtuosoMock.scrollToIndex.mockClear()
+    fireEvent.click(jumpToBottom)
+
+    expect(virtuosoMock.scrollToIndex).toHaveBeenCalledWith({
+      index: 'LAST',
+      align: 'end',
+      behavior: 'smooth',
+    })
+  })
+
   it('scrolls to the bottom when the user sends a new message from the middle', async () => {
     render(<MessageList sessionId="session-a" projectPath="/tmp/a" />)
 
@@ -383,5 +427,33 @@ describe('MessageList initial bottom positioning', () => {
         behavior: 'smooth',
       })
     })
+  })
+
+  it('does not pass thinking messages to the virtual list as hidden rows', async () => {
+    useChatStore.setState((state) => ({
+      sessions: {
+        ...state.sessions,
+        'session-a': makeSessionState({
+          messages: [
+            assistantMessage('assistant-1', 'first assistant reply', 1),
+            thinkingMessage('thinking-1', 'hidden thinking text', 2),
+            assistantMessage('assistant-2', 'second assistant reply', 3),
+          ],
+        }),
+      },
+    }))
+
+    render(<MessageList sessionId="session-a" projectPath="/tmp/a" />)
+
+    await waitFor(() => {
+      expect(virtuosoMock.getLatestProps()).toBeTruthy()
+    })
+
+    const data = virtuosoMock.getLatestProps().data as Array<{ kind: string; message?: UIMessage }>
+    expect(data).toHaveLength(2)
+    expect(data.map((item) => item.message?.id)).toEqual(['assistant-1', 'assistant-2'])
+    expect(screen.getByText('first assistant reply')).toBeTruthy()
+    expect(screen.getByText('second assistant reply')).toBeTruthy()
+    expect(screen.queryByText('hidden thinking text')).toBeNull()
   })
 })

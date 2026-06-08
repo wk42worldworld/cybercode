@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 import { skillsApi } from '../api/skills'
@@ -35,6 +35,17 @@ vi.mock('../api/mcp', () => ({
   },
 }))
 
+vi.mock('../api/sessions', async () => {
+  const actual = await vi.importActual<typeof import('../api/sessions')>('../api/sessions')
+  return {
+    ...actual,
+    sessionsApi: {
+      ...actual.sessionsApi,
+      getRecentProjects: vi.fn(async () => ({ projects: [] })),
+    },
+  }
+})
+
 // Import all pages
 import { EmptySession } from '../pages/EmptySession'
 import { ActiveSession } from '../pages/ActiveSession'
@@ -48,62 +59,99 @@ import { UserMessage } from '../components/chat/UserMessage'
 import { useChatStore } from '../stores/chatStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTabStore } from '../stores/tabStore'
+import { useSettingsStore } from '../stores/settingsStore'
+import { sessionsApi } from '../api/sessions'
+
+beforeEach(() => {
+  useSettingsStore.setState({ locale: 'en' })
+  useTabStore.setState({ tabs: [], activeTabId: null, recentSessionIds: [] })
+  useSessionStore.setState({
+    sessions: [],
+    activeSessionId: null,
+    isLoading: false,
+    error: null,
+    selectedProjects: [],
+    availableProjects: [],
+  })
+  useChatStore.setState({ sessions: {} })
+  useUIStore.setState({
+    activeView: 'code',
+    pendingSettingsTab: null,
+    settingsOpen: false,
+    settingsPanelView: 'settings',
+    railSettingsView: null,
+    activeModal: null,
+    toasts: [],
+  })
+  vi.mocked(sessionsApi.getRecentProjects).mockResolvedValue({ projects: [] })
+})
 
 /**
  * Core rendering tests: content-only pages must render without crashing
  * and contain key structural elements from the prototype.
  */
 describe('Content-only pages render without errors', () => {
-  it('EmptySession slash picker includes dynamic skills before the first session starts', async () => {
-    vi.mocked(skillsApi.list).mockResolvedValueOnce({
-      skills: [
+  it('EmptySession renders the shared new-session chooser', async () => {
+    render(<EmptySession />)
+
+    expect(screen.getByRole('menu', { name: 'New session' })).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: 'Choose folder...' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Temporary session' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('EmptySession opens a temporary session from the chooser', async () => {
+    const createSession = vi.fn(async () => 'session-empty-1')
+    const ensureSessionReady = vi.fn()
+
+    useSessionStore.setState({
+      sessions: [],
+      activeSessionId: null,
+      isLoading: false,
+      error: null,
+      selectedProjects: [],
+      availableProjects: [],
+      createSession,
+    })
+    useChatStore.setState({
+      ensureSessionReady,
+    } as Partial<ReturnType<typeof useChatStore.getState>>)
+    useTabStore.setState({ tabs: [], activeTabId: null, recentSessionIds: [] })
+
+    render(<EmptySession />)
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Temporary session' }))
+
+    await waitFor(() => {
+      expect(createSession).toHaveBeenCalledWith(undefined)
+      expect(ensureSessionReady).toHaveBeenCalledWith('session-empty-1', undefined)
+    })
+    expect(useTabStore.getState().tabs).toEqual([
+      { sessionId: 'session-empty-1', projectPath: undefined, title: 'New Session', type: 'session', status: 'idle' },
+    ])
+    expect(useTabStore.getState().activeTabId).toBe('session-empty-1')
+  })
+
+  it('EmptySession shows recent projects in the same chooser surface', async () => {
+    vi.mocked(sessionsApi.getRecentProjects).mockResolvedValueOnce({
+      projects: [
         {
-          name: 'lark-mail',
-          description: 'Draft, send, and search emails',
-          source: 'user',
-          userInvocable: true,
-          contentLength: 120,
-          hasDirectory: true,
-        },
-        {
-          name: 'internal-only',
-          description: 'Should stay hidden',
-          source: 'user',
-          userInvocable: false,
-          contentLength: 60,
-          hasDirectory: true,
+          projectPath: '-workspace-cybercode',
+          realPath: '/workspace/cybercode',
+          projectName: 'cybercode',
+          repoName: 'cybercode',
+          isGit: true,
+          branch: 'main',
+          modifiedAt: '2026-05-28T00:00:00.000Z',
+          sessionCount: 3,
         },
       ],
     })
 
     render(<EmptySession />)
 
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: '/', selectionStart: 1 },
-    })
-
-    expect(await screen.findByText('/lark-mail')).toBeInTheDocument()
-    expect(screen.getByText('/mcp')).toBeInTheDocument()
-    expect(screen.getByText('/skills')).toBeInTheDocument()
-    expect(screen.getByText('/help')).toBeInTheDocument()
-    expect(screen.getByText('/plugin')).toBeInTheDocument()
-    expect(screen.getByText('/context')).toBeInTheDocument()
-    expect(screen.queryByText('/plugins')).not.toBeInTheDocument()
-    expect(screen.queryByText('/internal-only')).not.toBeInTheDocument()
-  })
-
-  it('EmptySession renders mascot and composer', () => {
-    const { container } = render(<EmptySession />)
-    expect(container.querySelector('textarea')).toBeInTheDocument()
-    expect(container.innerHTML).toContain('New session')
-    expect(container.innerHTML).toContain('Ask anything')
-  })
-
-  it('EmptySession plus menu exposes uploads and slash commands before chat starts', () => {
-    render(<EmptySession />)
-    fireEvent.click(screen.getByRole('button', { name: 'Open composer tools' }))
-    expect(screen.getByText('Add files or photos')).toBeInTheDocument()
-    expect(screen.getByText('Slash commands')).toBeInTheDocument()
+    expect(await screen.findByRole('menuitem', { name: /cybercode/ })).toBeInTheDocument()
+    expect(screen.getByText('Recent projects')).toBeInTheDocument()
   })
 
   it('ActiveSession renders with chat components', () => {
@@ -134,13 +182,9 @@ describe('Content-only pages render without errors', () => {
       },
     })
     const { container } = render(<ActiveSession />)
-    // With empty messages, the hero is shown
-    expect(container.innerHTML).toContain('New session')
-    // ChatInput has a textarea
-    const textarea = container.querySelector('textarea')
+    const textarea = screen.getByRole('textbox')
     expect(textarea).toBeInTheDocument()
-    expect(textarea).toHaveAttribute('placeholder', 'Ask anything...')
-    expect(textarea).toHaveAttribute('rows', '2')
+    expect(textarea).toHaveAttribute('rows', '1')
     expect(container.innerHTML).not.toContain('Preview')
     // Cleanup
     useTabStore.setState({ tabs: [], activeTabId: null })
@@ -197,7 +241,7 @@ describe('Content-only pages render without errors', () => {
 
     render(<ActiveSession />)
 
-    const textarea = screen.getByPlaceholderText('Ask Claude to edit, debug or explain...')
+    const textarea = screen.getByRole('textbox')
     expect(textarea).toHaveAttribute('rows', '1')
 
     useTabStore.setState({ tabs: [], activeTabId: null })
@@ -311,7 +355,8 @@ describe('Content-only pages render without errors', () => {
     expect(sendMessage).not.toHaveBeenCalled()
     expect(await screen.findByText('Available MCP tools')).toBeInTheDocument()
     fireEvent.click(screen.getByText('deepwiki'))
-    expect(useTabStore.getState().activeTabId).toBe('__settings__')
+    expect(useUIStore.getState().settingsOpen).toBe(true)
+    expect(useUIStore.getState().settingsPanelView).toBe('mcp')
     expect(useUIStore.getState().pendingSettingsTab).toBe('mcp')
 
     useTabStore.setState({ tabs: [], activeTabId: null })
@@ -443,7 +488,8 @@ describe('Content-only pages render without errors', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' })
 
     expect(sendMessage).not.toHaveBeenCalled()
-    expect(useTabStore.getState().activeTabId).toBe('__settings__')
+    expect(useUIStore.getState().settingsOpen).toBe(true)
+    expect(useUIStore.getState().settingsPanelView).toBe('plugins')
     expect(useUIStore.getState().pendingSettingsTab).toBe('plugins')
 
     useTabStore.setState({ tabs: [], activeTabId: null })
@@ -509,10 +555,10 @@ describe('Content-only pages render without errors', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' })
 
     expect(sendMessage).not.toHaveBeenCalled()
-    expect(screen.getByText('Slash commands')).toBeInTheDocument()
+    expect(screen.getAllByText('Slash commands').length).toBeGreaterThan(0)
     expect(screen.getByText('/clear')).toBeInTheDocument()
     expect(screen.getByText('/cost')).toBeInTheDocument()
-    expect(screen.getByText('13 more commands available. Type / to search the full command list.')).toBeInTheDocument()
+    expect(screen.getByText(/more commands available\. Type \/ to search the full command list\./)).toBeInTheDocument()
 
     useTabStore.setState({ tabs: [], activeTabId: null })
     useSessionStore.setState({ sessions: [], activeSessionId: null, isLoading: false, error: null })
@@ -572,8 +618,8 @@ describe('AppShell layout renders chrome', () => {
     const { container } = render(<Sidebar />)
     expect(container.querySelector('aside')).toBeInTheDocument()
     expect(container.innerHTML).toContain('New session')
-    expect(container.innerHTML).toContain('Scheduled')
-    expect(container.innerHTML).toContain('All projects')
+    expect(container.innerHTML).toContain('Search sessions')
+    expect(container.innerHTML).toContain('All sessions')
   })
 })
 

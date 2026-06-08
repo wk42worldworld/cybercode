@@ -1,0 +1,269 @@
+import { useEffect, useMemo, useState } from 'react'
+import { sessionsApi, type RecentProject } from '../../api/sessions'
+import { useTranslation } from '../../i18n'
+import type { SessionListItem } from '../../types/session'
+import { Icon } from '../shared/Icon'
+
+export type CurrentProject = {
+  projectPath: string
+  workDir: string
+  title: string
+}
+
+type NewSessionChooserProps = {
+  currentProject?: CurrentProject
+  onClose?: () => void
+  onCreate: (workDir?: string) => Promise<boolean>
+}
+
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
+}
+
+function basename(path: string) {
+  return path.split('/').filter(Boolean).pop() || path
+}
+
+function projectTitle(project: RecentProject): string {
+  return project.repoName || project.projectName || basename(project.realPath)
+}
+
+function compactPath(path: string): string {
+  const parts = path.split('/').filter(Boolean)
+  if (parts.length <= 2) return path
+  return `.../${parts.slice(-2).join('/')}`
+}
+
+async function chooseFolder(title: string): Promise<string | null> {
+  if (!isTauriRuntime()) return null
+
+  const { open } = await import('@tauri-apps/plugin-dialog')
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title,
+  })
+  return typeof selected === 'string' ? selected : null
+}
+
+export function resolveCurrentProject(
+  selectedProjects: string[],
+  sessions: SessionListItem[],
+): CurrentProject | undefined {
+  if (selectedProjects.length !== 1) return undefined
+
+  const projectPath = selectedProjects[0]!
+  const latestSession = sessions
+    .filter((session) =>
+      session.projectPath === projectPath &&
+      session.workDir &&
+      session.workDirExists,
+    )
+    .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime())[0]
+
+  if (!latestSession?.workDir) return undefined
+  return {
+    projectPath,
+    workDir: latestSession.workDir,
+    title: basename(latestSession.workDir),
+  }
+}
+
+export function NewSessionChooser({
+  currentProject,
+  onClose,
+  onCreate,
+}: NewSessionChooserProps) {
+  const t = useTranslation()
+  const [projects, setProjects] = useState<RecentProject[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [creatingKey, setCreatingKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+
+    setIsLoading(true)
+    sessionsApi.getRecentProjects(8)
+      .then(({ projects }) => {
+        if (alive) setProjects(projects)
+      })
+      .catch(() => {
+        if (alive) setProjects([])
+      })
+      .finally(() => {
+        if (alive) setIsLoading(false)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const recentProjects = useMemo(() => {
+    if (!currentProject) return projects
+    return projects.filter((project) => project.realPath !== currentProject.workDir)
+  }, [currentProject, projects])
+
+  const handleCreate = async (key: string, workDir?: string) => {
+    if (creatingKey) return
+    setCreatingKey(key)
+    try {
+      const ok = await onCreate(workDir)
+      if (ok) onClose?.()
+    } finally {
+      setCreatingKey(null)
+    }
+  }
+
+  const handleChooseFolder = async () => {
+    if (creatingKey) return
+    setCreatingKey('choose-folder')
+    try {
+      const selected = await chooseFolder(t('dirPicker.chooseProjectFolder'))
+      if (!selected) return
+      const ok = await onCreate(selected)
+      if (ok) onClose?.()
+    } finally {
+      setCreatingKey(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {currentProject && (
+          <>
+            <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+              {t('newSession.currentProject')}
+            </div>
+            <ProjectMenuItem
+              title={currentProject.title}
+              subtitle={compactPath(currentProject.workDir)}
+              icon="folder_open"
+              loading={creatingKey === `current:${currentProject.projectPath}`}
+              disabled={!!creatingKey}
+              onClick={() => void handleCreate(`current:${currentProject.projectPath}`, currentProject.workDir)}
+            />
+            <div className="my-1 border-t border-[var(--color-border-separator)]" />
+          </>
+        )}
+
+        {isLoading ? (
+          <div className="px-3 py-4 text-center text-[12px] text-[var(--color-text-tertiary)]">
+            {t('common.loading')}
+          </div>
+        ) : recentProjects.length > 0 ? (
+          <>
+            <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+              {t('newSession.recentProjects')}
+            </div>
+            {recentProjects.map((project) => (
+              <ProjectMenuItem
+                key={`${project.projectPath}:${project.realPath}`}
+                title={projectTitle(project)}
+                subtitle={`${compactPath(project.realPath)}${project.branch ? ` · ${project.branch}` : ''}`}
+                meta={t('newSession.sessionCount', { count: project.sessionCount })}
+                icon={project.isGit ? 'source' : 'folder'}
+                loading={creatingKey === project.realPath}
+                disabled={!!creatingKey}
+                onClick={() => void handleCreate(project.realPath, project.realPath)}
+              />
+            ))}
+          </>
+        ) : (
+          <div className="px-3 py-4 text-center text-[12px] text-[var(--color-text-tertiary)]">
+            {t('newSession.noRecentProjects')}
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 border-t border-[var(--color-border-separator)] p-1.5">
+        <ActionMenuItem
+          icon="folder_open"
+          title={t('newSession.chooseFolder')}
+          loading={creatingKey === 'choose-folder'}
+          disabled={!!creatingKey}
+          onClick={() => void handleChooseFolder()}
+        />
+        <ActionMenuItem
+          icon="bolt"
+          title={t('newSession.temporary')}
+          subtle
+          loading={creatingKey === 'temporary'}
+          disabled={!!creatingKey}
+          onClick={() => void handleCreate('temporary', undefined)}
+        />
+      </div>
+    </>
+  )
+}
+
+function ProjectMenuItem({
+  title,
+  subtitle,
+  meta,
+  icon,
+  loading,
+  disabled,
+  onClick,
+}: {
+  title: string
+  subtitle: string
+  meta?: string
+  icon: string
+  loading: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex w-full items-center gap-3 rounded-[8px] px-2.5 py-2 text-left text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] disabled:cursor-default disabled:opacity-60"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-surface-container)]">
+        {loading ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name={icon} size={16} />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold">{title}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-[var(--color-text-tertiary)]">{subtitle}</span>
+      </span>
+      {meta && <span className="shrink-0 text-[10px] text-[var(--color-text-tertiary)]">{meta}</span>}
+    </button>
+  )
+}
+
+function ActionMenuItem({
+  icon,
+  title,
+  subtle,
+  loading,
+  disabled,
+  onClick,
+}: {
+  icon: string
+  title: string
+  subtle?: boolean
+  loading: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-center gap-3 rounded-[8px] px-2.5 py-2 text-left transition-colors hover:bg-[var(--color-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] disabled:cursor-default disabled:opacity-60 ${
+        subtle ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+      }`}
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-surface-container)]">
+        {loading ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name={icon} size={16} />}
+      </span>
+      <span className="text-[13px] font-semibold">{title}</span>
+    </button>
+  )
+}

@@ -16,6 +16,7 @@ export const ICONS = {
   archive: 'archive',
   arrow_back: 'arrow-left',
   arrow_back_ios: 'chevron-left',
+  arrow_downward: 'arrow-down',
   arrow_forward: 'arrow-right',
   arrow_forward_ios: 'chevron-right',
   arrow_outward: 'link-external',

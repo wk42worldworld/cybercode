@@ -368,11 +368,11 @@ describe('MessageList nested tool calls', () => {
 
     expect(screen.getByRole('button', { name: 'Copy prompt' })).toBeTruthy()
 
-    // In reversed order, the second assistant message appears first
+    // Messages render in chronological order: oldest at top, newest at bottom.
     fireEvent.click(screen.getAllByRole('button', { name: 'Copy reply' })[0]!)
 
     await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith('再看 desktop 前后端边界。')
+      expect(writeText).toHaveBeenCalledWith('先看 CLI 和服务端入口。')
     })
     expect(writeText).not.toHaveBeenCalledWith(
       '先看 CLI 和服务端入口。\n再看 desktop 前后端边界。'
@@ -600,12 +600,16 @@ describe('MessageList nested tool calls', () => {
     expect(within(dialog).getByText('Rewind Conversation')).toBeTruthy()
     expect(within(dialog).getByText('回到这一步重做')).toBeTruthy()
     expect(within(dialog).getByText('src/example.ts')).toBeTruthy()
-    expect(sessionsApi.rewind).toHaveBeenCalledWith(ACTIVE_TAB, {
-      targetUserMessageId: 'user-1',
-      userMessageIndex: 0,
-      expectedContent: '回到这一步重做',
-      dryRun: true,
-    })
+    expect(sessionsApi.rewind).toHaveBeenCalledWith(
+      ACTIVE_TAB,
+      {
+        targetUserMessageId: 'user-1',
+        userMessageIndex: 0,
+        expectedContent: '回到这一步重做',
+        dryRun: true,
+      },
+      { projectPath: undefined },
+    )
   })
 
   it('confirms rewind with the selected message id and prompt guard', async () => {
@@ -660,19 +664,23 @@ describe('MessageList nested tool calls', () => {
     render(<MessageList __testInitialItemCount={100} />)
 
     const buttons = screen.getAllByRole('button', { name: 'Rewind to here' })
-    // In reversed order, user-2 (newest) is at index 0, user-1 (oldest) is at index 1
-    fireEvent.click(buttons[0]!)
+    // Messages render in chronological order, so user-2 is the second rewind action.
+    fireEvent.click(buttons[1]!)
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: /Rewind here/ }))
 
     await waitFor(() => {
-      expect(sessionsApi.rewind).toHaveBeenLastCalledWith(ACTIVE_TAB, {
-        targetUserMessageId: 'user-2',
-        userMessageIndex: 1,
-        expectedContent: '第二段',
-      })
+      expect(sessionsApi.rewind).toHaveBeenLastCalledWith(
+        ACTIVE_TAB,
+        {
+          targetUserMessageId: 'user-2',
+          userMessageIndex: 1,
+          expectedContent: '第二段',
+        },
+        { projectPath: undefined },
+      )
     })
-    expect(reloadHistory).toHaveBeenCalledWith(ACTIVE_TAB)
+    expect(reloadHistory).toHaveBeenCalledWith(ACTIVE_TAB, undefined)
     expect(queueComposerPrefill).toHaveBeenCalledWith(ACTIVE_TAB, {
       text: '第二段',
       attachments: undefined,

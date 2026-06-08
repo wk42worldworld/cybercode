@@ -120,6 +120,8 @@ export const ja = {
   'chat.navigate': '移動',
   'chat.select': '選択',
   'chat.dismiss': '閉じる',
+  'chat.scrollToTop': '上へスクロール',
+  'chat.scrollToBottom': '下へスクロール',
 
   'model.selectModel': 'モデルを選択',
   'model.configuration': 'モデル設定',
