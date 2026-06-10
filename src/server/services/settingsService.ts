@@ -2,8 +2,8 @@
  * Settings Service — 读写用户级和项目级设置文件
  *
  * 设置文件为 JSON 格式：
- *   - 用户级: ~/.claude/settings.json
- *   - 项目级: {projectRoot}/.claude/settings.json
+ *   - 用户级: ~/.cyber/settings.json
+ *   - 项目级: {projectRoot}/.cyber/settings.json
  *
  * 合并策略：Object.assign({}, userSettings, projectSettings)
  */
@@ -11,7 +11,12 @@
 import * as fs from 'fs/promises'
 import { randomBytes } from 'node:crypto'
 import * as path from 'path'
-import * as os from 'os'
+import {
+  ensureProjectConfigDirMigration,
+  getClaudeConfigHomeDir,
+  getExistingProjectConfigPath,
+  getProjectConfigPath,
+} from '../../utils/envUtils.js'
 import { ApiError } from '../middleware/errorHandler.js'
 
 const VALID_PERMISSION_MODES = [
@@ -34,7 +39,7 @@ export class SettingsService {
 
   /** 配置目录，支持通过环境变量覆盖（便于测试） */
   private getConfigDir(): string {
-    return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    return getClaudeConfigHomeDir()
   }
 
   /** 用户级设置文件路径 */
@@ -43,12 +48,19 @@ export class SettingsService {
   }
 
   /** 项目级设置文件路径 */
-  private getProjectSettingsPath(projectRoot?: string): string {
+  private getProjectSettingsPath(
+    projectRoot?: string,
+    options?: { forWrite?: boolean },
+  ): string {
     const root = projectRoot || this.projectRoot
     if (!root) {
       throw ApiError.badRequest('Project root is required for project settings')
     }
-    return path.join(root, '.claude', 'settings.json')
+    if (options?.forWrite) {
+      ensureProjectConfigDirMigration(root)
+      return getProjectConfigPath(root, 'settings.json')
+    }
+    return getExistingProjectConfigPath(root, 'settings.json')
   }
 
   // ---------------------------------------------------------------------------
@@ -163,7 +175,9 @@ export class SettingsService {
     settings: Record<string, unknown>,
     projectRoot?: string,
   ): Promise<void> {
-    const filePath = this.getProjectSettingsPath(projectRoot)
+    const filePath = this.getProjectSettingsPath(projectRoot, {
+      forWrite: true,
+    })
     await this.withWriteLock(filePath, async () => {
       const current = await this.readJsonFile(filePath)
       const merged = Object.assign({}, current, settings)

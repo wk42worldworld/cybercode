@@ -59,7 +59,7 @@ export function ClaudeMdExternalIncludesDialog(t0) {
   const t5 = !isStandaloneDialog;
   let t6;
   if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
-    t6 = <Text>This project's CLAUDE.md imports files outside the current working directory. Never allow this for third-party repositories.</Text>;
+    t6 = <Text>This project's CYBER.md or legacy CLAUDE.md imports files outside the current working directory. Never allow this for third-party repositories.</Text>;
     $[5] = t6;
   } else {
     t6 = $[5];
@@ -102,7 +102,7 @@ export function ClaudeMdExternalIncludesDialog(t0) {
   }
   let t11;
   if ($[12] !== handleEscape || $[13] !== t10 || $[14] !== t4 || $[15] !== t5 || $[16] !== t7) {
-    t11 = <Dialog title="Allow external CLAUDE.md file imports?" color="warning" onCancel={handleEscape} hideBorder={t4} hideInputGuide={t5}>{t6}{t7}{t8}{t10}</Dialog>;
+    t11 = <Dialog title="Allow external CYBER.md file imports?" color="warning" onCancel={handleEscape} hideBorder={t4} hideInputGuide={t5}>{t6}{t7}{t8}{t10}</Dialog>;
     $[12] = handleEscape;
     $[13] = t10;
     $[14] = t4;

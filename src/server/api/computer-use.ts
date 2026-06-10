@@ -6,7 +6,6 @@
  *   POST /api/computer-use/setup   — 创建 venv 并安装依赖
  */
 
-import { homedir } from 'os'
 import { join } from 'path'
 import { access, readFile, mkdir, writeFile } from 'fs/promises'
 import { createHash } from 'crypto'
@@ -15,6 +14,7 @@ import { fileURLToPath } from 'url'
 import type { CuPermissionRequest } from '../../vendor/computer-use-mcp/types.js'
 import { computerUseApprovalService } from '../services/computerUseApprovalService.js'
 import { detectPythonRuntime } from './computer-use-python.js'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { DEFAULT_DESKTOP_GRANT_FLAGS } from '../../utils/computerUse/preauthorizedConfig.js'
 // Embed helper scripts at compile time so they're available in bundled mode
 // @ts-ignore — Bun text import
@@ -29,7 +29,7 @@ import REQUIREMENTS_WIN32 from '../../../runtime/requirements-win.txt' with { ty
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '../../..')
 const devRuntimeRoot = join(projectRoot, 'runtime')
-const claudeHome = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
+const claudeHome = getClaudeConfigHomeDir()
 const runtimeStateRoot = join(claudeHome, '.runtime')
 const venvRoot = join(runtimeStateRoot, 'venv')
 const installStampPath = join(runtimeStateRoot, 'requirements.sha256')
@@ -95,7 +95,7 @@ async function runCommand(
 
 /**
  * Ensure runtime source files (requirements.txt, mac_helper.py) exist in
- * ~/.claude/.runtime/. In dev mode they are copied from the project's
+ * ~/.cyber/.runtime/. In dev mode they are copied from the project's
  * runtime/ directory; in bundled mode requirements.txt is written from the
  * embedded constant and mac_helper.py is copied from the project dir (if
  * available) or skipped (it will already have been extracted on a prior run).
@@ -231,7 +231,7 @@ async function runSetup(): Promise<SetupResult> {
       : `Python ${pythonRuntime.version}`,
   })
 
-  // Step 2: Extract runtime files to ~/.claude/.runtime/
+  // Step 2: Extract runtime files to ~/.cyber/.runtime/
   try {
     await ensureRuntimeFiles()
     steps.push({ name: 'runtime_files', ok: true, message: '运行时文件已就绪' })
@@ -335,7 +335,7 @@ async function runSetup(): Promise<SetupResult> {
 }
 
 // ============================================================================
-// Authorized Apps configuration — stored in ~/.claude/cybercode/computer-use-config.json
+// Authorized Apps configuration — stored in ~/.cyber/cybercode/computer-use-config.json
 // ============================================================================
 
 const configPath = join(claudeHome, 'cybercode', 'computer-use-config.json')

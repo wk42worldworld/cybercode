@@ -1,14 +1,15 @@
 /**
  * Session Service — 会话文件的读写操作封装
  *
- * 读写 CLI 持久化在 ~/.claude/projects/{sanitized_path}/{sessionId}.jsonl 的会话数据，
+ * 读写 CLI 持久化在 ~/.cyber/projects/{sanitized_path}/{sessionId}.jsonl 的会话数据，
  * 确保 Desktop App 与 CLI 的数据完全互通。
  */
 
 import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
 import * as os from 'node:os'
+import * as path from 'node:path'
 import { ApiError } from '../middleware/errorHandler.js'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { sanitizePath as sanitizePortablePath } from '../../utils/sessionStoragePortable.js'
 import type { FileHistorySnapshot } from '../../utils/fileHistory.js'
 import { calculateUSDCost, MODEL_COSTS } from '../../utils/modelCost.js'
@@ -195,7 +196,7 @@ export class SessionService {
   // --------------------------------------------------------------------------
 
   private getConfigDir(): string {
-    return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    return getClaudeConfigHomeDir()
   }
 
   private getProjectsDir(): string {
@@ -1060,7 +1061,17 @@ export class SessionService {
         server_tool_use: { web_search_requests: webSearchRequests },
         speed: usage.speed,
       } as Parameters<typeof calculateUSDCost>[1]
-      const costUSD = calculateUSDCost(model, costUsage)
+      let costUSD = 0
+      try {
+        costUSD = calculateUSDCost(model, costUsage)
+      } catch (err) {
+        if (Object.prototype.hasOwnProperty.call(MODEL_COSTS, canonical)) {
+          throw err
+        }
+        // Unknown model cost fallback can consult the default configured model,
+        // which may require auth. Transcript reading should remain available
+        // even when the current process has no auth environment.
+      }
 
       let modelUsage = models.get(model)
       if (!modelUsage) {

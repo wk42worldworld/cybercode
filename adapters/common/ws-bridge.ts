@@ -9,7 +9,7 @@ import WebSocket from 'ws'
 
 /** Attachment reference — mirrors src/server/ws/events.ts AttachmentRef.
  *  The server will either (a) write base64 `data` to
- *  ~/.claude/uploads/{sessionId}/ and convert to ImageBlockParam, or
+ *  ~/.cyber/uploads/{sessionId}/ and convert to ImageBlockParam, or
  *  (b) read `path` from disk and inject `@"path"` into the prompt. */
 export type AttachmentRef = {
   type: 'file' | 'image'

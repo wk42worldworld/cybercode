@@ -4,14 +4,15 @@
  * Periodically checks all scheduled tasks and executes those whose cron
  * expression matches the current time. Tasks are run by spawning a CLI
  * subprocess with the task's prompt. Execution history is persisted to
- * ~/.claude/scheduled_tasks_log.json.
+ * ~/.cyber/scheduled_tasks_log.json.
  */
 
 import * as fs from 'fs/promises'
+import * as os from 'os'
 import { existsSync, statSync } from 'node:fs'
 import * as path from 'path'
-import * as os from 'os'
 import * as crypto from 'crypto'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { CronService, type CronTask } from './cronService.js'
 import { SessionService } from './sessionService.js'
 import { sendTaskNotification } from './notificationService.js'
@@ -165,9 +166,7 @@ export function cronMatches(cronExpr: string, date: Date): boolean {
 type RunsFile = { runs: TaskRun[] }
 
 function getLogFilePath(): string {
-  const configDir =
-    process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  return path.join(configDir, 'scheduled_tasks_log.json')
+  return path.join(getClaudeConfigHomeDir(), 'scheduled_tasks_log.json')
 }
 
 async function readRunsFile(): Promise<RunsFile> {

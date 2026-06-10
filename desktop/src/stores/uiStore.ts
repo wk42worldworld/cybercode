@@ -36,6 +36,7 @@ export type SettingsTab =
   | 'terminal'
   | 'mcp'
   | 'agents'
+  | 'memory'
   | 'skills'
   | 'plugins'
   | 'computerUse'

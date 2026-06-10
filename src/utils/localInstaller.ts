@@ -5,7 +5,10 @@
 import { access, chmod, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { type ReleaseChannel, saveGlobalConfig } from './config.js'
-import { getClaudeConfigHomeDir } from './envUtils.js'
+import {
+  getClaudeConfigHomeDir,
+  getLegacyClaudeConfigHomeDir,
+} from './envUtils.js'
 import { getErrnoCode } from './errors.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -23,12 +26,19 @@ export function getLocalClaudePath(): string {
   return join(getLocalInstallDir(), 'claude')
 }
 
+export function getLegacyLocalClaudePath(): string {
+  return join(getLegacyClaudeConfigHomeDir(), 'local', 'claude')
+}
+
 /**
  * Check if we're running from our managed local installation
  */
 export function isRunningFromLocalInstallation(): boolean {
   const execPath = process.argv[1] || ''
-  return execPath.includes('/.claude/local/node_modules/')
+  return (
+    execPath.includes('/.cyber/local/node_modules/') ||
+    execPath.includes('/.claude/local/node_modules/')
+  )
 }
 
 /**

@@ -17,7 +17,12 @@ import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { getGlobalClaudeFile } from './env.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import {
+  getClaudeConfigHomeDir,
+  getConfigHomeDirEnvOverride,
+  getLegacyClaudeConfigHomeDir,
+  isEnvTruthy,
+} from './envUtils.js'
 import { ConfigParseError, getErrnoCode } from './errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -44,6 +49,11 @@ const ccrAutoConnect = feature('CCR_AUTO_CONNECT')
 import type { ImageDimensions } from './imageResizer.js'
 import type { ModelOption } from './model/modelOptions.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
+
+export const CYBER_MEMORY_FILENAME = 'CYBER.md'
+export const LEGACY_CLAUDE_MEMORY_FILENAME = 'CLAUDE.md'
+export const CYBER_LOCAL_MEMORY_FILENAME = 'CYBER.local.md'
+export const LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME = 'CLAUDE.local.md'
 
 // Re-entrancy guard: prevents getConfig → logEvent → getGlobalConfig → getConfig
 // infinite recursion when the config file is corrupted. logEvent's sampling check
@@ -200,9 +210,9 @@ export type GlobalConfig = {
   lastOnboardingVersion?: string
   // Tracks the last version for which release notes were seen, used for managing release notes
   lastReleaseNotesSeen?: string
-  // Timestamp when changelog was last fetched (content stored in ~/.claude/cache/changelog.md)
+  // Timestamp when changelog was last fetched (content stored in ~/.cyber/cache/changelog.md)
   changelogLastFetched?: number
-  // @deprecated - Migrated to ~/.claude/cache/changelog.md. Keep for migration support.
+  // @deprecated - Migrated to ~/.cyber/cache/changelog.md. Keep for migration support.
   cachedChangelog?: string
   mcpServers?: Record<string, McpServerConfig>
   // claude.ai MCP connectors that have successfully connected at least once.
@@ -877,7 +887,7 @@ let configCacheHits = 0
 let configCacheMisses = 0
 // Session-total count of actual disk writes to the global config file.
 // Exposed for ant-only dev diagnostics (see inc-4552) so anomalous write
-// rates surface in the UI before they corrupt ~/.claude.json.
+// rates surface in the UI before they corrupt ~/.cyber/.config.json.
 let globalConfigWriteCount = 0
 
 export function getGlobalConfigWriteCount(): number {
@@ -1216,7 +1226,7 @@ function saveConfigWithLock<A extends object>(
     const currentConfig = getConfig(file, createDefault)
     if (file === getGlobalClaudeFile() && wouldLoseAuthState(currentConfig)) {
       logForDebugging(
-        'saveConfigWithLock: re-read config is missing auth that cache has; refusing to write to avoid wiping ~/.claude.json. See GH #3117.',
+        'saveConfigWithLock: re-read config is missing auth that cache has; refusing to write to avoid wiping ~/.cyber/.config.json. See GH #3117.',
         { level: 'error' },
       )
       logEvent('tengu_config_auth_loss_prevented', {})
@@ -1240,7 +1250,7 @@ function saveConfigWithLock<A extends object>(
 
     // Create timestamped backup of existing config before writing
     // We keep multiple backups to prevent data loss if a reset/corrupted config
-    // overwrites a good backup. Backups are stored in ~/.claude/backups/ to
+    // overwrites a good backup. Backups are stored in ~/.cyber/backups/ to
     // keep the home directory clean.
     try {
       const fileBase = basename(file)
@@ -1357,7 +1367,7 @@ export function enableConfigs(): void {
 
 /**
  * Returns the directory where config backup files are stored.
- * Uses ~/.claude/backups/ to keep the home directory clean.
+ * Uses ~/.cyber/backups/ to keep the home directory clean.
  */
 function getConfigBackupDir(): string {
   return join(getClaudeConfigHomeDir(), 'backups')
@@ -1365,7 +1375,7 @@ function getConfigBackupDir(): string {
 
 /**
  * Find the most recent backup file for a given config file.
- * Checks ~/.claude/backups/ first, then falls back to the legacy location
+ * Checks ~/.cyber/backups/ first, then falls back to the legacy location
  * (next to the config file) for backwards compatibility.
  * Returns the full path to the most recent backup, or null if none exist.
  */
@@ -1781,13 +1791,13 @@ export function getMemoryPath(memoryType: MemoryType): string {
 
   switch (memoryType) {
     case 'User':
-      return join(getClaudeConfigHomeDir(), 'CLAUDE.md')
+      return join(getClaudeConfigHomeDir(), CYBER_MEMORY_FILENAME)
     case 'Local':
-      return join(cwd, 'CLAUDE.local.md')
+      return join(cwd, CYBER_LOCAL_MEMORY_FILENAME)
     case 'Project':
-      return join(cwd, 'CLAUDE.md')
+      return join(cwd, CYBER_MEMORY_FILENAME)
     case 'Managed':
-      return join(getManagedFilePath(), 'CLAUDE.md')
+      return join(getManagedFilePath(), LEGACY_CLAUDE_MEMORY_FILENAME)
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }
@@ -1798,12 +1808,98 @@ export function getMemoryPath(memoryType: MemoryType): string {
   return '' // unreachable in external builds where TeamMem is not in MemoryType
 }
 
+export function getLegacyMemoryPath(memoryType: MemoryType): string {
+  const cwd = getOriginalCwd()
+
+  switch (memoryType) {
+    case 'User':
+      return join(getClaudeConfigHomeDir(), LEGACY_CLAUDE_MEMORY_FILENAME)
+    case 'Local':
+      return join(cwd, LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME)
+    case 'Project':
+      return join(cwd, LEGACY_CLAUDE_MEMORY_FILENAME)
+    case 'Managed':
+      return join(getManagedFilePath(), LEGACY_CLAUDE_MEMORY_FILENAME)
+    case 'AutoMem':
+      return getAutoMemEntrypoint()
+  }
+  if (feature('TEAMMEM')) {
+    return teamMemPaths!.getTeamMemEntrypoint()
+  }
+  return ''
+}
+
+function getLegacyMemoryPathCandidates(memoryType: MemoryType): string[] {
+  const candidates = [getLegacyMemoryPath(memoryType)]
+
+  if (memoryType === 'User' && !getConfigHomeDirEnvOverride()) {
+    const legacyClaudeHomeMemoryPath = join(
+      getLegacyClaudeConfigHomeDir(),
+      LEGACY_CLAUDE_MEMORY_FILENAME,
+    )
+    if (!candidates.includes(legacyClaudeHomeMemoryPath)) {
+      candidates.push(legacyClaudeHomeMemoryPath)
+    }
+  }
+
+  return candidates
+}
+
+export function getExistingMemoryPath(memoryType: MemoryType): string {
+  const preferred = getMemoryPath(memoryType)
+  const legacyCandidates = getLegacyMemoryPathCandidates(memoryType)
+  if (legacyCandidates.length === 1 && preferred === legacyCandidates[0]) {
+    return preferred
+  }
+
+  const fs = getFsImplementation()
+  if (fs.existsSync(preferred)) return preferred
+  for (const legacy of legacyCandidates) {
+    if (fs.existsSync(legacy)) return legacy
+  }
+  return preferred
+}
+
+export function getLegacyMemoryPathForPreferredPath(
+  memoryPath: string,
+): string | null {
+  const instructionTypes: MemoryType[] = ['User', 'Project', 'Local']
+  for (const type of instructionTypes) {
+    const preferred = getMemoryPath(type)
+    if (memoryPath === preferred) {
+      const legacyCandidates = getLegacyMemoryPathCandidates(type).filter(
+        legacy => legacy !== preferred,
+      )
+      if (legacyCandidates.length === 0) return null
+      const fs = getFsImplementation()
+      return (
+        legacyCandidates.find(legacy => fs.existsSync(legacy)) ??
+        legacyCandidates[0]!
+      )
+    }
+  }
+  return null
+}
+
 export function getManagedClaudeRulesDir(): string {
   return join(getManagedFilePath(), '.claude', 'rules')
 }
 
 export function getUserClaudeRulesDir(): string {
   return join(getClaudeConfigHomeDir(), 'rules')
+}
+
+export function getExistingUserClaudeRulesDir(): string {
+  const preferred = getUserClaudeRulesDir()
+  const fs = getFsImplementation()
+  if (fs.existsSync(preferred)) return preferred
+
+  if (!getConfigHomeDirEnvOverride()) {
+    const legacy = join(getLegacyClaudeConfigHomeDir(), 'rules')
+    if (fs.existsSync(legacy)) return legacy
+  }
+
+  return preferred
 }
 
 // Exported for testing only

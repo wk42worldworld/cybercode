@@ -15,7 +15,7 @@ describe('chat blocks', () => {
   it('keeps thinking collapsed by default', () => {
     const { container } = render(<ThinkingBlock content="this is a long internal reasoning trace" isActive />)
 
-    expect(screen.getByText(/Thinking/)).toBeTruthy()
+    expect(screen.getByText(/思考中|Thinking/)).toBeTruthy()
     expect(container.textContent).toContain('this is a long internal reasoning trace')
     expect(container.querySelector('.thinking-cursor')).toBeNull()
   })
@@ -40,7 +40,7 @@ describe('chat blocks', () => {
 
     fireEvent.click(screen.getByRole('button'))
 
-    expect(container.textContent).toContain('Tool Input')
+    expect(container.textContent).toMatch(/工具输入|Tool Input/)
     expect(container.textContent).not.toContain('const answer = 42')
   })
 
@@ -143,7 +143,7 @@ describe('chat blocks', () => {
     )
 
     expect(container.textContent).toContain('/tmp/example.ts')
-    expect(container.textContent).toContain('Allow')
+    expect(container.textContent).toMatch(/允许|Allow/)
     // react-diff-viewer-continued uses styled-components tables that don't
     // fully render in jsdom, so we verify the DiffViewer wrapper is mounted
     expect(container.querySelector('[class*="rounded-[var(--radius-lg)]"]')).toBeTruthy()

@@ -805,7 +805,7 @@ describe('Business Flow: Settings Persistence', () => {
 
   it('should support project-level settings', async () => {
     const projectRoot = path.join(tmpDir, 'test-project')
-    await fs.mkdir(path.join(projectRoot, '.claude'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, '.cyber'), { recursive: true })
 
     await api('PUT', `/api/settings/project?projectRoot=${encodeURIComponent(projectRoot)}`, {
       permissions: { allow: ['Bash(make)'] },

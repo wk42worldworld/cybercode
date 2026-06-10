@@ -9,7 +9,7 @@ import { getClaudeConfigHomeDir } from '../envUtils.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '../../..')
 
-// All runtime state lives in ~/.claude/.runtime — writable in both dev and
+// All runtime state lives in ~/.cyber/.runtime — writable in both dev and
 // bundled (Tauri app) modes. The setup API (or ensureRuntimeFiles below)
 // populates requirements.txt and mac_helper.py here.
 const runtimeStateRoot = path.join(getClaudeConfigHomeDir(), '.runtime')
@@ -21,7 +21,7 @@ const PIP_TRUSTED_HOST = 'pypi.tuna.tsinghua.edu.cn'
 
 const isWindows = process.platform === 'win32'
 
-// Always read from ~/.claude/.runtime/ — works in both dev and bundled mode.
+// Always read from ~/.cyber/.runtime/ — works in both dev and bundled mode.
 const requirementsPath = path.join(runtimeStateRoot, 'requirements.txt')
 const helperFileName = isWindows ? 'win_helper.py' : 'mac_helper.py'
 const helperPath = path.join(runtimeStateRoot, helperFileName)
@@ -61,7 +61,7 @@ async function runOrThrow(file: string, args: string[], label: string): Promise<
 }
 
 /**
- * Ensure runtime source files exist in ~/.claude/.runtime/.
+ * Ensure runtime source files exist in ~/.cyber/.runtime/.
  * In dev mode, copies from the project's runtime/ directory on first run.
  * In bundled mode, these must have been placed there by the settings setup API.
  */

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import { Settings, SkillSettings } from '../pages/Settings'
+import { AgentsSettings, SkillSettings } from '../pages/Settings'
 import { useAgentStore } from '../stores/agentStore'
 import { useSkillStore } from '../stores/skillStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -55,7 +55,7 @@ const MOCK_AGENTS = [
     systemPrompt: '# Code Reviewer\n\nYou are an expert code reviewer.',
     color: 'blue',
     source: 'userSettings' as const,
-    baseDir: '~/.claude/agents',
+    baseDir: '~/.cyber/agents',
     isActive: true,
   },
   {
@@ -79,7 +79,7 @@ const MOCK_AGENTS = [
     systemPrompt: undefined,
     color: undefined,
     source: 'projectSettings' as const,
-    baseDir: '/workspace/project/.claude/agents',
+    baseDir: '/workspace/project/.cyber/agents',
     isActive: false,
     overriddenBy: 'userSettings' as const,
   },
@@ -92,7 +92,7 @@ const MOCK_AGENTS = [
     systemPrompt: 'Pair Telegram access for the current workspace.',
     color: 'cyan',
     source: 'plugin' as const,
-    baseDir: '/Users/test/.claude/plugins/cache/telegram',
+    baseDir: '/Users/test/.cyber/plugins/cache/telegram',
     isActive: true,
   },
 ]
@@ -131,10 +131,6 @@ const MOCK_SKILL_DETAIL = {
     },
   ],
   skillRoot: '/tmp/skill-docs',
-}
-
-function switchToAgentsTab() {
-  fireEvent.click(screen.getByText('Agents'))
 }
 
 describe('Settings > Agents tab', () => {
@@ -194,15 +190,14 @@ describe('Settings > Agents tab', () => {
     })
   })
 
-  it('renders the Agents tab button in sidebar', () => {
-    render(<Settings />)
-    expect(screen.getByText('Agents')).toBeInTheDocument()
+  it('renders the Agents settings empty state', () => {
+    render(<AgentsSettings />)
+    expect(screen.getByText('No agents available yet.')).toBeInTheDocument()
   })
 
   it('shows loading spinner when fetching agents', () => {
     useAgentStore.setState({ isLoading: true, allAgents: [], activeAgents: [], fetchAgents: noopFetch })
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     const spinner = document.querySelector('.animate-spin')
     expect(spinner).toBeInTheDocument()
@@ -217,16 +212,14 @@ describe('Settings > Agents tab', () => {
       fetchAgents,
     })
 
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     expect(fetchAgents).toHaveBeenCalledWith('/workspace/project')
   })
 
   it('shows error state with retry button when API fails', () => {
     useAgentStore.setState({ allAgents: [], activeAgents: [], isLoading: false, error: 'Network error', fetchAgents: noopFetch })
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     expect(screen.getByText('Network error')).toBeInTheDocument()
     expect(screen.getByText('Retry')).toBeInTheDocument()
@@ -239,8 +232,7 @@ describe('Settings > Agents tab', () => {
       isLoading: false,
       fetchAgents: noopFetch,
     })
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     expect(screen.queryByText('Browse installed agents')).not.toBeInTheDocument()
     expect(screen.queryByText('Agent Browser')).not.toBeInTheDocument()
@@ -264,8 +256,7 @@ describe('Settings > Agents tab', () => {
       isLoading: false,
       fetchAgents: noopFetch,
     })
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     fireEvent.click(screen.getByText('code-reviewer'))
 
@@ -282,8 +273,7 @@ describe('Settings > Agents tab', () => {
       isLoading: false,
       fetchAgents: noopFetch,
     })
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     expect(screen.getByText('plain-agent')).toBeInTheDocument()
     expect(screen.getByText('No description')).toBeInTheDocument()
@@ -300,8 +290,7 @@ describe('Settings > Agents tab', () => {
       selectedAgentReturnTab: 'plugins',
       fetchAgents: noopFetch,
     })
-    render(<Settings />)
-    switchToAgentsTab()
+    render(<AgentsSettings />)
 
     expect(screen.queryByText('Back to list')).not.toBeInTheDocument()
     expect(screen.getByText('telegram:pairing').closest('article')).toHaveAttribute('aria-current', 'true')

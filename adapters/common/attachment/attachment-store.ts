@@ -2,7 +2,7 @@
  * Local staging directory for IM-downloaded resources.
  *
  * Layout: {root}/{platform}/{sessionId}/{safeName}
- * Default root: ~/.claude/im-downloads
+ * Default root: ~/.cyber/im-downloads
  *
  * Responsibilities:
  *  - Generate unique, safe paths from (platform, sessionId, originalName)
@@ -14,8 +14,8 @@ import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import type { Dirent } from 'node:fs'
 import * as path from 'node:path'
-import * as os from 'node:os'
 import type { ImPlatform } from './attachment-types.js'
+import { getAdapterConfigPath } from '../config-home.js'
 
 export interface AttachmentStoreConfig {
   root: string
@@ -29,7 +29,7 @@ const DEFAULT_RETENTION_MS = 24 * 60 * 60 * 1000
 const DEFAULT_ORPHAN_GRACE_MS = 10 * 60 * 1000
 
 function defaultRoot(): string {
-  return path.join(os.homedir(), '.claude', 'im-downloads')
+  return getAdapterConfigPath('im-downloads')
 }
 
 /** Strip path separators / .. / control chars from a filename. */

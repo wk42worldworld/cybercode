@@ -1,12 +1,11 @@
 /**
  * Adapter 配置加载
  *
- * 优先级：环境变量 > ~/.claude/adapters.json > 默认值
+ * 优先级：环境变量 > ~/.cyber/adapters.json > ~/.claude/adapters.json > 默认值
  */
 
 import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
+import { getExistingAdapterConfigPath } from './config-home.js'
 
 export type PairedUser = {
   userId: string | number
@@ -47,8 +46,7 @@ export type AdapterConfig = {
 }
 
 function getConfigPath(): string {
-  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  return path.join(configDir, 'adapters.json')
+  return getExistingAdapterConfigPath('adapters.json')
 }
 
 function loadFile(): Record<string, any> {

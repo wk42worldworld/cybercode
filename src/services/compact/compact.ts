@@ -1,6 +1,7 @@
 import { feature } from 'bun:bundle'
 import type { UUID } from 'crypto'
 import uniqBy from 'lodash-es/uniqBy.js'
+import { basename } from 'path'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const sessionTranscriptModule = feature('KAIROS')
@@ -38,7 +39,12 @@ import {
   getDeferredToolsDeltaAttachment,
   getMcpInstructionsDeltaAttachment,
 } from '../../utils/attachments.js'
-import { getMemoryPath } from '../../utils/config.js'
+import {
+  CYBER_LOCAL_MEMORY_FILENAME,
+  CYBER_MEMORY_FILENAME,
+  LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME,
+  LEGACY_CLAUDE_MEMORY_FILENAME,
+} from '../../utils/config.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import {
   analyzeContext,
@@ -56,7 +62,6 @@ import {
   executePreCompactHooks,
 } from '../../utils/hooks.js'
 import { logError } from '../../utils/log.js'
-import { MEMORY_TYPE_VALUES } from '../../utils/memory/types.js'
 import {
   createCompactBoundaryMessage,
   createUserMessage,
@@ -1686,19 +1691,23 @@ function shouldExcludeFromPostCompactRestore(
     // If we can't get plan file path, continue with other checks
   }
 
-  // Exclude all types of claude.md files
-  // TODO: Refactor to use isMemoryFilePath() from claudemd.ts for consistency
-  // and to also match child directory memory files (.claude/rules/*.md, etc.)
-  try {
-    const normalizedMemoryPaths = new Set(
-      MEMORY_TYPE_VALUES.map(type => expandPath(getMemoryPath(type))),
-    )
+  // Exclude user-managed instruction memory files from compact file attachments.
+  const name = basename(normalizedFilename)
+  if (
+    name === CYBER_MEMORY_FILENAME ||
+    name === CYBER_LOCAL_MEMORY_FILENAME ||
+    name === LEGACY_CLAUDE_MEMORY_FILENAME ||
+    name === LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME
+  ) {
+    return true
+  }
 
-    if (normalizedMemoryPaths.has(normalizedFilename)) {
-      return true
-    }
-  } catch {
-    // If we can't get memory paths, continue
+  const normalizedForRules = normalizedFilename.replaceAll('\\', '/')
+  if (
+    normalizedForRules.includes('/.cyber/rules/') ||
+    normalizedForRules.includes('/.claude/rules/')
+  ) {
+    return true
   }
 
   return false

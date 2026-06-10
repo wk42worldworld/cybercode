@@ -2,7 +2,6 @@ import { c as _c } from "react/compiler-runtime";
 import { feature } from 'bun:bundle';
 import chalk from 'chalk';
 import { mkdir } from 'fs/promises';
-import { join } from 'path';
 import * as React from 'react';
 import { use, useEffect, useState } from 'react';
 import { getOriginalCwd } from '../../bootstrap/state.js';
@@ -17,7 +16,7 @@ import { useAppState } from '../../state/AppState.js';
 import { getAgentMemoryDir } from '../../tools/AgentTool/agentMemory.js';
 import { openPath } from '../../utils/browser.js';
 import { getMemoryFiles, type MemoryFileInfo } from '../../utils/claudemd.js';
-import { getClaudeConfigHomeDir } from '../../utils/envUtils.js';
+import { getExistingMemoryPath, getLegacyMemoryPath, getMemoryPath } from '../../utils/config.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { formatRelativeTimeAgo } from '../../utils/format.js';
 import { projectIsInGitRepo } from '../../utils/memory/versions.js';
@@ -48,20 +47,27 @@ export function MemoryFileSelector(t0) {
     onCancel
   } = t0;
   const existingMemoryFiles = use(getMemoryFiles());
-  const userMemoryPath = join(getClaudeConfigHomeDir(), "CLAUDE.md");
-  const projectMemoryPath = join(getOriginalCwd(), "CLAUDE.md");
-  const hasUserMemory = existingMemoryFiles.some(f => f.path === userMemoryPath);
-  const hasProjectMemory = existingMemoryFiles.some(f_0 => f_0.path === projectMemoryPath);
-  const allMemoryFiles = [...existingMemoryFiles.filter(_temp).map(_temp2), ...(hasUserMemory ? [] : [{
+  const userMemoryPath = getMemoryPath("User");
+  const projectMemoryPath = getMemoryPath("Project");
+  const userLegacyMemoryPath = getLegacyMemoryPath("User");
+  const projectLegacyMemoryPath = getLegacyMemoryPath("Project");
+  const userExistingMemoryPath = getExistingMemoryPath("User");
+  const projectExistingMemoryPath = getExistingMemoryPath("Project");
+  const canonicalExistingMemoryFiles = existingMemoryFiles.filter(f_1 => _temp(f_1) && f_1.path !== userLegacyMemoryPath && f_1.path !== projectLegacyMemoryPath && (userExistingMemoryPath === userMemoryPath || f_1.path !== userExistingMemoryPath) && (projectExistingMemoryPath === projectMemoryPath || f_1.path !== projectExistingMemoryPath));
+  const hasUserMemory = existingMemoryFiles.some(f => f.path === userMemoryPath || f.path === userExistingMemoryPath);
+  const hasProjectMemory = existingMemoryFiles.some(f_0 => f_0.path === projectMemoryPath || f_0.path === projectExistingMemoryPath);
+  const canonicalHasUserMemory = canonicalExistingMemoryFiles.some(f_2 => f_2.path === userMemoryPath);
+  const canonicalHasProjectMemory = canonicalExistingMemoryFiles.some(f_3 => f_3.path === projectMemoryPath);
+  const allMemoryFiles = [...canonicalExistingMemoryFiles.map(_temp2), ...(canonicalHasUserMemory ? [] : [{
     path: userMemoryPath,
     type: "User" as const,
     content: "",
-    exists: false
-  }]), ...(hasProjectMemory ? [] : [{
+    exists: hasUserMemory
+  }]), ...(canonicalHasProjectMemory ? [] : [{
     path: projectMemoryPath,
     type: "Project" as const,
     content: "",
-    exists: false
+    exists: hasProjectMemory
   }])];
   const depths = new Map();
   const memoryOptions = allMemoryFiles.map(file => {
@@ -87,10 +93,10 @@ export function MemoryFileSelector(t0) {
     let description;
     const isGit = projectIsInGitRepo(getOriginalCwd());
     if (file.type === "User" && !file.isNested) {
-      description = "Saved in ~/.claude/CLAUDE.md";
+      description = "Saved in ~/.cyber/CYBER.md";
     } else {
       if (file.type === "Project" && !file.isNested && file.path === projectMemoryPath) {
-        description = `${isGit ? "Checked in at" : "Saved in"} ./CLAUDE.md`;
+        description = `${isGit ? "Checked in at" : "Saved in"} ./CYBER.md`;
       } else {
         if (file.parent) {
           description = "@-imported";

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bot,
+  BookOpenText,
   ChevronRight,
   Clock,
   Columns2,
@@ -160,6 +161,13 @@ export function IconRail({ __testTopRailHeight }: IconRailProps = {}) {
       label: t('settings.tab.agents'),
       onClick: () => handlePanelView('agents'),
       icon: Workflow,
+    },
+    {
+      key: 'memory',
+      active: isPanelActive('memory'),
+      label: t('settings.tab.memory'),
+      onClick: () => handlePanelView('memory'),
+      icon: BookOpenText,
     },
     {
       key: 'terminal',

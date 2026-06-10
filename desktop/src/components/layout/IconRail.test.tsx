@@ -42,11 +42,12 @@ describe('IconRail floating panel navigation', () => {
     expect(useTabStore.getState().tabs).toEqual([])
   })
 
-  it('groups MCP and plugins inside the more rail menu', () => {
+  it('groups MCP, plugins, and memory inside the more rail menu', () => {
     renderIconRail()
 
     expect(screen.queryByRole('button', { name: 'MCP' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '插件' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '记忆' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '权限' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Agents' })).not.toBeInTheDocument()
 
@@ -61,6 +62,12 @@ describe('IconRail floating panel navigation', () => {
 
     expect(useUIStore.getState().settingsOpen).toBe(true)
     expect(useUIStore.getState().settingsPanelView).toBe('plugins')
+
+    fireEvent.click(screen.getByRole('button', { name: '更多' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '记忆' }))
+
+    expect(useUIStore.getState().settingsOpen).toBe(true)
+    expect(useUIStore.getState().settingsPanelView).toBe('memory')
   })
 
   it('opens permissions and agents from the more rail menu', () => {
@@ -92,7 +99,7 @@ describe('IconRail floating panel navigation', () => {
 
   it('moves direct rail icons into More when the top rail height is tight', () => {
     const directItems = 6
-    const pinnedMoreItems = 5
+    const pinnedMoreItems = 6
 
     expect(getVisibleRailItemCount(null, directItems, pinnedMoreItems, false)).toBe(6)
     expect(getVisibleRailItemCount(256, directItems, pinnedMoreItems, false)).toBe(3)

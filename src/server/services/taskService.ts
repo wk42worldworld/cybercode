@@ -1,13 +1,13 @@
 /**
  * TaskService — CLI Task V2 的读取与查询
  *
- * 任务信息存储在 ~/.claude/tasks/<task_list_id>/ 目录下，每个任务一个 JSON 文件。
+ * 任务信息存储在 ~/.cyber/tasks/<task_list_id>/ 目录下，每个任务一个 JSON 文件。
  * Task list ID 可以是 session ID、team name 等。
  */
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 
 export type TaskStatus = 'pending' | 'in_progress' | 'completed'
 
@@ -34,7 +34,7 @@ export type TaskListSummary = {
 
 export class TaskService {
   private getConfigDir(): string {
-    return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    return getClaudeConfigHomeDir()
   }
 
   private getTasksDir(): string {

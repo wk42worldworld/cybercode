@@ -7,10 +7,10 @@
  */
 
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import { ProviderService } from './providerService.js'
 import { sessionService } from './sessionService.js'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import {
   buildClaudeCliArgs,
   resolveClaudeCliLauncher,
@@ -606,7 +606,7 @@ export class ConversationService {
   ): Promise<Record<string, string>> {
     // Provider isolation: when Desktop has its own provider config/index,
     // strip inherited provider env vars so the child CLI reads fresh values
-    // from ~/.claude/cybercode/settings.json instead of stale process.env.
+    // from ~/.cyber/cybercode/settings.json instead of stale process.env.
     //
     // If the user never configured a Desktop provider and only launched the
     // app/server with ANTHROPIC_* env vars, keep those env vars so Windows
@@ -720,8 +720,7 @@ export class ConversationService {
       return true
     }
 
-    const configDir =
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    const configDir = getClaudeConfigHomeDir()
     const cybercodeDir = path.join(configDir, 'cybercode')
     const providersIndexPath = path.join(cybercodeDir, 'providers.json')
     const settingsPath = path.join(cybercodeDir, 'settings.json')
@@ -768,8 +767,7 @@ export class ConversationService {
       return false
     }
 
-    const configDir =
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    const configDir = getClaudeConfigHomeDir()
     const settingsPath = path.join(configDir, 'cybercode', 'settings.json')
     try {
       const raw = fs.readFileSync(settingsPath, 'utf-8')
@@ -813,7 +811,7 @@ export class ConversationService {
 
   private clearStaleLock(sessionId: string): boolean {
     const lockDir = path.join(
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'),
+      getClaudeConfigHomeDir(),
       '.lock',
     )
     const lockFile = path.join(lockDir, sessionId)
@@ -935,7 +933,7 @@ export class ConversationService {
     }
 
     const uploadDir = path.join(
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'),
+      getClaudeConfigHomeDir(),
       'uploads',
       sessionId,
     )

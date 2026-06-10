@@ -1,20 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-
-vi.mock('../chat/CodeViewer', () => ({
-  CodeViewer: ({ code, language }: { code: string; language?: string }) => (
-    <div data-testid="code-viewer" data-language={language ?? ''}>
-      {code}
-    </div>
-  ),
-}))
-
-vi.mock('../chat/MermaidRenderer', () => ({
-  MermaidRenderer: ({ code }: { code: string }) => (
-    <div data-testid="mermaid-renderer">{code}</div>
-  ),
-}))
 
 import { MarkdownRenderer } from './MarkdownRenderer'
 
@@ -67,29 +53,23 @@ describe('MarkdownRenderer', () => {
   it('renders mermaid fenced blocks with the Mermaid renderer', () => {
     render(<MarkdownRenderer content={'```mermaid\ngraph TB\nA-->B\n```'} />)
 
-    expect(screen.getByTestId('mermaid-renderer')).toHaveTextContent(
-      /graph TB\s+A-->B/,
-    )
-    expect(screen.queryByTestId('code-viewer')).not.toBeInTheDocument()
+    expect(screen.getByText('Rendering diagram...')).toBeInTheDocument()
+    expect(screen.queryByText('mermaid')).not.toBeInTheDocument()
   })
 
   it('detects mermaid diagrams even when the fence has no language tag', () => {
     render(<MarkdownRenderer content={'```\ngraph TB\nA-->B\n```'} />)
 
-    expect(screen.getByTestId('mermaid-renderer')).toHaveTextContent(
-      /graph TB\s+A-->B/,
-    )
-    expect(screen.queryByTestId('code-viewer')).not.toBeInTheDocument()
+    expect(screen.getByText('Rendering diagram...')).toBeInTheDocument()
+    expect(screen.queryByText('graph TB')).not.toBeInTheDocument()
   })
 
   it('keeps non-mermaid code fences in the normal code viewer', () => {
     render(<MarkdownRenderer content={'```ts\nconst value = 1\n```'} />)
 
-    expect(screen.getByTestId('code-viewer')).toHaveAttribute(
-      'data-language',
-      'ts',
-    )
-    expect(screen.queryByTestId('mermaid-renderer')).not.toBeInTheDocument()
+    expect(screen.getByText('ts')).toBeInTheDocument()
+    expect(screen.getByText('const value = 1')).toBeInTheDocument()
+    expect(screen.queryByText('Rendering diagram...')).not.toBeInTheDocument()
   })
 
   it('wraps markdown tables for horizontal overflow handling', () => {

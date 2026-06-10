@@ -64,6 +64,7 @@ const prewarmPendingSessions = new Set<string>()
 const prewarmedSessions = new Set<string>()
 const prewarmIdleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const DEFAULT_PREWARM_IDLE_TIMEOUT_MS = 5 * 60_000
+const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID = 'prompt_memory_auto_review'
 
 export function getSlashCommands(sessionId: string): Array<{ name: string; description: string }> {
   return sessionSlashCommands.get(sessionId) || []
@@ -1064,6 +1065,20 @@ function translateCliMessage(cliMsg: any, sessionId: string): ServerMessage[] {
         // Hook 执行中 — 不转发给前端
         return []
       }
+      if (
+        subtype === 'informational' &&
+        (cliMsg.toolUseID === PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID ||
+          cliMsg.tool_use_id === PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID) &&
+        typeof cliMsg.content === 'string' &&
+        cliMsg.content.trim()
+      ) {
+        return [{
+          type: 'system_notification',
+          subtype: 'prompt_memory_updated',
+          message: cliMsg.content.trim(),
+          data: cliMsg,
+        }]
+      }
       if (subtype === 'local_command' || subtype === 'local_command_output') {
         const localCommandOutput = extractLocalCommandOutput(
           cliMsg.content ?? cliMsg.message,
@@ -1257,7 +1272,7 @@ async function getRuntimeSettings(sessionId?: string): Promise<{
   let model: string | undefined
   if (activeId) {
     // Provider is active — only consult provider-managed cybercode settings.
-    // Global ~/.claude/settings.json model values must not bleed into provider mode.
+    // Global ~/.cyber/settings.json model values must not bleed into provider mode.
     const baseModel =
       typeof modelSettings.model === 'string' && modelSettings.model.trim()
         ? modelSettings.model

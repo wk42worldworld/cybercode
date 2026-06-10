@@ -296,6 +296,7 @@ describe('ConversationService', () => {
       '123e4567-e89b-12d3-a456-426614174000',
       'ws://127.0.0.1:3456/sdk/test-session?token=test-token',
       false,
+      undefined,
       { permissionMode: 'bypassPermissions' },
     ) as string[]
 
@@ -321,6 +322,7 @@ describe('ConversationService', () => {
       '123e4567-e89b-12d3-a456-426614174000',
       'ws://127.0.0.1:3456/sdk/test-session?token=test-token',
       false,
+      undefined,
       {
         model: 'model-b-opus',
         effort: 'max',

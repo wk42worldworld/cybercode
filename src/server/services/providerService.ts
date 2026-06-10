@@ -1,14 +1,14 @@
 /**
  * Provider Service — preset-based provider configuration
  *
- * Storage: ~/.claude/cybercode/providers.json (lightweight index)
- * Active provider env vars written to ~/.claude/cybercode/settings.json
- * (isolated from the original Claude Code's ~/.claude/settings.json)
+ * Storage: ~/.cyber/cybercode/providers.json (lightweight index)
+ * Active provider env vars written to ~/.cyber/cybercode/settings.json
+ * (isolated from the original Claude Code's ~/.cyber/settings.json)
  */
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { ApiError } from '../middleware/errorHandler.js'
 import { anthropicToOpenaiChat } from '../proxy/transform/anthropicToOpenaiChat.js'
 import { anthropicToOpenaiResponses } from '../proxy/transform/anthropicToOpenaiResponses.js'
@@ -67,7 +67,7 @@ export class ProviderService {
     return ProviderService.serverPort
   }
   private getConfigDir(): string {
-    return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    return getClaudeConfigHomeDir()
   }
 
   private getCybercodeDir(): string {
@@ -307,7 +307,7 @@ export class ProviderService {
   /**
    * Check whether any usable auth exists:
    *  1. A cybercode provider is active → has auth
-   *  2. Original ~/.claude/settings.json has ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY → has auth
+   *  2. Original ~/.cyber/settings.json has ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY → has auth
    *  3. process.env already has ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN → has auth
    *  4. None of the above → needs setup
    */
@@ -330,7 +330,7 @@ export class ProviderService {
       return { hasAuth: true, source: 'env' }
     }
 
-    // 3. Check original ~/.claude/settings.json
+    // 3. Check original ~/.cyber/settings.json
     try {
       const originalPath = path.join(this.getConfigDir(), 'settings.json')
       const raw = await fs.readFile(originalPath, 'utf-8')

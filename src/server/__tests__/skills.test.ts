@@ -9,6 +9,7 @@ import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
 let tmpHome: string
 let originalHome: string | undefined
 let originalUserProfile: string | undefined
+let originalCyberConfigDir: string | undefined
 let originalClaudeConfigDir: string | undefined
 let originalCwdState: string
 
@@ -36,12 +37,14 @@ describe('Skills API', () => {
     tmpHome = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-skills-test-'))
     originalHome = process.env.HOME
     originalUserProfile = process.env.USERPROFILE
+    originalCyberConfigDir = process.env.CYBER_CONFIG_DIR
     originalClaudeConfigDir = process.env.CLAUDE_CONFIG_DIR
     originalCwdState = getCwdState()
 
     process.env.HOME = tmpHome
     process.env.USERPROFILE = tmpHome
-    process.env.CLAUDE_CONFIG_DIR = path.join(tmpHome, '.claude')
+    process.env.CYBER_CONFIG_DIR = path.join(tmpHome, '.cyber')
+    delete process.env.CLAUDE_CONFIG_DIR
     resetSettingsCache()
     setCwdState(tmpHome)
   })
@@ -59,6 +62,12 @@ describe('Skills API', () => {
       process.env.USERPROFILE = originalUserProfile
     }
 
+    if (originalCyberConfigDir === undefined) {
+      delete process.env.CYBER_CONFIG_DIR
+    } else {
+      process.env.CYBER_CONFIG_DIR = originalCyberConfigDir
+    }
+
     if (originalClaudeConfigDir === undefined) {
       delete process.env.CLAUDE_CONFIG_DIR
     } else {
@@ -71,7 +80,7 @@ describe('Skills API', () => {
   })
 
   it('lists user and project skills for the requested cwd', async () => {
-    const userSkillsRoot = path.join(tmpHome, '.claude', 'skills')
+    const userSkillsRoot = path.join(tmpHome, '.cyber', 'skills')
     const projectRoot = path.join(tmpHome, 'workspace')
     const cwd = path.join(projectRoot, 'packages', 'app')
 
@@ -81,7 +90,7 @@ describe('Skills API', () => {
       ['---', 'description: User scope', '---', '', '# User skill'].join('\n'),
     )
     await writeSkill(
-      path.join(projectRoot, '.claude', 'skills'),
+      path.join(projectRoot, '.cyber', 'skills'),
       'project-skill',
       ['---', 'description: Project scope', '---', '', '# Project skill'].join('\n'),
     )
@@ -101,12 +110,12 @@ describe('Skills API', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json() as { config: { userSkillsDir: string; displayPath: string } }
-    expect(body.config.userSkillsDir).toBe(path.join(tmpHome, '.claude', 'skills'))
-    expect(body.config.displayPath).toBe(path.join(tmpHome, '.claude', 'skills'))
+    expect(body.config.userSkillsDir).toBe(path.join(tmpHome, '.cyber', 'skills'))
+    expect(body.config.displayPath).toBe(path.join(tmpHome, '.cyber', 'skills'))
   })
 
   it('marks disabled skills and persists enablement updates', async () => {
-    const userSkillsRoot = path.join(tmpHome, '.claude', 'skills')
+    const userSkillsRoot = path.join(tmpHome, '.cyber', 'skills')
     await writeSkill(
       userSkillsRoot,
       'alpha',
@@ -154,8 +163,8 @@ describe('Skills API', () => {
   it('resolves project skill details from the nearest project skills directory', async () => {
     const projectRoot = path.join(tmpHome, 'workspace')
     const nestedRoot = path.join(projectRoot, 'packages', 'app')
-    const nestedSkillsRoot = path.join(nestedRoot, '.claude', 'skills')
-    const parentSkillsRoot = path.join(projectRoot, '.claude', 'skills')
+    const nestedSkillsRoot = path.join(nestedRoot, '.cyber', 'skills')
+    const parentSkillsRoot = path.join(projectRoot, '.cyber', 'skills')
 
     await writeSkill(
       parentSkillsRoot,

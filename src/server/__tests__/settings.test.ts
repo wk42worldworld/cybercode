@@ -129,7 +129,7 @@ describe('SettingsService', () => {
 
   it('should read and write project settings', async () => {
     const projectRoot = path.join(tmpDir, 'myproject')
-    await fs.mkdir(path.join(projectRoot, '.claude'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, '.cyber'), { recursive: true })
 
     const svc = new SettingsService(projectRoot)
     await svc.updateProjectSettings({ outputStyle: 'verbose' })
@@ -140,7 +140,7 @@ describe('SettingsService', () => {
 
   it('should merge user and project settings', async () => {
     const projectRoot = path.join(tmpDir, 'myproject')
-    await fs.mkdir(path.join(projectRoot, '.claude'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, '.cyber'), { recursive: true })
 
     const svc = new SettingsService(projectRoot)
     await svc.updateUserSettings({ theme: 'dark', model: 'claude-opus-4-7' })

@@ -12,7 +12,13 @@ import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteMana
 import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from '../envUtils.js'
+import {
+  ensureProjectConfigDirMigration,
+  getClaudeConfigHomeDir,
+  getExistingProjectConfigPath,
+  getProjectConfigPath,
+  isEnvTruthy,
+} from '../envUtils.js'
 import { getErrnoCode, isENOENT } from '../errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
 import { readFileSync } from '../fileRead.js'
@@ -232,7 +238,7 @@ function parseSettingsFileUncached(path: string): {
 
 /**
  * Get the absolute path to the associated file root for a given settings source
- * (e.g. for $PROJ_DIR/.claude/settings.json, returns $PROJ_DIR)
+ * (e.g. for $PROJ_DIR/.cyber/settings.json, returns $PROJ_DIR)
  * @param source The source of the settings
  * @returns The root path of the settings file
  */
@@ -273,6 +279,7 @@ function getUserSettingsFilePath(): string {
 
 export function getSettingsFilePathForSource(
   source: SettingSource,
+  options?: { forWrite?: boolean },
 ): string | undefined {
   switch (source) {
     case 'userSettings':
@@ -282,9 +289,17 @@ export function getSettingsFilePathForSource(
       )
     case 'projectSettings':
     case 'localSettings': {
-      return join(
-        getSettingsRootPathForSource(source),
-        getRelativeSettingsFilePathForSource(source),
+      const root = getSettingsRootPathForSource(source)
+      if (options?.forWrite) {
+        ensureProjectConfigDirMigration(root)
+        return getProjectConfigPath(
+          root,
+          getRelativeSettingsFileNameForSource(source),
+        )
+      }
+      return getExistingProjectConfigPath(
+        root,
+        getRelativeSettingsFileNameForSource(source),
       )
     }
     case 'policySettings':
@@ -298,11 +313,17 @@ export function getSettingsFilePathForSource(
 export function getRelativeSettingsFilePathForSource(
   source: 'projectSettings' | 'localSettings',
 ): string {
+  return join('.cyber', getRelativeSettingsFileNameForSource(source))
+}
+
+function getRelativeSettingsFileNameForSource(
+  source: 'projectSettings' | 'localSettings',
+): string {
   switch (source) {
     case 'projectSettings':
-      return join('.claude', 'settings.json')
+      return 'settings.json'
     case 'localSettings':
-      return join('.claude', 'settings.local.json')
+      return 'settings.local.json'
   }
 }
 
@@ -425,7 +446,7 @@ export function updateSettingsForSource(
   }
 
   // Create the folder if needed
-  const filePath = getSettingsFilePathForSource(source)
+  const filePath = getSettingsFilePathForSource(source, { forWrite: true })
   if (!filePath) {
     return { error: null }
   }

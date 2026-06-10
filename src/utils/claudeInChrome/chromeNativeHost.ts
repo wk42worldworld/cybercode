@@ -16,9 +16,10 @@ import {
   unlink,
 } from 'fs/promises'
 import { createServer, type Server, type Socket } from 'net'
-import { homedir, platform } from 'os'
+import { platform } from 'os'
 import { join } from 'path'
 import { z } from 'zod'
+import { getClaudeConfigHomeDir } from '../envUtils.js'
 import { lazySchema } from '../lazySchema.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { getSecureSocketPath, getSocketDir } from './common.js'
@@ -28,7 +29,7 @@ const MAX_MESSAGE_SIZE = 1024 * 1024 // 1MB - Max message size that can be sent 
 
 const LOG_FILE =
   process.env.USER_TYPE === 'ant'
-    ? join(homedir(), '.claude', 'debug', 'chrome-native-host.txt')
+    ? join(getClaudeConfigHomeDir(), 'debug', 'chrome-native-host.txt')
     : undefined
 
 function log(message: string, ...args: unknown[]): void {

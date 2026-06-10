@@ -15,6 +15,7 @@ vi.mock('../../i18n', () => ({
   useTranslation: () => (key: string) => {
     const translations: Record<string, string> = {
       'tasks.title': 'Tasks',
+      'tasks.completed': 'Tasks completed',
       'tasks.dismissCompleted': 'Hide completed tasks',
     }
 
@@ -49,8 +50,9 @@ describe('SessionTaskBar', () => {
       render(<SessionTaskBar />)
     })
 
-    expect(screen.getByText('Tasks')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Hide completed tasks' })).toBeNull()
+    expect(screen.getByText('second')).toBeInTheDocument()
+    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /隐藏已完成任务|Hide completed tasks/ })).toBeNull()
   })
 
   it('hides the bar after dismissing a completed task set', async () => {
@@ -66,11 +68,11 @@ describe('SessionTaskBar', () => {
     })
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Hide completed tasks' }))
+      fireEvent.click(screen.getByRole('button', { name: /隐藏已完成任务|Hide completed tasks/ }))
       await Promise.resolve()
     })
 
-    expect(screen.queryByText('Tasks')).toBeNull()
+    expect(screen.queryByText(/已完成的任务|Tasks completed/)).toBeNull()
     expect(useCLITaskStore.getState().tasks).toEqual([])
   })
 
@@ -85,8 +87,8 @@ describe('SessionTaskBar', () => {
       render(<SessionTaskBar />)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hide completed tasks' }))
-    expect(screen.queryByText('Tasks')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /隐藏已完成任务|Hide completed tasks/ }))
+    expect(screen.queryByText(/已完成的任务|Tasks completed/)).toBeNull()
 
     act(() => {
       useCLITaskStore.getState().setTasksFromTodos([
@@ -94,8 +96,9 @@ describe('SessionTaskBar', () => {
       ])
     })
 
-    expect(screen.getByText('Tasks')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Hide completed tasks' })).toBeNull()
+    expect(screen.getByText('next task')).toBeInTheDocument()
+    expect(screen.getByText('0%')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /隐藏已完成任务|Hide completed tasks/ })).toBeNull()
 
     act(() => {
       useCLITaskStore.getState().setTasksFromTodos([
@@ -103,7 +106,8 @@ describe('SessionTaskBar', () => {
       ])
     })
 
-    expect(screen.getByText('Tasks')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hide completed tasks' })).toBeInTheDocument()
+    expect(screen.getByText(/已完成的任务|Tasks completed/)).toBeInTheDocument()
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /隐藏已完成任务|Hide completed tasks/ })).toBeInTheDocument()
   })
 })

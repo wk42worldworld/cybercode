@@ -89,7 +89,7 @@ describe('AskUserQuestion', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /^No$/ }))
-    fireEvent.click(screen.getByRole('button', { name: /submit/i }))
+    fireEvent.click(screen.getByRole('button', { name: /提交|submit/i }))
 
     expect(sendMock).toHaveBeenCalledWith(ACTIVE_TAB, {
       type: 'permission_response',

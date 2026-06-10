@@ -59,9 +59,16 @@ export type SettingsSyncUploadResult = {
  * Keys used for sync entries
  */
 export const SYNC_KEYS = {
-  USER_SETTINGS: '~/.claude/settings.json',
-  USER_MEMORY: '~/.claude/CLAUDE.md',
+  USER_SETTINGS: '~/.cyber/settings.json',
+  USER_MEMORY: '~/.cyber/CYBER.md',
+  LEGACY_USER_SETTINGS: '~/.claude/settings.json',
+  LEGACY_USER_MEMORY: '~/.cyber/CLAUDE.md',
+  LEGACY_CLAUDE_USER_MEMORY: '~/.claude/CLAUDE.md',
   projectSettings: (projectId: string) =>
+    `projects/${projectId}/.cyber/settings.local.json`,
+  legacyProjectSettings: (projectId: string) =>
     `projects/${projectId}/.claude/settings.local.json`,
-  projectMemory: (projectId: string) => `projects/${projectId}/CLAUDE.local.md`,
+  projectMemory: (projectId: string) => `projects/${projectId}/CYBER.local.md`,
+  legacyProjectMemory: (projectId: string) =>
+    `projects/${projectId}/CLAUDE.local.md`,
 } as const

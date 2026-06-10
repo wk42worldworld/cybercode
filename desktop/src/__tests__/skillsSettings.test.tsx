@@ -155,7 +155,7 @@ describe('Settings > Skills tab', () => {
     render(<SkillSettings />)
 
     expect(screen.getByText('Skill configuration')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Open skills folder' })).toHaveTextContent('~/.claude/skills')
+    expect(screen.getByRole('button', { name: 'Open skills folder' })).toHaveTextContent('~/.cyber/skills')
     expect(screen.getByText('Alpha Skill')).toBeInTheDocument()
     expect(screen.getByText('Second skill description')).toBeInTheDocument()
     expect(screen.getAllByText('Plugin').length).toBeGreaterThan(0)
@@ -190,8 +190,8 @@ describe('Settings > Skills tab', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({
         config: {
-          userSkillsDir: '/Users/wang/.claude/skills',
-          displayPath: '~/.claude/skills',
+          userSkillsDir: '/Users/wang/.cyber/skills',
+          displayPath: '~/.cyber/skills',
         },
       }), {
         status: 200,

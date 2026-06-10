@@ -25,7 +25,7 @@ import {
   getClaudeAIOAuthTokens,
 } from '../../utils/auth.js'
 import { clearMemoryFileCaches } from '../../utils/claudemd.js'
-import { getMemoryPath } from '../../utils/config.js'
+import { getExistingMemoryPath, getMemoryPath } from '../../utils/config.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { classifyAxiosError } from '../../utils/errors.js'
 import { getRepoRemoteHash } from '../../utils/git.js'
@@ -430,7 +430,7 @@ async function buildEntriesFromLocalFiles(
   }
 
   // Global user memory
-  const userMemoryPath = getMemoryPath('User')
+  const userMemoryPath = getExistingMemoryPath('User')
   const userMemoryContent = await tryReadFileForSync(userMemoryPath)
   if (userMemoryContent) {
     entries[SYNC_KEYS.USER_MEMORY] = userMemoryContent
@@ -448,7 +448,7 @@ async function buildEntriesFromLocalFiles(
     }
 
     // Project local memory
-    const localMemoryPath = getMemoryPath('Local')
+    const localMemoryPath = getExistingMemoryPath('Local')
     const localMemoryContent = await tryReadFileForSync(localMemoryPath)
     if (localMemoryContent) {
       entries[SYNC_KEYS.projectMemory(projectId)] = localMemoryContent
@@ -483,7 +483,7 @@ async function writeFileForSync(
  *
  * After writing, invalidates relevant caches:
  * - resetSettingsCache() for settings files
- * - clearMemoryFileCaches() for memory files (CLAUDE.md)
+ * - clearMemoryFileCaches() for memory files (CYBER.md / legacy CLAUDE.md)
  */
 async function applyRemoteEntriesToLocal(
   entries: Record<string, string>,
@@ -507,7 +507,8 @@ async function applyRemoteEntriesToLocal(
   }
 
   // Apply global user settings
-  const userSettingsContent = entries[SYNC_KEYS.USER_SETTINGS]
+  const userSettingsContent =
+    entries[SYNC_KEYS.USER_SETTINGS] ?? entries[SYNC_KEYS.LEGACY_USER_SETTINGS]
   if (userSettingsContent) {
     const userSettingsPath = getSettingsFilePathForSource('userSettings')
     if (
@@ -524,7 +525,10 @@ async function applyRemoteEntriesToLocal(
   }
 
   // Apply global user memory
-  const userMemoryContent = entries[SYNC_KEYS.USER_MEMORY]
+  const userMemoryContent =
+    entries[SYNC_KEYS.USER_MEMORY] ??
+    entries[SYNC_KEYS.LEGACY_USER_MEMORY] ??
+    entries[SYNC_KEYS.LEGACY_CLAUDE_USER_MEMORY]
   if (userMemoryContent) {
     const userMemoryPath = getMemoryPath('User')
     if (!exceedsSizeLimit(userMemoryContent, userMemoryPath)) {
@@ -538,9 +542,13 @@ async function applyRemoteEntriesToLocal(
   // Apply project-specific files (only if project ID matches)
   if (projectId) {
     const projectSettingsKey = SYNC_KEYS.projectSettings(projectId)
-    const projectSettingsContent = entries[projectSettingsKey]
+    const projectSettingsContent =
+      entries[projectSettingsKey] ??
+      entries[SYNC_KEYS.legacyProjectSettings(projectId)]
     if (projectSettingsContent) {
-      const localSettingsPath = getSettingsFilePathForSource('localSettings')
+      const localSettingsPath = getSettingsFilePathForSource('localSettings', {
+        forWrite: true,
+      })
       if (
         localSettingsPath &&
         !exceedsSizeLimit(projectSettingsContent, localSettingsPath)
@@ -555,7 +563,9 @@ async function applyRemoteEntriesToLocal(
     }
 
     const projectMemoryKey = SYNC_KEYS.projectMemory(projectId)
-    const projectMemoryContent = entries[projectMemoryKey]
+    const projectMemoryContent =
+      entries[projectMemoryKey] ??
+      entries[SYNC_KEYS.legacyProjectMemory(projectId)]
     if (projectMemoryContent) {
       const localMemoryPath = getMemoryPath('Local')
       if (!exceedsSizeLimit(projectMemoryContent, localMemoryPath)) {

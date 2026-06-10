@@ -3,7 +3,7 @@
  *
  * Web composer uploads via cookie-authed /api/{org}/upload, sends file_uuid
  * alongside the message. Here we fetch each via GET /api/oauth/files/{uuid}/content
- * (oauth-authed, same store), write to ~/.claude/uploads/{sessionId}/, and
+ * (oauth-authed, same store), write to ~/.cyber/uploads/{sessionId}/, and
  * return @path refs to prepend. Claude's Read tool takes it from there.
  *
  * Best-effort: any failure (no token, network, non-2xx, disk) logs debug and

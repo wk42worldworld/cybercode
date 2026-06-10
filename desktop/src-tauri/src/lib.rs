@@ -28,6 +28,8 @@ const SERVER_STARTUP_LOG_LIMIT: usize = 80;
 const MAIN_WINDOW_LABEL: &str = "main";
 const TRAY_SHOW_ID: &str = "tray_show";
 const TRAY_QUIT_ID: &str = "tray_quit";
+const CYBER_CONFIG_DIR_ENV: &str = "CYBER_CONFIG_DIR";
+const LEGACY_CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
 
 #[derive(Default)]
 struct ServerState(Mutex<ServerStatus>);
@@ -111,7 +113,7 @@ fn get_server_url(state: State<'_, ServerState>) -> Result<String, String> {
 /// 流程：
 ///   1. kill 当前 adapter 子进程（如果在跑）
 ///   2. spawn 新的 adapter 子进程
-///   3. 新 sidecar 内部的 loadConfig() 会读到最新的 ~/.claude/adapters.json
+///   3. 新 sidecar 内部的 loadConfig() 会读到最新的 ~/.cyber/adapters.json
 ///      并重新建立 WebSocket 连接到飞书 / Telegram
 ///
 /// 凭据缺失时 sidecar 自己会 warn + skip + 退出，所以这里不需要前置检查。
@@ -140,10 +142,12 @@ fn prepare_for_update_install(app: AppHandle) -> Result<(), String> {
 }
 
 fn claude_config_home_dir() -> Result<PathBuf, String> {
-    if let Ok(path) = std::env::var("CLAUDE_CONFIG_DIR") {
-        let trimmed = path.trim();
-        if !trimmed.is_empty() {
-            return Ok(PathBuf::from(trimmed));
+    for key in [CYBER_CONFIG_DIR_ENV, LEGACY_CLAUDE_CONFIG_DIR_ENV] {
+        if let Ok(path) = std::env::var(key) {
+            let trimmed = path.trim();
+            if !trimmed.is_empty() {
+                return Ok(PathBuf::from(trimmed));
+            }
         }
     }
 
@@ -151,7 +155,7 @@ fn claude_config_home_dir() -> Result<PathBuf, String> {
         .or_else(|| std::env::var_os("USERPROFILE"))
         .ok_or_else(|| "home directory is unavailable".to_string())?;
 
-    Ok(PathBuf::from(home).join(".claude"))
+    Ok(PathBuf::from(home).join(".cyber"))
 }
 
 #[tauri::command]
@@ -489,6 +493,11 @@ fn decode_terminal_output(pending: &mut Vec<u8>, chunk: &[u8]) -> String {
 fn terminal_environment(shell: &str) -> HashMap<String, String> {
     let mut env: HashMap<String, String> = std::env::vars().collect();
     env.extend(login_shell_environment(shell));
+    if let Ok(config_dir) = claude_config_home_dir() {
+        let value = config_dir.to_string_lossy().to_string();
+        env.insert(CYBER_CONFIG_DIR_ENV.to_string(), value.clone());
+        env.insert(LEGACY_CLAUDE_CONFIG_DIR_ENV.to_string(), value);
+    }
     ensure_utf8_locale(&mut env);
     env
 }

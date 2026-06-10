@@ -1,7 +1,7 @@
 /**
  * 用真实的 Provider 配置测试 ProviderService
  * 验证添加、激活、cybercode/settings.json 同步是否正确
- * (provider env 写到 ~/.claude/cybercode/settings.json，不污染原版 settings.json)
+ * (provider env 写到 ~/.cyber/cybercode/settings.json，不污染原版 settings.json)
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'

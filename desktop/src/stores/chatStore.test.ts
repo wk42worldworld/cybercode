@@ -777,6 +777,24 @@ describe('chatStore history mapping', () => {
     ])
   })
 
+  it('renders prompt memory update notifications as lightweight system messages', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState(),
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'system_notification',
+      subtype: 'prompt_memory_updated',
+      message: '提示记忆已更新：USER，将在新会话生效。',
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      { type: 'system', content: '提示记忆已更新：USER，将在新会话生效。' },
+    ])
+  })
+
   it('flushes the previous assistant draft before starting a new user turn', () => {
     useChatStore.setState({
       sessions: {

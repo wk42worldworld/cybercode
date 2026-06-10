@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useProviderStore } from '../stores/providerStore'
 import { localeOptions, useTranslation } from '../i18n'
 import { Modal } from '../components/shared/Modal'
 import { ConfirmDialog } from '../components/shared/ConfirmDialog'
 import { Input } from '../components/shared/Input'
+import { Textarea } from '../components/shared/Textarea'
 import { Button } from '../components/shared/Button'
 import { Dropdown } from '../components/shared/Dropdown'
 import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
@@ -28,9 +29,11 @@ import { useUpdateStore } from '../stores/updateStore'
 import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
 import { Icon } from '../components/shared/Icon'
+import { promptMemoryApi, type PromptMemoryAutoReviewLogEntry, type PromptMemoryStatus, type PromptMemoryTarget } from '../api/promptMemory'
 
 const SETTINGS_TABS: SettingsTab[] = [
   'general',
+  'memory',
   'about',
 ]
 
@@ -82,6 +85,7 @@ export function Settings() {
         </div>
         <div className="px-[24px] pb-[40px] md:px-[32px]">
           {activeTab === 'general' && <GeneralSettings />}
+          {activeTab === 'memory' && <MemorySettings />}
           {activeTab === 'about' && <AboutSettings />}
         </div>
       </div>
@@ -717,7 +721,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     setIsSubmitting(true)
     try {
       // Write the edited cybercode settings.json first so provider-specific model
-      // settings never conflict with the user's global ~/.claude/settings.json.
+      // settings never conflict with the user's global ~/.cyber/settings.json.
       if (settingsJson.trim()) {
         try {
           const parsed = restoreSettingsJsonSecrets(JSON.parse(settingsJson), apiKey)
@@ -1131,6 +1135,256 @@ export function GeneralSettings() {
   )
 }
 
+// ─── Prompt Memory Settings ──────────────────────────────────────
+
+const MEMORY_TARGETS: PromptMemoryTarget[] = ['soul', 'brief', 'user']
+
+const MEMORY_TARGET_LABEL_KEYS = {
+  soul: 'settings.memory.target.soul',
+  brief: 'settings.memory.target.brief',
+  user: 'settings.memory.target.user',
+} as const
+
+const MEMORY_TARGET_DESCRIPTION_KEYS = {
+  soul: 'settings.memory.target.soulDescription',
+  brief: 'settings.memory.target.briefDescription',
+  user: 'settings.memory.target.userDescription',
+} as const
+
+export function MemorySettings() {
+  const t = useTranslation()
+  const addToast = useUIStore((s) => s.addToast)
+  const [target, setTarget] = useState<PromptMemoryTarget>('brief')
+  const [status, setStatus] = useState<PromptMemoryStatus | null>(null)
+  const [autoLogs, setAutoLogs] = useState<PromptMemoryAutoReviewLogEntry[]>([])
+  const [draft, setDraft] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadMemory = useCallback(async (nextTarget: PromptMemoryTarget = target) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [nextStatus, nextLogs] = await Promise.all([
+        promptMemoryApi.status(),
+        promptMemoryApi.logs(20),
+      ])
+      setStatus(nextStatus)
+      setAutoLogs(nextLogs)
+      setDraft(nextStatus.files[nextTarget].content)
+    } catch (loadError) {
+      setError(getMemoryErrorMessage(loadError, t('settings.memory.loadFailed')))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [target, t])
+
+  useEffect(() => {
+    void loadMemory(target)
+  }, [loadMemory, target])
+
+  const targetItems = useMemo(
+    () => MEMORY_TARGETS.map((value) => ({
+      value,
+      label: t(MEMORY_TARGET_LABEL_KEYS[value]),
+    })),
+    [t],
+  )
+
+  const selectedFile = status?.files[target] ?? null
+  const trimmedDraft = draft.trim()
+  const draftCharCount = trimmedDraft.length
+  const limit = selectedFile?.limit ?? 0
+  const isDirty = selectedFile ? trimmedDraft !== selectedFile.content : false
+  const isOverLimit = limit > 0 && draftCharCount > limit
+
+  const handleTargetChange = (nextTarget: PromptMemoryTarget) => {
+    setTarget(nextTarget)
+    setError(null)
+    if (status) {
+      setDraft(status.files[nextTarget].content)
+    }
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      const saved = await promptMemoryApi.write(target, draft)
+      setStatus((current) => current
+        ? {
+            files: {
+              ...current.files,
+              [target]: saved,
+            },
+          }
+        : current)
+      setDraft(saved.content)
+      addToast({
+        type: 'success',
+        message: t('settings.memory.saved'),
+      })
+    } catch (saveError) {
+      setError(getMemoryErrorMessage(saveError, t('settings.memory.saveFailed')))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <SettingsPage
+      title={t('settings.memory.title')}
+      description={t('settings.memory.description')}
+    >
+      <SettingsSection
+        title={t('settings.memory.sectionTitle')}
+        description={t('settings.memory.sectionDescription')}
+        action={(
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void loadMemory(target)}
+            loading={isLoading}
+          >
+            {t('settings.memory.reload')}
+          </Button>
+        )}
+      >
+        <div className="flex flex-col gap-[14px] px-[20px] py-[16px]">
+          <div className="flex flex-wrap items-center justify-between gap-[12px]">
+            <SegmentedControl items={targetItems} value={target} onChange={handleTargetChange} />
+            <div className={`rounded-full border px-[10px] py-[5px] text-[11px] font-semibold ${
+              isOverLimit
+                ? 'border-[var(--color-error)] text-[var(--color-error)]'
+                : 'border-[var(--color-border)] text-[var(--color-text-secondary)]'
+            }`}>
+              {t('settings.memory.characters', {
+                count: draftCharCount,
+                limit: limit || '-',
+              })}
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-wrap items-center gap-[8px] text-[12px]">
+            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[10px] py-[5px] font-mono font-semibold text-[var(--color-text-primary)]">
+              {selectedFile?.filename ?? t(MEMORY_TARGET_LABEL_KEYS[target])}
+            </span>
+            {selectedFile?.path && (
+              <span className="min-w-0 truncate text-[var(--color-text-tertiary)]">
+                {selectedFile.path}
+              </span>
+            )}
+          </div>
+
+          <p className="max-w-[720px] text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
+            {t(MEMORY_TARGET_DESCRIPTION_KEYS[target])}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-[14px] px-[20px] py-[16px]">
+          {error && (
+            <div className="flex items-start gap-[10px] rounded-[10px] border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-[12px] py-[10px] text-[12px] leading-[18px] text-[var(--color-error)]">
+              <Icon name="warning" size={16} className="mt-[1px] shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {target === 'soul' && (
+            <div className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[12px] py-[10px] text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
+              {t('settings.memory.soulWarning')}
+            </div>
+          )}
+
+          <Textarea
+            aria-label={t('settings.memory.editorLabel')}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            disabled={isLoading}
+            rows={14}
+            spellCheck={false}
+            className={`min-h-[320px] font-mono text-[12px] leading-[20px] ${
+              isOverLimit ? 'border-[var(--color-error)] focus:border-[var(--color-error)]' : ''
+            }`}
+            placeholder={t('settings.memory.placeholder')}
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-[12px]">
+            <div className="flex flex-wrap items-center gap-[8px] text-[11px] text-[var(--color-text-tertiary)]">
+              <span>{t('settings.memory.delayedEffect')}</span>
+              {selectedFile && target !== 'soul' && (
+                <span>
+                  {t('settings.memory.entries', { count: selectedFile.entries.length })}
+                </span>
+              )}
+              {isDirty && <span>{t('settings.memory.unsaved')}</span>}
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => void handleSave()}
+              loading={isSaving}
+              disabled={isLoading || !selectedFile || !isDirty || isOverLimit}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('settings.memory.autoLogTitle')}
+        description={t('settings.memory.autoLogDescription')}
+      >
+        <div className="flex flex-col gap-[10px] px-[20px] py-[16px]">
+          {autoLogs.length === 0 ? (
+            <div className="rounded-[10px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[14px] py-[12px] text-[12px] text-[var(--color-text-secondary)]">
+              {t('settings.memory.autoLogEmpty')}
+            </div>
+          ) : (
+            autoLogs.map((entry) => (
+              <div
+                key={entry.id}
+                className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[12px] py-[10px]"
+              >
+                <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
+                  <span className="rounded-full bg-[var(--color-surface-container-high)] px-[8px] py-[3px] text-[10px] font-bold uppercase tracking-normal text-[var(--color-text-primary)]">
+                    {t(`settings.memory.autoLog.action.${entry.action}` as never)}
+                  </span>
+                  <span className="font-mono text-[11px] font-semibold text-[var(--color-text-primary)]">
+                    {entry.target.toUpperCase()}.md
+                  </span>
+                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
+                    {t(`settings.memory.autoLog.trigger.${entry.trigger}` as never)}
+                  </span>
+                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
+                    {formatMemoryLogTime(entry.timestamp)}
+                  </span>
+                </div>
+                <div className="mt-[8px] break-words text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
+                  {entry.content || entry.oldText || entry.message}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </SettingsSection>
+    </SettingsPage>
+  )
+}
+
+function formatMemoryLogTime(timestamp: string) {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return timestamp
+  return date.toLocaleString()
+}
+
+function getMemoryErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : fallback
+}
+
 // ─── Agents Settings ──────────────────────────────────────
 
 const AGENT_COLORS: Record<string, string> = {
@@ -1393,7 +1647,7 @@ export function SkillSettings() {
             aria-label={t('settings.skills.openConfigPath')}
             title={t('settings.skills.openConfigPath')}
           >
-            <span className="truncate">{config?.displayPath ?? '~/.claude/skills'}</span>
+            <span className="truncate">{config?.displayPath ?? '~/.cyber/skills'}</span>
           </Button>
         </div>
       </header>

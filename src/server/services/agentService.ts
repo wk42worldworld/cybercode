@@ -1,14 +1,14 @@
 /**
  * AgentService — Agent 定义的增删改查
  *
- * Agent 定义存储在 ~/.claude/agents/ 目录下，每个 Agent 一个 YAML 文件。
+ * Agent 定义存储在 ~/.cyber/agents/ 目录下，每个 Agent 一个 YAML 文件。
  * 也支持 .md 文件（YAML frontmatter 格式）。
  */
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
 import YAML from 'yaml'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { ApiError } from '../middleware/errorHandler.js'
 
 export type AgentDefinition = {
@@ -23,9 +23,7 @@ export type AgentDefinition = {
 export class AgentService {
   /** Agent 定义目录 */
   private getAgentsDir(): string {
-    const configDir =
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-    return path.join(configDir, 'agents')
+    return path.join(getClaudeConfigHomeDir(), 'agents')
   }
 
   // ---------------------------------------------------------------------------

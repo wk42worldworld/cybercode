@@ -7,7 +7,7 @@
 import { spawn } from 'child_process'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { ApiError } from '../middleware/errorHandler.js'
 
 export type SearchResult = {
@@ -69,9 +69,7 @@ export class SearchService {
       throw ApiError.badRequest('Search query is required')
     }
 
-    const configDir =
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-    const projectsDir = path.join(configDir, 'projects')
+    const projectsDir = path.join(getClaudeConfigHomeDir(), 'projects')
 
     const results: SessionSearchResult[] = []
 

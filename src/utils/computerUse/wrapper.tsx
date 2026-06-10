@@ -30,7 +30,7 @@ import { getComputerUseMCPRenderingOverrides } from './toolRendering.js';
 import { resolveStoredComputerUseConfig } from './preauthorizedConfig.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { getClaudeConfigHomeDir } from '../envUtils.js';
 type CallOverride = Pick<Tool, 'call'>['call'];
 type Binding = {
   ctx: ComputerUseSessionContext;
@@ -264,7 +264,7 @@ async function runDesktopPermissionDialog(
 }
 
 /**
- * Load pre-authorized apps from ~/.claude/cybercode/computer-use-config.json.
+ * Load pre-authorized apps from ~/.cyber/cybercode/computer-use-config.json.
  * Called once when the binding is first created. Pre-authorized apps
  * are injected into appState so `getAllowedApps()` returns them
  * immediately — no runtime permission dialog needed.
@@ -279,7 +279,7 @@ async function loadPreAuthorizedApps(): Promise<void> {
 
   try {
     const configPath = join(
-      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
+      getClaudeConfigHomeDir(),
       'cybercode',
       'computer-use-config.json',
     )

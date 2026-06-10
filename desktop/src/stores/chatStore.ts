@@ -1333,6 +1333,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ],
           }))
         }
+        if (msg.subtype === 'prompt_memory_updated' && typeof msg.message === 'string') {
+          const content = msg.message.trim()
+          if (content) {
+            update((session) => ({
+              messages: [
+                ...session.messages,
+                {
+                  id: nextId(),
+                  type: 'system',
+                  content,
+                  timestamp: Date.now(),
+                },
+              ],
+            }))
+          }
+        }
         if (msg.subtype === 'task_notification' && msg.data && typeof msg.data === 'object') {
           const data = msg.data as Record<string, unknown>
           const toolUseId =

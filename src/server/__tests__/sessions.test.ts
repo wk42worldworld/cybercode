@@ -1035,10 +1035,10 @@ describe('Sessions API', () => {
     const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
     const workDir = path.join(tmpDir, 'workspace', 'app')
 
-    await fs.mkdir(path.join(workDir, '.claude', 'skills'), { recursive: true })
+    await fs.mkdir(path.join(workDir, '.cyber', 'skills'), { recursive: true })
     await fs.mkdir(path.join(tmpDir, 'skills'), { recursive: true })
     await writeSkill(path.join(tmpDir, 'skills'), 'user-skill', 'User skill description')
-    await writeSkill(path.join(workDir, '.claude', 'skills'), 'project-skill', 'Project skill description')
+    await writeSkill(path.join(workDir, '.cyber', 'skills'), 'project-skill', 'Project skill description')
 
     await writeSessionFile('-tmp-api-test', sessionId, [
       makeSnapshotEntry(),

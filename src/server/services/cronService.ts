@@ -1,14 +1,14 @@
 /**
  * CronService — 管理定时任务的增删改查
  *
- * 任务持久化到 ~/.claude/scheduled_tasks.json（JSON 文件）。
+ * 任务持久化到 ~/.cyber/scheduled_tasks.json（JSON 文件）。
  * 文件格式: { "tasks": [ CronTask, ... ] }
  */
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
 import * as crypto from 'crypto'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { ApiError } from '../middleware/errorHandler.js'
 
 export type TaskNotificationConfig = {
@@ -43,9 +43,7 @@ const TASKS_FILE_WRITE_ATTEMPTS = 2
 export class CronService {
   /** 任务文件路径 */
   private getTasksFilePath(): string {
-    const configDir =
-      process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-    return path.join(configDir, 'scheduled_tasks.json')
+    return path.join(getClaudeConfigHomeDir(), 'scheduled_tasks.json')
   }
 
   // ---------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 import memoize from 'lodash-es/memoize.js'
 import { join } from 'path'
 import {
+  CYBER_MEMORY_FILENAME,
+  LEGACY_CLAUDE_MEMORY_FILENAME,
   getCurrentProjectConfig,
   saveCurrentProjectConfig,
 } from './utils/config.js'
@@ -18,8 +20,8 @@ export type Step = {
 
 export function getSteps(): Step[] {
   const hasClaudeMd = getFsImplementation().existsSync(
-    join(getCwd(), 'CLAUDE.md'),
-  )
+    join(getCwd(), CYBER_MEMORY_FILENAME),
+  ) || getFsImplementation().existsSync(join(getCwd(), LEGACY_CLAUDE_MEMORY_FILENAME))
   const isWorkspaceDirEmpty = isDirEmpty(getCwd())
 
   return [
@@ -32,7 +34,7 @@ export function getSteps(): Step[] {
     },
     {
       key: 'claudemd',
-      text: 'Run /init to create a CLAUDE.md file with instructions for Claude',
+      text: 'Run /init to create a CYBER.md file with instructions for CyberCode',
       isComplete: hasClaudeMd,
       isCompletable: true,
       isEnabled: !isWorkspaceDirEmpty,

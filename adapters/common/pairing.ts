@@ -7,10 +7,13 @@
  */
 
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import * as path from 'node:path'
 import * as crypto from 'node:crypto'
 import type { PairedUser, PairingState } from './config.js'
+import {
+  getAdapterConfigPath,
+  getExistingAdapterConfigPath,
+} from './config-home.js'
 
 const SAFE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // 排除 0/O/1/I/L
 
@@ -43,8 +46,11 @@ const CODE_LENGTH = 6
 const CODE_TTL_MS = 60 * 60 * 1000 // 60 minutes
 
 function getConfigPath(): string {
-  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  return path.join(configDir, 'adapters.json')
+  return getExistingAdapterConfigPath('adapters.json')
+}
+
+function getConfigWritePath(): string {
+  return getAdapterConfigPath('adapters.json')
 }
 
 function readConfigFile(): Record<string, any> {
@@ -56,7 +62,7 @@ function readConfigFile(): Record<string, any> {
 }
 
 function writeConfigFile(data: Record<string, any>): void {
-  const filePath = getConfigPath()
+  const filePath = getConfigWritePath()
   const dir = path.dirname(filePath)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   const tmp = `${filePath}.tmp.${Date.now()}`

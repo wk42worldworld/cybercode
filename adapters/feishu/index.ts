@@ -35,7 +35,7 @@ import type { PendingUpload } from '../common/attachment/attachment-types.js'
 
 const config = loadConfig()
 if (!config.feishu.appId || !config.feishu.appSecret) {
-  console.error('[Feishu] Missing FEISHU_APP_ID / FEISHU_APP_SECRET. Set env or ~/.claude/adapters.json')
+  console.error('[Feishu] Missing FEISHU_APP_ID / FEISHU_APP_SECRET. Set env or ~/.cyber/adapters.json')
   process.exit(1)
 }
 

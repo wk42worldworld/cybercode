@@ -387,7 +387,7 @@ export async function findProjectDir(
  * to sibling git worktrees. `projectPath` in the result is the canonical
  * user-facing directory the file was found under.
  *
- * When `dir` is omitted: scan all project directories under ~/.claude/projects/.
+ * When `dir` is omitted: scan all project directories under ~/.cyber/projects/.
  * `projectPath` is undefined in this case (no meaningful project path to report).
  *
  * Existence is checked by stat (operate-then-catch-ENOENT, no existsSync).

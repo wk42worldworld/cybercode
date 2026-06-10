@@ -1,6 +1,9 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import * as os from 'node:os'
+import {
+  getAdapterConfigPath,
+  getExistingAdapterConfigPath,
+} from './config-home.js'
 
 export type SessionEntry = {
   sessionId: string
@@ -11,8 +14,7 @@ export type SessionEntry = {
 type StoreData = Record<string, SessionEntry>
 
 function getDefaultPath(): string {
-  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  return path.join(configDir, 'adapter-sessions.json')
+  return getAdapterConfigPath('adapter-sessions.json')
 }
 
 export class SessionStore {
@@ -21,7 +23,11 @@ export class SessionStore {
 
   constructor(filePath?: string) {
     this.filePath = filePath ?? getDefaultPath()
-    this.data = this.load()
+    const loadPath = filePath ?? getExistingAdapterConfigPath('adapter-sessions.json')
+    this.data = this.load(loadPath)
+    if (!filePath && loadPath !== this.filePath && Object.keys(this.data).length > 0) {
+      this.save()
+    }
   }
 
   get(chatId: string): SessionEntry | null {
@@ -42,9 +48,9 @@ export class SessionStore {
     return Object.entries(this.data).map(([chatId, entry]) => ({ chatId, ...entry }))
   }
 
-  private load(): StoreData {
+  private load(filePath = this.filePath): StoreData {
     try {
-      return JSON.parse(fs.readFileSync(this.filePath, 'utf-8'))
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
     } catch {
       return {}
     }

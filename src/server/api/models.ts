@@ -115,7 +115,7 @@ async function handleCurrentModel(req: Request): Promise<Response> {
 
     if (activeProvider) {
       // Provider is active — only use the provider-managed cybercode settings.
-      // This avoids leaking global ~/.claude/settings.json model choices into
+      // This avoids leaking global ~/.cyber/settings.json model choices into
       // the active provider flow.
       const providerEnvModel = env.ANTHROPIC_MODEL
       if (providerEnvModel && !explicitModel) {

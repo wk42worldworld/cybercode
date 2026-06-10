@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach, afterEach } from 'bun:test'
 import { mkdir, writeFile, rm } from 'fs/promises'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
+import { getProjectRoot, setProjectRoot } from '../../bootstrap/state.js'
 
 // We'll test the updateCronTask by directly exercising the exported functions
 // through a temporary directory approach.
@@ -12,7 +13,7 @@ describe('updateCronTask integration', () => {
 
   beforeEach(async () => {
     // Create temp project structure
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
   })
 
   afterEach(async () => {
@@ -23,14 +24,29 @@ describe('updateCronTask integration', () => {
     // Import and verify the file relative path
     const { getCronFilePath } = await import('../cronTasks.js')
     const filePath = getCronFilePath(tmpDir)
-    expect(filePath).toContain('.claude')
+    expect(filePath).toContain('.cyber')
     expect(filePath).toContain('scheduled_tasks.json')
   })
 
   test('getCronFilePath returns correct path', async () => {
     const { getCronFilePath } = await import('../cronTasks.js')
     const filePath = getCronFilePath(tmpDir)
-    expect(filePath).toBe(join(tmpDir, '.claude', 'scheduled_tasks.json'))
+    expect(filePath).toBe(join(tmpDir, '.cyber', 'scheduled_tasks.json'))
+  })
+
+  test('getCronFilePath falls back to legacy .claude path', async () => {
+    const { getCronFilePath } = await import('../cronTasks.js')
+    const legacyDir = join('/tmp', `cron-legacy-${randomUUID().slice(0, 8)}`)
+    await mkdir(join(legacyDir, '.claude'), { recursive: true })
+    await writeFile(
+      join(legacyDir, '.claude', 'scheduled_tasks.json'),
+      JSON.stringify({ tasks: [] }),
+    )
+
+    const filePath = getCronFilePath(legacyDir)
+    expect(filePath).toBe(join(legacyDir, '.claude', 'scheduled_tasks.json'))
+
+    await rm(legacyDir, { recursive: true, force: true })
   })
 
   test('getCronFilePath uses project root when no dir provided', async () => {
@@ -49,31 +65,35 @@ describe('CronTaskMeta type coverage', () => {
 
     // Create a task with all metadata fields (durable=true writes to disk in test dir)
     const tmpDir = join('/tmp', `cron-meta-test-${randomUUID().slice(0, 8)}`)
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
+    const originalProjectRoot = getProjectRoot()
 
-    const id = await addCronTask(
-      '0 9 * * *',
-      'test prompt',
-      true, // recurring
-      true, // durable (writes to disk)
-      undefined, // agentId
-      {
-        name: 'test-name',
-        description: 'test description',
-        folder: '/test/folder',
-        model: 'claude-opus-4-7',
-        permissionMode: 'ask',
-        worktree: false,
-        frequency: 'daily',
-        scheduledTime: '09:00',
-      },
-    )
+    try {
+      setProjectRoot(tmpDir)
+      const id = await addCronTask(
+        '0 9 * * *',
+        'test prompt',
+        true, // recurring
+        true, // durable (writes to disk)
+        undefined, // agentId
+        {
+          name: 'test-name',
+          description: 'test description',
+          folder: '/test/folder',
+          model: 'claude-opus-4-7',
+          permissionMode: 'ask',
+          worktree: false,
+          frequency: 'daily',
+          scheduledTime: '09:00',
+        },
+      )
 
-    expect(typeof id).toBe('string')
-    expect(id.length).toBe(8) // Short ID
-
-    // Clean up
-    await rm(tmpDir, { recursive: true, force: true })
+      expect(typeof id).toBe('string')
+      expect(id.length).toBe(8) // Short ID
+    } finally {
+      setProjectRoot(originalProjectRoot)
+      await rm(tmpDir, { recursive: true, force: true })
+    }
   })
 })
 
@@ -81,7 +101,7 @@ describe('readCronTasks backward compatibility', () => {
   test('handles empty file', async () => {
     const { readCronTasks } = await import('../cronTasks.js')
     const tmpDir = join('/tmp', `cron-empty-${randomUUID().slice(0, 8)}`)
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
 
     const tasks = await readCronTasks(tmpDir)
     expect(Array.isArray(tasks)).toBe(true)
@@ -93,10 +113,10 @@ describe('readCronTasks backward compatibility', () => {
   test('skips malformed JSON', async () => {
     const { readCronTasks } = await import('../cronTasks.js')
     const tmpDir = join('/tmp', `cron-malformed-${randomUUID().slice(0, 8)}`)
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
 
     // Write malformed JSON
-    const filePath = join(tmpDir, '.claude', 'scheduled_tasks.json')
+    const filePath = join(tmpDir, '.cyber', 'scheduled_tasks.json')
     await writeFile(filePath, 'not valid json{{{')
 
     const tasks = await readCronTasks(tmpDir)
@@ -108,10 +128,10 @@ describe('readCronTasks backward compatibility', () => {
   test('skips tasks with invalid cron strings', async () => {
     const { readCronTasks } = await import('../cronTasks.js')
     const tmpDir = join('/tmp', `cron-invalid-${randomUUID().slice(0, 8)}`)
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
 
     // Write task with invalid cron
-    const filePath = join(tmpDir, '.claude', 'scheduled_tasks.json')
+    const filePath = join(tmpDir, '.cyber', 'scheduled_tasks.json')
     await writeFile(
       filePath,
       JSON.stringify({
@@ -135,9 +155,9 @@ describe('readCronTasks backward compatibility', () => {
   test('preserves new fields when reading', async () => {
     const { readCronTasks } = await import('../cronTasks.js')
     const tmpDir = join('/tmp', `cron-preserve-${randomUUID().slice(0, 8)}`)
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
 
-    const filePath = join(tmpDir, '.claude', 'scheduled_tasks.json')
+    const filePath = join(tmpDir, '.cyber', 'scheduled_tasks.json')
     const task = {
       id: 'abcd1234',
       cron: '0 9 * * *',
@@ -168,13 +188,36 @@ describe('readCronTasks backward compatibility', () => {
 
     await rm(tmpDir, { recursive: true, force: true })
   })
+
+  test('reads legacy .claude scheduled tasks when .cyber file is absent', async () => {
+    const { readCronTasks } = await import('../cronTasks.js')
+    const tmpDir = join('/tmp', `cron-legacy-read-${randomUUID().slice(0, 8)}`)
+    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+
+    const task = {
+      id: 'abcd1234',
+      cron: '0 9 * * *',
+      prompt: 'legacy prompt',
+      createdAt: Date.now(),
+    }
+    await writeFile(
+      join(tmpDir, '.claude', 'scheduled_tasks.json'),
+      JSON.stringify({ tasks: [task] }),
+    )
+
+    const tasks = await readCronTasks(tmpDir)
+    expect(tasks).toHaveLength(1)
+    expect(tasks[0].prompt).toBe('legacy prompt')
+
+    await rm(tmpDir, { recursive: true, force: true })
+  })
 })
 
 describe('writeCronTasks strips runtime fields', () => {
   test('strips durable and agentId on write', async () => {
     const { readCronTasks, writeCronTasks } = await import('../cronTasks.js')
     const tmpDir = join('/tmp', `cron-strip-${randomUUID().slice(0, 8)}`)
-    await mkdir(join(tmpDir, '.claude'), { recursive: true })
+    await mkdir(join(tmpDir, '.cyber'), { recursive: true })
 
     const taskWithRuntimeFields = {
       id: 'abcd1234',
@@ -190,7 +233,7 @@ describe('writeCronTasks strips runtime fields', () => {
     await writeCronTasks([taskWithRuntimeFields as any], tmpDir)
 
     // Read back and verify runtime fields are stripped
-    const filePath = join(tmpDir, '.claude', 'scheduled_tasks.json')
+    const filePath = join(tmpDir, '.cyber', 'scheduled_tasks.json')
     const { readFileSync } = await import('fs')
     const raw = readFileSync(filePath, 'utf-8')
     const parsed = JSON.parse(raw)

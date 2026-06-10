@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 
 vi.mock('./WindowControls', () => ({
-  WindowControls: () => <div data-testid="window-controls" />,
-  showWindowControls: true,
+  WindowControls: () => null,
+  showWindowControls: false,
 }))
 
 describe('TabBar', () => {
@@ -47,7 +47,7 @@ describe('TabBar', () => {
 
     expect(screen.getByText('My Session')).toBeInTheDocument()
     expect(screen.queryByLabelText('Close My Session')).not.toBeInTheDocument()
-    expect(screen.getByTestId('window-controls')).toBeInTheDocument()
+    expect(screen.queryByTestId('window-controls')).not.toBeInTheDocument()
   })
 
   it('renders only the active session label in the top bar', async () => {
@@ -117,7 +117,7 @@ describe('TabBar', () => {
 
     expect(screen.queryByText('Terminal 1')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Close Terminal 1')).not.toBeInTheDocument()
-    expect(screen.getByTestId('window-controls')).toBeInTheDocument()
+    expect(screen.queryByTestId('window-controls')).not.toBeInTheDocument()
   })
 
   it('renders an empty drag surface when no tabs exist', async () => {
@@ -139,7 +139,7 @@ describe('TabBar', () => {
 
     expect(screen.getByTestId('tab-bar')).toBeInTheDocument()
     expect(screen.queryByText('CyberCode')).not.toBeInTheDocument()
-    expect(screen.getByTestId('window-controls')).toBeInTheDocument()
+    expect(screen.queryByTestId('window-controls')).not.toBeInTheDocument()
   })
 
   it('keeps the model selector out of the top bar', async () => {
@@ -160,7 +160,7 @@ describe('TabBar', () => {
     await act(async () => {})
 
     expect(screen.queryByTestId('model-selector')).not.toBeInTheDocument()
-    expect(screen.getByTestId('window-controls')).toBeInTheDocument()
+    expect(screen.queryByTestId('window-controls')).not.toBeInTheDocument()
 
     unmount()
 
@@ -174,6 +174,6 @@ describe('TabBar', () => {
     })
 
     expect(screen.queryByTestId('model-selector')).not.toBeInTheDocument()
-    expect(screen.getByTestId('window-controls')).toBeInTheDocument()
+    expect(screen.queryByTestId('window-controls')).not.toBeInTheDocument()
   })
 })

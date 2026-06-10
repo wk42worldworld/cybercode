@@ -12,7 +12,7 @@ export type ImPlatform = 'feishu' | 'telegram'
 export interface LocalAttachment {
   kind: 'image' | 'file'
   name: string        // original filename, or synthesized if none
-  path: string        // absolute path on disk (under ~/.claude/im-downloads)
+  path: string        // absolute path on disk (under ~/.cyber/im-downloads)
   size: number        // bytes
   mimeType: string    // detected or provided
   buffer: Buffer      // raw bytes (kept so caller can choose base64 vs path)

@@ -1,13 +1,17 @@
 /**
  * Adapter Service — 读写 IM Adapter 配置文件
  *
- * 配置文件：~/.claude/adapters.json
+ * 配置文件：~/.cyber/adapters.json
  * 原子写入：先写临时文件，再 rename
  */
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
+import {
+  getClaudeConfigHomeDir,
+  getConfigHomeDirEnvOverride,
+  getLegacyClaudeConfigHomeDir,
+} from '../../utils/envUtils.js'
 import { ApiError } from '../middleware/errorHandler.js'
 
 export type PairedUser = {
@@ -45,8 +49,15 @@ export type AdapterFileConfig = {
 }
 
 function getConfigPath(): string {
-  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
-  return path.join(configDir, 'adapters.json')
+  return path.join(getClaudeConfigHomeDir(), 'adapters.json')
+}
+
+function getConfigReadPaths(): string[] {
+  const primaryPath = getConfigPath()
+  if (getConfigHomeDirEnvOverride()) return [primaryPath]
+
+  const legacyPath = path.join(getLegacyClaudeConfigHomeDir(), 'adapters.json')
+  return legacyPath === primaryPath ? [primaryPath] : [primaryPath, legacyPath]
 }
 
 function maskSecret(value: string | undefined): string | undefined {
@@ -62,15 +73,18 @@ function isMasked(value: string | undefined): boolean {
 class AdapterService {
   /** 读取原始配置（不脱敏） */
   async getRawConfig(): Promise<AdapterFileConfig> {
-    try {
-      const raw = await fs.readFile(getConfigPath(), 'utf-8')
-      return JSON.parse(raw) as AdapterFileConfig
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        return {}
+    for (const filePath of getConfigReadPaths()) {
+      try {
+        const raw = await fs.readFile(filePath, 'utf-8')
+        return JSON.parse(raw) as AdapterFileConfig
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          continue
+        }
+        throw ApiError.internal(`Failed to read adapter config: ${err}`)
       }
-      throw ApiError.internal(`Failed to read adapter config: ${err}`)
     }
+    return {}
   }
 
   /** 读取配置（敏感字段脱敏） */

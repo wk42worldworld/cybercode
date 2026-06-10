@@ -1,18 +1,18 @@
 /**
  * TeamService — 读取 CLI 生成的 Agent Teams 配置
  *
- * Team 配置存储在 ~/.claude/teams/{name}/config.json
+ * Team 配置存储在 ~/.cyber/teams/{name}/config.json
  * 成员 transcript 存储为 JSONL 文件:
- *   - 有 sessionId 的成员: ~/.claude/projects/{project}/{sessionId}.jsonl
- *   - in-process 成员 (无 sessionId): ~/.claude/projects/{project}/{leadSessionId}/subagents/agent-*.jsonl
+ *   - 有 sessionId 的成员: ~/.cyber/projects/{project}/{sessionId}.jsonl
+ *   - in-process 成员 (无 sessionId): ~/.cyber/projects/{project}/{leadSessionId}/subagents/agent-*.jsonl
  * 成员发现: config.json + inboxes/ 目录 (解决并发写入丢失成员的问题)
  */
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as os from 'os'
 import { ApiError } from '../middleware/errorHandler.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
+import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ type TeamFileRaw = {
 
 export class TeamService {
   private getConfigDir(): string {
-    return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
+    return getClaudeConfigHomeDir()
   }
 
   private getTeamsDir(): string {
@@ -410,7 +410,7 @@ export class TeamService {
     return [...discovered]
   }
 
-  /** Search ~/.claude/projects/ for a JSONL file matching the sessionId. */
+  /** Search ~/.cyber/projects/ for a JSONL file matching the sessionId. */
   private async findTranscriptFile(
     sessionId: string,
   ): Promise<string | null> {
@@ -443,7 +443,7 @@ export class TeamService {
 
   /**
    * Search subagents directory for a specific member's transcript.
-   * Path: ~/.claude/projects/{project}/{leadSessionId}/subagents/agent-*.jsonl
+   * Path: ~/.cyber/projects/{project}/{leadSessionId}/subagents/agent-*.jsonl
    *
    * Matches by reading the first user message and checking for the member name
    * in the `<teammate-message>` content (e.g., "你是 **security-reviewer**").

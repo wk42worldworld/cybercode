@@ -10,6 +10,7 @@ vi.mock('../../pages/Settings', () => ({
   ProviderSettings: () => <div data-testid="providers-panel" />,
   PermissionSettings: () => <div data-testid="permissions-panel" />,
   GeneralSettings: () => <div data-testid="general-panel" />,
+  MemorySettings: () => <div data-testid="memory-panel" />,
   SkillSettings: () => <div data-testid="skills-panel" />,
   PluginSettings: () => <div data-testid="plugins-panel" />,
   AgentsSettings: () => <div data-testid="agents-panel" />,
@@ -81,5 +82,14 @@ describe('SettingsPanel content routing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(useUIStore.getState().settingsOpen).toBe(false)
+  })
+
+  it('renders prompt memory inside the shared floating panel', () => {
+    useUIStore.setState({ settingsPanelView: 'memory' })
+
+    render(<SettingsPanel visible />)
+
+    expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', '记忆')
+    expect(screen.getByTestId('memory-panel')).toBeInTheDocument()
   })
 })

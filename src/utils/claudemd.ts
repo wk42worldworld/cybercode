@@ -2,9 +2,9 @@
  * Files are loaded in the following order:
  *
  * 1. Managed memory (eg. /etc/claude-code/CLAUDE.md) - Global instructions for all users
- * 2. User memory (~/.claude/CLAUDE.md) - Private global instructions for all projects
- * 3. Project memory (CLAUDE.md, .claude/CLAUDE.md, and .claude/rules/*.md in project roots) - Instructions checked into the codebase
- * 4. Local memory (CLAUDE.local.md in project roots) - Private project-specific instructions
+ * 2. User memory (~/.cyber/CYBER.md, falling back to legacy CLAUDE.md) - Private global instructions for all projects
+ * 3. Project memory (CYBER.md, .cyber/CYBER.md, and .cyber/rules/*.md in project roots; legacy CLAUDE.md is still read) - Instructions checked into the codebase
+ * 4. Local memory (CYBER.local.md, falling back to legacy CLAUDE.local.md in project roots) - Private project-specific instructions
  *
  * Files are loaded in reverse order of priority, i.e. the latest files are highest priority
  * with the model paying more attention to them.
@@ -13,7 +13,8 @@
  * - User memory is loaded from the user's home directory
  * - Project and Local files are discovered by traversing from the current directory up to root
  * - Files closer to the current directory have higher priority (loaded later)
- * - CLAUDE.md, .claude/CLAUDE.md, and all .md files in .claude/rules/ are checked in each directory for Project memory
+ * - CYBER.md, .cyber/CYBER.md, and all .md files in .cyber/rules/ are checked in each directory for Project memory
+ * - legacy CLAUDE.md / CLAUDE.local.md files are read only when the CYBER-named file for that layer does not exist
  *
  * Memory @include directive:
  * - Memory files can include other files using @ notation
@@ -49,14 +50,25 @@ import { truncateEntrypointContent } from '../memdir/memdir.js'
 import { getAutoMemEntrypoint, isAutoMemoryEnabled } from '../memdir/paths.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import {
+  CYBER_LOCAL_MEMORY_FILENAME,
+  CYBER_MEMORY_FILENAME,
+  LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME,
+  LEGACY_CLAUDE_MEMORY_FILENAME,
   getCurrentProjectConfig,
+  getExistingMemoryPath,
+  getExistingUserClaudeRulesDir,
   getManagedClaudeRulesDir,
   getMemoryPath,
-  getUserClaudeRulesDir,
 } from './config.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
+import {
+  getClaudeConfigHomeDir,
+  getExistingProjectConfigPath,
+  getLegacyProjectConfigPath,
+  getProjectConfigPath,
+  isEnvTruthy,
+} from './envUtils.js'
 import { getErrnoCode } from './errors.js'
 import { normalizePathForComparison } from './file.js'
 import { cacheKeys, type FileStateCache } from './fileStateCache.js'
@@ -90,6 +102,50 @@ const MEMORY_INSTRUCTION_PROMPT =
   'Codebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.'
 // Recommended max character count for a memory file
 export const MAX_MEMORY_CHARACTER_COUNT = 40000
+
+function getExistingMemoryPathFromPair(
+  preferredPath: string,
+  legacyPath: string,
+): string {
+  const fs = getFsImplementation()
+  if (fs.existsSync(preferredPath)) return preferredPath
+  if (fs.existsSync(legacyPath)) return legacyPath
+  return preferredPath
+}
+
+function getExistingProjectRootMemoryPath(dir: string): string {
+  return getExistingMemoryPathFromPair(
+    join(dir, CYBER_MEMORY_FILENAME),
+    join(dir, LEGACY_CLAUDE_MEMORY_FILENAME),
+  )
+}
+
+function getExistingProjectConfigMemoryPath(dir: string): string {
+  const fs = getFsImplementation()
+  const preferredPath = getProjectConfigPath(dir, CYBER_MEMORY_FILENAME)
+  if (fs.existsSync(preferredPath)) return preferredPath
+
+  const cyberLegacyNamePath = getProjectConfigPath(
+    dir,
+    LEGACY_CLAUDE_MEMORY_FILENAME,
+  )
+  if (fs.existsSync(cyberLegacyNamePath)) return cyberLegacyNamePath
+
+  const legacyConfigPath = getLegacyProjectConfigPath(
+    dir,
+    LEGACY_CLAUDE_MEMORY_FILENAME,
+  )
+  if (fs.existsSync(legacyConfigPath)) return legacyConfigPath
+
+  return preferredPath
+}
+
+function getExistingLocalMemoryPath(dir: string): string {
+  return getExistingMemoryPathFromPair(
+    join(dir, CYBER_LOCAL_MEMORY_FILENAME),
+    join(dir, LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME),
+  )
+}
 
 // File extensions that are allowed for @include directives
 // This prevents binary files (images, PDFs, etc.) from being loaded into memory
@@ -537,7 +593,7 @@ function extractIncludePathsFromTokens(
 const MAX_INCLUDE_DEPTH = 5
 
 /**
- * Checks whether a CLAUDE.md file path is excluded by the claudeMdExcludes setting.
+ * Checks whether a CYBER.md / legacy CLAUDE.md file path is excluded by the claudeMdExcludes setting.
  * Only applies to User, Project, and Local memory types.
  * Managed, AutoMem, and TeamMem types are never excluded.
  *
@@ -559,17 +615,40 @@ function isClaudeMdExcluded(filePath: string, type: MemoryType): boolean {
 
   // Build an expanded pattern list that includes realpath-resolved versions of
   // absolute patterns. This handles symlinks like /tmp -> /private/tmp on macOS:
-  // the user writes "/tmp/project/CLAUDE.md" in their exclude, but the system
+  // the user writes "/tmp/project/CYBER.md" in their exclude, but the system
   // resolves the CWD to "/private/tmp/project/...", so the file path uses the
   // real path. By resolving the patterns too, both sides match.
-  const expandedPatterns = resolveExcludePatterns(patterns).filter(
-    p => p.length > 0,
-  )
+  const expandedPatterns = resolveExcludePatterns(
+    expandInstructionMemoryExcludePatterns(patterns),
+  ).filter(p => p.length > 0)
   if (expandedPatterns.length === 0) {
     return false
   }
 
   return picomatch.isMatch(normalizedPath, expandedPatterns, matchOpts)
+}
+
+function expandInstructionMemoryExcludePatterns(patterns: string[]): string[] {
+  const expanded = new Set(patterns)
+  const aliases: Array<[string, string]> = [
+    [LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME, CYBER_LOCAL_MEMORY_FILENAME],
+    [LEGACY_CLAUDE_MEMORY_FILENAME, CYBER_MEMORY_FILENAME],
+    ['.claude/rules', '.cyber/rules'],
+    ['.claude\\rules', '.cyber\\rules'],
+  ]
+
+  for (const pattern of patterns) {
+    for (const [legacy, current] of aliases) {
+      if (pattern.includes(legacy)) {
+        expanded.add(pattern.replaceAll(legacy, current))
+      }
+      if (pattern.includes(current)) {
+        expanded.add(pattern.replaceAll(current, legacy))
+      }
+    }
+  }
+
+  return Array.from(expanded)
 }
 
 /**
@@ -685,7 +764,7 @@ export async function processMemoryFile(
 }
 
 /**
- * Processes all .md files in the .claude/rules/ directory and its subdirectories
+ * Processes all .md files in the project rules directory and its subdirectories
  * @param rulesDir The path to the rules directory
  * @param type Type of memory file (User, Project, Local)
  * @param processedPaths Set of already processed file paths
@@ -824,7 +903,7 @@ export const getMemoryFiles = memoize(
 
     // Process User file (only if userSettings is enabled)
     if (isSettingSourceEnabled('userSettings')) {
-      const userClaudeMd = getMemoryPath('User')
+      const userClaudeMd = getExistingMemoryPath('User')
       result.push(
         ...(await processMemoryFile(
           userClaudeMd,
@@ -833,8 +912,8 @@ export const getMemoryFiles = memoize(
           true, // User memory can always include external files
         )),
       )
-      // Process User ~/.claude/rules/*.md files
-      const userClaudeRulesDir = getUserClaudeRulesDir()
+      // Process User ~/.cyber/rules/*.md files
+      const userClaudeRulesDir = getExistingUserClaudeRulesDir()
       result.push(
         ...(await processMdRules({
           rulesDir: userClaudeRulesDir,
@@ -857,12 +936,12 @@ export const getMemoryFiles = memoize(
     }
 
     // When running from a git worktree nested inside its main repo (e.g.,
-    // .claude/worktrees/<name>/ from `claude -w`), the upward walk passes
+    // .cyber/worktrees/<name>/ from `claude -w`), the upward walk passes
     // through both the worktree root and the main repo root. Both contain
-    // checked-in files like CLAUDE.md and .claude/rules/*.md, so the same
+    // checked-in files like CYBER.md and .cyber/rules/*.md, so the same
     // content gets loaded twice. Skip Project-type (checked-in) files from
     // directories above the worktree but within the main repo — the worktree
-    // already has its own checkout. CLAUDE.local.md is gitignored so it only
+    // already has its own checkout. CYBER.local.md is gitignored so it only
     // exists in the main repo and is still loaded.
     // See: https://github.com/anthropics/claude-code/issues/29599
     const gitRoot = findGitRoot(originalCwd)
@@ -883,9 +962,9 @@ export const getMemoryFiles = memoize(
         pathInWorkingPath(dir, canonicalRoot) &&
         !pathInWorkingPath(dir, gitRoot)
 
-      // Try reading CLAUDE.md (Project) - only if projectSettings is enabled
+      // Try reading CYBER.md (Project), falling back to legacy CLAUDE.md.
       if (isSettingSourceEnabled('projectSettings') && !skipProject) {
-        const projectPath = join(dir, 'CLAUDE.md')
+        const projectPath = getExistingProjectRootMemoryPath(dir)
         result.push(
           ...(await processMemoryFile(
             projectPath,
@@ -895,8 +974,8 @@ export const getMemoryFiles = memoize(
           )),
         )
 
-        // Try reading .claude/CLAUDE.md (Project)
-        const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
+        // Try reading .cyber/CYBER.md (Project), falling back to legacy names.
+        const dotClaudePath = getExistingProjectConfigMemoryPath(dir)
         result.push(
           ...(await processMemoryFile(
             dotClaudePath,
@@ -906,8 +985,8 @@ export const getMemoryFiles = memoize(
           )),
         )
 
-        // Try reading .claude/rules/*.md files (Project)
-        const rulesDir = join(dir, '.claude', 'rules')
+        // Try reading .cyber/rules/*.md files (Project), falling back to legacy .claude.
+        const rulesDir = getExistingProjectConfigPath(dir, 'rules')
         result.push(
           ...(await processMdRules({
             rulesDir,
@@ -919,9 +998,9 @@ export const getMemoryFiles = memoize(
         )
       }
 
-      // Try reading CLAUDE.local.md (Local) - only if localSettings is enabled
+      // Try reading CYBER.local.md (Local), falling back to legacy CLAUDE.local.md.
       if (isSettingSourceEnabled('localSettings')) {
-        const localPath = join(dir, 'CLAUDE.local.md')
+        const localPath = getExistingLocalMemoryPath(dir)
         result.push(
           ...(await processMemoryFile(
             localPath,
@@ -933,15 +1012,15 @@ export const getMemoryFiles = memoize(
       }
     }
 
-    // Process CLAUDE.md from additional directories (--add-dir) if env var is enabled
+    // Process CYBER.md from additional directories (--add-dir) if env var is enabled
     // This is controlled by CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD and defaults to off
     // Note: we don't check isSettingSourceEnabled('projectSettings') here because --add-dir
     // is an explicit user action and the SDK defaults settingSources to [] when not specified
     if (isEnvTruthy(process.env.CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD)) {
       const additionalDirs = getAdditionalDirectoriesForClaudeMd()
       for (const dir of additionalDirs) {
-        // Try reading CLAUDE.md from the additional directory
-        const projectPath = join(dir, 'CLAUDE.md')
+        // Try reading CYBER.md from the additional directory, falling back to legacy CLAUDE.md.
+        const projectPath = getExistingProjectRootMemoryPath(dir)
         result.push(
           ...(await processMemoryFile(
             projectPath,
@@ -951,8 +1030,8 @@ export const getMemoryFiles = memoize(
           )),
         )
 
-        // Try reading .claude/CLAUDE.md from the additional directory
-        const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
+        // Try reading .cyber/CYBER.md from the additional directory, falling back to legacy names.
+        const dotClaudePath = getExistingProjectConfigMemoryPath(dir)
         result.push(
           ...(await processMemoryFile(
             dotClaudePath,
@@ -962,8 +1041,8 @@ export const getMemoryFiles = memoize(
           )),
         )
 
-        // Try reading .claude/rules/*.md files from the additional directory
-        const rulesDir = join(dir, '.claude', 'rules')
+        // Try reading .cyber/rules/*.md files from the additional directory
+        const rulesDir = getExistingProjectConfigPath(dir, 'rules')
         result.push(
           ...(await processMdRules({
             rulesDir,
@@ -1042,7 +1121,7 @@ export const getMemoryFiles = memoize(
     // Fire InstructionsLoaded hook for each instruction file loaded
     // (fire-and-forget, audit/observability only).
     // AutoMem/TeamMem are intentionally excluded — they're a separate
-    // memory system, not "instructions" in the CLAUDE.md/rules sense.
+    // memory system, not "instructions" in the CYBER.md/rules sense.
     // Gated on !forceIncludeExternal: the forceIncludeExternal=true variant
     // is only used by getExternalClaudeMdIncludes() for approval checks, not
     // for building context — firing the hook there would double-fire on startup.
@@ -1222,7 +1301,7 @@ export async function getManagedAndUserConditionalRules(
 
   if (isSettingSourceEnabled('userSettings')) {
     // Process User conditional .claude/rules/*.md files
-    const userClaudeRulesDir = getUserClaudeRulesDir()
+    const userClaudeRulesDir = getExistingUserClaudeRulesDir()
     result.push(
       ...(await processConditionedMdRules(
         targetPath,
@@ -1239,7 +1318,8 @@ export async function getManagedAndUserConditionalRules(
 
 /**
  * Gets memory files for a single nested directory (between CWD and target).
- * Loads CLAUDE.md, unconditional rules, and conditional rules for that directory.
+ * Loads CYBER.md, unconditional rules, and conditional rules for that directory.
+ * Legacy CLAUDE.md files remain readable when the CYBER-named file is absent.
  *
  * @param dir The directory to process
  * @param targetPath The target file path (for conditional rule matching)
@@ -1253,9 +1333,9 @@ export async function getMemoryFilesForNestedDirectory(
 ): Promise<MemoryFileInfo[]> {
   const result: MemoryFileInfo[] = []
 
-  // Process project memory files (CLAUDE.md and .claude/CLAUDE.md)
+  // Process project memory files (CYBER.md and .cyber/CYBER.md)
   if (isSettingSourceEnabled('projectSettings')) {
-    const projectPath = join(dir, 'CLAUDE.md')
+    const projectPath = getExistingProjectRootMemoryPath(dir)
     result.push(
       ...(await processMemoryFile(
         projectPath,
@@ -1264,7 +1344,7 @@ export async function getMemoryFilesForNestedDirectory(
         false,
       )),
     )
-    const dotClaudePath = join(dir, '.claude', 'CLAUDE.md')
+    const dotClaudePath = getExistingProjectConfigMemoryPath(dir)
     result.push(
       ...(await processMemoryFile(
         dotClaudePath,
@@ -1275,17 +1355,17 @@ export async function getMemoryFilesForNestedDirectory(
     )
   }
 
-  // Process local memory file (CLAUDE.local.md)
+  // Process local memory file (CYBER.local.md, falling back to legacy CLAUDE.local.md)
   if (isSettingSourceEnabled('localSettings')) {
-    const localPath = join(dir, 'CLAUDE.local.md')
+    const localPath = getExistingLocalMemoryPath(dir)
     result.push(
       ...(await processMemoryFile(localPath, 'Local', processedPaths, false)),
     )
   }
 
-  const rulesDir = join(dir, '.claude', 'rules')
+  const rulesDir = getExistingProjectConfigPath(dir, 'rules')
 
-  // Process project unconditional .claude/rules/*.md files, which were not eagerly loaded
+  // Process project unconditional .cyber/rules/*.md files, which were not eagerly loaded
   // Use a separate processedPaths set to avoid marking conditional rule files as processed
   const unconditionalProcessedPaths = new Set(processedPaths)
   result.push(
@@ -1298,7 +1378,7 @@ export async function getMemoryFilesForNestedDirectory(
     })),
   )
 
-  // Process project conditional .claude/rules/*.md files
+  // Process project conditional .cyber/rules/*.md files
   result.push(
     ...(await processConditionedMdRules(
       targetPath,
@@ -1331,7 +1411,7 @@ export async function getConditionalRulesForCwdLevelDirectory(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<MemoryFileInfo[]> {
-  const rulesDir = join(dir, '.claude', 'rules')
+  const rulesDir = getExistingProjectConfigPath(dir, 'rules')
   return processConditionedMdRules(
     targetPath,
     rulesDir,
@@ -1342,7 +1422,7 @@ export async function getConditionalRulesForCwdLevelDirectory(
 }
 
 /**
- * Processes all .md files in the .claude/rules/ directory and its subdirectories,
+ * Processes all .md files in the .cyber/rules/ directory and its subdirectories,
  * filtering to only include files with frontmatter paths that match the target path
  * @param targetPath The file path to match against frontmatter glob patterns
  * @param rulesDir The path to the rules directory
@@ -1430,20 +1510,26 @@ export async function shouldShowClaudeMdExternalIncludesWarning(): Promise<boole
 }
 
 /**
- * Check if a file path is a memory file (CLAUDE.md, CLAUDE.local.md, or .claude/rules/*.md)
+ * Check if a file path is a memory file (CYBER.md, legacy CLAUDE.md, or .cyber/rules/*.md)
  */
 export function isMemoryFilePath(filePath: string): boolean {
   const name = basename(filePath)
 
-  // CLAUDE.md or CLAUDE.local.md anywhere
-  if (name === 'CLAUDE.md' || name === 'CLAUDE.local.md') {
+  // CYBER.md/CYBER.local.md or legacy CLAUDE.md/CLAUDE.local.md anywhere
+  if (
+    name === CYBER_MEMORY_FILENAME ||
+    name === CYBER_LOCAL_MEMORY_FILENAME ||
+    name === LEGACY_CLAUDE_MEMORY_FILENAME ||
+    name === LEGACY_CLAUDE_LOCAL_MEMORY_FILENAME
+  ) {
     return true
   }
 
-  // .md files in .claude/rules/ directories
+  // .md files in project rules directories
   if (
     name.endsWith('.md') &&
-    filePath.includes(`${sep}.claude${sep}rules${sep}`)
+    (filePath.includes(`${sep}.cyber${sep}rules${sep}`) ||
+      filePath.includes(`${sep}.claude${sep}rules${sep}`))
   ) {
     return true
   }

@@ -118,7 +118,7 @@ describe('ComputerUsePermissionModal', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Allow for session' }))
+    fireEvent.click(screen.getByRole('button', { name: /本次会话允许|Allow for session/ }))
 
     expect(sendMock).toHaveBeenCalledTimes(1)
     expect(sendMock).toHaveBeenCalledWith('session-1', {
@@ -167,7 +167,7 @@ describe('ComputerUsePermissionModal', () => {
     )
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Open Accessibility' }))
+      fireEvent.click(screen.getByRole('button', { name: /打开辅助功能设置|Open Accessibility/ }))
     })
 
     expect(openSettingsMock).toHaveBeenCalledWith('Privacy_Accessibility')

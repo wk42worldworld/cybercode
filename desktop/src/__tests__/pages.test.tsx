@@ -35,16 +35,24 @@ vi.mock('../api/mcp', () => ({
   },
 }))
 
-vi.mock('../api/sessions', async () => {
-  const actual = await vi.importActual<typeof import('../api/sessions')>('../api/sessions')
-  return {
-    ...actual,
-    sessionsApi: {
-      ...actual.sessionsApi,
-      getRecentProjects: vi.fn(async () => ({ projects: [] })),
-    },
-  }
-})
+vi.mock('../api/sessions', () => ({
+  sessionsApi: {
+    list: vi.fn(async () => ({ sessions: [], total: 0 })),
+    getMessages: vi.fn(async () => ({ messages: [], hasMore: false })),
+    create: vi.fn(async () => ({ sessionId: 'mock-session' })),
+    delete: vi.fn(async () => ({ ok: true })),
+    rename: vi.fn(async () => ({ ok: true })),
+    getRecentProjects: vi.fn(async () => ({ projects: [] })),
+    getGitInfo: vi.fn(async () => ({ branch: null, repoName: null, workDir: '', changedFiles: 0 })),
+    getSlashCommands: vi.fn(async () => ({ commands: [] })),
+    getInspection: vi.fn(async () => ({ active: false, status: { sessionId: '', workDir: '', permissionMode: 'default' } })),
+    rewind: vi.fn(async () => ({
+      target: { targetUserMessageId: '', userMessageIndex: 0, userMessageCount: 0 },
+      conversation: { messagesRemoved: 0 },
+      code: { available: false, filesChanged: [], insertions: 0, deletions: 0 },
+    })),
+  },
+}))
 
 // Import all pages
 import { EmptySession } from '../pages/EmptySession'
@@ -83,7 +91,42 @@ beforeEach(() => {
     activeModal: null,
     toasts: [],
   })
-  vi.mocked(sessionsApi.getRecentProjects).mockResolvedValue({ projects: [] })
+  vi.spyOn(skillsApi, 'list').mockResolvedValue({ skills: [] })
+  vi.spyOn(mcpApi, 'list').mockResolvedValue({ servers: [] })
+  vi.spyOn(mcpApi, 'status').mockImplementation(async (name: string) => ({
+    server: {
+      name,
+      scope: 'user',
+      transport: 'http',
+      enabled: true,
+      status: 'connected',
+      statusLabel: 'Connected',
+      configLocation: 'User',
+      summary: 'https://mcp.example.com/mcp',
+      canEdit: true,
+      canRemove: true,
+      canReconnect: true,
+      canToggle: true,
+      config: { type: 'http', url: 'https://mcp.example.com/mcp', headers: {} },
+    },
+  }))
+  vi.spyOn(sessionsApi, 'list').mockResolvedValue({ sessions: [], total: 0 })
+  vi.spyOn(sessionsApi, 'getMessages').mockResolvedValue({ messages: [], hasMore: false })
+  vi.spyOn(sessionsApi, 'create').mockResolvedValue({ sessionId: 'mock-session' })
+  vi.spyOn(sessionsApi, 'delete').mockResolvedValue({ ok: true })
+  vi.spyOn(sessionsApi, 'rename').mockResolvedValue({ ok: true })
+  vi.spyOn(sessionsApi, 'getRecentProjects').mockResolvedValue({ projects: [] })
+  vi.spyOn(sessionsApi, 'getGitInfo').mockResolvedValue({ branch: null, repoName: null, workDir: '', changedFiles: 0 })
+  vi.spyOn(sessionsApi, 'getSlashCommands').mockResolvedValue({ commands: [] })
+  vi.spyOn(sessionsApi, 'getInspection').mockResolvedValue({
+    active: false,
+    status: { sessionId: '', workDir: '', permissionMode: 'default' },
+  })
+  vi.spyOn(sessionsApi, 'rewind').mockResolvedValue({
+    target: { targetUserMessageId: '', userMessageIndex: 0, userMessageCount: 0 },
+    conversation: { messagesRemoved: 0 },
+    code: { available: false, filesChanged: [], insertions: 0, deletions: 0 },
+  })
 })
 
 /**
@@ -133,7 +176,7 @@ describe('Content-only pages render without errors', () => {
   })
 
   it('EmptySession shows recent projects in the same chooser surface', async () => {
-    vi.mocked(sessionsApi.getRecentProjects).mockResolvedValueOnce({
+    vi.spyOn(sessionsApi, 'getRecentProjects').mockResolvedValueOnce({
       projects: [
         {
           projectPath: '-workspace-cybercode',
@@ -285,7 +328,7 @@ describe('Content-only pages render without errors', () => {
   it('ActiveSession opens a local /mcp panel and clicking an item routes to settings', async () => {
     const SESSION_ID = 'mcp-panel-session'
     const sendMessage = vi.fn()
-    vi.mocked(mcpApi.list).mockResolvedValueOnce({
+    vi.spyOn(mcpApi, 'list').mockResolvedValueOnce({
       servers: [
         {
           name: 'deepwiki',
@@ -367,7 +410,7 @@ describe('Content-only pages render without errors', () => {
   it('ActiveSession opens a local /skills panel from the fallback slash commands', async () => {
     const SESSION_ID = 'skills-panel-session'
     const sendMessage = vi.fn()
-    vi.mocked(skillsApi.list).mockResolvedValueOnce({
+    vi.spyOn(skillsApi, 'list').mockResolvedValueOnce({
       skills: [
         {
           name: 'lark-mail',

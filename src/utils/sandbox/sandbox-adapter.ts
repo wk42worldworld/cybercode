@@ -30,6 +30,10 @@ import {
   getOriginalCwd,
 } from '../../bootstrap/state.js'
 import { logForDebugging } from '../debug.js'
+import {
+  getLegacyProjectConfigPath,
+  getProjectConfigPath,
+} from '../envUtils.js'
 import { expandPath } from '../path.js'
 import { getPlatform, type Platform } from '../platform.js'
 import { settingsChangeDetector } from '../settings/changeDetector.js'
@@ -240,18 +244,22 @@ export function convertToSandboxRuntimeConfig(
   const cwd = getCwdState()
   const originalCwd = getOriginalCwd()
   if (cwd !== originalCwd) {
-    denyWrite.push(resolve(cwd, '.claude', 'settings.json'))
-    denyWrite.push(resolve(cwd, '.claude', 'settings.local.json'))
+    denyWrite.push(getProjectConfigPath(cwd, 'settings.json'))
+    denyWrite.push(getProjectConfigPath(cwd, 'settings.local.json'))
+    denyWrite.push(getLegacyProjectConfigPath(cwd, 'settings.json'))
+    denyWrite.push(getLegacyProjectConfigPath(cwd, 'settings.local.json'))
   }
 
-  // Block writes to .claude/skills in both original and current working directories.
-  // The sandbox-runtime's getDangerousDirectories() protects .claude/commands and
-  // .claude/agents but not .claude/skills. Skills have the same privilege level
+  // Block writes to project skills in both original and current working directories.
+  // The sandbox-runtime's getDangerousDirectories() protects config commands and
+  // agents but not skills. Skills have the same privilege level
   // (auto-discovered, auto-loaded, full Claude capabilities) so they need the
   // same OS-level sandbox protection.
-  denyWrite.push(resolve(originalCwd, '.claude', 'skills'))
+  denyWrite.push(getProjectConfigPath(originalCwd, 'skills'))
+  denyWrite.push(getLegacyProjectConfigPath(originalCwd, 'skills'))
   if (cwd !== originalCwd) {
-    denyWrite.push(resolve(cwd, '.claude', 'skills'))
+    denyWrite.push(getProjectConfigPath(cwd, 'skills'))
+    denyWrite.push(getLegacyProjectConfigPath(cwd, 'skills'))
   }
 
   // SECURITY: Git's is_git_directory() treats cwd as a bare repo if it has

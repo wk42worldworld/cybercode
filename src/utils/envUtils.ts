@@ -1,17 +1,143 @@
 import memoize from 'lodash-es/memoize.js'
-import { homedir } from 'os'
+import { cpSync, existsSync } from 'fs'
+import { homedir as osHomedir } from 'os'
 import { join } from 'path'
 
-// Memoized: 150+ callers, many on hot paths. Keyed off CLAUDE_CONFIG_DIR so
-// tests that change the env var get a fresh value without explicit cache.clear.
+export const CYBER_CONFIG_DIR_ENV = 'CYBER_CONFIG_DIR'
+export const LEGACY_CLAUDE_CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR'
+export const CYBER_CONFIG_DIRNAME = '.cyber'
+export const LEGACY_CLAUDE_CONFIG_DIRNAME = '.claude'
+export const CYBER_PROJECT_CONFIG_DIRNAME = '.cyber'
+export const LEGACY_CLAUDE_PROJECT_CONFIG_DIRNAME = '.claude'
+
+let homeDirOverrideForTesting: string | undefined
+
+function getHomeDir(): string {
+  return homeDirOverrideForTesting ?? osHomedir()
+}
+
+function nonEmptyEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim()
+  return value ? value.normalize('NFC') : undefined
+}
+
+export function getDefaultCyberConfigHomeDir(): string {
+  return join(getHomeDir(), CYBER_CONFIG_DIRNAME).normalize('NFC')
+}
+
+export function getLegacyClaudeConfigHomeDir(): string {
+  return join(getHomeDir(), LEGACY_CLAUDE_CONFIG_DIRNAME).normalize('NFC')
+}
+
+export function getProjectConfigDir(projectRoot: string): string {
+  return join(projectRoot, CYBER_PROJECT_CONFIG_DIRNAME).normalize('NFC')
+}
+
+export function getLegacyProjectConfigDir(projectRoot: string): string {
+  return join(projectRoot, LEGACY_CLAUDE_PROJECT_CONFIG_DIRNAME).normalize('NFC')
+}
+
+export function getProjectConfigPath(
+  projectRoot: string,
+  ...segments: string[]
+): string {
+  return join(getProjectConfigDir(projectRoot), ...segments).normalize('NFC')
+}
+
+export function getLegacyProjectConfigPath(
+  projectRoot: string,
+  ...segments: string[]
+): string {
+  return join(getLegacyProjectConfigDir(projectRoot), ...segments).normalize(
+    'NFC',
+  )
+}
+
+export function getExistingProjectConfigPath(
+  projectRoot: string,
+  ...segments: string[]
+): string {
+  const target = getProjectConfigPath(projectRoot, ...segments)
+  if (existsSync(target)) return target
+
+  const legacy = getLegacyProjectConfigPath(projectRoot, ...segments)
+  if (existsSync(legacy)) return legacy
+
+  return target
+}
+
+export function ensureProjectConfigDirMigration(projectRoot: string): void {
+  const target = getProjectConfigDir(projectRoot)
+  const legacy = getLegacyProjectConfigDir(projectRoot)
+  if (existsSync(target) || !existsSync(legacy)) return
+
+  try {
+    cpSync(legacy, target, {
+      recursive: true,
+      errorOnExist: false,
+      force: false,
+    })
+  } catch {
+    // Best-effort compatibility copy only. Callers can still create the
+    // requested .cyber file if the legacy project directory cannot be copied.
+  }
+}
+
+export function getLegacyClaudeGlobalConfigFile(suffix = ''): string {
+  return join(getHomeDir(), `.claude${suffix}.json`).normalize('NFC')
+}
+
+export function getConfigHomeDirEnvOverride(): string | undefined {
+  return (
+    nonEmptyEnv(CYBER_CONFIG_DIR_ENV) ??
+    nonEmptyEnv(LEGACY_CLAUDE_CONFIG_DIR_ENV)
+  )
+}
+
+let hasAttemptedCyberConfigMigration = false
+
+export function ensureCyberConfigHomeDirMigration(): void {
+  if (hasAttemptedCyberConfigMigration || getConfigHomeDirEnvOverride()) return
+  hasAttemptedCyberConfigMigration = true
+
+  const target = getDefaultCyberConfigHomeDir()
+  const legacy = getLegacyClaudeConfigHomeDir()
+  if (existsSync(target) || !existsSync(legacy)) return
+
+  try {
+    cpSync(legacy, target, {
+      recursive: true,
+      errorOnExist: false,
+      force: false,
+    })
+  } catch {
+    // Best-effort compatibility copy only. Normal startup can still create a
+    // fresh ~/.cyber directory if the legacy directory cannot be copied.
+  }
+}
+
+// Memoized: 150+ callers, many on hot paths. Keyed off config env vars so
+// tests that change them get a fresh value without explicit cache.clear.
 export const getClaudeConfigHomeDir = memoize(
   (): string => {
-    return (
-      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
-    ).normalize('NFC')
+    const override = getConfigHomeDirEnvOverride()
+    if (override) return override
+    ensureCyberConfigHomeDirMigration()
+    return getDefaultCyberConfigHomeDir()
   },
-  () => process.env.CLAUDE_CONFIG_DIR,
+  () =>
+    `${process.env[CYBER_CONFIG_DIR_ENV] ?? ''}\0${process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] ?? ''}`,
 )
+
+export function _resetConfigHomeDirForTesting(): void {
+  hasAttemptedCyberConfigMigration = false
+  getClaudeConfigHomeDir.cache.clear?.()
+}
+
+export function _setConfigHomeDirHomeForTesting(homeDir?: string): void {
+  homeDirOverrideForTesting = homeDir
+  _resetConfigHomeDirForTesting()
+}
 
 export function getTeamsDir(): string {
   return join(getClaudeConfigHomeDir(), 'teams')

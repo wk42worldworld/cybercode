@@ -3,6 +3,7 @@ import {
   AboutSettings,
   AgentsSettings,
   GeneralSettings,
+  MemorySettings,
   PermissionSettings,
   PluginSettings,
   ProviderSettings,
@@ -116,6 +117,8 @@ function renderPanelContent(view: SettingsPanelView): ReactNode {
       return <McpSettings />
     case 'agents':
       return <AgentsSettings />
+    case 'memory':
+      return <MemorySettings />
     case 'skills':
       return <SkillSettings />
     case 'plugins':

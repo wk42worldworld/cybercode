@@ -7,7 +7,10 @@ import { open, readFile, stat } from 'fs/promises'
 import { homedir as osHomedir } from 'os'
 import { join } from 'path'
 import { isFsInaccessible } from './errors.js'
-import { getLocalClaudePath } from './localInstaller.js'
+import {
+  getLegacyLocalClaudePath,
+  getLocalClaudePath,
+} from './localInstaller.js'
 
 export const CLAUDE_ALIAS_REGEX = /^\s*alias\s+claude\s*=/
 
@@ -38,7 +41,7 @@ export function getShellConfigPaths(
 
 /**
  * Filter out installer-created claude aliases from an array of lines
- * Only removes aliases pointing to $HOME/.claude/local/claude
+ * Only removes aliases pointing to the installer-managed local claude path.
  * Preserves custom user aliases that point to other locations
  * Returns the filtered lines and whether our default installer alias was found
  */
@@ -62,7 +65,10 @@ export function filterClaudeAliases(lines: string[]): {
         const target = match[1].trim()
         // Only remove if it points to the installer location
         // The installer always creates aliases with the full expanded path
-        if (target === getLocalClaudePath()) {
+        if (
+          target === getLocalClaudePath() ||
+          target === getLegacyLocalClaudePath()
+        ) {
           hadAlias = true
           return false // Remove this line
         }

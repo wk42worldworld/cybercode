@@ -19,6 +19,7 @@ import { handleSkillsApi } from './api/skills.js'
 import { handleComputerUseApi } from './api/computer-use.js'
 import { handleCybercodeOAuthApi } from './api/cybercode-oauth.js'
 import { handleMcpApi } from './api/mcp.js'
+import { handlePromptMemoryApi } from './api/prompt-memory.js'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
   const path = url.pathname
@@ -80,6 +81,9 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
     case 'mcp':
       return handleMcpApi(req, url, segments)
+
+    case 'prompt-memory':
+      return handlePromptMemoryApi(req, url, segments)
 
     case 'plugins':
       return handlePluginsApi(req, url, segments)

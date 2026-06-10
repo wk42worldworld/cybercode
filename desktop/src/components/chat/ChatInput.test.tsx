@@ -54,7 +54,7 @@ describe('ChatInput composer controls', () => {
 
     const textarea = screen.getByRole('textbox')
     fireEvent.change(textarea, { target: { value: '/rev', selectionStart: 4 } })
-    expect(await screen.findByText('/review')).toBeInTheDocument()
+    expect(await screen.findByText('Review code changes')).toBeInTheDocument()
 
     const runButton = screen.getByRole('button', { name: 'Run' })
     fireEvent.mouseDown(runButton)

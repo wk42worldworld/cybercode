@@ -18,7 +18,7 @@ let hostPreflightSpy: ReturnType<typeof spyOn> | undefined
 async function setup() {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-mcp-test-'))
   projectRoot = path.join(tmpDir, 'project')
-  await fs.mkdir(path.join(projectRoot, '.claude'), { recursive: true })
+  await fs.mkdir(path.join(projectRoot, '.cyber'), { recursive: true })
 
   originalConfigDir = process.env.CLAUDE_CONFIG_DIR
   process.env.CLAUDE_CONFIG_DIR = tmpDir
