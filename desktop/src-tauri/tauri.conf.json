@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/nicegui/static/tauri-schema-v2.json",
   "productName": "CyberCode",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "identifier": "com.cybercode.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -29,7 +29,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlCOUIwRDExQTc5RTFGMzYKUldRMkg1Nm5FUTJibTJ2cGlHY0pkL0dGemxXMUlzc01pVTVMM1U3WGpmWUtrUC8wK2ErSXhLKzEK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1NERGMEEzQkU2MDc4MzcKUldRM2VHQytvL0JOOVZPMUZjK3ROV2xwc3FXVm80N0lxUHZCT2FIZU5NUDd5Y1ZOR3RnVlZkZ3gK",
       "endpoints": [
         "https://github.com/wk42worldworld/cybercode/releases/latest/download/latest.json"
       ],
