@@ -53,6 +53,7 @@ import { executeAutoDream } from '../services/autoDream/autoDream.js'
 import { executePromptSuggestion } from '../services/PromptSuggestion/promptSuggestion.js'
 import { executePromptMemoryAutoReview } from '../promptMemory/autoReview.js'
 import { executeSessionSearchIndexRefresh } from '../sessionSearch/turnIndex.js'
+import { executeSkillMemoryLifecycleReview } from '../skillMemory/reviewer.js'
 import { isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import {
   createCacheSafeParams,
@@ -156,6 +157,7 @@ export async function* handleStopHooks(
     if (!toolUseContext.agentId) {
       void executeSessionSearchIndexRefresh(stopHookContext)
       void executePromptMemoryAutoReview(stopHookContext)
+      void executeSkillMemoryLifecycleReview(stopHookContext)
       void executeAutoDream(stopHookContext, toolUseContext.appendSystemMessage)
     }
   }

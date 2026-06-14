@@ -58,6 +58,12 @@ import { createUserMessage, normalizeMessages } from '../../utils/messages.js'
 import type { ModelAlias } from '../../utils/model/aliases.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
+import {
+  applySkillMemoryToPromptBlocks,
+  getSkillMemoryRefForCommand,
+  getSkillMemoryScopeForCommand,
+  recordSkillLifecycleUsageSafe,
+} from '../../skillMemory/store.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { runAgent } from '../AgentTool/runAgent.js'
 import {
@@ -617,6 +623,14 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
 
     // Track skill usage for ranking
     recordSkillUsage(commandName)
+    recordSkillLifecycleUsageSafe({
+      ref: getSkillMemoryRefForCommand({
+        skillName: commandName,
+        command,
+        projectRoot: getProjectRoot(),
+      }),
+      scope: getSkillMemoryScopeForCommand(command),
+    })
 
     // Check if skill should run as a forked sub-agent
     if (command?.type === 'prompt' && command.context === 'fork') {
@@ -1057,6 +1071,16 @@ async function executeRemoteSkill(
   })
 
   recordSkillUsage(commandName)
+  const remoteSkillMemoryRef = {
+    skillName: commandName,
+    source: 'remote',
+    loadedFrom: 'remote',
+    projectRoot: getProjectRoot(),
+  }
+  recordSkillLifecycleUsageSafe({
+    ref: remoteSkillMemoryRef,
+    scope: 'global',
+  })
 
   logForDebugging(
     `SkillTool loaded remote skill ${slug} (cacheHit=${cacheHit}, ${latencyMs}ms, ${content.length} chars)`,
@@ -1079,6 +1103,15 @@ async function executeRemoteSkill(
     /\$\{CLAUDE_SESSION_ID\}/g,
     getSessionId(),
   )
+  finalContent = (
+    await applySkillMemoryToPromptBlocks({
+      blocks: [{ type: 'text', text: finalContent }],
+      ref: remoteSkillMemoryRef,
+    })
+  )
+    .map(block => (block.type === 'text' ? block.text : ''))
+    .filter(Boolean)
+    .join('\n\n')
 
   // Register with compaction-preservation state. Use the cached file path so
   // post-compact restoration knows where the content came from. Must use

@@ -6,7 +6,7 @@ import { builtInCommandNames, type Command, type CommandBase, findCommand, getCo
 import { NO_CONTENT_MESSAGE } from 'src/constants/messages.js';
 import type { SetToolJSXFn, ToolUseContext } from 'src/Tool.js';
 import type { AssistantMessage, AttachmentMessage, Message, NormalizedUserMessage, ProgressMessage, UserMessage } from 'src/types/message.js';
-import { addInvokedSkill, getSessionId } from '../../bootstrap/state.js';
+import { addInvokedSkill, getProjectRoot, getSessionId } from '../../bootstrap/state.js';
 import { COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG } from '../../constants/xml.js';
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED, logEvent } from '../../services/analytics/index.js';
@@ -40,6 +40,7 @@ import { isRestrictedToPluginOnly, isSourceAdminTrusted } from '../settings/plug
 import { parseSlashCommand } from '../slashCommandParsing.js';
 import { sleep } from '../sleep.js';
 import { recordSkillUsage } from '../suggestions/skillUsageTracking.js';
+import { applySkillMemoryToPromptBlocks, getSkillMemoryRefForCommand, getSkillMemoryScopeForCommand, recordSkillLifecycleUsageSafe } from '../../skillMemory/store.js';
 import { logOTelEvent, redactIfDisabled } from '../telemetry/events.js';
 import { buildPluginCommandTelemetryFields } from '../telemetry/pluginTelemetry.js';
 import { getAssistantMessageContentLength } from '../tokens.js';
@@ -528,6 +529,14 @@ async function getMessagesForSlashCommand(commandName: string, args: string, set
   // Track skill usage for ranking (only for prompt commands that are user-invocable)
   if (command.type === 'prompt' && command.userInvocable !== false) {
     recordSkillUsage(commandName);
+    recordSkillLifecycleUsageSafe({
+      ref: getSkillMemoryRefForCommand({
+        skillName: commandName,
+        command,
+        projectRoot: getProjectRoot()
+      }),
+      scope: getSkillMemoryScopeForCommand(command)
+    });
   }
 
   // Check if the command is user-invocable
@@ -866,7 +875,14 @@ async function getMessagesForPromptSlashCommand(command: CommandBase & PromptCom
       command
     };
   }
-  const result = await command.getPromptForCommand(args, context);
+  const result = await applySkillMemoryToPromptBlocks({
+    blocks: await command.getPromptForCommand(args, context),
+    ref: getSkillMemoryRefForCommand({
+      skillName: command.name,
+      command,
+      projectRoot: getProjectRoot()
+    })
+  });
 
   // Register skill hooks if defined. Under ["hooks"]-only (skills not locked),
   // user skills still load and reach this point — block hook REGISTRATION here

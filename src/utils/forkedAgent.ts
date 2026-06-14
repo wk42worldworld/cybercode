@@ -12,6 +12,7 @@ import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
 import type { PromptCommand } from '../commands.js'
 import type { QuerySource } from '../constants/querySource.js'
+import { getProjectRoot } from '../bootstrap/state.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { query } from '../query.js'
 import {
@@ -42,6 +43,9 @@ import {
   cloneContentReplacementState,
 } from './toolResultStorage.js'
 import { createAgentId } from './uuid.js'
+import {
+  applySkillMemoryToPromptBlocks,
+} from '../skillMemory/store.js'
 
 /**
  * Parameters that must be identical between the fork and parent API requests
@@ -189,12 +193,20 @@ export type PreparedForkedContext = {
  * This handles the common setup that both SkillTool and slash commands need.
  */
 export async function prepareForkedCommandContext(
-  command: PromptCommand,
+  command: PromptCommand & { name: string; loadedFrom?: string },
   args: string,
   context: ToolUseContext,
 ): Promise<PreparedForkedContext> {
   // Get skill content with $ARGUMENTS replaced
-  const skillPrompt = await command.getPromptForCommand(args, context)
+  const skillPrompt = await applySkillMemoryToPromptBlocks({
+    blocks: await command.getPromptForCommand(args, context),
+    ref: {
+      skillName: command.name,
+      source: command.source,
+      loadedFrom: command.loadedFrom,
+      projectRoot: getProjectRoot(),
+    },
+  })
   const skillContent = skillPrompt
     .map(block => (block.type === 'text' ? block.text : ''))
     .join('\n')
