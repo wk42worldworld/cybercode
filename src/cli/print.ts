@@ -354,6 +354,7 @@ import { errorMessage, toError } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
 import { drainPendingPromptMemoryAutoReview } from '../promptMemory/autoReview.js'
+import { drainPendingSessionSearchIndexRefresh } from '../sessionSearch/turnIndex.js'
 
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -971,6 +972,7 @@ export async function runHeadless(
   if (feature('EXTRACT_MEMORIES') && isExtractModeActive()) {
     await extractMemoriesModule!.drainPendingExtraction()
   }
+  await drainPendingSessionSearchIndexRefresh()
   await drainPendingPromptMemoryAutoReview()
 
   gracefulShutdownSync(

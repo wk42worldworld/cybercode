@@ -12,6 +12,7 @@ import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { BriefTool } from './tools/BriefTool/BriefTool.js'
 import { PromptMemoryTool } from './tools/PromptMemoryTool/PromptMemoryTool.js'
+import { SessionSearchTool } from './tools/SessionSearchTool/SessionSearchTool.js'
 // Dead code elimination: conditional import for ant-only tools
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const REPLTool =
@@ -210,6 +211,7 @@ export function getAllBaseTools(): Tools {
     TodoWriteTool,
     WebSearchTool,
     PromptMemoryTool,
+    SessionSearchTool,
     TaskStopTool,
     AskUserQuestionTool,
     SkillTool,

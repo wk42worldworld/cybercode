@@ -11,6 +11,10 @@ import * as path from 'node:path'
 import { ApiError } from '../middleware/errorHandler.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { sanitizePath as sanitizePortablePath } from '../../utils/sessionStoragePortable.js'
+import {
+  deleteSessionFromSearchIndex,
+  indexSessionSearchFile,
+} from '../../sessionSearch/indexer.js'
 import type { FileHistorySnapshot } from '../../utils/fileHistory.js'
 import { calculateUSDCost, MODEL_COSTS } from '../../utils/modelCost.js'
 import {
@@ -242,6 +246,42 @@ export class SessionService {
   private async appendJsonlEntry(filePath: string, entry: Record<string, unknown>): Promise<void> {
     const line = JSON.stringify(entry) + '\n'
     await fs.appendFile(filePath, line, 'utf-8')
+  }
+
+  private async syncSessionSearchIndex(file: {
+    filePath: string
+    projectDir: string
+    sessionId: string
+  }): Promise<void> {
+    try {
+      await indexSessionSearchFile({
+        filePath: file.filePath,
+        projectPath: file.projectDir,
+        sessionId: file.sessionId,
+      })
+    } catch (error) {
+      console.warn(
+        `[SessionService] session search index sync failed for ${file.sessionId}:`,
+        error,
+      )
+    }
+  }
+
+  private async removeSessionSearchIndex(
+    sessionId: string,
+    projectDir?: string,
+  ): Promise<void> {
+    try {
+      await deleteSessionFromSearchIndex({
+        sessionId,
+        projectPath: projectDir,
+      })
+    } catch (error) {
+      console.warn(
+        `[SessionService] session search index delete failed for ${sessionId}:`,
+        error,
+      )
+    }
   }
 
   private resolveWorkDirFromEntries(
@@ -1339,6 +1379,7 @@ export class SessionService {
     }
 
     await fs.writeFile(filePath, JSON.stringify(initialEntry) + '\n' + JSON.stringify(metaEntry) + '\n', 'utf-8')
+    await this.syncSessionSearchIndex({ filePath, projectDir: sanitized, sessionId })
 
     return { sessionId }
   }
@@ -1359,6 +1400,7 @@ export class SessionService {
       force: true,
     }).catch(() => {})
     await this.removeHistoryLogEntries(sessionId, found.projectDir).catch(() => {})
+    await this.removeSessionSearchIndex(sessionId, found.projectDir)
   }
 
   /**
@@ -1381,6 +1423,11 @@ export class SessionService {
     }
 
     await this.appendJsonlEntry(found.filePath, entry)
+    await this.syncSessionSearchIndex({
+      filePath: found.filePath,
+      projectDir: found.projectDir,
+      sessionId,
+    })
   }
 
   /**

@@ -8,6 +8,7 @@ import { spawn } from 'child_process'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
+import { discoverSessionSearch } from '../../sessionSearch/search.js'
 import { ApiError } from '../middleware/errorHandler.js'
 
 export type SearchResult = {
@@ -20,6 +21,40 @@ export type SearchResult = {
 export type SessionSearchResult = {
   sessionId: string
   title: string
+  projectPath?: string
+  workDir?: string | null
+  snippet?: string
+  matchMessageId?: number
+  messages?: Array<{
+    id: number
+    role: string
+    type: string
+    content: string
+    timestamp: string | null
+    model: string | null
+    line: number
+    anchor?: boolean
+  }>
+  bookendStart?: Array<{
+    id: number
+    role: string
+    type: string
+    content: string
+    timestamp: string | null
+    model: string | null
+    line: number
+  }>
+  bookendEnd?: Array<{
+    id: number
+    role: string
+    type: string
+    content: string
+    timestamp: string | null
+    model: string | null
+    line: number
+  }>
+  messagesBefore?: number
+  messagesAfter?: number
   matchCount: number
   matches: Array<{ line: number; text: string }>
 }
@@ -69,6 +104,29 @@ export class SearchService {
       throw ApiError.badRequest('Search query is required')
     }
 
+    try {
+      const result = await discoverSessionSearch({ query, limit: 10 })
+      return result.results.map(hit => ({
+        sessionId: hit.sessionId,
+        title: hit.title,
+        projectPath: hit.projectPath,
+        workDir: hit.workDir,
+        snippet: hit.snippet,
+        matchMessageId: hit.matchMessageId,
+        messages: hit.messages,
+        bookendStart: hit.bookendStart,
+        bookendEnd: hit.bookendEnd,
+        messagesBefore: hit.messagesBefore,
+        messagesAfter: hit.messagesAfter,
+        matchCount: hit.matchCount,
+        matches: hit.matches,
+      }))
+    } catch {
+      return this.searchSessionsLegacy(query)
+    }
+  }
+
+  private async searchSessionsLegacy(query: string): Promise<SessionSearchResult[]> {
     const projectsDir = path.join(getClaudeConfigHomeDir(), 'projects')
 
     const results: SessionSearchResult[] = []
