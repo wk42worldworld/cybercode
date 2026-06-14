@@ -32,7 +32,7 @@ jobs:
             asset_name_pattern: 'CyberCode_[version]_macos_arm64_[bundle][ext]'
 
           # macOS Intel
-          - platform: macos-13
+          - platform: macos-15-intel
             rust_target: x86_64-apple-darwin
             tauri_args: '--target x86_64-apple-darwin'
             label: macOS-x64
