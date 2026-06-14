@@ -34,6 +34,15 @@ const VERSION_FILES = [
       return content.replace(/^version\s*=\s*"[^"]*"/m, `version = "${version}"`)
     },
   },
+  {
+    path: path.join(root, 'desktop/src-tauri/Cargo.lock'),
+    update(content: string, version: string) {
+      return content.replace(
+        /(\[\[package\]\]\nname = "cybercode-desktop"\nversion = ")[^"]+(")/,
+        `$1${version}$2`,
+      )
+    },
+  },
 ]
 
 function getCurrentVersion(): string {
@@ -121,10 +130,6 @@ for (const file of VERSION_FILES) {
   writeFileSync(file.path, updated)
   console.log(`  Updated: ${path.relative(root, file.path)}`)
 }
-
-// Regenerate Cargo.lock
-console.log('\n  Updating Cargo.lock...')
-await run(['cargo', 'generate-lockfile'], path.join(root, 'desktop/src-tauri'))
 
 // Git commit + tag
 console.log('  Creating git commit...')

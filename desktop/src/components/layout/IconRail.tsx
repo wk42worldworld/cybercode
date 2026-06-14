@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Clock,
   Columns2,
+  Download,
   Ellipsis,
   Github,
   Grid,
@@ -14,11 +15,13 @@ import {
   ShieldCheck,
   TerminalSquare,
   Workflow,
+  RefreshCw,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { useUIStore, type SettingsPanelView } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
+import { useUpdateStore, type UpdateStatus } from '../../stores/updateStore'
 
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 const isWindows = typeof navigator !== 'undefined' && /Win/.test(navigator.platform)
@@ -78,9 +81,17 @@ export function IconRail({ __testTopRailHeight }: IconRailProps = {}) {
   const closeSettings = useUIStore((s) => s.closeSettings)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
+  const updateStatus = useUpdateStore((s) => s.status)
+  const availableVersion = useUpdateStore((s) => s.availableVersion)
+  const initializeUpdates = useUpdateStore((s) => s.initialize)
+  const installUpdate = useUpdateStore((s) => s.installUpdate)
   const t = useTranslation()
   const [topRailRef, topRailHeight] = useMeasuredElementHeight<HTMLDivElement>()
   const hasDragSpacer = isTauri && !isWindows
+
+  useEffect(() => {
+    void initializeUpdates()
+  }, [initializeUpdates])
 
   const handlePanelView = useCallback((view: SettingsPanelView) => {
     if (settingsOpen && settingsPanelView === view) {
@@ -226,6 +237,11 @@ export function IconRail({ __testTopRailHeight }: IconRailProps = {}) {
       </div>
 
       <div className="mt-[24px] flex shrink-0 flex-col items-center gap-[24px]">
+        <RailUpdateButton
+          status={updateStatus}
+          version={availableVersion}
+          onClick={() => void installUpdate()}
+        />
         <RailButton active={isPanelActive('settings')} label={t('sidebar.settings')} onClick={handleGeneralSettings} icon={Settings} />
         <a
           href="https://github.com/login?return_to=%2Fwk42worldworld%2Fcybercode"
@@ -239,6 +255,43 @@ export function IconRail({ __testTopRailHeight }: IconRailProps = {}) {
         </a>
       </div>
     </div>
+  )
+}
+
+function RailUpdateButton({
+  status,
+  version,
+  onClick,
+}: {
+  status: UpdateStatus
+  version: string | null
+  onClick: () => void
+}) {
+  const t = useTranslation()
+  const visible = !!version && ['available', 'downloading', 'restarting'].includes(status)
+  if (!visible) return null
+
+  const busy = status === 'downloading' || status === 'restarting'
+  const label = status === 'restarting'
+    ? t('update.railRestarting')
+    : status === 'downloading'
+      ? t('update.railDownloading', { version })
+      : t('update.railAvailable', { version })
+  const IconComponent = busy ? RefreshCw : Download
+
+  return (
+    <button
+      type="button"
+      onClick={busy ? undefined : onClick}
+      aria-label={label}
+      data-testid="rail-update-button"
+      disabled={busy}
+      className="group relative flex h-[46px] w-[46px] items-center justify-center overflow-visible rounded-full border border-[#1f7aff]/25 bg-[#0a84ff] text-white shadow-[0_8px_22px_rgba(10,132,255,0.28)] transition-[background-color,box-shadow,transform] duration-150 hover:bg-[#0072f0] hover:shadow-[0_10px_28px_rgba(10,132,255,0.34)] active:scale-95 disabled:cursor-default disabled:opacity-95"
+    >
+      <IconComponent size={21} strokeWidth={1.8} className={busy ? 'animate-spin' : ''} />
+      <span className="absolute right-[7px] top-[7px] h-[7px] w-[7px] rounded-full border border-white/80 bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.22)]" />
+      <RailTooltip label={label} />
+    </button>
   )
 }
 

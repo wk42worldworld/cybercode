@@ -192,5 +192,8 @@ export const ja = {
   'fileSearch.close': '閉じる',
 
   'teams.noMessages': 'メッセージはまだありません',
+  'update.railAvailable': 'v{version} に更新',
+  'update.railDownloading': 'v{version} をダウンロード中',
+  'update.railRestarting': '更新を完了するため再起動中',
   'session.untitled': '新しいセッション',
 } satisfies Partial<Record<TranslationKey, string>>

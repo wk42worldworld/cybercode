@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IconRail, getVisibleRailItemCount } from './IconRail'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useUIStore } from '../../stores/uiStore'
+import { useUpdateStore } from '../../stores/updateStore'
 
 describe('IconRail floating panel navigation', () => {
   const renderIconRail = (topRailHeight: number | null = null) => render(<IconRail __testTopRailHeight={topRailHeight} />)
@@ -18,6 +19,19 @@ describe('IconRail floating panel navigation', () => {
       settingsPanelView: 'settings',
       pendingSettingsTab: null,
       railSettingsView: null,
+    })
+    useUpdateStore.setState({
+      status: 'idle',
+      availableVersion: null,
+      releaseNotes: null,
+      progressPercent: 0,
+      downloadedBytes: 0,
+      totalBytes: null,
+      error: null,
+      checkedAt: null,
+      shouldPrompt: false,
+      initialize: vi.fn().mockResolvedValue(undefined),
+      installUpdate: vi.fn().mockResolvedValue(undefined),
     })
   })
 
@@ -120,5 +134,29 @@ describe('IconRail floating panel navigation', () => {
 
     expect(useUIStore.getState().settingsOpen).toBe(true)
     expect(useUIStore.getState().settingsPanelView).toBe('scheduled')
+  })
+
+  it('shows a blue update button above Settings only when an update is available', () => {
+    const { rerender } = renderIconRail()
+
+    expect(screen.queryByTestId('rail-update-button')).not.toBeInTheDocument()
+
+    const installUpdate = vi.fn().mockResolvedValue(undefined)
+    act(() => {
+      useUpdateStore.setState({
+        status: 'available',
+        availableVersion: '1.0.4',
+        installUpdate,
+      })
+    })
+
+    rerender(<IconRail />)
+
+    const updateButton = screen.getByRole('button', { name: '更新到 v1.0.4' })
+    expect(updateButton).toBeInTheDocument()
+    expect(updateButton).toHaveClass('bg-[#0a84ff]')
+
+    fireEvent.click(updateButton)
+    expect(installUpdate).toHaveBeenCalledTimes(1)
   })
 })

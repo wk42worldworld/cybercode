@@ -3,7 +3,6 @@ import { IconRail } from './IconRail'
 import { Sidebar } from './Sidebar'
 import { ContentRouter } from './ContentRouter'
 import { ToastContainer } from '../shared/Toast'
-import { UpdateChecker } from '../shared/UpdateChecker'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useUIStore, type SettingsTab } from '../../stores/uiStore'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
@@ -110,7 +109,6 @@ export function AppShell() {
         </main>
         <SettingsPanel visible={settingsOpen} />
         <ToastContainer />
-        <UpdateChecker />
       </div>
     </div>
   )

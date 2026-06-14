@@ -192,5 +192,8 @@ export const ko = {
   'fileSearch.close': '닫기',
 
   'teams.noMessages': '아직 메시지가 없습니다',
+  'update.railAvailable': 'v{version}(으)로 업데이트',
+  'update.railDownloading': 'v{version} 다운로드 중',
+  'update.railRestarting': '업데이트 완료를 위해 다시 시작 중',
   'session.untitled': '새 세션',
 } satisfies Partial<Record<TranslationKey, string>>
