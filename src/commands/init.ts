@@ -168,6 +168,11 @@ For each suggested skill, provide: name, one-line purpose, and why it fits this 
 
 If \`.cyber/skills/\` already exists with skills, review them first. Do not overwrite existing skills — only propose new ones that complement what is already there.
 
+Before creating each new skill, call SkillGate with the proposed name, description, and when_to_use or the complete proposed SKILL.md. Respect the result:
+- \`reuse\`: do not create a duplicate skill; tell the user which existing skill covers it.
+- \`merge\`: do not create a broad duplicate. Prefer refining the existing writable skill, or ask before creating a narrower additive project skill.
+- \`create\`: proceed with normal creation.
+
 Create each skill at \`.cyber/skills/<skill-name>/SKILL.md\`:
 
 \`\`\`yaml

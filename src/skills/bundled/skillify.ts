@@ -1,4 +1,5 @@
 import { getSessionMemoryContent } from '../../services/SessionMemory/sessionMemoryUtils.js'
+import { SKILL_GATE_TOOL_NAME } from '../../tools/SkillGateTool/constants.js'
 import type { Message } from '../../types/message.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
 import { registerBundledSkill } from '../bundledSkills.js'
@@ -145,7 +146,15 @@ IMPORTANT: see the next section below for the per-step annotations you can optio
 - \`when_to_use\` is CRITICAL -- tells the model when to auto-invoke. Start with "Use when..." and include trigger phrases. Example: "Use when the user wants to cherry-pick a PR to a release branch. Examples: 'cherry-pick to release', 'CP this PR', 'hotfix'."
 - \`arguments\` and \`argument-hint\`: Only include if the skill takes parameters. Use \`$name\` in the body for substitution.
 
-### Step 4: Confirm and Save
+### Step 4: Run the Skill Gate
+
+Before asking the user to save or writing any file, call SkillGate with the complete proposed SKILL.md content or with the proposed name, description, and when_to_use.
+
+- If SkillGate returns \`reuse\`: do not create a duplicate SKILL.md. Tell the user which existing skill should be used instead.
+- If SkillGate returns \`merge\`: do not create a broad duplicate. Explain the nearby skill and ask whether they want to refine that existing skill, capture the reusable lesson as skill memory, or create only a narrower additive skill.
+- If SkillGate returns \`create\`: continue to the final save confirmation.
+
+### Step 5: Confirm and Save
 
 Before writing the file, output the complete SKILL.md content as a yaml code block in your response so the user can review it with proper syntax highlighting. Then ask for confirmation using AskUserQuestion with a simple question like "Does this SKILL.md look good to save?" — do NOT use the body field, keep the question concise.
 
@@ -171,6 +180,7 @@ export function registerSkillifySkill(): void {
       'Glob',
       'Grep',
       'AskUserQuestion',
+      SKILL_GATE_TOOL_NAME,
       'Bash(mkdir:*)',
     ],
     userInvocable: true,

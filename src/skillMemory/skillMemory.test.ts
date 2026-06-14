@@ -21,6 +21,7 @@ import {
 } from './store.js'
 import { buildSkillMemoryReviewPrompt } from './reviewer.js'
 import { evaluateSkillCreationCandidate } from './gate.js'
+import { SkillGateTool } from '../tools/SkillGateTool/SkillGateTool.js'
 
 describe('skill lifecycle memory', () => {
   let tmpRoot: string
@@ -227,5 +228,46 @@ describe('skill lifecycle memory', () => {
         ],
       }).decision,
     ).toBe('create')
+  })
+
+  test('SkillGate tool parses proposed SKILL.md and compares loaded skills', async () => {
+    const result = await SkillGateTool.call(
+      {
+        markdown: `---
+name: verify-ui
+description: Verify web UI flows with Playwright
+when_to_use: Use when checking browser UI behavior after frontend changes.
+---
+
+# Verify UI
+Run the browser verification flow.
+`,
+      },
+      {
+        options: {
+          commands: [
+            {
+              type: 'prompt',
+              name: 'verify-ui',
+              description: 'Verify web UI flows with Playwright',
+              whenToUse:
+                'Use when checking browser UI behavior after frontend changes.',
+              source: 'projectSettings',
+              loadedFrom: 'skills',
+              progressMessage: 'verifying UI',
+              contentLength: 0,
+              async getPromptForCommand() {
+                return [{ type: 'text' as const, text: 'Verify UI' }]
+              },
+            },
+          ],
+        },
+      } as any,
+      undefined as any,
+      undefined as any,
+    )
+
+    expect(result.data.decision).toBe('reuse')
+    expect(result.data.bestMatch?.skillName).toBe('verify-ui')
   })
 })

@@ -13,6 +13,7 @@ import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { BriefTool } from './tools/BriefTool/BriefTool.js'
 import { PromptMemoryTool } from './tools/PromptMemoryTool/PromptMemoryTool.js'
 import { SessionSearchTool } from './tools/SessionSearchTool/SessionSearchTool.js'
+import { SkillGateTool } from './tools/SkillGateTool/SkillGateTool.js'
 // Dead code elimination: conditional import for ant-only tools
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const REPLTool =
@@ -212,6 +213,7 @@ export function getAllBaseTools(): Tools {
     WebSearchTool,
     PromptMemoryTool,
     SessionSearchTool,
+    SkillGateTool,
     TaskStopTool,
     AskUserQuestionTool,
     SkillTool,

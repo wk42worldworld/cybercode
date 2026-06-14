@@ -12,6 +12,10 @@ export type SkillGateMatch = {
   skillName: string
   score: number
   reason: string
+  description?: string
+  whenToUse?: string
+  source?: string
+  loadedFrom?: string
 }
 
 export type SkillGateResult = {
@@ -60,6 +64,27 @@ function commandToCandidate(command: Command): SkillGateCandidate {
   }
 }
 
+function enrichMatch(
+  match: SkillGateMatch,
+  existing: Command | SkillGateCandidate,
+): SkillGateMatch {
+  if (!('type' in existing)) {
+    return {
+      ...match,
+      description: existing.description,
+      whenToUse: existing.whenToUse,
+    }
+  }
+
+  return {
+    ...match,
+    description: existing.description,
+    whenToUse: existing.whenToUse,
+    source: existing.source,
+    loadedFrom: existing.loadedFrom,
+  }
+}
+
 export function scoreSkillSimilarity(
   candidate: SkillGateCandidate,
   existing: SkillGateCandidate,
@@ -86,19 +111,29 @@ export function scoreSkillSimilarity(
   }
 }
 
+export function rankSkillGateMatches(params: {
+  candidate: SkillGateCandidate
+  existingSkills: Array<Command | SkillGateCandidate>
+  limit?: number
+}): SkillGateMatch[] {
+  return params.existingSkills
+    .map(existing => {
+      const comparable = 'type' in existing ? commandToCandidate(existing) : existing
+      return enrichMatch(scoreSkillSimilarity(params.candidate, comparable), existing)
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, params.limit ?? 5)
+}
+
 export function evaluateSkillCreationCandidate(params: {
   candidate: SkillGateCandidate
   existingSkills: Array<Command | SkillGateCandidate>
 }): SkillGateResult {
-  let bestMatch: SkillGateMatch | undefined
-
-  for (const existing of params.existingSkills) {
-    const comparable = 'type' in existing ? commandToCandidate(existing) : existing
-    const match = scoreSkillSimilarity(params.candidate, comparable)
-    if (!bestMatch || match.score > bestMatch.score) {
-      bestMatch = match
-    }
-  }
+  const bestMatch = rankSkillGateMatches({
+    candidate: params.candidate,
+    existingSkills: params.existingSkills,
+    limit: 1,
+  })[0]
 
   if (!bestMatch) return { decision: 'create' }
   if (bestMatch.score >= REUSE_THRESHOLD) {
