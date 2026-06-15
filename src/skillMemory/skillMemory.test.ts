@@ -16,12 +16,21 @@ import {
   appendSkillMemoryPending,
   applySkillMemoryToPromptBlocks,
   recordSkillLifecycleUsage,
+  readSkillMemoryStats,
+  readSkillMemorySummary,
   readSkillMemoryPending,
+  setSkillLifecycleStatus,
+  updateSkillMemoryStats,
   writeSkillMemorySummary,
 } from './store.js'
 import { buildSkillMemoryReviewPrompt } from './reviewer.js'
 import { evaluateSkillCreationCandidate } from './gate.js'
 import { SkillGateTool } from '../tools/SkillGateTool/SkillGateTool.js'
+import {
+  evaluateSkillLifecycleStatus,
+  runSkillMemoryGovernance,
+} from './governance.js'
+import { SkillMemoryTool } from '../tools/SkillMemoryTool/SkillMemoryTool.js'
 
 describe('skill lifecycle memory', () => {
   let tmpRoot: string
@@ -269,5 +278,231 @@ Run the browser verification flow.
 
     expect(result.data.decision).toBe('reuse')
     expect(result.data.bestMatch?.skillName).toBe('verify-ui')
+  })
+
+  test('marks low-frequency unused skills archived without deleting files', async () => {
+    const now = new Date('2026-06-16T00:00:00.000Z')
+    const ref = {
+      skillName: 'old-helper',
+      source: 'userSettings',
+      loadedFrom: 'skills',
+      projectRoot,
+    }
+    await updateSkillMemoryStats(ref, 'global', stats => ({
+      ...stats,
+      status: 'active',
+      useCount: 1,
+      firstUsedAt: '2026-01-01T00:00:00.000Z',
+      lastUsedAt: '2026-01-01T00:00:00.000Z',
+    }))
+
+    expect(evaluateSkillLifecycleStatus(await readSkillMemoryStats(ref, 'global'), now)).toBe(
+      'archived',
+    )
+
+    const report = await runSkillMemoryGovernance({
+      commands: [
+        {
+          type: 'prompt',
+          name: 'old-helper',
+          description: 'Old helper workflow',
+          source: 'userSettings',
+          loadedFrom: 'skills',
+          progressMessage: 'old helper',
+          contentLength: 0,
+          async getPromptForCommand() {
+            return [{ type: 'text' as const, text: 'Old helper' }]
+          },
+        },
+      ],
+      projectRoot,
+      now,
+      applyStatus: true,
+    })
+
+    expect(report.archivedSkills).toContain('old-helper')
+    expect((await readSkillMemoryStats(ref, 'global')).status).toBe('archived')
+  })
+
+  test('does not inject archived skill summaries into prompts', async () => {
+    const ref = {
+      skillName: 'archived-helper',
+      source: 'userSettings',
+      loadedFrom: 'skills',
+      projectRoot,
+    }
+    await writeSkillMemorySummary(ref, 'global', 'Old learned note.')
+    await setSkillLifecycleStatus({ ref, scope: 'global', status: 'archived' })
+
+    const blocks = [{ type: 'text' as const, text: 'Base skill body' }]
+    expect(await applySkillMemoryToPromptBlocks({ blocks, ref })).toEqual(blocks)
+    expect(
+      await readSkillMemorySummary(ref, 'global', { includeArchived: true }),
+    ).toMatchObject({ content: 'Old learned note.' })
+  })
+
+  test('reports duplicate clusters and safely merges SUMMARY.md notes', async () => {
+    const targetRef = {
+      skillName: 'frontend-ui-polish',
+      source: 'projectSettings',
+      loadedFrom: 'skills',
+      projectRoot,
+    }
+    const sourceRef = {
+      skillName: 'react-ui-quality',
+      source: 'projectSettings',
+      loadedFrom: 'skills',
+      projectRoot,
+    }
+    await updateSkillMemoryStats(targetRef, 'project', stats => ({
+      ...stats,
+      useCount: 5,
+      lastUsedAt: '2026-06-01T00:00:00.000Z',
+    }))
+    await updateSkillMemoryStats(sourceRef, 'project', stats => ({
+      ...stats,
+      useCount: 1,
+      lastUsedAt: '2026-06-01T00:00:00.000Z',
+    }))
+    await writeSkillMemorySummary(targetRef, 'project', 'Prefer compact UI.')
+    await writeSkillMemorySummary(sourceRef, 'project', 'Check responsive states.')
+
+    const commands = [
+      {
+        type: 'prompt',
+        name: 'frontend-ui-polish',
+        description:
+          'Improve React UI polish layout quality responsive components',
+        source: 'projectSettings',
+        loadedFrom: 'skills',
+        progressMessage: 'frontend polish',
+        contentLength: 0,
+        async getPromptForCommand() {
+          return [{ type: 'text' as const, text: 'Polish UI' }]
+        },
+      },
+      {
+        type: 'prompt',
+        name: 'react-ui-quality',
+        description:
+          'Improve React UI polish layout quality accessible components',
+        source: 'projectSettings',
+        loadedFrom: 'skills',
+        progressMessage: 'react quality',
+        contentLength: 0,
+        async getPromptForCommand() {
+          return [{ type: 'text' as const, text: 'Quality UI' }]
+        },
+      },
+    ]
+
+    const report = await runSkillMemoryGovernance({
+      commands,
+      projectRoot,
+      mergeMemory: true,
+    })
+
+    expect(report.duplicateClusters).toHaveLength(1)
+    expect(report.duplicateClusters[0]?.action).toBe('merge-memory')
+    expect(report.mergedMemory[0]).toMatchObject({
+      targetSkillName: 'frontend-ui-polish',
+      changed: true,
+    })
+    expect(
+      (await readSkillMemorySummary(targetRef, 'project'))?.content,
+    ).toContain('From /react-ui-quality')
+    expect(report.staleSkills).toContain('react-ui-quality')
+    expect((await readSkillMemoryStats(sourceRef, 'project')).status).toBe('stale')
+  })
+
+  test('duplicate clusters keep the highest similarity score across transitive matches', async () => {
+    const commands = [
+      {
+        type: 'prompt',
+        name: 'frontend-ui-polish',
+        description:
+          'Improve React UI polish layout quality responsive components',
+        source: 'projectSettings',
+        loadedFrom: 'skills',
+        progressMessage: 'frontend polish',
+        contentLength: 0,
+        async getPromptForCommand() {
+          return [{ type: 'text' as const, text: 'Polish UI' }]
+        },
+      },
+      {
+        type: 'prompt',
+        name: 'react-ui-quality',
+        description:
+          'Improve React UI polish layout quality accessible components',
+        source: 'projectSettings',
+        loadedFrom: 'skills',
+        progressMessage: 'react quality',
+        contentLength: 0,
+        async getPromptForCommand() {
+          return [{ type: 'text' as const, text: 'Quality UI' }]
+        },
+      },
+      {
+        type: 'prompt',
+        name: 'react-ui-quality-copy',
+        description:
+          'Improve React UI polish layout quality accessible components',
+        source: 'projectSettings',
+        loadedFrom: 'skills',
+        progressMessage: 'react quality copy',
+        contentLength: 0,
+        async getPromptForCommand() {
+          return [{ type: 'text' as const, text: 'Quality UI copy' }]
+        },
+      },
+    ]
+
+    const report = await runSkillMemoryGovernance({
+      commands,
+      projectRoot,
+      applyStatus: false,
+    })
+
+    expect(report.duplicateClusters).toHaveLength(1)
+    expect(report.duplicateClusters[0]?.score).toBe(1)
+    expect(report.duplicateClusters[0]?.action).toBe('reuse')
+  })
+
+  test('SkillMemory tool can read and pin a skill memory record', async () => {
+    const command = {
+      type: 'prompt',
+      name: 'pin-me',
+      description: 'Pinned skill',
+      source: 'userSettings',
+      loadedFrom: 'skills',
+      progressMessage: 'pinning',
+      contentLength: 0,
+      async getPromptForCommand() {
+        return [{ type: 'text' as const, text: 'Pin me' }]
+      },
+    }
+
+    const context = {
+      options: {
+        commands: [command],
+      },
+    } as any
+
+    const setResult = await SkillMemoryTool.call(
+      { action: 'set-status', skillName: 'pin-me', status: 'pinned' },
+      context,
+      undefined as any,
+      undefined as any,
+    )
+    expect(setResult.data.success).toBe(true)
+
+    const readResult = await SkillMemoryTool.call(
+      { action: 'read', skillName: 'pin-me' },
+      context,
+      undefined as any,
+      undefined as any,
+    )
+    expect(readResult.data.stats.status).toBe('pinned')
   })
 })

@@ -236,7 +236,10 @@ export async function recordSkillLifecycleUsage(params: {
       skillName: ref.skillName,
       source: ref.source,
       loadedFrom: ref.loadedFrom,
-      status: existing?.status ?? params.status ?? 'active',
+      status:
+        existing?.status === 'archived'
+          ? 'active'
+          : existing?.status ?? params.status ?? 'active',
       useCount: (existing?.useCount ?? 0) + 1,
       firstUsedAt: existing?.firstUsedAt ?? now,
       lastUsedAt: now,
@@ -262,6 +265,40 @@ export function recordSkillLifecycleUsageSafe(params: {
   void recordSkillLifecycleUsage(params).catch(error => {
     logForDebugging(`[skill-memory] usage write failed: ${String(error)}`)
   })
+}
+
+export async function setSkillLifecycleStatus(params: {
+  ref: SkillMemoryRef
+  scope: SkillMemoryScope
+  status: SkillLifecycleStatus
+}): Promise<SkillMemoryStats> {
+  const { ref, scope, status } = params
+  const sidecarPath = getSkillUsageSidecarPath(ref, scope)
+  const skillId = getSkillMemoryId(ref)
+
+  await withFileLock(sidecarPath, async () => {
+    const usage = await readJsonFile<SkillUsageSidecar>(sidecarPath, {
+      version: 1,
+      skills: {},
+    })
+    const existing = usage.skills[skillId]
+    if (existing) {
+      usage.skills[skillId] = {
+        ...existing,
+        status,
+      }
+      await atomicWrite(sidecarPath, `${JSON.stringify(usage, null, 2)}\n`)
+    }
+  }).catch(error => {
+    logForDebugging(
+      `[skill-memory] failed to update usage status: ${String(error)}`,
+    )
+  })
+
+  return updateSkillMemoryStats(ref, scope, stats => ({
+    ...stats,
+    status,
+  }))
 }
 
 export async function readSkillMemoryStats(
@@ -303,7 +340,11 @@ export async function updateSkillMemoryStats(
 export async function readSkillMemorySummary(
   ref: SkillMemoryRef,
   scope: SkillMemoryScope,
+  options: { includeArchived?: boolean } = {},
 ): Promise<SkillMemorySummary | null> {
+  const stats = await readSkillMemoryStats(ref, scope)
+  if (stats.status === 'archived' && !options.includeArchived) return null
+
   const path = getMemoryPath(ref, scope, SKILL_MEMORY_SUMMARY_FILENAME)
   const content = (await readTextFile(path)).trim()
   if (!content) return null

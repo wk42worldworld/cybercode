@@ -23,8 +23,8 @@ export type SkillGateResult = {
   bestMatch?: SkillGateMatch
 }
 
-const REUSE_THRESHOLD = 0.88
-const MERGE_THRESHOLD = 0.72
+export const SKILL_GATE_REUSE_THRESHOLD = 0.88
+export const SKILL_GATE_MERGE_THRESHOLD = 0.72
 
 function tokenize(value: string | undefined): Set<string> {
   if (!value) return new Set()
@@ -136,10 +136,10 @@ export function evaluateSkillCreationCandidate(params: {
   })[0]
 
   if (!bestMatch) return { decision: 'create' }
-  if (bestMatch.score >= REUSE_THRESHOLD) {
+  if (bestMatch.score >= SKILL_GATE_REUSE_THRESHOLD) {
     return { decision: 'reuse', bestMatch }
   }
-  if (bestMatch.score >= MERGE_THRESHOLD) {
+  if (bestMatch.score >= SKILL_GATE_MERGE_THRESHOLD) {
     return { decision: 'merge', bestMatch }
   }
   return { decision: 'create', bestMatch }
