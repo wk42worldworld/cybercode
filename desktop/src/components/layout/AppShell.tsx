@@ -12,6 +12,8 @@ import { StartupErrorView } from './StartupErrorView'
 import { SettingsPanel } from './SettingsPanel'
 import { useTabStore } from '../../stores/tabStore'
 import { useChatStore } from '../../stores/chatStore'
+import { ChatModeSidebar } from '../chat/ChatModeSidebar'
+import { useTranslation } from '../../i18n'
 
 export function AppShell() {
   const fetchSettings = useSettingsStore((s) => s.fetchAll)
@@ -19,6 +21,10 @@ export function AppShell() {
   const settingsOpen = useUIStore((s) => s.settingsOpen)
   const closeSettings = useUIStore((s) => s.closeSettings)
   const activeTabId = useTabStore((s) => s.activeTabId)
+  const tabs = useTabStore((s) => s.tabs)
+  const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
+  const showChatModeSidebar = activeTab?.type === 'session'
+  const t = useTranslation()
   const [ready, setReady] = useState(false)
   const [startupError, setStartupError] = useState<string | null>(null)
 
@@ -107,6 +113,9 @@ export function AppShell() {
           <TabBar />
           <ContentRouter />
         </main>
+        {showChatModeSidebar && (
+          <ChatModeSidebar label={t('chat.programmingMode')} ariaLabel={t('chat.sideRail')} />
+        )}
         <SettingsPanel visible={settingsOpen} />
         <ToastContainer />
       </div>

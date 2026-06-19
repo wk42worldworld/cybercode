@@ -38,6 +38,7 @@ import {
 import { getPlatform } from '../../utils/platform.js'
 import { isPluginInstalled } from '../../utils/plugins/installedPluginsManager.js'
 import { loadKnownMarketplacesConfigSafe } from '../../utils/plugins/marketplaceManager.js'
+import { tryFindGitBashPath } from '../../utils/windowsPaths.js'
 import { OFFICIAL_MARKETPLACE_NAME } from '../../utils/plugins/officialMarketplace.js'
 import {
   getCurrentSessionAgentColor,
@@ -243,7 +244,8 @@ const externalTips: Tip[] = [
     cooldownSessions: 10,
     isRelevant: async () =>
       getPlatform() === 'windows' &&
-      process.env.CLAUDE_CODE_USE_POWERSHELL_TOOL === undefined,
+      process.env.CLAUDE_CODE_USE_POWERSHELL_TOOL === undefined &&
+      tryFindGitBashPath() !== null,
   },
   {
     id: 'status-line',

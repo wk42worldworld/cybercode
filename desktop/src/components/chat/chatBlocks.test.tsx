@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallBlock } from './ToolCallBlock'
+import { ToolCallGroup } from './ToolCallGroup'
+import { MessageExecutionLog } from './MessageExecutionLog'
 import { PermissionDialog } from './PermissionDialog'
 import { useChatStore } from '../../stores/chatStore'
 import { useTabStore } from '../../stores/tabStore'
@@ -73,6 +75,136 @@ describe('chat blocks', () => {
 
     expect(container.textContent).toContain('Bash')
     expect(container.textContent).toContain('fatal: unrecognized argument: --no-stat')
+  })
+
+  it('adds a running text sweep effect while a tool is executing', () => {
+    const { container, rerender } = render(
+      <ToolCallBlock
+        toolName="Bash"
+        input={{ command: 'bun test', description: 'Run tests' }}
+        result={null}
+      />,
+    )
+
+    expect(container.querySelector('.tool-running-sweep')).toBeTruthy()
+    expect(container.querySelector('.tool-running-text')).toBeTruthy()
+
+    rerender(
+      <ToolCallBlock
+        toolName="Bash"
+        input={{ command: 'bun test', description: 'Run tests' }}
+        result={{ content: 'ok', isError: false }}
+      />,
+    )
+
+    expect(container.querySelector('.tool-running-sweep')).toBeNull()
+    expect(container.querySelector('.tool-running-text')).toBeNull()
+  })
+
+  it('keeps parent tool calls in running text sweep while a child tool is executing', () => {
+    const parent = {
+      id: 'parent',
+      type: 'tool_use' as const,
+      toolName: 'Read',
+      toolUseId: 'parent-tool',
+      input: { file_path: '/tmp/parent.md' },
+      timestamp: Date.now(),
+    }
+    const child = {
+      id: 'child',
+      type: 'tool_use' as const,
+      toolName: 'Bash',
+      toolUseId: 'child-tool',
+      parentToolUseId: 'parent-tool',
+      input: { command: 'bun test' },
+      timestamp: Date.now(),
+    }
+
+    const { container } = render(
+      <ToolCallGroup
+        toolCalls={[parent]}
+        resultMap={new Map([
+          ['parent-tool', {
+            id: 'parent-result',
+            type: 'tool_result' as const,
+            toolUseId: 'parent-tool',
+            content: 'Agent started',
+            isError: false,
+            timestamp: Date.now(),
+          }],
+        ])}
+        childToolCallsByParent={new Map([['parent-tool', [child]]])}
+        agentTaskNotifications={{}}
+      />,
+    )
+
+    expect(container.querySelectorAll('[data-running="true"]').length).toBeGreaterThanOrEqual(2)
+    expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('adds running text sweep to the collapsed execution log Run row', () => {
+    const bash = {
+      id: 'bash-call',
+      type: 'tool_use' as const,
+      toolName: 'Bash',
+      toolUseId: 'bash-tool',
+      input: { command: 'cd /tmp/whisper_job && whisper-cli meeting.wav' },
+      timestamp: Date.now(),
+    }
+
+    const { container } = render(
+      <MessageExecutionLog
+        toolCalls={[bash]}
+        resultMap={new Map()}
+      />,
+    )
+
+    expect(container.textContent).toContain('Run')
+    expect(container.textContent).toContain('cd /tmp/whisper_job')
+    expect(container.querySelector('[data-running="true"]')).toBeTruthy()
+    expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('keeps collapsed execution log parent rows running while a child tool is executing', () => {
+    const parent = {
+      id: 'parent-log',
+      type: 'tool_use' as const,
+      toolName: 'Agent',
+      toolUseId: 'parent-log-tool',
+      input: { description: 'Transcribe meeting' },
+      timestamp: Date.now(),
+    }
+    const child = {
+      id: 'child-log',
+      type: 'tool_use' as const,
+      toolName: 'Bash',
+      toolUseId: 'child-log-tool',
+      parentToolUseId: 'parent-log-tool',
+      input: { command: 'whisper-cli meeting.wav' },
+      timestamp: Date.now(),
+    }
+
+    const { container } = render(
+      <MessageExecutionLog
+        toolCalls={[parent]}
+        resultMap={new Map([
+          ['parent-log-tool', {
+            id: 'parent-log-result',
+            type: 'tool_result' as const,
+            toolUseId: 'parent-log-tool',
+            content: 'Agent started',
+            isError: false,
+            timestamp: Date.now(),
+          }],
+        ])}
+        childToolCallsByParent={new Map([['parent-log-tool', [child]]])}
+      />,
+    )
+
+    expect(container.textContent).toContain('Agent')
+    expect(container.textContent).toContain('Transcribe meeting')
+    expect(container.querySelector('[data-running="true"]')).toBeTruthy()
+    expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
   })
 
   it('expands tool errors so full Computer Use gate messages are readable', () => {

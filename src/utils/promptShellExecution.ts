@@ -6,7 +6,9 @@ import { errorMessage, MalformedCommandError, ShellError } from './errors.js'
 import type { FrontmatterShell } from './frontmatterParser.js'
 import { createAssistantMessage } from './messages.js'
 import { hasPermissionsToUseTool } from './permissions/permissions.js'
+import { getPlatform } from './platform.js'
 import { processToolResultBlock } from './toolResultStorage.js'
+import { tryFindGitBashPath } from './windowsPaths.js'
 
 // Narrow structural slice both BashTool and PowerShellTool satisfy. We can't
 // use the base Tool type: it marks call()'s canUseTool/parentMessage as
@@ -74,11 +76,14 @@ export async function executeShellCommandsInPrompt(
 ): Promise<string> {
   let result = text
 
-  // Resolve the tool once. `shell === undefined` and `shell === 'bash'` both
-  // hit BashTool. PowerShell only when the runtime gate allows — a skill
-  // author's frontmatter choice doesn't override the user's opt-in/out.
+  // Resolve the tool once. `shell === 'bash'` always hits BashTool. When shell
+  // is unspecified on Windows and Git Bash is unavailable, use the same
+  // PowerShell fallback as input-box commands.
+  const shouldFallbackToPowerShell =
+    shell === undefined && getPlatform() === 'windows' && !tryFindGitBashPath()
   const shellTool: PromptShellTool =
-    shell === 'powershell' && isPowerShellToolEnabled()
+    (shell === 'powershell' || shouldFallbackToPowerShell) &&
+    isPowerShellToolEnabled()
       ? getPowerShellTool()
       : BashTool
 

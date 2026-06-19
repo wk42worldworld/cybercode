@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useCallback, type CSSProperties, type ReactNode } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useProviderStore } from '../stores/providerStore'
 import { localeOptions, useTranslation } from '../i18n'
@@ -186,7 +186,7 @@ export function ProviderSettings() {
             name={t('settings.providers.officialName')}
             description={t('settings.providers.officialDesc')}
             detail="claude-opus-4-7 · claude-sonnet-4-6 · claude-haiku-4-5"
-            logoUrl={getProviderLogoUrl({ id: 'official' })}
+            providerId="official"
             isActive={isOfficialActive}
             isConfigured={true}
             badges={[
@@ -232,7 +232,7 @@ export function ProviderSettings() {
                 name={name}
                 description={description}
                 detail={detail}
-                logoUrl={getProviderLogoUrl(preset)}
+                providerId={provider && preset.id === 'custom' ? undefined : preset.id}
                 isActive={isActive}
                 isConfigured={isConfigured}
                 badges={badges}
@@ -358,7 +358,7 @@ function ProviderCatalogItem({
   name,
   description,
   detail,
-  logoUrl,
+  providerId,
   isActive,
   isConfigured,
   badges,
@@ -369,7 +369,7 @@ function ProviderCatalogItem({
   name: string
   description: string
   detail: string
-  logoUrl?: string
+  providerId?: string
   isActive: boolean
   isConfigured: boolean
   badges: Array<string | null>
@@ -387,7 +387,7 @@ function ProviderCatalogItem({
       }`}
     >
       <div className="flex min-h-[76px] items-center gap-[14px] px-[20px] py-[14px]">
-        <ProviderLogo name={name} logoUrl={logoUrl} active={isActive} />
+        <ProviderLogo name={name} providerId={providerId} active={isActive} />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -460,35 +460,54 @@ function ProviderBadge({
 
 function ProviderLogo({
   name,
-  logoUrl,
+  providerId,
   active,
 }: {
   name: string
-  logoUrl?: string
+  providerId?: string
   active: boolean
 }) {
-  const [failed, setFailed] = useState(false)
-  const initials = getProviderInitials(name)
+  const logo = getProviderLogo(providerId)
+  const fallback = getFallbackProviderLogo(name)
+  const containerStyle = logo
+    ? undefined
+    : fallback.containerStyle
+  const imageStyle = logo
+    ? {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+      } satisfies CSSProperties
+    : undefined
 
   return (
     <div
-      className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border ${
+      aria-label={logo ? undefined : `${name} logo`}
+      role={logo ? undefined : 'img'}
+      data-provider-logo={providerId ?? 'generated'}
+      className={`relative flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-[12px] border bg-[var(--color-surface-container-lowest)] ${
         active
-          ? 'border-[var(--color-brand)]/40 bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-accent-glow)]'
-          : 'border-[var(--color-border)] bg-[var(--color-surface-container-high)]'
+          ? 'border-[var(--color-brand)] shadow-[var(--shadow-accent-glow)]'
+          : 'border-[var(--color-border)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]'
       }`}
+      style={containerStyle}
     >
-      {logoUrl && !failed ? (
+      {logo ? (
         <img
-          src={logoUrl}
+          src={logo.src}
           alt={`${name} logo`}
-          className="h-7 w-7 object-contain"
-          loading="eager"
-          onError={() => setFailed(true)}
+          className="block shrink-0 select-none"
+          decoding="async"
+          draggable={false}
+          style={imageStyle}
         />
       ) : (
-        <span className="text-[13px] font-bold text-[var(--color-text-primary)]">
-          {initials}
+        <span
+          aria-hidden="true"
+          className="text-[13px] font-black leading-none tracking-normal"
+          style={fallback.textStyle}
+        >
+          {fallback.text}
         </span>
       )}
     </div>
@@ -505,21 +524,70 @@ function getProviderInitials(name: string): string {
   return Array.from(trimmed).slice(0, 2).join('')
 }
 
-const PROVIDER_LOGO_URLS: Record<string, string> = {
-  official: '/provider-icons/anthropic.ico',
-  deepseek: '/provider-icons/deepseek.ico',
-  zhipuglm: '/provider-icons/zhipuglm.png',
-  kimi: '/provider-icons/kimi.ico',
-  minimax: '/provider-icons/minimax.ico',
-  xiaomimimo: '/provider-icons/xiaomimimo.png',
-  lmstudio: '/provider-icons/lmstudio.ico',
-  ollama: '/provider-icons/ollama.png',
+type ProviderLogoAsset = {
+  src: string
 }
 
-function getProviderLogoUrl(
-  preset: Pick<ProviderPreset, 'id'>,
-): string | undefined {
-  return PROVIDER_LOGO_URLS[preset.id]
+const PROVIDER_LOGOS: Record<string, ProviderLogoAsset> = {
+  official: {
+    src: '/provider-icons/anthropic.ico',
+  },
+  deepseek: {
+    src: '/provider-icons/deepseek.ico',
+  },
+  zhipuglm: {
+    src: '/provider-icons/zhipuglm.png',
+  },
+  kimi: {
+    src: '/provider-icons/kimi.ico',
+  },
+  minimax: {
+    src: '/provider-icons/minimax.ico',
+  },
+  xiaomimimo: {
+    src: '/provider-icons/xiaomimimo.png',
+  },
+  lmstudio: {
+    src: '/provider-icons/lmstudio.ico',
+  },
+  ollama: {
+    src: '/provider-icons/ollama.png',
+  },
+}
+
+function getProviderLogo(providerId: string | undefined): ProviderLogoAsset | undefined {
+  return providerId ? PROVIDER_LOGOS[providerId] : undefined
+}
+
+const FALLBACK_PROVIDER_LOGOS = [
+  { from: '#0ea5e9', to: '#14b8a6' },
+  { from: '#7c3aed', to: '#db2777' },
+  { from: '#16a34a', to: '#84cc16' },
+  { from: '#dc2626', to: '#f59e0b' },
+  { from: '#2563eb', to: '#4f46e5' },
+] as const
+
+function getFallbackProviderLogo(name: string) {
+  const palette = FALLBACK_PROVIDER_LOGOS[hashProviderName(name) % FALLBACK_PROVIDER_LOGOS.length]!
+  return {
+    text: getProviderInitials(name),
+    containerStyle: {
+      background: `linear-gradient(135deg, ${palette.from} 0%, ${palette.to} 100%)`,
+      borderColor: `${palette.to}55`,
+      boxShadow: `0 4px 14px ${palette.from}30`,
+    } satisfies CSSProperties,
+    textStyle: {
+      color: '#ffffff',
+    } satisfies CSSProperties,
+  }
+}
+
+function hashProviderName(value: string): number {
+  let hash = 0
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+  }
+  return hash
 }
 
 function getPresetDescription(
@@ -810,7 +878,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     >
       <div className="flex flex-col gap-4">
         <div className="flex min-h-[76px] items-start gap-[12px] rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[16px] py-[12px]">
-          <ProviderLogo name={selectedPreset.name} logoUrl={getProviderLogoUrl(selectedPreset)} active={false} />
+          <ProviderLogo name={selectedPreset.name} providerId={selectedPreset.id} active={false} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="min-w-0 truncate text-[14px] font-semibold text-[var(--color-text-primary)]">

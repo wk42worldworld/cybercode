@@ -15,6 +15,7 @@ type Props = {
   result?: { content: unknown; isError: boolean } | null
   agentTaskNotification?: AgentTaskNotification
   compact?: boolean
+  running?: boolean
 }
 
 const TOOL_ICONS: Record<string, string> = {
@@ -31,12 +32,14 @@ const TOOL_ICONS: Record<string, string> = {
   Skill: 'auto_awesome',
 }
 
-export function ToolCallBlock({ toolName, input, result, compact = false }: Props) {
+export function ToolCallBlock({ toolName, input, result, compact = false, running }: Props) {
   const [expanded, setExpanded] = useState(false)
   const t = useTranslation()
   const obj = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
   const icon = TOOL_ICONS[toolName] || 'build'
   const filePath = typeof obj.file_path === 'string' ? obj.file_path : ''
+  const isRunning = running ?? !result
+  const runningTextClass = isRunning ? ' tool-running-text' : ''
   const summary = getToolSummary(toolName, obj, t)
   const outputSummary = getToolResultSummary(
     toolName,
@@ -54,7 +57,10 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
 
   return (
     <div
+      data-running={isRunning ? 'true' : undefined}
       className={`overflow-hidden rounded-[10px] bg-[var(--color-surface-container-low)] ${
+        isRunning ? 'tool-running-sweep' : ''
+      } ${
         compact ? 'mb-0' : 'mb-1.5'
       }`}
     >
@@ -69,15 +75,15 @@ export function ToolCallBlock({ toolName, input, result, compact = false }: Prop
           className="flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
         >
           <Icon name={icon} size={12} className="text-[var(--color-text-tertiary)]" />
-          <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+          <span className={`text-[11px] font-medium text-[var(--color-text-secondary)]${runningTextClass}`}>
             {toolName}
           </span>
           {filePath ? (
-            <span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
+            <span className={`min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]${runningTextClass}`}>
               {filePath.split('/').pop()}
             </span>
           ) : summary ? (
-            <span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
+            <span className={`min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]${runningTextClass}`}>
               {summary}
             </span>
           ) : (

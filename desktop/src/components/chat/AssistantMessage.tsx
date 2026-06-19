@@ -14,6 +14,7 @@ type Props = {
   agentLabel?: string
   toolCalls?: ToolCall[]
   resultMap?: Map<string, ToolResult>
+  childToolCallsByParent?: Map<string, ToolCall[]>
 }
 
 function isDocumentLike(content: string): boolean {
@@ -28,7 +29,7 @@ function isDocumentLike(content: string): boolean {
   return false
 }
 
-export function AssistantMessage({ content, isStreaming, toolCalls, resultMap }: Props) {
+export function AssistantMessage({ content, isStreaming, toolCalls, resultMap, childToolCallsByParent }: Props) {
   const layout = !isStreaming && isDocumentLike(content) ? 'document' : 'bubble'
 
   return (
@@ -64,7 +65,11 @@ export function AssistantMessage({ content, isStreaming, toolCalls, resultMap }:
         </div>
 
         {toolCalls && resultMap && (
-          <MessageExecutionLog toolCalls={toolCalls} resultMap={resultMap} />
+          <MessageExecutionLog
+            toolCalls={toolCalls}
+            resultMap={resultMap}
+            childToolCallsByParent={childToolCallsByParent}
+          />
         )}
 
         <div className="mt-[2px] opacity-0 transition-opacity group-hover/msg:opacity-100">

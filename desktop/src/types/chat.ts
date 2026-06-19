@@ -36,6 +36,7 @@ export type AttachmentRef = {
 export type UIAttachment = {
   type: 'file' | 'image'
   name: string
+  path?: string
   data?: string
   mimeType?: string
 }

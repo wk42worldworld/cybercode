@@ -1112,6 +1112,55 @@ button, input, textarea, select, a, [role="button"] {
   50% { opacity: 0.35; }
 }
 
+/* Tool running text sweep — GPT-style highlight pass across executing tool labels */
+.tool-running-text {
+  --tool-text-sweep-base: color-mix(in srgb, var(--color-text-secondary) 78%, transparent);
+  --tool-text-sweep-sheen: color-mix(in srgb, var(--color-brand) 72%, var(--color-text-primary) 28%);
+  --tool-text-sweep-glow: color-mix(in srgb, var(--color-brand) 34%, transparent);
+  color: var(--tool-text-sweep-base);
+}
+
+[data-theme="dark"] .tool-running-text {
+  --tool-text-sweep-base: color-mix(in srgb, var(--color-text-secondary) 82%, transparent);
+  --tool-text-sweep-sheen: color-mix(in srgb, var(--color-brand) 68%, white 32%);
+  --tool-text-sweep-glow: color-mix(in srgb, var(--color-brand) 40%, transparent);
+}
+
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .tool-running-text {
+    background-image:
+      linear-gradient(
+        105deg,
+        var(--tool-text-sweep-base) 0%,
+        var(--tool-text-sweep-base) 37%,
+        var(--tool-text-sweep-glow) 46%,
+        var(--tool-text-sweep-sheen) 50%,
+        var(--tool-text-sweep-glow) 54%,
+        var(--tool-text-sweep-base) 63%,
+        var(--tool-text-sweep-base) 100%
+      );
+    background-size: 260% 100%;
+    background-position: 140% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: tool-running-text-sweep 2.8s linear infinite;
+  }
+}
+
+@keyframes tool-running-text-sweep {
+  0% { background-position: 140% 0; }
+  100% { background-position: -140% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-running-text {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
 /* Core animations — easing matched to cubic-bezier(0.16, 1, 0.3, 1) */
 @keyframes shimmer {
   0%, 100% { opacity: 0.4; }

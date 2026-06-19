@@ -472,7 +472,7 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe(
           'Default shell for input-box ! commands. ' +
-            "Defaults to 'bash' on all platforms (no Windows auto-flip).",
+            "Defaults to 'bash' except on Windows when Git Bash is unavailable.",
         ),
       // Only run hooks defined in managed settings (managed-settings.json)
       allowManagedHooksOnly: z

@@ -789,6 +789,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
             message={msg}
             toolCalls={item.toolCalls}
             toolResultMap={toolResultMap}
+            childToolCallsByParent={childToolCallsByParent}
             agentTaskNotifications={agentTaskNotifications}
             toolResult={
               msg.type === 'tool_use'
@@ -1061,6 +1062,7 @@ export const MessageBlock = memo(function MessageBlock({
   message,
   toolCalls,
   toolResultMap,
+  childToolCallsByParent,
   agentTaskNotifications,
   toolResult,
   rewindableUserIndex,
@@ -1069,6 +1071,7 @@ export const MessageBlock = memo(function MessageBlock({
   message: UIMessage
   toolCalls?: ToolCall[]
   toolResultMap: Map<string, ToolResult>
+  childToolCallsByParent: Map<string, ToolCall[]>
   agentTaskNotifications: Record<string, AgentTaskNotification>
   toolResult?: { content: unknown; isError: boolean } | null
   rewindableUserIndex?: number | null
@@ -1113,6 +1116,7 @@ export const MessageBlock = memo(function MessageBlock({
           content={message.content}
           toolCalls={toolCalls}
           resultMap={toolResultMap}
+          childToolCallsByParent={childToolCallsByParent}
         />
       )
     case 'thinking':

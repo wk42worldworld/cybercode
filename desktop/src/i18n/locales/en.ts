@@ -568,6 +568,10 @@ export const en = {
   'chat.placeholderMissing': 'This session points to a missing workspace. Create a new session or pick another project.',
   'chat.addFiles': 'Add files or photos',
   'chat.slashCommands': 'Slash commands',
+  'chat.sideRail': 'Chat side rail',
+  'chat.programmingMode': 'Coding Mode',
+  'chat.pathlessFileAttachment': 'This file cannot be attached without a local path: {name}. In the desktop app, use the paperclip button to attach it by path.',
+  'chat.inlineImageTooLarge': 'This image is too large to inline: {name}. In the desktop app, use the paperclip button to attach it by path.',
   'slash.mcp.title': 'Available MCP tools',
   'slash.mcp.subtitle': 'Global and current-project MCP servers available in this chat context.',
   'slash.mcp.subtitleWithProject': 'Showing global plus project MCP for: {path}',
@@ -716,6 +720,13 @@ export const en = {
   'streaming.thinking': 'Thinking',
   'streaming.running': 'Running',
   'streaming.working': 'Working',
+
+  // ─── Long Running Notice ──────────────────────────────────────
+  'longRunning.waitingTitle': 'Still waiting for the model',
+  'longRunning.waitingBody': 'No visible output after {elapsed}. The connection is still responding.',
+  'longRunning.connectionStaleTitle': 'Connection may be stalled',
+  'longRunning.connectionStaleBody': 'No server event for {idle}. You can keep waiting or stop this turn.',
+  'longRunning.stop': 'Stop',
 
   // ─── Permission Dialog ──────────────────────────────────────
   'permission.allowEditFile': 'Allow Claude to {toolName} {fileName}?',

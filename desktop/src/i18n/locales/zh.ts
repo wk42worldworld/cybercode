@@ -570,6 +570,10 @@ export const zh: Record<TranslationKey, string> = {
   'chat.placeholderMissing': '此会话指向的工作目录缺失。请新建会话或选择其他项目。',
   'chat.addFiles': '添加文件或图片',
   'chat.slashCommands': '斜杠命令',
+  'chat.sideRail': '聊天侧边栏',
+  'chat.programmingMode': '编程模式',
+  'chat.pathlessFileAttachment': '无法在没有本地路径的情况下附加此文件：{name}。请在桌面端使用回形针按钮按路径附加。',
+  'chat.inlineImageTooLarge': '这张图片太大，无法内联上传：{name}。请在桌面端使用回形针按钮按路径附加。',
   'slash.mcp.title': '可用 MCP 工具',
   'slash.mcp.subtitle': '展示当前聊天上下文里的全局 MCP 和当前项目 MCP。',
   'slash.mcp.subtitleWithProject': '当前展示全局 MCP 以及这个项目的 MCP：{path}',
@@ -718,6 +722,13 @@ export const zh: Record<TranslationKey, string> = {
   'streaming.thinking': '思考中',
   'streaming.running': '运行中',
   'streaming.working': '工作中',
+
+  // ─── Long Running Notice ──────────────────────────────────────
+  'longRunning.waitingTitle': '仍在等待模型响应',
+  'longRunning.waitingBody': '已等待 {elapsed}，还没有可显示的输出。连接仍在响应。',
+  'longRunning.connectionStaleTitle': '连接可能已卡住',
+  'longRunning.connectionStaleBody': '最近 {idle} 没有收到服务器事件。可以继续等，也可以停止这一轮。',
+  'longRunning.stop': '停止',
 
   // ─── Permission Dialog ──────────────────────────────────────
   'permission.allowEditFile': '允许 Claude {toolName} {fileName}？',

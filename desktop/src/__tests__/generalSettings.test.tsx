@@ -306,6 +306,11 @@ describe('Settings > Providers tab', () => {
     render(<ProviderSettings />)
 
     expect(screen.getByAltText('DeepSeek logo')).toHaveAttribute('src', '/provider-icons/deepseek.ico')
+    expect(screen.getByAltText('DeepSeek logo')).toHaveStyle({
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+    })
 
     fireEvent.click(screen.getAllByRole('button', { name: /Configure/i })[0]!)
 

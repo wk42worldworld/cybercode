@@ -129,7 +129,10 @@ function AgentToolGroup({
   }, [isStreaming])
 
   return (
-    <div className="mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)]">
+    <div
+      data-running={isAnyRunning ? 'true' : undefined}
+      className={`mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)] ${isAnyRunning ? 'tool-running-sweep' : ''}`}
+    >
       {/* Left accent line */}
       <div className="flex">
         <div className={`w-0.5 shrink-0 ${isAnyRunning ? 'bg-[var(--color-brand)] animate-accent-pulse-line' : 'bg-[var(--color-brand)]'}`} />
@@ -139,14 +142,14 @@ function AgentToolGroup({
           className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
         >
           <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)] transition-transform duration-200" style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
-          <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
+          <span className={`flex-1 truncate text-[12px] text-[var(--color-text-secondary)] ${isAnyRunning ? 'tool-running-text' : ''}`}>
             {toolCalls.length === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: toolCalls.length })}
           </span>
-          <span className="label-micro text-[var(--color-text-tertiary)]">
+          <span className={`label-micro text-[var(--color-text-tertiary)] ${isAnyRunning ? 'tool-running-text' : ''}`}>
             {toolCalls.length}
           </span>
           {isAnyRunning && (
-            <span className="rounded-full bg-[var(--color-brand)]/12 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)]">
+            <span className="tool-running-text rounded-full bg-[var(--color-brand)]/12 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)]">
               {t('agentStatus.running')}
             </span>
           )}
@@ -209,10 +212,15 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
     }
   }, [hasNestedToolCalls, isStreaming])
 
-  const isExecuting = !allComplete || isStreaming
+  const isExecuting =
+    Boolean(isStreaming) ||
+    toolCalls.some((toolCall) => isToolCallRunning(toolCall, resultMap, childToolCallsByParent))
 
   return (
-    <div className="mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)]">
+    <div
+      data-running={isExecuting ? 'true' : undefined}
+      className={`mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)] ${isExecuting ? 'tool-running-sweep' : ''}`}
+    >
       {/* Left accent line + header */}
       <div className="flex">
         <div className={`w-0.5 shrink-0 ${isExecuting ? 'bg-[var(--color-brand)] animate-accent-pulse-line' : 'bg-[var(--color-brand)]'}`} />
@@ -222,22 +230,22 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
           className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
         >
           <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)] transition-transform duration-200" style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
-          <span className="flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">
+          <span className={`flex-1 truncate text-[12px] text-[var(--color-text-secondary)] ${isExecuting ? 'tool-running-text' : ''}`}>
             {summary}
           </span>
-          <span className="label-micro text-[var(--color-text-tertiary)]">
+          <span className={`label-micro text-[var(--color-text-tertiary)] ${isExecuting ? 'tool-running-text' : ''}`}>
             {toolCalls.length}
           </span>
-          {!isStreaming && allComplete && !errorPresent && (
+          {!isExecuting && allComplete && !errorPresent && (
             <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
           )}
-          {!isStreaming && errorPresent && (
+          {!isExecuting && errorPresent && (
             <Icon name="error" size={14} className="text-[var(--color-error)]" />
           )}
-          {!isStreaming && !allComplete && !errorPresent && (
+          {!isExecuting && !allComplete && !errorPresent && (
             <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
           )}
-          {isStreaming && (
+          {isExecuting && (
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
           )}
         </button>
@@ -315,15 +323,20 @@ function AgentCallCard({
   const outputSummary = previewText ? getAgentOutputSummary(previewText) : ''
   const description = typeof input.description === 'string' ? input.description : ''
 
+  const isRunning = status === 'starting' || status === 'running'
+
   return (
-    <div className="overflow-hidden rounded-lg bg-[var(--color-surface-container-low)]">
+    <div
+      data-running={isRunning ? 'true' : undefined}
+      className={`overflow-hidden rounded-lg bg-[var(--color-surface-container-low)] ${isRunning ? 'tool-running-sweep' : ''}`}
+    >
       <div className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50">
         <Icon name="smart_toy" size={18} className="text-[var(--color-brand)]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="label-micro text-[var(--color-brand)]">Agent</span>
+            <span className={`label-micro text-[var(--color-brand)] ${isRunning ? 'tool-running-text' : ''}`}>Agent</span>
             {description && (
-              <span className="truncate text-[12px] text-[var(--color-text-secondary)]">
+              <span className={`truncate text-[12px] text-[var(--color-text-secondary)] ${isRunning ? 'tool-running-text' : ''}`}>
                 {description}
               </span>
             )}
@@ -338,7 +351,7 @@ function AgentCallCard({
               {recentToolCalls.map((recentToolCall) => (
                 <div
                   key={recentToolCall.id}
-                  className="truncate text-[11px] text-[var(--color-text-tertiary)]"
+                  className={`truncate text-[11px] text-[var(--color-text-tertiary)] ${isRunning ? 'tool-running-text' : ''}`}
                 >
                   {formatRecentToolUseSummary(recentToolCall, resultMap)}
                 </div>
@@ -363,7 +376,7 @@ function AgentCallCard({
             {t('agentStatus.viewResult')}
           </button>
         )}
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClassName}`}>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClassName} ${isRunning ? 'tool-running-text' : ''}`}>
           {statusLabel}
         </span>
         <button
@@ -436,6 +449,7 @@ function ToolCallTree({
 }) {
   const result = resultMap.get(toolCall.toolUseId)
   const childToolCalls = childToolCallsByParent.get(toolCall.toolUseId) ?? []
+  const isRunning = isToolCallRunning(toolCall, resultMap, childToolCallsByParent)
 
   return (
     <div className={compact ? 'space-y-1' : ''}>
@@ -444,6 +458,7 @@ function ToolCallTree({
         input={toolCall.input}
         result={result ? { content: result.content, isError: result.isError } : null}
         compact={compact}
+        running={isRunning}
       />
       {childToolCalls.length > 0 && (
         <div className={compact ? 'ml-4 border-l border-[var(--color-border-separator)] pl-3' : 'mb-2 ml-16 border-l border-[var(--color-border-separator)] pl-3'}>
@@ -461,6 +476,19 @@ function ToolCallTree({
         </div>
       )}
     </div>
+  )
+}
+
+function isToolCallRunning(
+  toolCall: ToolCall,
+  resultMap: Map<string, ToolResult>,
+  childToolCallsByParent: Map<string, ToolCall[]>,
+): boolean {
+  if (!resultMap.has(toolCall.toolUseId)) return true
+
+  const childToolCalls = childToolCallsByParent.get(toolCall.toolUseId) ?? []
+  return childToolCalls.some((childToolCall) =>
+    isToolCallRunning(childToolCall, resultMap, childToolCallsByParent)
   )
 }
 

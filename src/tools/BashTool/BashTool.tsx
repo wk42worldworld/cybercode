@@ -33,6 +33,7 @@ import type { ExecResult } from '../../utils/ShellCommand.js';
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js';
 import { semanticBoolean } from '../../utils/semanticBoolean.js';
 import { semanticNumber } from '../../utils/semanticNumber.js';
+import { isBashToolEnabled } from '../../utils/shell/shellToolUtils.js';
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js';
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js';
 import { TaskOutput } from '../../utils/task/TaskOutput.js';
@@ -430,6 +431,9 @@ export const BashTool = buildTool({
   },
   async prompt() {
     return getSimplePrompt();
+  },
+  isEnabled() {
+    return isBashToolEnabled();
   },
   isConcurrencySafe(input) {
     return this.isReadOnly?.(input) ?? false;

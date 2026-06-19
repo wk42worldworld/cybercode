@@ -23,6 +23,10 @@ import {
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
 } from '../../constants/xml.js'
+import {
+  buildPathRequiredAttachmentMessage,
+  getInlineFileAttachmentsWithoutPath,
+} from './attachmentPolicy.js'
 
 const settingsService = new SettingsService()
 const providerService = new ProviderService()
@@ -239,6 +243,18 @@ async function handleUserMessage(
 
   if (desktopSlashCommand?.commandName === 'clear') {
     await handleDesktopClearCommand(ws)
+    return
+  }
+
+  const inlineFileAttachments = getInlineFileAttachmentsWithoutPath(message.attachments)
+  if (inlineFileAttachments.length > 0) {
+    sendMessage(ws, {
+      type: 'error',
+      message: buildPathRequiredAttachmentMessage(inlineFileAttachments),
+      code: 'ATTACHMENT_PATH_REQUIRED',
+      retryable: false,
+    })
+    sendMessage(ws, { type: 'status', state: 'idle' })
     return
   }
 

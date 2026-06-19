@@ -84,6 +84,9 @@ export type PerSessionState = {
   tokenUsage: TokenUsage
   elapsedSeconds: number
   statusVerb: string
+  turnStartedAt?: number | null
+  lastModelActivityAt?: number | null
+  lastConnectionActivityAt?: number | null
   slashCommands: Array<{ name: string; description: string }>
   agentTaskNotifications: Record<string, AgentTaskNotification>
   elapsedTimer: ReturnType<typeof setInterval> | null
@@ -113,6 +116,9 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   tokenUsage: { input_tokens: 0, output_tokens: 0 },
   elapsedSeconds: 0,
   statusVerb: '',
+  turnStartedAt: null,
+  lastModelActivityAt: null,
+  lastConnectionActivityAt: null,
   slashCommands: [],
   agentTaskNotifications: {},
   elapsedTimer: null,
@@ -495,6 +501,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ? attachments.map((a) => ({
             type: a.type,
             name: a.name || a.path || a.mimeType || a.type,
+            path: a.path,
             data: a.data,
             mimeType: a.mimeType,
           }))
@@ -526,12 +533,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           timestamp: Date.now(),
         })
       }
+      const now = Date.now()
       newMessages.push({
         id: nextId(),
         type: 'user_text',
         content: userFacingContent,
         attachments: isMemberSession ? undefined : uiAttachments,
-        timestamp: Date.now(),
+        timestamp: now,
         ...(isMemberSession ? { pending: true } : {}),
       })
 
@@ -554,6 +562,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             streamingText: '',
             dismissedThinkingPanelIdentityKey: null,
             statusVerb: isMemberSession ? '' : randomSpinnerVerb(),
+            turnStartedAt: now,
+            lastModelActivityAt: null,
+            lastConnectionActivityAt: now,
             elapsedTimer: timer,
             connectionState: isMemberSession ? 'connected' : session.connectionState,
           },
@@ -653,6 +664,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             dismissedThinkingPanelIdentityKey: getThinkingPanelIdentityKey(sessionId, session.messages),
             elapsedTimer: null,
             statusVerb: '',
+            turnStartedAt: null,
+            lastModelActivityAt: null,
           },
         },
       }
@@ -959,6 +972,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             pendingComputerUsePermission: null,
             elapsedTimer: null,
             statusVerb: '',
+            turnStartedAt: null,
+            lastModelActivityAt: null,
           })),
         }
       })
@@ -1026,6 +1041,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         activeThinkingId: null,
         dismissedThinkingPanelIdentityKey: null,
         chatState: 'idle',
+        turnStartedAt: null,
+        lastModelActivityAt: null,
       })),
     }))
   },
@@ -1034,9 +1051,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const update = (updater: (session: PerSessionState) => Partial<PerSessionState>) => {
       set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, updater) }))
     }
+    const receivedAt = Date.now()
+    const markConnectionActivity = () => ({ lastConnectionActivityAt: receivedAt })
+    const markModelActivity = () => ({
+      lastConnectionActivityAt: receivedAt,
+      lastModelActivityAt: receivedAt,
+    })
 
     switch (msg.type) {
       case 'connected':
+        update(() => markConnectionActivity())
         break
 
       case 'status':
@@ -1050,11 +1074,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           // across separate bubbles.
           const preserveStreamingTurn = hasPendingStreamText && msg.state !== 'idle'
           const shouldFlush = hasPendingStreamText && msg.state === 'idle'
+          const tokenProgress =
+            typeof msg.tokens === 'number' && msg.tokens > session.tokenUsage.output_tokens
           return {
+            ...markConnectionActivity(),
             chatState: preserveStreamingTurn ? 'streaming' : msg.state,
             ...(msg.verb && msg.verb !== 'Thinking' ? { statusVerb: msg.verb } : {}),
             ...(msg.tokens ? { tokenUsage: { ...session.tokenUsage, output_tokens: msg.tokens } } : {}),
-            ...(msg.state === 'idle' ? { activeThinkingId: null, statusVerb: '' } : {}),
+            ...(tokenProgress ? { lastModelActivityAt: receivedAt } : {}),
+            ...(msg.state === 'idle' ? {
+              activeThinkingId: null,
+              statusVerb: '',
+              turnStartedAt: null,
+              lastModelActivityAt: null,
+            } : {}),
             ...(shouldFlush ? {
               messages: appendAssistantTextMessage(session.messages, pendingText, Date.now()),
               streamingText: '',
@@ -1078,18 +1111,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const pendingText = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (msg.blockType !== 'text' && pendingText.trim()) {
           update((s) => ({
+            ...markModelActivity(),
             messages: appendAssistantTextMessage(s.messages, pendingText, Date.now()),
             streamingText: '',
           }))
         }
         if (msg.blockType === 'text') {
           update((s) => ({
+            ...markModelActivity(),
             ...(pendingText !== s.streamingText ? { streamingText: pendingText } : {}),
             chatState: 'streaming',
             activeThinkingId: null,
           }))
         } else if (msg.blockType === 'tool_use') {
           update(() => ({
+            ...markModelActivity(),
             activeToolUseId: msg.toolUseId ?? null,
             activeToolName: msg.toolName ?? null,
             streamingToolInput: '',
@@ -1108,12 +1144,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               const text = pendingDeltas.get(sessionId) ?? ''
               pendingDeltas.delete(sessionId)
               flushTimers.delete(sessionId)
-              update((s) => ({ streamingText: s.streamingText + text }))
+              const flushedAt = Date.now()
+              update((s) => ({
+                streamingText: s.streamingText + text,
+                lastConnectionActivityAt: flushedAt,
+                lastModelActivityAt: flushedAt,
+              }))
             }, 50)
             flushTimers.set(sessionId, timer)
           }
         }
-        if (msg.toolInput !== undefined) update((s) => ({ streamingToolInput: s.streamingToolInput + msg.toolInput }))
+        if (msg.toolInput !== undefined) {
+          update((s) => ({
+            ...markModelActivity(),
+            streamingToolInput: s.streamingToolInput + msg.toolInput,
+          }))
+        }
         break
 
       case 'thinking':
@@ -1128,10 +1174,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           if (last && last.type === 'thinking') {
             const updated = [...base]
             updated[updated.length - 1] = { ...last, content: last.content + msg.text }
-            return { messages: updated, chatState: 'thinking', activeThinkingId: last.id, streamingText: '' }
+            return {
+              ...markModelActivity(),
+              messages: updated,
+              chatState: 'thinking',
+              activeThinkingId: last.id,
+              streamingText: '',
+            }
           }
           const id = nextId()
           return {
+            ...markModelActivity(),
             messages: [...base, { id, type: 'thinking', content: msg.text, timestamp: Date.now() }],
             chatState: 'thinking',
             activeThinkingId: id,
@@ -1144,6 +1197,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const session = get().sessions[sessionId]
         const toolName = msg.toolName || session?.activeToolName || 'unknown'
         update((s) => ({
+          ...markModelActivity(),
           messages: [...s.messages, {
             id: nextId(), type: 'tool_use', toolName,
             toolUseId: msg.toolUseId || s.activeToolUseId || '',
@@ -1162,6 +1216,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'tool_result':
         update((s) => ({
+          ...markModelActivity(),
           messages: [...s.messages, {
             id: nextId(), type: 'tool_result', toolUseId: msg.toolUseId,
             content: msg.content, isError: msg.isError, timestamp: Date.now(), parentToolUseId: msg.parentToolUseId,
@@ -1176,6 +1231,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'permission_request':
         update((s) => ({
+          ...markModelActivity(),
           pendingPermission: {
             requestId: msg.requestId,
             toolName: msg.toolName,
@@ -1204,6 +1260,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'computer_use_permission_request':
         update(() => ({
+          ...markModelActivity(),
           pendingComputerUsePermission: {
             requestId: msg.requestId,
             request: msg.request,
@@ -1220,20 +1277,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const text = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (text.trim()) {
           update((s) => ({
+            ...markModelActivity(),
             messages: appendAssistantTextMessage(s.messages, text, Date.now()),
             streamingText: '',
           }))
         } else if (text !== session.streamingText) {
-          update(() => ({ streamingText: text }))
+          update(() => ({ ...markConnectionActivity(), streamingText: text }))
         }
         if (session.elapsedTimer) clearInterval(session.elapsedTimer)
         update(() => ({
+          ...markConnectionActivity(),
           tokenUsage: msg.usage,
           chatState: 'idle',
           activeThinkingId: null,
           pendingPermission: null,
           pendingComputerUsePermission: null,
           elapsedTimer: null,
+          turnStartedAt: null,
+          lastModelActivityAt: null,
         }))
         break
       }
@@ -1247,12 +1308,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
           newMessages = [...newMessages, { id: nextId(), type: 'error', message: msg.message, code: msg.code, timestamp: Date.now() }]
           return {
+            ...markConnectionActivity(),
             messages: newMessages,
             chatState: 'idle',
             activeThinkingId: null,
             streamingText: '',
             pendingPermission: null,
             pendingComputerUsePermission: null,
+            turnStartedAt: null,
+            lastModelActivityAt: null,
           }
         })
         useTabStore.getState().updateTabStatus(sessionId, 'error')
@@ -1266,24 +1330,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         break
 
       case 'team_created':
+        update(() => markConnectionActivity())
         useTeamStore.getState().handleTeamCreated(msg.teamName)
         break
       case 'team_update':
+        update(() => markConnectionActivity())
         useTeamStore.getState().handleTeamUpdate(msg.teamName, msg.members)
         break
       case 'team_deleted':
+        update(() => markConnectionActivity())
         useTeamStore.getState().handleTeamDeleted(msg.teamName)
         break
       case 'task_update':
+        update(() => markConnectionActivity())
         break
       case 'session_title_updated':
         {
+          update(() => markConnectionActivity())
           const title = resolveSessionTitleUpdate(msg.sessionId, msg.title)
           useSessionStore.getState().updateSessionTitle(msg.sessionId, title)
           useTabStore.getState().updateTabTitle(msg.sessionId, title)
         }
         break
       case 'system_notification':
+        update(() => markConnectionActivity())
         if (msg.subtype === 'slash_commands' && Array.isArray(msg.data)) {
           update(() => ({ slashCommands: msg.data as Array<{ name: string; description: string }> }))
         }
@@ -1309,6 +1379,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             elapsedTimer: null,
             elapsedSeconds: 0,
             statusVerb: '',
+            turnStartedAt: null,
+            lastModelActivityAt: null,
             tokenUsage: { input_tokens: 0, output_tokens: 0 },
             slashCommands: [],
           }))
@@ -1387,6 +1459,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
         break
       case 'pong':
+        update(() => markConnectionActivity())
         break
     }
   },

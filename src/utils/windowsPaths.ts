@@ -79,6 +79,11 @@ function findExecutable(executable: string): string | null {
   }
 }
 
+const DEFAULT_GIT_BASH_LOCATIONS = [
+  'C:\\Program Files\\Git\\bin\\bash.exe',
+  'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+] as const
+
 /**
  * If Windows, set the SHELL environment variable to git-bash path.
  * This is used by BashTool and Shell.ts for user shell commands.
@@ -111,6 +116,12 @@ export const tryFindGitBashPath = memoize((): string | null => {
       return process.env.CLAUDE_CODE_GIT_BASH_PATH
     }
     return null
+  }
+
+  for (const location of DEFAULT_GIT_BASH_LOCATIONS) {
+    if (checkPathExists(location)) {
+      return location
+    }
   }
 
   const gitPath = findExecutable('git')

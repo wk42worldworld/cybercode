@@ -139,6 +139,9 @@ function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionS
     tokenUsage: { input_tokens: 0, output_tokens: 0 },
     elapsedSeconds: 0,
     statusVerb: '',
+    turnStartedAt: null,
+    lastModelActivityAt: null,
+    lastConnectionActivityAt: null,
     slashCommands: [],
     agentTaskNotifications: {},
     elapsedTimer: null,
@@ -952,6 +955,66 @@ describe('chatStore history mapping', () => {
     expect(
       useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState,
     ).toBe('permission_pending')
+  })
+
+  it('tracks quiet turns without treating websocket pongs as model activity', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-19T00:00:00.000Z'))
+
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState(),
+      },
+    })
+
+    useChatStore.getState().sendMessage(TEST_SESSION_ID, 'hello')
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.turnStartedAt).toBe(Date.now())
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastConnectionActivityAt).toBe(Date.now())
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastModelActivityAt).toBeNull()
+
+    vi.setSystemTime(new Date('2026-06-19T00:00:30.000Z'))
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, { type: 'pong' })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastConnectionActivityAt).toBe(Date.now())
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastModelActivityAt).toBeNull()
+
+    const timer = useChatStore.getState().sessions[TEST_SESSION_ID]?.elapsedTimer
+    if (timer) clearInterval(timer)
+    vi.useRealTimers()
+  })
+
+  it('records real model activity when thinking content arrives', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-19T00:00:10.000Z'))
+
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'thinking',
+          turnStartedAt: Date.now() - 10_000,
+          lastConnectionActivityAt: Date.now() - 10_000,
+        }),
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'thinking',
+      text: 'Inspecting the current workspace',
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastConnectionActivityAt).toBe(Date.now())
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastModelActivityAt).toBe(Date.now())
+
+    vi.setSystemTime(new Date('2026-06-19T00:00:40.000Z'))
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, { type: 'pong' })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastConnectionActivityAt).toBe(Date.now())
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.lastModelActivityAt).toBe(
+      new Date('2026-06-19T00:00:10.000Z').getTime(),
+    )
+
+    vi.useRealTimers()
   })
 
   it('keeps delayed text blocks from one streamed assistant turn in a single message', () => {

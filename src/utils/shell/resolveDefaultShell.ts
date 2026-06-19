@@ -1,14 +1,35 @@
 import { getInitialSettings } from '../settings/settings.js'
+import { getPlatform, type Platform } from '../platform.js'
+import { tryFindGitBashPath } from '../windowsPaths.js'
+
+export function resolveDefaultShellFromState({
+  configuredShell,
+  platform,
+  hasGitBash,
+}: {
+  configuredShell: 'bash' | 'powershell' | undefined
+  platform: Platform
+  hasGitBash: boolean
+}): 'bash' | 'powershell' {
+  if (configuredShell) return configuredShell
+  if (platform === 'windows' && !hasGitBash) return 'powershell'
+  return 'bash'
+}
 
 /**
  * Resolve the default shell for input-box `!` commands.
  *
- * Resolution order (docs/design/ps-shell-selection.md §4.2):
- *   settings.defaultShell → 'bash'
+ * Resolution order:
+ *   settings.defaultShell → Windows Git Bash availability → 'bash'
  *
- * Platform default is 'bash' everywhere — we do NOT auto-flip Windows to
- * PowerShell (would break existing Windows users with bash hooks).
+ * Windows keeps bash when Git Bash is available, but falls back to PowerShell
+ * when it is not. This keeps existing Git Bash users stable while making the
+ * desktop install work out of the box on native Windows.
  */
 export function resolveDefaultShell(): 'bash' | 'powershell' {
-  return getInitialSettings().defaultShell ?? 'bash'
+  return resolveDefaultShellFromState({
+    configuredShell: getInitialSettings().defaultShell,
+    platform: getPlatform(),
+    hasGitBash: tryFindGitBashPath() !== null,
+  })
 }

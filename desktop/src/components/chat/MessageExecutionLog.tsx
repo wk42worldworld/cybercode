@@ -9,9 +9,10 @@ type ToolResult = Extract<UIMessage, { type: 'tool_result' }>
 type Props = {
   toolCalls: ToolCall[]
   resultMap: Map<string, ToolResult>
+  childToolCallsByParent?: Map<string, ToolCall[]>
 }
 
-export function MessageExecutionLog({ toolCalls, resultMap }: Props) {
+export function MessageExecutionLog({ toolCalls, resultMap, childToolCallsByParent = new Map() }: Props) {
   if (toolCalls.length === 0) return null
 
   return (
@@ -19,20 +20,38 @@ export function MessageExecutionLog({ toolCalls, resultMap }: Props) {
       style={{ scrollbarWidth: 'thin' }}
     >
       {toolCalls.map((tc) => (
-        <ExecutionLogItem key={tc.id} toolCall={tc} result={resultMap.get(tc.toolUseId)} />
+        <ExecutionLogItem
+          key={tc.id}
+          toolCall={tc}
+          resultMap={resultMap}
+          childToolCallsByParent={childToolCallsByParent}
+        />
       ))}
     </div>
   )
 }
 
-function ExecutionLogItem({ toolCall, result }: { toolCall: ToolCall; result?: ToolResult }) {
+function ExecutionLogItem({
+  toolCall,
+  resultMap,
+  childToolCallsByParent,
+}: {
+  toolCall: ToolCall
+  resultMap: Map<string, ToolResult>
+  childToolCallsByParent: Map<string, ToolCall[]>
+}) {
   const [expanded, setExpanded] = useState(false)
+  const result = resultMap.get(toolCall.toolUseId)
   const isDone = !!result
   const isError = result?.isError ?? false
+  const isRunning = isExecutionLogToolRunning(toolCall, resultMap, childToolCallsByParent)
+  const runningTextClass = isRunning ? ' tool-running-text' : ''
   const info = getToolInfo(toolCall)
 
   return (
-    <div className="border-b border-[var(--color-border-separator)] last:border-0"
+    <div
+      data-running={isRunning ? 'true' : undefined}
+      className="border-b border-[var(--color-border-separator)] last:border-0"
       style={{ animation: 'fadeInUp 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       <button
@@ -55,8 +74,8 @@ function ExecutionLogItem({ toolCall, result }: { toolCall: ToolCall; result?: T
 
         {/* Label + brief */}
         <span className="text-[11px] text-[var(--color-text-tertiary)] truncate flex-1 leading-relaxed">
-          <span className="font-medium text-[var(--color-text-secondary)]">{info.label}</span>
-          {info.brief && <span className="ml-1.5 opacity-70">{info.brief}</span>}
+          <span className={`font-medium text-[var(--color-text-secondary)]${runningTextClass}`}>{info.label}</span>
+          {info.brief && <span className={`ml-1.5 opacity-70${runningTextClass}`}>{info.brief}</span>}
         </span>
 
         {/* Chevron */}
@@ -76,11 +95,25 @@ function ExecutionLogItem({ toolCall, result }: { toolCall: ToolCall; result?: T
             toolName={toolCall.toolName}
             input={toolCall.input}
             result={result ? { content: result.content, isError: result.isError } : null}
+            running={isRunning}
             compact
           />
         </div>
       )}
     </div>
+  )
+}
+
+function isExecutionLogToolRunning(
+  toolCall: ToolCall,
+  resultMap: Map<string, ToolResult>,
+  childToolCallsByParent: Map<string, ToolCall[]>,
+): boolean {
+  if (!resultMap.has(toolCall.toolUseId)) return true
+
+  const childToolCalls = childToolCallsByParent.get(toolCall.toolUseId) ?? []
+  return childToolCalls.some((childToolCall) =>
+    isExecutionLogToolRunning(childToolCall, resultMap, childToolCallsByParent)
   )
 }
 

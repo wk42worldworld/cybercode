@@ -32,10 +32,27 @@ type Attachment = {
   id: string
   name: string
   type: 'image' | 'file'
+  path?: string
   mimeType?: string
   previewUrl?: string
   data?: string
 }
+
+const INLINE_IMAGE_MAX_BYTES = 10 * 1024 * 1024
+
+const IMAGE_ATTACHMENT_EXTENSIONS = new Set([
+  'apng',
+  'avif',
+  'bmp',
+  'gif',
+  'heic',
+  'heif',
+  'jpeg',
+  'jpg',
+  'png',
+  'svg',
+  'webp',
+])
 
 type ChatInputProps = {
   variant?: 'default' | 'hero'
@@ -49,6 +66,46 @@ type ChatInputProps = {
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
+}
+
+function getFileExtension(name: string): string {
+  const match = name.toLowerCase().match(/\.([^.]+)$/)
+  return match?.[1] ?? ''
+}
+
+function getPathFileName(filePath: string): string {
+  return filePath.split(/[\\/]/).filter(Boolean).pop() || filePath
+}
+
+function isInlineImageFile(file: File): boolean {
+  const mimeType = file.type.toLowerCase()
+  return mimeType.startsWith('image/') || IMAGE_ATTACHMENT_EXTENSIONS.has(getFileExtension(file.name))
+}
+
+function getNonStandardFilePath(file: File): string | null {
+  const maybePath = (file as File & { path?: unknown }).path
+  return typeof maybePath === 'string' && maybePath.trim() ? maybePath : null
+}
+
+function fileUrlToPath(value: string): string | null {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'file:') return null
+    const pathname = decodeURIComponent(url.pathname)
+    return pathname.replace(/^\/([a-zA-Z]:\/)/, '$1')
+  } catch {
+    return null
+  }
+}
+
+function getDroppedPaths(dataTransfer: DataTransfer): string[] {
+  const uriList = dataTransfer.getData('text/uri-list')
+  return uriList
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map(fileUrlToPath)
+    .filter((path): path is string => Boolean(path))
 }
 
 export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey }: ChatInputProps) {
@@ -108,11 +165,12 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     setInput(composerPrefill.text)
     setAttachments(
       (composerPrefill.attachments ?? [])
-        .filter((attachment) => attachment.type === 'image' || attachment.data)
+        .filter((attachment) => attachment.type === 'image' || attachment.data || attachment.path)
         .map((attachment, index) => ({
           id: `rewind-prefill-${composerPrefill.nonce}-${index}`,
           name: attachment.name,
           type: attachment.type,
+          path: attachment.path,
           mimeType: attachment.mimeType,
           previewUrl: attachment.type === 'image' ? attachment.data : undefined,
           data: attachment.data,
@@ -389,6 +447,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     const attachmentPayload: AttachmentRef[] = attachments.map((attachment) => ({
       type: attachment.type,
       name: attachment.name,
+      path: attachment.path,
       data: attachment.data,
       mimeType: attachment.mimeType,
     }))
@@ -528,9 +587,73 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     const files = event.target.files
     if (!files) return
 
+    handleFiles(files)
+
+    event.target.value = ''
+  }
+
+  const addPathAttachments = useCallback((paths: string[]) => {
+    if (paths.length === 0) return
+
+    setAttachments((prev) => [
+      ...prev,
+      ...paths.map((filePath) => ({
+        id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: getPathFileName(filePath),
+        type: 'file' as const,
+        path: filePath,
+      })),
+    ])
+  }, [])
+
+  const handleAddFiles = async () => {
+    if (isMemberSession) return
+
+    if (!isTauriRuntime()) {
+      fileInputRef.current?.click()
+      return
+    }
+
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog')
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        title: addFilesLabel,
+      })
+      const paths = Array.isArray(selected) ? selected : selected ? [selected] : []
+      addPathAttachments(paths)
+    } catch (error) {
+      console.error('[ChatInput] Failed to choose attachment files:', error)
+      fileInputRef.current?.click()
+    }
+  }
+
+  const handleFiles = (files: FileList | File[]) => {
     Array.from(files).forEach((file) => {
+      const filePath = getNonStandardFilePath(file)
+      if (filePath) {
+        addPathAttachments([filePath])
+        return
+      }
+
+      if (!isInlineImageFile(file)) {
+        useUIStore.getState().addToast({
+          type: 'warning',
+          message: t('chat.pathlessFileAttachment', { name: file.name }),
+        })
+        return
+      }
+
+      if (file.size > INLINE_IMAGE_MAX_BYTES) {
+        useUIStore.getState().addToast({
+          type: 'warning',
+          message: t('chat.inlineImageTooLarge', { name: file.name }),
+        })
+        return
+      }
+
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2)}`
-      const isImage = file.type.startsWith('image/')
       const reader = new FileReader()
       reader.onload = () => {
         setAttachments((prev) => [
@@ -538,17 +661,15 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
           {
             id,
             name: file.name,
-            type: isImage ? 'image' : 'file',
+            type: 'image',
             mimeType: file.type || undefined,
-            previewUrl: isImage ? (reader.result as string) : undefined,
+            previewUrl: reader.result as string,
             data: reader.result as string,
           },
         ])
       }
       reader.readAsDataURL(file)
     })
-
-    event.target.value = ''
   }
 
   const insertTextAtCursor = useCallback((text: string) => {
@@ -598,10 +719,15 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
     if (isMemberSession) return
+    const droppedPaths = getDroppedPaths(event.dataTransfer)
+    if (droppedPaths.length > 0) {
+      addPathAttachments(droppedPaths)
+      return
+    }
+
     const files = event.dataTransfer.files
     if (files.length > 0) {
-      const fakeEvent = { target: { files } } as React.ChangeEvent<HTMLInputElement>
-      handleFileSelect(fakeEvent)
+      handleFiles(files)
     }
   }
 
@@ -820,7 +946,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                 {!isMemberSession && (
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleAddFiles}
                     aria-label={addFilesLabel}
                     className={composerToolButtonClassName}
                   >
@@ -922,7 +1048,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
 
       </div>
 
-      <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
+      <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
     </div>
   )
 }

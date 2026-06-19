@@ -12,6 +12,7 @@ import { ComputerUsePermissionModal } from '../components/chat/ComputerUsePermis
 import { TeamStatusBar } from '../components/teams/TeamStatusBar'
 import { SessionTaskBar } from '../components/chat/SessionTaskBar'
 import { FloatingThinkingPanel } from '../components/chat/FloatingThinkingPanel'
+import { LongRunningNotice } from '../components/chat/LongRunningNotice'
 
 const TASK_POLL_INTERVAL_MS = 1000
 const THINKING_RECENT_GRACE_MS = 3200
@@ -35,6 +36,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const sessions = useSessionStore((s) => s.sessions)
   const ensureSessionReady = useChatStore((s) => s.ensureSessionReady)
   const sessionState = useChatStore((s) => sessionId ? s.sessions[sessionId] : undefined)
+  const stopGeneration = useChatStore((s) => s.stopGeneration)
   const pendingComputerUsePermission = sessionState?.pendingComputerUsePermission ?? null
   const fetchSessionTasks = useCLITaskStore((s) => s.fetchSessionTasks)
   const trackedTaskSessionId = useCLITaskStore((s) => s.sessionId)
@@ -126,13 +128,25 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   let latestUserMessageIndex = -1
   let latestThinkingIndex = -1
   let latestAssistantTextIndex = -1
+  let latestVisibleProgressIndex = -1
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index]
     if (!message) continue
     if (latestUserMessageIndex === -1 && message.type === 'user_text') latestUserMessageIndex = index
     if (latestThinkingIndex === -1 && message.type === 'thinking') latestThinkingIndex = index
     if (latestAssistantTextIndex === -1 && message.type === 'assistant_text') latestAssistantTextIndex = index
-    if (latestUserMessageIndex !== -1 && latestThinkingIndex !== -1 && latestAssistantTextIndex !== -1) break
+    if (
+      latestVisibleProgressIndex === -1 &&
+      (message.type === 'tool_use' || message.type === 'tool_result' || message.type === 'permission_request')
+    ) {
+      latestVisibleProgressIndex = index
+    }
+    if (
+      latestUserMessageIndex !== -1 &&
+      latestThinkingIndex !== -1 &&
+      latestAssistantTextIndex !== -1 &&
+      latestVisibleProgressIndex !== -1
+    ) break
   }
 
   const latestUserMessage = latestUserMessageIndex >= 0
@@ -146,6 +160,9 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const assistantBodyStartedForCurrentTurn =
     streamingText.length > 0 ||
     (latestAssistantTextIndex >= 0 && (latestUserMessageIndex === -1 || latestAssistantTextIndex >= latestUserMessageIndex))
+  const visibleProgressForCurrentTurn =
+    latestVisibleProgressIndex >= 0 &&
+    (latestUserMessageIndex === -1 || latestVisibleProgressIndex >= latestUserMessageIndex)
   const latestThinkingIsFresh = latestThinking
     ? Date.now() - latestThinking.timestamp <= THINKING_RECENT_GRACE_MS
     : false
@@ -229,65 +246,84 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
         </div>
       )}
 
-      {/* MessageList is ALWAYS mounted — never conditionally unmounted.
-          Unmounting + remounting it causes a burst of 500+ DOM nodes which
-          crashes the WKWebView GPU compositor (white screen).
-          EmptyState is a lightweight overlay on top; it appears/disappears
-          without touching the MessageList DOM tree. */}
-      <div className="flex-1 relative flex flex-col overflow-hidden min-h-0">
-        {!isMemberSession && session?.workDirExists === false && (
-          <div className="mx-auto w-full max-w-[860px] px-8 py-2 shrink-0">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-600">
-              <span>⚠</span>
-              <span className="truncate">
-                {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
-              </span>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* MessageList is ALWAYS mounted — never conditionally unmounted.
+              Unmounting + remounting it causes a burst of 500+ DOM nodes which
+              crashes the WKWebView GPU compositor (white screen).
+              EmptyState is a lightweight overlay on top; it appears/disappears
+              without touching the MessageList DOM tree. */}
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+            {!isMemberSession && session?.workDirExists === false && (
+              <div className="mx-auto w-full max-w-[860px] shrink-0 px-8 py-2">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-600">
+                  <span>⚠</span>
+                  <span className="truncate">
+                    {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <MessageList
+              sessionId={sessionId}
+              projectPath={resolvedProjectPath}
+              isActive={isActive}
+              bottomOverlayHeight={measuredBottomOverlayHeight}
+            />
+
+            <FloatingThinkingPanel
+              content={activeThinking?.content}
+              isActive={thinkingPanelIsActive}
+              identityKey={thinkingPanelIdentityKey}
+            />
+
+          </div>
+
+          {composerHeight > 0 && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 left-0 right-[12px] z-10 bg-[var(--color-chat-bg)]"
+              style={{ height: Math.ceil(composerHeight / 2) }}
+            />
+          )}
+
+          <div
+            ref={bottomOverlayRef}
+            className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex flex-col"
+          >
+            <div className="pointer-events-auto">
+              {!isMemberSession && (
+                <LongRunningNotice
+                  chatState={chatState}
+                  elapsedSeconds={sessionState?.elapsedSeconds ?? 0}
+                  hasVisibleResponse={
+                    Boolean(activeThinking?.content?.trim()) ||
+                    assistantBodyStartedForCurrentTurn ||
+                    visibleProgressForCurrentTurn
+                  }
+                  lastConnectionActivityAt={sessionState?.lastConnectionActivityAt ?? null}
+                  suppress={isRuntimeTransitionStatus}
+                  onStop={() => stopGeneration(sessionId)}
+                />
+              )}
+              {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
+              <TeamStatusBar />
+            </div>
+            <div ref={composerShellRef} className="pointer-events-none">
+              <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" runtimeKey={sessionId} />
             </div>
           </div>
-        )}
 
-        <MessageList
-          sessionId={sessionId}
-          projectPath={resolvedProjectPath}
-          isActive={isActive}
-          bottomOverlayHeight={measuredBottomOverlayHeight}
-        />
-
-        <FloatingThinkingPanel
-          content={activeThinking?.content}
-          isActive={thinkingPanelIsActive}
-          identityKey={thinkingPanelIdentityKey}
-        />
+          {!isMemberSession && sessionId ? (
+            <ComputerUsePermissionModal
+              sessionId={sessionId}
+              request={pendingComputerUsePermission?.request ?? null}
+            />
+          ) : null}
+        </section>
 
       </div>
-
-      {composerHeight > 0 && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 right-[12px] z-10 bg-[var(--color-chat-bg)]"
-          style={{ height: Math.ceil(composerHeight / 2) }}
-        />
-      )}
-
-      <div
-        ref={bottomOverlayRef}
-        className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex flex-col"
-      >
-        <div className="pointer-events-auto">
-          {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
-          <TeamStatusBar />
-        </div>
-        <div ref={composerShellRef} className="pointer-events-none">
-          <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" runtimeKey={sessionId} />
-        </div>
-      </div>
-
-      {!isMemberSession && sessionId ? (
-        <ComputerUsePermissionModal
-          sessionId={sessionId}
-          request={pendingComputerUsePermission?.request ?? null}
-        />
-      ) : null}
     </div>
   )
 }

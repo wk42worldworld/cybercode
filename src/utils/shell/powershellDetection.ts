@@ -1,4 +1,5 @@
 import { realpath, stat } from 'fs/promises'
+import { join as winJoin } from 'path/win32'
 import { getPlatform } from '../platform.js'
 import { which } from '../which.js'
 
@@ -8,6 +9,32 @@ async function probePath(p: string): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+function windowsPowerShellCandidates(): string[] {
+  const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files'
+  const programFilesX86 =
+    process.env['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
+  const systemRoot = process.env.SystemRoot ?? 'C:\\Windows'
+
+  return [
+    winJoin(programFiles, 'PowerShell', '7', 'pwsh.exe'),
+    winJoin(programFilesX86, 'PowerShell', '7', 'pwsh.exe'),
+    winJoin(
+      systemRoot,
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    ),
+    winJoin(
+      systemRoot,
+      'SysWOW64',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    ),
+  ]
 }
 
 /**
@@ -46,6 +73,13 @@ export async function findPowerShell(): Promise<string | null> {
       }
     }
     return pwshPath
+  }
+
+  if (getPlatform() === 'windows') {
+    for (const candidate of windowsPowerShellCandidates()) {
+      const found = await probePath(candidate)
+      if (found) return found
+    }
   }
 
   const powershellPath = await which('powershell')

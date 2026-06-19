@@ -293,7 +293,18 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
       }
       return filterToolsByDenyRules(replSimple, permissionContext)
     }
-    const simpleTools: Tool[] = [BashTool, FileReadTool, FileEditTool]
+    const simpleShellTools: Tool[] = []
+    if (BashTool.isEnabled()) {
+      simpleShellTools.push(BashTool)
+    } else {
+      const powerShellTool = getPowerShellTool()
+      if (powerShellTool) simpleShellTools.push(powerShellTool)
+    }
+    const simpleTools: Tool[] = [
+      ...simpleShellTools,
+      FileReadTool,
+      FileEditTool,
+    ]
     // When coordinator mode is also active, include AgentTool and TaskStopTool
     // so the coordinator gets Task+TaskStop (via useMergedTools filtering) and
     // workers get Bash/Read/Edit (via filterToolsForAgent filtering).
@@ -303,7 +314,9 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
     ) {
       simpleTools.push(AgentTool, TaskStopTool, getSendMessageTool())
     }
-    return filterToolsByDenyRules(simpleTools, permissionContext)
+    return filterToolsByDenyRules(simpleTools, permissionContext).filter(tool =>
+      tool.isEnabled(),
+    )
   }
 
   // Get all base tools and filter out special tools that get added conditionally
