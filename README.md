@@ -33,12 +33,27 @@ A **locally runnable client** that **heavily references Claude Code's design**, 
 
 ---
 
+## Latest Highlights
+
+Latest stable desktop release: [CyberCode v1.0.8](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.8)
+
+- **Cross-platform desktop releases**: GitHub Actions now publishes macOS Apple Silicon, macOS Intel, Windows x64, and Linux x64 desktop builds together, with updater metadata included in `latest.json`.
+- **Notarized macOS installers**: macOS desktop packages are signed and Apple-notarized to avoid the previous Gatekeeper "malicious software" style warning on normal installs.
+- **Smarter Windows tool runtime**: CyberCode finds Git Bash when available, falls back to PowerShell when it is not, and only exposes executable tools that are actually available to the model.
+- **Flexible file attachments**: unsupported audio, binary, and other file types are handled as file paths instead of blocking the conversation request.
+- **Clearer command progress UI**: running command blocks now show GPT-style sweeping text highlights on both parent command rows and nested tool rows.
+
+---
+
 ## Features
 
 - Full Ink TUI experience (matching the official Claude Code interface)
 - `--print` headless mode for scripts and CI
 - MCP server, plugin, and Skills support
 - Custom API endpoint and model support ([Third-Party Models Guide](docs/en/guide/third-party-models.md))
+- Runtime-aware tool availability, including Git Bash / PowerShell fallback on Windows
+- Desktop file upload fallback for unsupported file types
+- Streaming command execution blocks with active progress highlighting
 - **Memory System** (cross-session persistent memory) — [Usage Guide](docs/memory/01-usage-guide.md)
 - **Multi-Agent System** (agent orchestration, parallel tasks, Teams collaboration) — [Usage Guide](docs/agent/01-usage-guide.md) | [Implementation](docs/agent/02-implementation.md)
 - **Skills System** (extensible capability plugins, custom workflows) — [Usage Guide](docs/skills/01-usage-guide.md) | [Implementation](docs/skills/02-implementation.md)
@@ -115,13 +130,13 @@ cp .env.example .env
 
 #### Windows
 
-> **Prerequisite**: [Git for Windows](https://git-scm.com/download/win) must be installed.
+> [Git for Windows](https://git-scm.com/download/win) is recommended for Bash-compatible commands. If Git Bash is not available, CyberCode falls back to PowerShell automatically.
 
 ```powershell
 # PowerShell / cmd — call Bun directly
 bun --env-file=.env ./src/entrypoints/cli.tsx
 
-# Or run inside Git Bash
+# Or run inside Git Bash when available
 ./bin/cybercode
 ```
 

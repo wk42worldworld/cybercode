@@ -33,12 +33,27 @@
 
 ---
 
+## 最新重点特性
+
+最新稳定桌面版：[CyberCode v1.0.8](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.8)
+
+- **四平台桌面端发布**：GitHub Actions 现在会同时发布 macOS Apple Silicon、macOS Intel、Windows x64、Linux x64，并生成 `latest.json` 更新元数据。
+- **macOS 安装包已公证**：macOS 桌面端包已完成签名和 Apple notarization，正常安装时不再触发之前那类“可能是恶意软件”的 Gatekeeper 提示。
+- **Windows 工具运行时兜底**：CyberCode 会优先寻找 Git Bash，找不到就自动回退到 PowerShell，并且只把当前环境真正可执行的工具暴露给模型。
+- **文件上传更灵活**：遇到模型不直接支持的音频、二进制或其他文件类型时，会按文件路径传递，避免请求被卡住。
+- **命令执行状态更清晰**：正在运行的命令块会在父级命令行和子级工具行同时展示 GPT 风格的文字高光横扫效果。
+
+---
+
 ## 功能
 
 - 完整的 Ink TUI 交互界面（与官方 Claude Code 一致）
 - `--print` 无头模式（脚本/CI 场景）
 - 支持 MCP 服务器、插件、Skills
 - 支持自定义 API 端点和模型（[第三方模型使用指南](docs/guide/third-party-models.md)）
+- 工具运行时会按当前环境兜底，包括 Windows 上的 Git Bash / PowerShell 自动切换
+- 桌面端上传不支持的文件类型时会自动按文件路径传给模型
+- 命令执行块支持运行中高光进度效果
 - **记忆系统**（跨会话持久化记忆）— [使用指南](docs/memory/01-usage-guide.md)
 - **多 Agent 系统**（多代理编排、并行任务、Teams 协作）— [使用指南](docs/agent/01-usage-guide.md) | [实现原理](docs/agent/02-implementation.md)
 - **Skills 系统**（可扩展能力插件、自定义工作流）— [使用指南](docs/skills/01-usage-guide.md) | [实现原理](docs/skills/02-implementation.md)
@@ -115,13 +130,13 @@ cp .env.example .env
 
 #### Windows
 
-> **前置要求**：必须安装 [Git for Windows](https://git-scm.com/download/win)
+> 推荐安装 [Git for Windows](https://git-scm.com/download/win) 以获得 Bash 兼容命令体验。如果没有 Git Bash，CyberCode 会自动回退到 PowerShell。
 
 ```powershell
 # PowerShell / cmd 直接调用 Bun
 bun --env-file=.env ./src/entrypoints/cli.tsx
 
-# 或在 Git Bash 中运行
+# 或在可用时通过 Git Bash 运行
 ./bin/cybercode
 ```
 
