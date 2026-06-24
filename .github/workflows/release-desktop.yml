@@ -29,28 +29,28 @@ jobs:
             rust_target: aarch64-apple-darwin
             tauri_args: '--target aarch64-apple-darwin'
             label: macOS-ARM64
-            asset_name_pattern: 'CyberCode_[version]_macos_arm64_[bundle][ext]'
+            asset_suffix: macos_arm64
 
           # macOS Intel
           - platform: macos-15-intel
             rust_target: x86_64-apple-darwin
             tauri_args: '--target x86_64-apple-darwin'
             label: macOS-x64
-            asset_name_pattern: 'CyberCode_[version]_macos_x64_[bundle][ext]'
+            asset_suffix: macos_x64
 
           # Linux x64
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
             tauri_args: '--bundles deb'
             label: Linux-x64
-            asset_name_pattern: 'CyberCode_[version]_linux_x64_[bundle][ext]'
+            asset_suffix: linux_x64
 
           # Windows x64
           - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
             tauri_args: '--bundles nsis'
             label: Windows-x64
-            asset_name_pattern: 'CyberCode_[version]_windows_x64_[bundle][ext]'
+            asset_suffix: windows_x64
 
     runs-on: ${{ matrix.platform }}
     name: Build (${{ matrix.label }})
@@ -194,26 +194,18 @@ jobs:
         if: vars.ENABLE_APPLE_NOTARIZATION != 'true' || !startsWith(matrix.platform, 'macos')
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos') && '-' || '' }}
         with:
           projectPath: desktop
           tauriScript: bunx tauri
-          tagName: v__VERSION__
-          releaseName: 'CyberCode v__VERSION__'
-          releaseBody: ${{ steps.release_notes.outputs.body }}
-          releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
-          prerelease: false
-          assetNamePattern: ${{ matrix.asset_name_pattern }}
           args: ${{ matrix.tauri_args }} --config src-tauri/tauri.release-ci.json
 
       - name: Build Tauri app with Apple notarization
         if: startsWith(matrix.platform, 'macos') && vars.ENABLE_APPLE_NOTARIZATION == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -225,10 +217,212 @@ jobs:
         with:
           projectPath: desktop
           tauriScript: bunx tauri
-          tagName: v__VERSION__
-          releaseName: 'CyberCode v__VERSION__'
-          releaseBody: ${{ steps.release_notes.outputs.body }}
-          releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
-          prerelease: false
-          assetNamePattern: ${{ matrix.asset_name_pattern }}
           args: ${{ matrix.tauri_args }} --config src-tauri/tauri.release-ci.json
+
+      - name: Collect release assets
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          LABEL: ${{ matrix.label }}
+          ASSET_SUFFIX: ${{ matrix.asset_suffix }}
+        run: |
+          set -euo pipefail
+
+          OUT="$RUNNER_TEMP/release-assets"
+          mkdir -p "$OUT"
+
+          copy_first() {
+            local pattern="$1"
+            local dest="$2"
+            local src
+            src="$(find desktop/src-tauri/target -type f -path "$pattern" | sort | head -n 1)"
+            if [ -z "$src" ]; then
+              echo "::error::Missing build artifact matching $pattern"
+              find desktop/src-tauri/target -type f | sort
+              exit 1
+            fi
+            cp "$src" "$OUT/$dest"
+          }
+
+          case "$LABEL" in
+            macOS-ARM64|macOS-x64)
+              copy_first '*/bundle/macos/*.app.tar.gz' "CyberCode_${VERSION}_${ASSET_SUFFIX}_app.app.tar.gz"
+              copy_first '*/bundle/macos/*.app.tar.gz.sig' "CyberCode_${VERSION}_${ASSET_SUFFIX}_app.app.tar.gz.sig"
+              copy_first '*/bundle/dmg/*.dmg' "CyberCode_${VERSION}_${ASSET_SUFFIX}_dmg.dmg"
+              ;;
+            Linux-x64)
+              copy_first '*/bundle/deb/*.deb' "CyberCode_${VERSION}_${ASSET_SUFFIX}_deb.deb"
+              copy_first '*/bundle/deb/*.deb.sig' "CyberCode_${VERSION}_${ASSET_SUFFIX}_deb.deb.sig"
+              ;;
+            Windows-x64)
+              copy_first '*/bundle/nsis/*.exe' "CyberCode_${VERSION}_${ASSET_SUFFIX}_nsis.exe"
+              copy_first '*/bundle/nsis/*.exe.sig' "CyberCode_${VERSION}_${ASSET_SUFFIX}_nsis.exe.sig"
+              ;;
+            *)
+              echo "::error::Unknown release label: $LABEL"
+              exit 1
+              ;;
+          esac
+
+          ls -la "$OUT"
+
+      - name: Upload release assets artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.label }}
+          path: ${{ runner.temp }}/release-assets/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    name: Publish Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(jq -r '.version' desktop/src-tauri/tauri.conf.json)
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release metadata
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ steps.version.outputs.value }}"
+          TAG_NAME="v${VERSION}"
+
+          if [ "${{ github.event_name }}" = "push" ] && [ "${GITHUB_REF_NAME}" != "$TAG_NAME" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match app version ${TAG_NAME}"
+            exit 1
+          fi
+
+          git fetch --force --tags
+          if ! git rev-parse --verify --quiet "refs/tags/$TAG_NAME" >/dev/null; then
+            echo "::error::Tag $TAG_NAME does not exist. Use the release script to create a version commit and tag first."
+            exit 1
+          fi
+
+          NOTES_FILE="release-notes/${TAG_NAME}.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            echo "::error::Missing release notes file: $NOTES_FILE"
+            exit 1
+          fi
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "::error::Release $TAG_NAME already exists. Bump the version before publishing."
+            exit 1
+          fi
+
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "notes_file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Validate release assets
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+
+          required=(
+            "CyberCode_${VERSION}_macos_arm64_app.app.tar.gz"
+            "CyberCode_${VERSION}_macos_arm64_app.app.tar.gz.sig"
+            "CyberCode_${VERSION}_macos_arm64_dmg.dmg"
+            "CyberCode_${VERSION}_macos_x64_app.app.tar.gz"
+            "CyberCode_${VERSION}_macos_x64_app.app.tar.gz.sig"
+            "CyberCode_${VERSION}_macos_x64_dmg.dmg"
+            "CyberCode_${VERSION}_linux_x64_deb.deb"
+            "CyberCode_${VERSION}_linux_x64_deb.deb.sig"
+            "CyberCode_${VERSION}_windows_x64_nsis.exe"
+            "CyberCode_${VERSION}_windows_x64_nsis.exe.sig"
+          )
+
+          for file in "${required[@]}"; do
+            if [ ! -s "release-assets/$file" ]; then
+              echo "::error::Missing required release asset: $file"
+              find release-assets -type f | sort
+              exit 1
+            fi
+          done
+
+      - name: Generate updater manifest
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          NOTES_FILE: ${{ steps.release.outputs.notes_file }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require('node:fs')
+          const version = process.env.VERSION
+          const tagName = process.env.TAG_NAME
+          const repo = process.env.GITHUB_REPOSITORY
+          const notes = fs.readFileSync(process.env.NOTES_FILE, 'utf8').trim()
+          const baseUrl = `https://github.com/${repo}/releases/download/${tagName}`
+
+          const sig = (name) => fs.readFileSync(`release-assets/${name}.sig`, 'utf8').trim()
+          const url = (name) => `${baseUrl}/${name}`
+          const asset = (name) => ({ signature: sig(name), url: url(name) })
+
+          const macArm = `CyberCode_${version}_macos_arm64_app.app.tar.gz`
+          const macX64 = `CyberCode_${version}_macos_x64_app.app.tar.gz`
+          const linux = `CyberCode_${version}_linux_x64_deb.deb`
+          const windows = `CyberCode_${version}_windows_x64_nsis.exe`
+
+          const manifest = {
+            version,
+            notes,
+            pub_date: new Date().toISOString(),
+            platforms: {
+              'darwin-aarch64': asset(macArm),
+              'darwin-aarch64-app': asset(macArm),
+              'darwin-x86_64': asset(macX64),
+              'darwin-x86_64-app': asset(macX64),
+              'linux-x86_64': asset(linux),
+              'linux-x86_64-deb': asset(linux),
+              'windows-x86_64': asset(windows),
+              'windows-x86_64-nsis': asset(windows),
+            },
+          }
+
+          fs.writeFileSync('release-assets/latest.json', `${JSON.stringify(manifest, null, 2)}\n`)
+          NODE
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          VERSION: ${{ steps.version.outputs.value }}
+          NOTES_FILE: ${{ steps.release.outputs.notes_file }}
+          RELEASE_DRAFT: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
+        run: |
+          set -euo pipefail
+
+          draft_arg=()
+          if [ "$RELEASE_DRAFT" = "true" ]; then
+            draft_arg=(--draft)
+          fi
+
+          gh release create "$TAG_NAME" release-assets/* \
+            --title "CyberCode v${VERSION}" \
+            --notes-file "$NOTES_FILE" \
+            "${draft_arg[@]}"
