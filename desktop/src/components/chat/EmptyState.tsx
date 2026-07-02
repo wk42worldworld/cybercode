@@ -101,6 +101,7 @@ function HeroEmptyStateForDraft({ t }: { t: TranslateFn }) {
         ?? {
           providerId: inferredProviderId,
           modelId: settings.currentModel?.id ?? OFFICIAL_DEFAULT_MODEL_ID,
+          contextWindow: settings.currentModel?.contextWindow,
         }
       const newSessionId = await createSession(workDir || undefined)
       useSessionRuntimeStore.getState().setSelection(newSessionId, draftSelection)

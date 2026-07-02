@@ -11,6 +11,8 @@
 import { SettingsService } from '../services/settingsService.js'
 import { ProviderService } from '../services/providerService.js'
 import { ApiError, errorResponse } from '../middleware/errorHandler.js'
+import { formatContextWindowLabel } from '../../utils/modelContextWindows.js'
+import type { SavedProvider } from '../types/provider.js'
 
 // ─── Fallback models (used when no provider is configured) ────────────────────
 
@@ -20,18 +22,21 @@ const DEFAULT_MODELS = [
     name: 'Opus 4.7',
     description: 'Most capable for ambitious work',
     context: '1m',
+    contextWindow: 1_000_000,
   },
   {
     id: 'claude-sonnet-4-6',
     name: 'Sonnet 4.6',
     description: 'Most efficient for everyday tasks',
     context: '200k',
+    contextWindow: 200_000,
   },
   {
     id: 'claude-haiku-4-5',
     name: 'Haiku 4.5',
     description: 'Fastest for quick answers',
     context: '200k',
+    contextWindow: 200_000,
   },
 ] as const
 
@@ -42,6 +47,12 @@ const DEFAULT_EFFORT = 'medium'
 
 const settingsService = new SettingsService()
 const providerService = new ProviderService()
+const PROVIDER_MODEL_ENTRIES = [
+  ['main', 'Main model'],
+  ['haiku', 'Haiku model'],
+  ['sonnet', 'Sonnet model'],
+  ['opus', 'Opus model'],
+] as const
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -84,14 +95,8 @@ async function handleModelsList(): Promise<Response> {
   const activeProvider = activeId ? providers.find((p) => p.id === activeId) : null
   if (activeProvider) {
     // Convert ModelMapping to model list for API compatibility
-    const modelList = [
-      { id: activeProvider.models.main, name: activeProvider.models.main, description: 'Main model', context: '' },
-      ...(activeProvider.models.haiku !== activeProvider.models.main ? [{ id: activeProvider.models.haiku, name: activeProvider.models.haiku, description: 'Haiku model', context: '' }] : []),
-      ...(activeProvider.models.sonnet !== activeProvider.models.main ? [{ id: activeProvider.models.sonnet, name: activeProvider.models.sonnet, description: 'Sonnet model', context: '' }] : []),
-      ...(activeProvider.models.opus !== activeProvider.models.main ? [{ id: activeProvider.models.opus, name: activeProvider.models.opus, description: 'Opus model', context: '' }] : []),
-    ]
     return Response.json({
-      models: modelList,
+      models: buildProviderModelList(activeProvider),
       provider: { id: activeProvider.id, name: activeProvider.name },
     })
   }
@@ -135,12 +140,7 @@ async function handleCurrentModel(req: Request): Promise<Response> {
 
     // Build available models for name lookup
     const availableModels = activeProvider
-      ? [
-          { id: activeProvider.models.main, name: activeProvider.models.main, description: 'Main model', context: '' },
-          ...(activeProvider.models.haiku && activeProvider.models.haiku !== activeProvider.models.main ? [{ id: activeProvider.models.haiku, name: activeProvider.models.haiku, description: 'Haiku model', context: '' }] : []),
-          ...(activeProvider.models.sonnet && activeProvider.models.sonnet !== activeProvider.models.main ? [{ id: activeProvider.models.sonnet, name: activeProvider.models.sonnet, description: 'Sonnet model', context: '' }] : []),
-          ...(activeProvider.models.opus && activeProvider.models.opus !== activeProvider.models.main ? [{ id: activeProvider.models.opus, name: activeProvider.models.opus, description: 'Opus model', context: '' }] : []),
-        ]
+      ? buildProviderModelList(activeProvider)
       : DEFAULT_MODELS
 
     const modelEntry = availableModels.find((m) => m.id === lookupId)
@@ -185,6 +185,26 @@ async function handleCurrentModel(req: Request): Promise<Response> {
   }
 
   throw methodNotAllowed(req.method)
+}
+
+function buildProviderModelList(activeProvider: SavedProvider) {
+  const contextWindowMap = providerService.getProviderModelContextWindowMap(activeProvider)
+  const contextFor = (modelId: string) => formatContextWindowLabel(contextWindowMap[modelId])
+  const seen = new Set<string>()
+
+  return PROVIDER_MODEL_ENTRIES.flatMap(([role, description]) => {
+    const modelId = activeProvider.models[role].trim()
+    if (!modelId || seen.has(modelId)) return []
+    seen.add(modelId)
+
+    return [{
+      id: modelId,
+      name: modelId,
+      description,
+      context: contextFor(modelId),
+      contextWindow: contextWindowMap[modelId],
+    }]
+  })
 }
 
 async function handleEffort(req: Request): Promise<Response> {

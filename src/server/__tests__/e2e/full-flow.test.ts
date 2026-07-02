@@ -17,6 +17,7 @@ let tmpDir: string
 async function startTestServer() {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-e2e-'))
   process.env.CLAUDE_CONFIG_DIR = tmpDir
+  process.env.CLAUDE_CLI_PATH = path.resolve(import.meta.dir, '../fixtures/mock-sdk-cli.ts')
 
   // Create required directories
   await fs.mkdir(path.join(tmpDir, 'projects'), { recursive: true })
@@ -158,7 +159,7 @@ describe('E2E: Full Flow', () => {
 
   it('should list available models', async () => {
     const { data } = await api('GET', '/api/models')
-    expect(data.models.length).toBe(4)
+    expect(data.models.length).toBe(3)
     expect(data.models[0].name).toBe('Opus 4.7')
   })
 

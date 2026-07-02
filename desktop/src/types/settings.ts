@@ -10,6 +10,7 @@ export type ModelInfo = {
   name: string
   description: string
   context: string
+  contextWindow?: number
 }
 
 export type UserSettings = {

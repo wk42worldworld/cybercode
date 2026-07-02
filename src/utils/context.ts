@@ -4,6 +4,7 @@ import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
 import { getModelCapability } from './model/modelCapabilities.js'
+import { getContextWindowOverrideForModel } from './modelContextWindows.js'
 
 // Model context window size (200k tokens for all models right now)
 export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
@@ -52,6 +53,11 @@ export function getContextWindowForModel(
   model: string,
   betas?: string[],
 ): number {
+  const cybercodeOverride = getContextWindowOverrideForModel(model)
+  if (cybercodeOverride) {
+    return cybercodeOverride
+  }
+
   // Allow override via environment variable (ant-only)
   // This takes precedence over all other context window resolution, including 1M detection,
   // so users can cap the effective context window for local decisions (auto-compact, etc.)

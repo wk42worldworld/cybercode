@@ -60,6 +60,7 @@ const sessionTitleState = new Map<string, {
 const runtimeOverrides = new Map<string, {
   providerId: string | null
   modelId: string
+  contextWindow?: number
 }>()
 
 const runtimeTransitionPromises = new Map<string, Promise<void>>()
@@ -141,6 +142,18 @@ export const handleWebSocket = {
         case 'user_message':
           handleUserMessage(ws, message).catch((err) => {
             console.error(`[WS] Unhandled error in handleUserMessage:`, err)
+          })
+          break
+
+        case 'user_steer':
+          handleUserSteer(ws, message).catch((err) => {
+            console.error(`[WS] Unhandled error in handleUserSteer:`, err)
+          })
+          break
+
+        case 'cancel_steer':
+          handleCancelSteer(ws, message).catch((err) => {
+            console.error(`[WS] Unhandled error in handleCancelSteer:`, err)
           })
           break
 
@@ -335,6 +348,129 @@ async function handleUserMessage(
   userMessageSent = true
 }
 
+async function handleUserSteer(
+  ws: ServerWebSocket<WebSocketData>,
+  message: Extract<ClientMessage, { type: 'user_steer' }>
+) {
+  const { sessionId } = ws.data
+  const steerId = message.steerId.trim()
+  const priority = message.priority === 'later' ? 'later' : 'next'
+
+  if (!steerId) {
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId: message.steerId,
+      status: 'failed',
+      message: 'Missing steer id.',
+    })
+    return
+  }
+
+  const content = message.content.trim()
+  if (!content && (!message.attachments || message.attachments.length === 0)) {
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId,
+      status: 'failed',
+      message: 'Cannot queue an empty message.',
+    })
+    return
+  }
+
+  const inlineFileAttachments = getInlineFileAttachmentsWithoutPath(message.attachments)
+  if (inlineFileAttachments.length > 0) {
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId,
+      status: 'failed',
+      message: buildPathRequiredAttachmentMessage(inlineFileAttachments),
+    })
+    return
+  }
+
+  const pendingRuntimeTransition = runtimeTransitionPromises.get(sessionId)
+  if (pendingRuntimeTransition) {
+    try {
+      await pendingRuntimeTransition
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      sendMessage(ws, {
+        type: 'steer_status',
+        steerId,
+        status: 'failed',
+        message: `Failed to switch provider/model: ${errMsg}`,
+      })
+      return
+    }
+  }
+
+  try {
+    await ensureCliSessionStarted(ws, sessionId, 'user_message')
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId,
+      status: 'failed',
+      message: errMsg,
+    })
+    return
+  }
+
+  const sent = conversationService.sendMessage(
+    sessionId,
+    content,
+    message.attachments,
+    { uuid: steerId, priority },
+  )
+
+  sendMessage(ws, {
+    type: 'steer_status',
+    steerId,
+    status: sent ? 'queued' : 'failed',
+    ...(sent
+      ? { message: priority === 'next' ? 'Queued for the current task.' : 'Queued for the next turn.' }
+      : { message: 'CLI process is not running. The session may have ended or the process crashed.' }),
+  })
+}
+
+async function handleCancelSteer(
+  ws: ServerWebSocket<WebSocketData>,
+  message: Extract<ClientMessage, { type: 'cancel_steer' }>
+) {
+  const { sessionId } = ws.data
+  const steerId = message.steerId.trim()
+
+  if (!steerId) {
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId: message.steerId,
+      status: 'failed',
+      message: 'Missing steer id.',
+    })
+    return
+  }
+
+  try {
+    const cancelled = await conversationService.cancelAsyncMessage(sessionId, steerId)
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId,
+      status: cancelled ? 'cancelled' : 'failed',
+      message: cancelled
+        ? 'Queued input cancelled.'
+        : 'This queued input was already being processed or was not found.',
+    })
+  } catch (err) {
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId,
+      status: 'failed',
+      message: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
+
 async function handleDesktopClearCommand(
   ws: ServerWebSocket<WebSocketData>,
 ) {
@@ -469,6 +605,11 @@ async function handleSetRuntimeConfig(
   const nextOverride = {
     providerId: message.providerId ?? null,
     modelId,
+    ...(typeof message.contextWindow === 'number' &&
+    Number.isFinite(message.contextWindow) &&
+    message.contextWindow > 0
+      ? { contextWindow: Math.round(message.contextWindow) }
+      : {}),
   }
   const prevOverride = runtimeOverrides.get(sessionId)
   runtimeOverrides.set(sessionId, nextOverride)
@@ -476,7 +617,8 @@ async function handleSetRuntimeConfig(
   if (
     prevOverride &&
     prevOverride.providerId === nextOverride.providerId &&
-    prevOverride.modelId === nextOverride.modelId
+    prevOverride.modelId === nextOverride.modelId &&
+    prevOverride.contextWindow === nextOverride.contextWindow
   ) {
     return
   }
@@ -490,6 +632,7 @@ async function handleSetRuntimeConfig(
         if (
           currentOverride?.providerId !== nextOverride.providerId ||
           currentOverride.modelId !== nextOverride.modelId ||
+          currentOverride.contextWindow !== nextOverride.contextWindow ||
           !conversationService.hasSession(sessionId)
         ) {
           return
@@ -1252,6 +1395,7 @@ async function getRuntimeSettings(sessionId?: string): Promise<{
   model?: string
   effort?: string
   providerId?: string | null
+  contextWindow?: number
 }> {
   const runtimeOverride = sessionId ? runtimeOverrides.get(sessionId) : undefined
   if (runtimeOverride) {
@@ -1266,6 +1410,7 @@ async function getRuntimeSettings(sessionId?: string): Promise<{
       model: runtimeOverride.modelId,
       effort,
       providerId: runtimeOverride.providerId,
+      contextWindow: runtimeOverride.contextWindow,
     }
   }
 

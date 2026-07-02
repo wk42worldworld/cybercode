@@ -239,7 +239,14 @@ function trimRuns(data: RunsFile): void {
 
 // ─── Scheduler ─────────────────────────────────────────────────────────────────
 
-const TASK_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+const DEFAULT_TASK_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+
+function getTaskTimeoutMs(): number {
+  const raw = process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS
+  if (!raw) return DEFAULT_TASK_TIMEOUT_MS
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : DEFAULT_TASK_TIMEOUT_MS
+}
 
 export class CronScheduler {
   private intervalId: Timer | null = null
@@ -339,6 +346,7 @@ export class CronScheduler {
    * @param options.createSession When true, creates a Session for rich output viewing (used for manual "Run Now")
    */
   async executeTask(task: CronTask, options?: { createSession?: boolean }): Promise<TaskRun> {
+    const taskTimeoutMs = getTaskTimeoutMs()
     // Prevent concurrent executions of the same task
     const existing = this.runningTasks.get(task.id)
     if (existing) {
@@ -451,7 +459,7 @@ export class CronScheduler {
           // ignore
         }
       }
-    }, TASK_TIMEOUT_MS)
+    }, taskTimeoutMs)
 
     try {
       // Collect stdout
@@ -482,7 +490,7 @@ export class CronScheduler {
         new Date(completedAt).getTime() - new Date(startedAt).getTime()
 
       // Determine if this was a timeout
-      const wasTimeout = durationMs >= TASK_TIMEOUT_MS
+      const wasTimeout = durationMs >= taskTimeoutMs
 
       // Extract only meaningful AI text responses from raw NDJSON output.
       // The raw stream contains system/init messages, tool_use blocks, and

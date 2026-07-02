@@ -8,17 +8,20 @@ export const OFFICIAL_MODELS: ModelInfo[] = [
     name: 'Opus 4.7',
     description: 'Most capable for ambitious work',
     context: '1m',
+    contextWindow: 1_000_000,
   },
   {
     id: 'claude-sonnet-4-6',
     name: 'Sonnet 4.6',
     description: 'Most efficient for everyday tasks',
     context: '200k',
+    contextWindow: 200_000,
   },
   {
     id: 'claude-haiku-4-5',
     name: 'Haiku 4.5',
     description: 'Fastest for quick answers',
     context: '200k',
+    contextWindow: 200_000,
   },
 ]

@@ -9,6 +9,12 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import type { SavedProvider } from '../../types/provider'
 import type { RuntimeSelection } from '../../types/runtime'
 import type { EffortLevel, ModelInfo } from '../../types/settings'
+import type { ProviderPreset } from '../../types/providerPreset'
+import {
+  buildModelContextWindowMap,
+  formatContextWindowInput,
+  resolveRoleContextWindows,
+} from '../../utils/modelContextWindows'
 import { Icon } from '../shared/Icon'
 
 type ProviderChoice = {
@@ -41,6 +47,7 @@ function officialChoices(availableModels: ModelInfo[], isDefault: boolean, offic
 
 function buildProviderModels(
   provider: SavedProvider,
+  presets: ProviderPreset[],
   labels: Record<'main' | 'haiku' | 'sonnet' | 'opus', string>,
 ): ModelInfo[] {
   const entries: Array<{ id: string; label: string }> = [
@@ -63,18 +70,31 @@ function buildProviderModels(
     byId.set(entry.id, { id: entry.id, labels: [entry.label] })
   }
 
-  return [...byId.values()].map((entry) => ({
-    id: entry.id,
-    name: entry.id,
-    description: entry.labels.join(' · '),
-    context: '',
-  }))
+  const preset = presets.find((item) => item.id === provider.presetId)
+  const roleContextWindows = resolveRoleContextWindows(
+    provider.models,
+    provider.modelContextWindows,
+    preset?.defaultModelContextWindows,
+  )
+  const contextWindowMap = buildModelContextWindowMap(provider.models, roleContextWindows)
+
+  return [...byId.values()].map((entry) => {
+    const contextWindow = contextWindowMap[entry.id]
+    return {
+      id: entry.id,
+      name: entry.id,
+      description: entry.labels.join(' · '),
+      context: formatContextWindowInput(contextWindow),
+      contextWindow,
+    }
+  })
 }
 
 function buildProviderChoices(
   providers: SavedProvider[],
   activeId: string | null,
   availableModels: ModelInfo[],
+  presets: ProviderPreset[],
   officialName: string,
   labels: Record<'main' | 'haiku' | 'sonnet' | 'opus', string>,
 ): ProviderChoice[] {
@@ -84,7 +104,7 @@ function buildProviderChoices(
       providerId: provider.id,
       providerName: provider.name,
       isDefault: activeId === provider.id,
-      models: buildProviderModels(provider, labels),
+      models: buildProviderModels(provider, presets, labels),
     })),
   ]
 }
@@ -130,6 +150,7 @@ export function ModelSelector({
   const {
     providers,
     activeId,
+    presets,
     isLoading: providersLoading,
     fetchProviders,
   } = useProviderStore()
@@ -194,10 +215,11 @@ export function ModelSelector({
       providers,
       activeId,
       activeId === null ? availableModels : OFFICIAL_MODELS,
+      presets,
       t('settings.providers.officialName'),
       roleLabels,
     ),
-    [activeId, availableModels, providers, roleLabels, t],
+    [activeId, availableModels, presets, providers, roleLabels, t],
   )
 
   const selectedModel = isControlled
@@ -224,6 +246,7 @@ export function ModelSelector({
         name: activeRuntimeSelection.modelId,
         description: '',
         context: '',
+        contextWindow: activeRuntimeSelection.contextWindow,
       }
     : null
 
@@ -313,7 +336,7 @@ export function ModelSelector({
                         return (
                           <button
                             key={`${choice.providerId ?? 'official'}:${model.id}`}
-                            onClick={() => handleRuntimeSelect({ providerId: choice.providerId, modelId: model.id })}
+                            onClick={() => handleRuntimeSelect({ providerId: choice.providerId, modelId: model.id, contextWindow: model.contextWindow })}
                             className={`
                               group flex min-h-[48px] w-full items-center gap-[10px] rounded-[14px] px-[10px] py-[8px] text-left transition-colors
                               ${isSelected
@@ -327,8 +350,13 @@ export function ModelSelector({
                                 {model.name}
                               </div>
                               {model.description && (
-                                <div className="mt-[2px] truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">
-                                  {model.description}
+                                <div className="mt-[2px] flex items-center gap-[6px] text-[11px] font-medium text-[var(--color-text-tertiary)]">
+                                  <span className="min-w-0 truncate">{model.description}</span>
+                                  {model.context && (
+                                    <span className="shrink-0 rounded-full border border-[var(--color-border-separator)] px-[6px] py-[1px] text-[10px] uppercase leading-4">
+                                      {model.context}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -372,8 +400,13 @@ export function ModelSelector({
                           {model.name}
                         </div>
                         {model.description && (
-                          <div className="mt-[2px] truncate text-[11px] font-medium text-[var(--color-text-tertiary)]">
-                            {model.description}
+                          <div className="mt-[2px] flex items-center gap-[6px] text-[11px] font-medium text-[var(--color-text-tertiary)]">
+                            <span className="min-w-0 truncate">{model.description}</span>
+                            {model.context && (
+                              <span className="shrink-0 rounded-full border border-[var(--color-border-separator)] px-[6px] py-[1px] text-[10px] uppercase leading-4">
+                                {model.context}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>

@@ -9,8 +9,19 @@ import { Textarea } from '../components/shared/Textarea'
 import { Button } from '../components/shared/Button'
 import { Dropdown } from '../components/shared/Dropdown'
 import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
-import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat } from '../types/provider'
+import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat, ModelContextWindows } from '../types/provider'
 import type { ProviderPreset } from '../types/providerPreset'
+import {
+  MODEL_ROLES,
+  buildModelContextWindowMap,
+  compactModelContextWindows,
+  formatContextWindowInput,
+  inferContextWindowFromModelId,
+  parseContextWindowInput,
+  parseContextWindowValue,
+  resolveRoleContextWindows,
+  type ModelRole,
+} from '../utils/modelContextWindows'
 import { useAgentStore } from '../stores/agentStore'
 import { useSessionStore } from '../stores/sessionStore'
 import type { AgentDefinition, AgentSource } from '../api/agents'
@@ -626,6 +637,7 @@ function buildFallbackPreset(provider?: SavedProvider): ProviderPreset {
     baseUrl: provider?.baseUrl ?? '',
     apiFormat: provider?.apiFormat ?? 'anthropic',
     defaultModels: provider?.models ?? { main: '', haiku: '', sonnet: '', opus: '' },
+    defaultModelContextWindows: provider?.modelContextWindows,
     needsApiKey: true,
     websiteUrl: '',
   }
@@ -644,6 +656,39 @@ function openExternalUrl(url: string) {
 
 const API_KEY_JSON_PLACEHOLDER = '••••••••'
 const API_KEY_JSON_KEYS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'] as const
+const MODEL_CONTEXT_WINDOWS_ENV = 'CYBERCODE_MODEL_CONTEXT_WINDOWS'
+
+function createContextWindowInputs(
+  models: ModelMapping,
+  provider: SavedProvider | undefined,
+  preset: ProviderPreset,
+): Record<ModelRole, string> {
+  const resolved = resolveRoleContextWindows(
+    models,
+    provider?.modelContextWindows,
+    preset.defaultModelContextWindows,
+  )
+  return Object.fromEntries(
+    MODEL_ROLES.map((role) => [role, formatContextWindowInput(resolved[role])]),
+  ) as Record<ModelRole, string>
+}
+
+function parseContextWindowInputs(
+  inputs: Record<ModelRole, string>,
+): ModelContextWindows | undefined {
+  const parsed: ModelContextWindows = {}
+  for (const role of MODEL_ROLES) {
+    const value = parseContextWindowInput(inputs[role])
+    if (value) parsed[role] = value
+  }
+  return compactModelContextWindows(parsed)
+}
+
+function createContextWindowTouched(provider?: SavedProvider): Record<ModelRole, boolean> {
+  return Object.fromEntries(
+    MODEL_ROLES.map((role) => [role, provider?.modelContextWindows?.[role] !== undefined]),
+  ) as Record<ModelRole, boolean>
+}
 
 function maskSettingsJsonSecrets(raw: string, apiKey: string): string {
   if (!apiKey.trim()) return raw
@@ -700,12 +745,43 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const [showApiKey, setShowApiKey] = useState(false)
   const [notes, setNotes] = useState(provider?.notes ?? '')
   const [models, setModels] = useState<ModelMapping>(provider?.models ?? { ...initialPreset.defaultModels })
+  const [contextWindowInputs, setContextWindowInputs] = useState<Record<ModelRole, string>>(() =>
+    createContextWindowInputs(provider?.models ?? { ...initialPreset.defaultModels }, provider, initialPreset),
+  )
+  const [contextWindowTouched, setContextWindowTouched] = useState<Record<ModelRole, boolean>>(() =>
+    createContextWindowTouched(provider),
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null)
   const [isTesting, setIsTesting] = useState(false)
   const [settingsJson, setSettingsJson] = useState('')
   const [settingsJsonError, setSettingsJsonError] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(initialPreset.id === 'custom')
+  const parsedContextWindows = useMemo(
+    () => parseContextWindowInputs(contextWindowInputs),
+    [contextWindowInputs],
+  )
+  const contextWindowMap = useMemo(
+    () => buildModelContextWindowMap(models, parsedContextWindows),
+    [models, parsedContextWindows],
+  )
+
+  const updateModel = (role: ModelRole, value: string) => {
+    setModels((prev) => ({ ...prev, [role]: value }))
+    if (contextWindowTouched[role]) return
+    const inferred =
+      inferContextWindowFromModelId(value) ??
+      selectedPreset.defaultModelContextWindows?.[role]
+    setContextWindowInputs((prev) => ({
+      ...prev,
+      [role]: formatContextWindowInput(inferred),
+    }))
+  }
+
+  const updateContextWindowInput = (role: ModelRole, value: string) => {
+    setContextWindowTouched((prev) => ({ ...prev, [role]: true }))
+    setContextWindowInputs((prev) => ({ ...prev, [role]: value }))
+  }
 
   // Load current settings.json and merge provider env vars
   useEffect(() => {
@@ -716,7 +792,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
         const needsProxy = apiFormat !== 'anthropic'
         const existingEnv = (settings.env as Record<string, string>) || {}
         const cleanedEnv = Object.fromEntries(
-          Object.entries(existingEnv).filter(([key]) => !presetDefaultEnvKeys.has(key)),
+          Object.entries(existingEnv).filter(([key]) =>
+            !presetDefaultEnvKeys.has(key) && key !== MODEL_CONTEXT_WINDOWS_ENV,
+          ),
         )
         const merged = {
           ...settings,
@@ -732,6 +810,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             ANTHROPIC_DEFAULT_HAIKU_MODEL: models.haiku,
             ANTHROPIC_DEFAULT_SONNET_MODEL: models.sonnet,
             ANTHROPIC_DEFAULT_OPUS_MODEL: models.opus,
+            ...(Object.keys(contextWindowMap).length > 0
+              ? { [MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(contextWindowMap) }
+              : {}),
           },
         }
         setSettingsJson(JSON.stringify(merged, null, 2))
@@ -747,6 +828,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     apiFormat,
     apiKey,
     baseUrl,
+    contextWindowMap,
     models.haiku,
     models.main,
     models.opus,
@@ -759,7 +841,10 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
 
   const isCustom = selectedPreset.id === 'custom'
   const requiresApiKey = selectedPreset.needsApiKey !== false
-  const canSubmit = name.trim() && baseUrl.trim() && (mode === 'edit' || !requiresApiKey || apiKey.trim()) && models.main.trim() && !settingsJsonError
+  const hasContextWindowError = MODEL_ROLES.some((role) =>
+    contextWindowInputs[role].trim() && !parseContextWindowInput(contextWindowInputs[role]),
+  )
+  const canSubmit = name.trim() && baseUrl.trim() && (mode === 'edit' || !requiresApiKey || apiKey.trim()) && models.main.trim() && !settingsJsonError && !hasContextWindowError
   const apiKeyUrl = selectedPreset.apiKeyUrl?.trim()
   const promoText = selectedPreset.promoText?.trim()
   const displayedSettingsJson = showApiKey
@@ -808,6 +893,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           baseUrl: baseUrl.trim(),
           apiFormat,
           models,
+          modelContextWindows: parsedContextWindows,
           notes: notes.trim() || undefined,
         })
       } else if (provider) {
@@ -816,6 +902,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           baseUrl: baseUrl.trim(),
           apiFormat,
           models,
+          modelContextWindows: parsedContextWindows,
           notes: notes.trim() || undefined,
         }
         if (apiKey.trim()) input.apiKey = apiKey.trim()
@@ -904,9 +991,16 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_128px]">
           <Input label={t('settings.providers.baseUrl')} required value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('settings.providers.baseUrlPlaceholder')} />
-          <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => setModels({ ...models, main: e.target.value })} placeholder="Model ID" />
+          <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => updateModel('main', e.target.value)} placeholder="Model ID" />
+          <Input
+            label={t('settings.providers.contextWindow')}
+            value={contextWindowInputs.main}
+            onChange={(e) => updateContextWindowInput('main', e.target.value)}
+            placeholder="200k"
+            error={contextWindowInputs.main.trim() && !parseContextWindowInput(contextWindowInputs.main) ? t('settings.providers.contextWindowError') : undefined}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -1036,10 +1130,28 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
               {/* Model Mapping */}
               <div>
                 <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.modelMapping')}</label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <Input label={t('settings.providers.haikuModel')} value={models.haiku} onChange={(e) => setModels({ ...models, haiku: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
-                  <Input label={t('settings.providers.sonnetModel')} value={models.sonnet} onChange={(e) => setModels({ ...models, sonnet: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
-                  <Input label={t('settings.providers.opusModel')} value={models.opus} onChange={(e) => setModels({ ...models, opus: e.target.value })} placeholder={t('settings.providers.sameAsMain')} />
+                <div className="grid grid-cols-1 gap-2">
+                  {MODEL_ROLES.filter((role) => role !== 'main').map((role) => (
+                    <div key={role} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_128px]">
+                      <Input
+                        label={role === 'haiku'
+                          ? t('settings.providers.haikuModel')
+                          : role === 'sonnet'
+                            ? t('settings.providers.sonnetModel')
+                            : t('settings.providers.opusModel')}
+                        value={models[role]}
+                        onChange={(e) => updateModel(role, e.target.value)}
+                        placeholder={t('settings.providers.sameAsMain')}
+                      />
+                      <Input
+                        label={t('settings.providers.contextWindow')}
+                        value={contextWindowInputs[role]}
+                        onChange={(e) => updateContextWindowInput(role, e.target.value)}
+                        placeholder={contextWindowInputs.main || '200k'}
+                        error={contextWindowInputs[role].trim() && !parseContextWindowInput(contextWindowInputs[role]) ? t('settings.providers.contextWindowError') : undefined}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1071,6 +1183,28 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                         if (env.ANTHROPIC_DEFAULT_OPUS_MODEL) newModels.opus = env.ANTHROPIC_DEFAULT_OPUS_MODEL
                         if (Object.keys(newModels).length > 0) {
                           setModels((prev) => ({ ...prev, ...newModels }))
+                        }
+                        const contextRaw = env[MODEL_CONTEXT_WINDOWS_ENV]
+                        if (typeof contextRaw === 'string' && contextRaw.trim()) {
+                          try {
+                            const contextMap = JSON.parse(contextRaw) as Record<string, unknown>
+                            const nextContextInputs: Partial<Record<ModelRole, string>> = {}
+                            for (const role of MODEL_ROLES) {
+                              const modelId = (newModels[role] ?? models[role])?.trim()
+                              if (!modelId) continue
+                              const value = parseContextWindowValue(contextMap[modelId])
+                              if (value) nextContextInputs[role] = formatContextWindowInput(value)
+                            }
+                            if (Object.keys(nextContextInputs).length > 0) {
+                              setContextWindowInputs((prev) => ({ ...prev, ...nextContextInputs }))
+                              setContextWindowTouched((prev) => ({
+                                ...prev,
+                                ...Object.fromEntries(Object.keys(nextContextInputs).map((role) => [role, true])),
+                              }))
+                            }
+                          } catch {
+                            // Keep JSON validation focused on syntax; malformed optional context maps are ignored here.
+                          }
                         }
                       }
                     } catch (err) {

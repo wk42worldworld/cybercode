@@ -632,6 +632,49 @@ describe('WebSocket Chat Integration', () => {
     expect(statusMsgs[0].state).toBe('thinking')
   })
 
+  it('should queue user_steer messages through the SDK input stream', async () => {
+    const messages: any[] = []
+    const sessionId = `chat-steer-${crypto.randomUUID()}`
+    const steerId = '123e4567-e89b-12d3-a456-426614174000'
+    const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        ws.close()
+        resolve()
+      }, 5000)
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data as string)
+        messages.push(msg)
+        if (msg.type === 'connected') {
+          ws.send(JSON.stringify({
+            type: 'user_steer',
+            steerId,
+            content: 'Add this constraint',
+            priority: 'next',
+          }))
+        }
+        if (msg.type === 'steer_status' && msg.status === 'queued') {
+          clearTimeout(timeout)
+          ws.close()
+          resolve()
+        }
+      }
+      ws.onerror = () => {
+        clearTimeout(timeout)
+        ws.close()
+        resolve()
+      }
+    })
+
+    const steerStatus = messages.find((m) => m.type === 'steer_status')
+    expect(steerStatus).toMatchObject({
+      steerId,
+      status: 'queued',
+    })
+  })
+
   it('should continue chat when SDK init arrives only after the first user turn', async () => {
     const messages = await withMockInitMode('on_first_user', () =>
       runTurn('chat-test-lazy-init', 'Hello after lazy init'),

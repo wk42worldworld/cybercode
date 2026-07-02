@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod'
+import { parseContextWindowTokenValue } from '../../utils/modelContextWindows.js'
 
 export const ApiFormatSchema = z.enum([
   'anthropic',         // Native Anthropic Messages API (passthrough, no proxy)
@@ -21,6 +22,21 @@ export const ModelMappingSchema = z.object({
   opus: z.string(),
 })
 
+const ContextWindowValueSchema = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null || value === '') return undefined
+    return parseContextWindowTokenValue(value)
+  },
+  z.number().int().positive().optional(),
+)
+
+export const ModelContextWindowsSchema = z.object({
+  main: ContextWindowValueSchema,
+  haiku: ContextWindowValueSchema,
+  sonnet: ContextWindowValueSchema,
+  opus: ContextWindowValueSchema,
+})
+
 export const SavedProviderSchema = z.object({
   id: z.string(),
   presetId: z.string(),
@@ -29,6 +45,7 @@ export const SavedProviderSchema = z.object({
   baseUrl: z.string(),
   apiFormat: ApiFormatSchema.default('anthropic'),
   models: ModelMappingSchema,
+  modelContextWindows: ModelContextWindowsSchema.optional(),
   notes: z.string().optional(),
 })
 
@@ -44,6 +61,7 @@ export const CreateProviderSchema = z.object({
   baseUrl: z.string(),
   apiFormat: ApiFormatSchema.default('anthropic'),
   models: ModelMappingSchema,
+  modelContextWindows: ModelContextWindowsSchema.optional(),
   notes: z.string().optional(),
 })
 
@@ -53,6 +71,7 @@ export const UpdateProviderSchema = z.object({
   baseUrl: z.string().optional(),
   apiFormat: ApiFormatSchema.optional(),
   models: ModelMappingSchema.optional(),
+  modelContextWindows: ModelContextWindowsSchema.optional(),
   notes: z.string().optional(),
 })
 
@@ -65,6 +84,7 @@ export const TestProviderSchema = z.object({
 
 // TypeScript types
 export type ModelMapping = z.infer<typeof ModelMappingSchema>
+export type ModelContextWindows = z.infer<typeof ModelContextWindowsSchema>
 export type SavedProvider = z.infer<typeof SavedProviderSchema>
 export type ProvidersIndex = z.infer<typeof ProvidersIndexSchema>
 export type CreateProviderInput = z.infer<typeof CreateProviderSchema>

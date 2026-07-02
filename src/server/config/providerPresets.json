@@ -24,6 +24,12 @@
       "sonnet": "deepseek-v4-pro[1m]",
       "opus": "deepseek-v4-pro[1m]"
     },
+    "defaultModelContextWindows": {
+      "main": 1000000,
+      "haiku": 200000,
+      "sonnet": 1000000,
+      "opus": 1000000
+    },
     "needsApiKey": true,
     "websiteUrl": "https://platform.deepseek.com",
     "apiKeyUrl": "https://platform.deepseek.com/api_keys"
@@ -38,6 +44,12 @@
       "haiku": "glm-4.5-air",
       "sonnet": "glm-5-turbo",
       "opus": "glm-5.1"
+    },
+    "defaultModelContextWindows": {
+      "main": 200000,
+      "haiku": 200000,
+      "sonnet": 200000,
+      "opus": 200000
     },
     "needsApiKey": true,
     "websiteUrl": "https://open.bigmodel.cn",
@@ -54,6 +66,12 @@
       "sonnet": "kimi-k2.6",
       "opus": "kimi-k2.6"
     },
+    "defaultModelContextWindows": {
+      "main": 200000,
+      "haiku": 200000,
+      "sonnet": 200000,
+      "opus": 200000
+    },
     "needsApiKey": true,
     "websiteUrl": "https://platform.moonshot.cn",
     "apiKeyUrl": "https://platform.kimi.com/console/api-keys"
@@ -68,6 +86,12 @@
       "haiku": "MiniMax-M2.7",
       "sonnet": "MiniMax-M2.7",
       "opus": "MiniMax-M2.7"
+    },
+    "defaultModelContextWindows": {
+      "main": 200000,
+      "haiku": 200000,
+      "sonnet": 200000,
+      "opus": 200000
     },
     "needsApiKey": true,
     "websiteUrl": "https://platform.minimaxi.com",
@@ -84,6 +108,12 @@
       "sonnet": "mimo-v2.5",
       "opus": "mimo-v2.5-pro"
     },
+    "defaultModelContextWindows": {
+      "main": 200000,
+      "haiku": 200000,
+      "sonnet": 200000,
+      "opus": 200000
+    },
     "needsApiKey": true,
     "websiteUrl": "https://platform.xiaomimimo.com",
     "apiKeyUrl": "https://platform.xiaomimimo.com"
@@ -98,6 +128,12 @@
       "haiku": "openai/gpt-oss-20b",
       "sonnet": "openai/gpt-oss-20b",
       "opus": "openai/gpt-oss-20b"
+    },
+    "defaultModelContextWindows": {
+      "main": 200000,
+      "haiku": 200000,
+      "sonnet": 200000,
+      "opus": 200000
     },
     "needsApiKey": false,
     "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
@@ -116,6 +152,12 @@
       "haiku": "qwen3.5",
       "sonnet": "qwen3.5",
       "opus": "qwen3.5"
+    },
+    "defaultModelContextWindows": {
+      "main": 200000,
+      "haiku": 200000,
+      "sonnet": 200000,
+      "opus": 200000
     },
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",

@@ -15,7 +15,7 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
   const hasAttachments = Boolean(attachments && attachments.length > 0)
 
   return (
-    <div className="group/msg flex w-full justify-center px-[24px] py-[12px]">
+    <div className="group/msg flex w-full justify-center px-[24px] py-[8px]">
       <div
         data-message-shell="user"
         className="flex w-full max-w-[878px] flex-col items-end gap-[8px]"

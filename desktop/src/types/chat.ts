@@ -9,6 +9,14 @@ export type ClientMessage =
   | { type: 'prewarm_session' }
   | { type: 'user_message'; content: string; attachments?: AttachmentRef[] }
   | {
+      type: 'user_steer'
+      steerId: string
+      content: string
+      attachments?: AttachmentRef[]
+      priority: 'next' | 'later'
+    }
+  | { type: 'cancel_steer'; steerId: string }
+  | {
       type: 'permission_response'
       requestId: string
       allowed: boolean
@@ -67,6 +75,12 @@ export type ServerMessage =
   | { type: 'status'; state: ChatState; verb?: string; elapsed?: number; tokens?: number }
   | { type: 'error'; message: string; code: string; retryable?: boolean }
   | { type: 'system_notification'; subtype: string; message?: string; data?: unknown }
+  | {
+      type: 'steer_status'
+      steerId: string
+      status: 'queued' | 'processing' | 'processed' | 'cancelled' | 'failed'
+      message?: string
+    }
   | { type: 'pong' }
   | { type: 'team_update'; teamName: string; members: TeamMemberStatus[] }
   | { type: 'team_created'; teamName: string }

@@ -16,6 +16,12 @@ import { openaiChatToAnthropic } from '../proxy/transform/openaiChatToAnthropic.
 import { openaiResponsesToAnthropic } from '../proxy/transform/openaiResponsesToAnthropic.js'
 import type { AnthropicRequest, AnthropicResponse } from '../proxy/transform/types.js'
 import { PROVIDER_PRESETS } from '../config/providerPresets.js'
+import {
+  CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
+  buildModelContextWindowMap,
+  inferContextWindowFromModelName,
+  parseContextWindowTokenValue,
+} from '../../utils/modelContextWindows.js'
 import type {
   SavedProvider,
   ProvidersIndex,
@@ -25,6 +31,8 @@ import type {
   ProviderTestResult,
   ProviderTestStepResult,
   ApiFormat,
+  ModelContextWindows,
+  ModelMapping,
 } from '../types/provider.js'
 
 const MANAGED_ENV_KEYS = [
@@ -38,12 +46,18 @@ const MANAGED_ENV_KEYS = [
   'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
   'ANTHROPIC_DEFAULT_OPUS_MODEL',
   'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+  CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
 ] as const
 
 const DEFAULT_INDEX: ProvidersIndex = { activeId: null, providers: [] }
+const MODEL_ROLES = ['main', 'haiku', 'sonnet', 'opus'] as const
 
 function getPresetDefaultEnv(presetId: string): Record<string, string> {
   return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultEnv ?? {}
+}
+
+function getPresetDefaultContextWindows(presetId: string): ModelContextWindows {
+  return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultModelContextWindows ?? {}
 }
 
 function getManagedEnvKeys(): string[] {
@@ -54,6 +68,20 @@ function getManagedEnvKeys(): string[] {
     }
   }
   return [...keys]
+}
+
+function compactModelContextWindows(
+  input: ModelContextWindows | undefined,
+): ModelContextWindows | undefined {
+  if (!input) return undefined
+
+  const compacted: ModelContextWindows = {}
+  for (const role of MODEL_ROLES) {
+    const parsed = parseContextWindowTokenValue(input[role])
+    if (parsed) compacted[role] = parsed
+  }
+
+  return Object.keys(compacted).length > 0 ? compacted : undefined
 }
 
 export class ProviderService {
@@ -168,6 +196,9 @@ export class ProviderService {
       baseUrl: input.baseUrl,
       apiFormat: input.apiFormat ?? 'anthropic',
       models: input.models,
+      ...(compactModelContextWindows(input.modelContextWindows) && {
+        modelContextWindows: compactModelContextWindows(input.modelContextWindows),
+      }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
@@ -189,6 +220,9 @@ export class ProviderService {
       ...(input.baseUrl !== undefined && { baseUrl: input.baseUrl }),
       ...(input.apiFormat !== undefined && { apiFormat: input.apiFormat }),
       ...(input.models !== undefined && { models: input.models }),
+      ...(input.modelContextWindows !== undefined && {
+        modelContextWindows: compactModelContextWindows(input.modelContextWindows),
+      }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
@@ -250,6 +284,7 @@ export class ProviderService {
     const baseUrl = needsProxy
       ? `http://127.0.0.1:${ProviderService.serverPort}${proxyPath}`
       : provider.baseUrl
+    const modelContextWindowMap = this.getProviderModelContextWindowMap(provider)
 
     return {
       ...getPresetDefaultEnv(provider.presetId),
@@ -259,7 +294,33 @@ export class ProviderService {
       ANTHROPIC_DEFAULT_HAIKU_MODEL: provider.models.haiku,
       ANTHROPIC_DEFAULT_SONNET_MODEL: provider.models.sonnet,
       ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus,
+      ...(Object.keys(modelContextWindowMap).length > 0
+        ? { [CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(modelContextWindowMap) }
+        : {}),
     }
+  }
+
+  getProviderRoleContextWindows(provider: SavedProvider): ModelContextWindows {
+    const presetWindows = getPresetDefaultContextWindows(provider.presetId)
+    const userWindows = provider.modelContextWindows ?? {}
+    const resolved: ModelContextWindows = {}
+
+    for (const role of MODEL_ROLES) {
+      const userValue = parseContextWindowTokenValue(userWindows[role])
+      const presetValue = parseContextWindowTokenValue(presetWindows[role])
+      const inferredValue = inferContextWindowFromModelName(provider.models[role])
+      const contextWindow = userValue ?? presetValue ?? inferredValue
+      if (contextWindow) resolved[role] = contextWindow
+    }
+
+    return resolved
+  }
+
+  getProviderModelContextWindowMap(provider: SavedProvider): Record<string, number> {
+    return buildModelContextWindowMap(
+      provider.models as ModelMapping,
+      this.getProviderRoleContextWindows(provider),
+    )
   }
 
   async getProviderRuntimeEnv(id: string): Promise<Record<string, string>> {

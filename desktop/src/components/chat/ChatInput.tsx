@@ -129,7 +129,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const fileSearchRef = useRef<FileSearchMenuHandle>(null)
   const wasActiveRef = useRef(false)
   const slashItemRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const { sendMessage, stopGeneration } = useChatStore()
+  const { sendMessage, stopGeneration, queuePendingSteer } = useChatStore()
   const globalActiveTabId = useTabStore((s) => s.activeTabId)
   const activeTabId = sessionIdProp ?? globalActiveTabId
   const sessionState = useChatStore((s) => activeTabId ? s.sessions[activeTabId] : undefined)
@@ -452,7 +452,9 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
       mimeType: attachment.mimeType,
     }))
 
-    if (onSubmitProp) {
+    if (!isMemberSession && isActive) {
+      queuePendingSteer(activeTabId!, text, attachmentPayload)
+    } else if (onSubmitProp) {
       onSubmitProp(text, attachmentPayload)
     } else {
       sendMessage(activeTabId!, text, attachmentPayload)

@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatInput } from './ChatInput'
-import { useChatStore } from '../../stores/chatStore'
+import { useChatStore, type PerSessionState } from '../../stores/chatStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTabStore } from '../../stores/tabStore'
@@ -14,6 +14,36 @@ import { open } from '@tauri-apps/plugin-dialog'
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: vi.fn(),
 }))
+
+function makeChatSession(overrides: Partial<PerSessionState> = {}): PerSessionState {
+  return {
+    messages: [],
+    historyBuffer: [],
+    recentBuffer: [],
+    historyLoadState: 'loaded',
+    allMessagesLoaded: true,
+    chatState: 'idle',
+    connectionState: 'connected',
+    streamingText: '',
+    streamingToolInput: '',
+    activeToolUseId: null,
+    activeToolName: null,
+    activeThinkingId: null,
+    pendingPermission: null,
+    pendingComputerUsePermission: null,
+    pendingSteers: [],
+    tokenUsage: { input_tokens: 0, output_tokens: 0 },
+    elapsedSeconds: 0,
+    statusVerb: '',
+    turnStartedAt: null,
+    lastModelActivityAt: null,
+    lastConnectionActivityAt: null,
+    slashCommands: [],
+    agentTaskNotifications: {},
+    elapsedTimer: null,
+    ...overrides,
+  }
+}
 
 describe('ChatInput composer controls', () => {
   beforeEach(() => {
@@ -210,6 +240,32 @@ describe('ChatInput composer controls', () => {
         name: 'report.pdf',
         path: '/Users/wang/Documents/report.pdf',
       }),
+    ])
+  })
+
+  it('queues extra input while the assistant is active', () => {
+    const onSubmit = vi.fn()
+    useChatStore.setState({
+      sessions: {
+        'running-session': makeChatSession({ chatState: 'streaming' }),
+      },
+    })
+
+    render(<ChatInput sessionId="running-session" onSubmit={onSubmit} />)
+
+    const textarea = screen.getByRole('textbox')
+    act(() => {
+      fireEvent.change(textarea, { target: { value: '还有一个补充' } })
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' })
+    })
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(textarea).toHaveValue('')
+    expect(useChatStore.getState().sessions['running-session']?.pendingSteers).toMatchObject([
+      {
+        content: '还有一个补充',
+        status: 'draft',
+      },
     ])
   })
 })

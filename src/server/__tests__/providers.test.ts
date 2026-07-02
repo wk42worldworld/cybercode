@@ -153,6 +153,21 @@ describe('ProviderService', () => {
 
       expect(provider.notes).toBe('dev environment')
     })
+
+    test('should store optional model context windows', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        modelContextWindows: {
+          main: 1_000_000,
+          sonnet: 200_000,
+        },
+      }))
+
+      expect(provider.modelContextWindows).toEqual({
+        main: 1_000_000,
+        sonnet: 200_000,
+      })
+    })
   })
 
   // ─── getProvider ─────────────────────────────────────────────────────────
@@ -317,6 +332,34 @@ describe('ProviderService', () => {
       expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('model-opus')
     })
 
+    test('should write model context windows on activation', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        models: {
+          main: 'model-large',
+          haiku: 'model-small',
+          sonnet: 'model-large',
+          opus: 'model-opus',
+        },
+        modelContextWindows: {
+          main: 200_000,
+          haiku: 64_000,
+          sonnet: 1_000_000,
+          opus: 128_000,
+        },
+      }))
+
+      await svc.activateProvider(provider.id)
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(JSON.parse(env.CYBERCODE_MODEL_CONTEXT_WINDOWS)).toEqual({
+        'model-large': 1_000_000,
+        'model-small': 64_000,
+        'model-opus': 128_000,
+      })
+    })
+
     test('should include preset default env on activation and runtime env', async () => {
       const svc = new ProviderService()
       const provider = await svc.addProvider(sampleInput({
@@ -462,6 +505,34 @@ describe('Providers API', () => {
     const body = (await res.json()) as { provider: { name: string; models: { main: string } } }
     expect(body.provider.name).toBe('New Provider')
     expect(body.provider.models.main).toBe('gpt-4')
+  })
+
+  test('POST /api/providers should normalize model context windows', async () => {
+    const { req, url, segments } = makeRequest('POST', '/api/providers', {
+      presetId: 'custom',
+      name: 'New Provider',
+      baseUrl: 'https://api.example.com',
+      apiKey: 'sk-test',
+      apiFormat: 'anthropic',
+      models: {
+        main: 'gpt-4',
+        haiku: 'gpt-4-haiku',
+        sonnet: 'gpt-4-sonnet',
+        opus: 'gpt-4-opus',
+      },
+      modelContextWindows: {
+        main: '1m',
+        haiku: '128k',
+      },
+    })
+    const res = await handleProvidersApi(req, url, segments)
+
+    expect(res.status).toBe(201)
+    const body = (await res.json()) as { provider: { modelContextWindows: Record<string, number> } }
+    expect(body.provider.modelContextWindows).toEqual({
+      main: 1_000_000,
+      haiku: 128_000,
+    })
   })
 
   test('POST /api/providers should return 400 for invalid input', async () => {

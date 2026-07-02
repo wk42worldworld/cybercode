@@ -191,6 +191,39 @@ describe('ConversationService', () => {
     expect(env.ANTHROPIC_MODEL).toBe('new-provider-sonnet')
   })
 
+  test('buildChildEnv forwards model context windows for session-scoped providers', async () => {
+    const providerService = new ProviderService()
+    const provider = await providerService.addProvider({
+      presetId: 'custom',
+      name: 'Contextful',
+      apiKey: 'provider-key',
+      baseUrl: 'https://api.contextful.example',
+      apiFormat: 'openai_chat',
+      models: {
+        main: 'provider-main',
+        haiku: 'provider-haiku',
+        sonnet: 'provider-sonnet',
+        opus: 'provider-opus',
+      },
+      modelContextWindows: {
+        main: 200_000,
+        sonnet: 1_000_000,
+      },
+    })
+
+    const service = new ConversationService() as any
+    const env = (await service.buildChildEnv('/tmp', undefined, {
+      providerId: provider.id,
+      model: 'provider-sonnet',
+      contextWindow: 128_000,
+    })) as Record<string, string>
+
+    expect(JSON.parse(env.CYBERCODE_MODEL_CONTEXT_WINDOWS)).toEqual({
+      'provider-main': 200_000,
+      'provider-sonnet': 128_000,
+    })
+  })
+
   test('buildChildEnv preserves provider capability overrides from presets', async () => {
     const providerService = new ProviderService()
     const provider = await providerService.addProvider({
@@ -303,6 +336,52 @@ describe('ConversationService', () => {
     expect(args).toContain('--include-partial-messages')
     expect(args).toContain('--sdk-url')
     expect(args).toContain('--replay-user-messages')
+  })
+
+  test('sendMessage forwards steering metadata to the SDK session', () => {
+    const service = new ConversationService() as any
+    const sent: any[] = []
+
+    service.sessions.set('session-steer', {
+      proc: null,
+      outputCallbacks: [],
+      workDir: process.cwd(),
+      permissionMode: 'default',
+      sdkToken: 'token',
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    const result = service.sendMessage(
+      'session-steer',
+      '补充一下当前任务',
+      undefined,
+      {
+        uuid: '123e4567-e89b-12d3-a456-426614174000',
+        priority: 'next',
+      },
+    )
+
+    expect(result).toBe(true)
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({
+      type: 'user',
+      uuid: '123e4567-e89b-12d3-a456-426614174000',
+      priority: 'next',
+      message: {
+        role: 'user',
+        content: [{ type: 'text', text: '补充一下当前任务' }],
+      },
+    })
+    expect(Number.isNaN(Date.parse(sent[0].timestamp))).toBe(false)
   })
 
   test('buildChildEnv asks desktop SDK sessions to wait briefly for MCP tools', async () => {

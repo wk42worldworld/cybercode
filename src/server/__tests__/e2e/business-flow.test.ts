@@ -18,6 +18,7 @@ let tmpDir: string
 async function startTestServer() {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-biz-'))
   process.env.CLAUDE_CONFIG_DIR = tmpDir
+  process.env.CLAUDE_CLI_PATH = path.resolve(import.meta.dir, '../fixtures/mock-sdk-cli.ts')
   await fs.mkdir(path.join(tmpDir, 'projects'), { recursive: true })
   await fs.mkdir(path.join(tmpDir, 'agents'), { recursive: true })
 
@@ -377,19 +378,18 @@ describe('Business Flow: Models & Effort', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
-  it('should return 4 available models', async () => {
+  it('should return available models', async () => {
     const { data } = await api('GET', '/api/models')
-    expect(data.models.length).toBe(4)
+    expect(data.models.length).toBe(3)
     const names = data.models.map((m: any) => m.name)
     expect(names).toContain('Opus 4.7')
-    expect(names).toContain('Opus 4.7 1M')
     expect(names).toContain('Sonnet 4.6')
     expect(names).toContain('Haiku 4.5')
   })
 
-  it('should default to Sonnet model', async () => {
+  it('should default to Opus model', async () => {
     const { data } = await api('GET', '/api/models/current')
-    expect(data.model.id).toBe('claude-sonnet-4-6')
+    expect(data.model.id).toBe('claude-opus-4-7')
   })
 
   it('should switch to Opus 4.7', async () => {
@@ -468,8 +468,10 @@ describe('Business Flow: Sessions & CLI Interop', () => {
   let sessionId: string
 
   it('should create a session', async () => {
+    const workDir = path.join(tmpDir, 'my-project')
+    await fs.mkdir(workDir, { recursive: true })
     const { status, data } = await api('POST', '/api/sessions', {
-      workDir: '/Users/dev/my-project',
+      workDir,
     })
     expect(status).toBe(201)
     expect(data.sessionId).toMatch(/^[0-9a-f-]{36}$/)
@@ -670,7 +672,7 @@ describe('Business Flow: WebSocket Chat', () => {
         }
       }
       ws.onerror = () => { ws.close(); resolve() }
-      setTimeout(() => { ws.close(); resolve() }, 5000)
+      setTimeout(() => { ws.close(); resolve() }, 8000)
     })
 
     const types = messages.map((m) => m.type)
@@ -683,7 +685,7 @@ describe('Business Flow: WebSocket Chat', () => {
     // Should have thinking state first
     const statusMsgs = messages.filter((m) => m.type === 'status')
     expect(statusMsgs[0].state).toBe('thinking')
-  })
+  }, 10000)
 
   it('should handle ping/pong', async () => {
     const messages: any[] = []

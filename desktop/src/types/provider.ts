@@ -9,6 +9,8 @@ export type ModelMapping = {
   opus: string
 }
 
+export type ModelContextWindows = Partial<Record<keyof ModelMapping, number>>
+
 export type SavedProvider = {
   id: string
   presetId: string
@@ -17,6 +19,7 @@ export type SavedProvider = {
   baseUrl: string
   apiFormat: ApiFormat
   models: ModelMapping
+  modelContextWindows?: ModelContextWindows
   notes?: string
 }
 
@@ -27,6 +30,7 @@ export type CreateProviderInput = {
   baseUrl: string
   apiFormat?: ApiFormat
   models: ModelMapping
+  modelContextWindows?: ModelContextWindows
   notes?: string
 }
 
@@ -36,6 +40,7 @@ export type UpdateProviderInput = {
   baseUrl?: string
   apiFormat?: ApiFormat
   models?: ModelMapping
+  modelContextWindows?: ModelContextWindows
   notes?: string
 }
 

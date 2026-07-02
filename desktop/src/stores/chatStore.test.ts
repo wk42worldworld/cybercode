@@ -136,6 +136,7 @@ function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionS
     activeThinkingId: null,
     pendingPermission: null,
     pendingComputerUsePermission: null,
+    pendingSteers: [],
     tokenUsage: { input_tokens: 0, output_tokens: 0 },
     elapsedSeconds: 0,
     statusVerb: '',
@@ -434,6 +435,112 @@ describe('chatStore history mapping', () => {
 
     expect(sendMock).toHaveBeenCalledWith(TEST_SESSION_ID, {
       type: 'prewarm_session',
+    })
+  })
+
+  it('queues pending steering input and sends it with the selected priority', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }),
+      },
+    })
+
+    const steerId = useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, '补充一下这个约束', [
+      { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
+    ])
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      {
+        id: steerId,
+        content: '补充一下这个约束',
+        status: 'draft',
+      },
+    ])
+
+    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'next')
+
+    const payload = sendMock.mock.calls[sendMock.mock.calls.length - 1]?.[1]
+    expect(payload).toMatchObject({
+      type: 'user_steer',
+      steerId,
+      content: '补充一下这个约束',
+      priority: 'next',
+    })
+    expect(payload.attachments).toMatchObject([
+      { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
+    ])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      {
+        id: steerId,
+        status: 'queued',
+        priority: 'next',
+      },
+    ])
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'failed',
+      message: 'Queue rejected',
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      {
+        id: steerId,
+        status: 'failed',
+        error: 'Queue rejected',
+      },
+    ])
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'processed',
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toEqual([])
+  })
+
+  it('cancels a queued steering input through the websocket', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }),
+      },
+    })
+
+    const steerId = useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, '下一轮再说')
+    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'later')
+    sendMock.mockClear()
+
+    useChatStore.getState().cancelPendingSteer(TEST_SESSION_ID, steerId)
+
+    expect(sendMock).toHaveBeenCalledWith(TEST_SESSION_ID, {
+      type: 'cancel_steer',
+      steerId,
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toEqual([])
+  })
+
+  it('moves draft steering input back into the composer for editing', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }),
+      },
+    })
+
+    const steerId = useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, '先改一下这个补充', [
+      { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
+    ])
+
+    useChatStore.getState().editPendingSteer(TEST_SESSION_ID, steerId)
+
+    expect(sendMock).not.toHaveBeenCalled()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toEqual([])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.composerPrefill).toMatchObject({
+      text: '先改一下这个补充',
+      attachments: [
+        { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
+      ],
     })
   })
 

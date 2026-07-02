@@ -33,7 +33,7 @@ export function AssistantMessage({ content, isStreaming, toolCalls, resultMap, c
   const layout = !isStreaming && isDocumentLike(content) ? 'document' : 'bubble'
 
   return (
-    <div className="group/msg flex w-full justify-center px-[24px] py-[12px]">
+    <div className="group/msg flex w-full justify-center px-[24px] py-[8px]">
       <div
         data-message-shell="assistant"
         data-layout={layout}

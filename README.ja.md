@@ -39,6 +39,8 @@ CyberCode は、**Claude Code のプロダクト設計を強く参考にした**
 - スクリプトや CI 向けの `--print` ヘッドレスモード
 - MCP サーバー、プラグイン、Skills に対応
 - カスタム API エンドポイントとモデルに対応（[Third-Party Models Guide](docs/en/guide/third-party-models.md)）
+- 応答実行中の追加入力を保留バーに保存し、編集・削除・現在のタスクへの追加が可能
+- プロバイダー / モデルごとのコンテキストウィンドウ情報に対応
 - **Memory System**：セッションをまたいだ永続メモリ
 - **Multi-Agent System**：複数 Agent の編成、並列タスク、Teams 協作
 - **Skills System**：拡張可能な能力プラグインとカスタムワークフロー

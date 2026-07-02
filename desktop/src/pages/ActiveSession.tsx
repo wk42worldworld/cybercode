@@ -13,6 +13,7 @@ import { TeamStatusBar } from '../components/teams/TeamStatusBar'
 import { SessionTaskBar } from '../components/chat/SessionTaskBar'
 import { FloatingThinkingPanel } from '../components/chat/FloatingThinkingPanel'
 import { LongRunningNotice } from '../components/chat/LongRunningNotice'
+import { PendingSteerBar } from '../components/chat/PendingSteerBar'
 
 const TASK_POLL_INTERVAL_MS = 1000
 const THINKING_RECENT_GRACE_MS = 3200
@@ -308,6 +309,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
                 />
               )}
               {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
+              {!isMemberSession && <PendingSteerBar sessionId={sessionId} />}
               <TeamStatusBar />
             </div>
             <div ref={composerShellRef} className="pointer-events-none">

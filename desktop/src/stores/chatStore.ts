@@ -33,6 +33,16 @@ import type {
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
 
+export type PendingSteer = {
+  id: string
+  content: string
+  attachments?: UIAttachment[]
+  createdAt: number
+  status: 'draft' | 'queued' | 'processing' | 'processed' | 'cancelled' | 'failed'
+  priority?: 'next' | 'later'
+  error?: string
+}
+
 /** How many messages to request when loading older history via loadMoreHistory. */
 export const HISTORY_PAGE_SIZE = 50
 /** How many messages to request on initial history load (loadHistory / reloadHistory). */
@@ -81,6 +91,7 @@ export type PerSessionState = {
     requestId: string
     request: ComputerUsePermissionRequest
   } | null
+  pendingSteers?: PendingSteer[]
   tokenUsage: TokenUsage
   elapsedSeconds: number
   statusVerb: string
@@ -113,6 +124,7 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   dismissedThinkingPanelIdentityKey: null,
   pendingPermission: null,
   pendingComputerUsePermission: null,
+  pendingSteers: [],
   tokenUsage: { input_tokens: 0, output_tokens: 0 },
   elapsedSeconds: 0,
   statusVerb: '',
@@ -126,7 +138,12 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
 }
 
 function createDefaultSessionState(): PerSessionState {
-  return { ...DEFAULT_SESSION_STATE, messages: [], tokenUsage: { input_tokens: 0, output_tokens: 0 } }
+  return {
+    ...DEFAULT_SESSION_STATE,
+    messages: [],
+    pendingSteers: [],
+    tokenUsage: { input_tokens: 0, output_tokens: 0 },
+  }
 }
 
 function getThinkingPanelIdentityKey(sessionId: string, messages: UIMessage[]): string {
@@ -150,6 +167,15 @@ type ChatStore = {
     attachments?: AttachmentRef[],
     options?: { displayContent?: string },
   ) => void
+  queuePendingSteer: (
+    sessionId: string,
+    content: string,
+    attachments?: AttachmentRef[],
+    options?: { displayContent?: string },
+  ) => string
+  sendPendingSteers: (sessionId: string, priority: 'next' | 'later') => void
+  editPendingSteer: (sessionId: string, steerId: string) => void
+  cancelPendingSteer: (sessionId: string, steerId: string) => void
   respondToPermission: (
     sessionId: string,
     requestId: string,
@@ -234,6 +260,13 @@ function resolveSessionTitleUpdate(sessionId: string, incomingTitle: string): st
 
 let msgCounter = 0
 const nextId = () => `msg-${++msgCounter}-${Date.now()}`
+
+function nextSteerId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `00000000-0000-4000-8000-${String(++msgCounter).padStart(12, '0')}`
+}
 
 // Streaming throttle for content_delta
 const pendingDeltas = new Map<string, string>()
@@ -567,6 +600,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             lastConnectionActivityAt: now,
             elapsedTimer: timer,
             connectionState: isMemberSession ? 'connected' : session.connectionState,
+            pendingSteers: (session.pendingSteers ?? []).filter((steer) => steer.status === 'draft' || steer.status === 'failed'),
           },
         },
       }
@@ -600,6 +634,107 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
 
     wsManager.send(sessionId, { type: 'user_message', content, attachments })
+  },
+
+  queuePendingSteer: (sessionId, content, attachments, options) => {
+    const userFacingContent = options?.displayContent?.trim() || content.trim()
+    const uiAttachments: UIAttachment[] | undefined =
+      attachments && attachments.length > 0
+        ? attachments.map((a) => ({
+            type: a.type,
+            name: a.name || a.path || a.mimeType || a.type,
+            path: a.path,
+            data: a.data,
+            mimeType: a.mimeType,
+          }))
+        : undefined
+    const id = nextSteerId()
+
+    set((s) => {
+      const session = s.sessions[sessionId] ?? createDefaultSessionState()
+      return {
+        sessions: {
+          ...s.sessions,
+          [sessionId]: {
+            ...session,
+            pendingSteers: [
+              ...(session.pendingSteers ?? []),
+              {
+                id,
+                content: userFacingContent,
+                attachments: uiAttachments,
+                createdAt: Date.now(),
+                status: 'draft',
+              },
+            ],
+          },
+        },
+      }
+    })
+
+    return id
+  },
+
+  sendPendingSteers: (sessionId, priority) => {
+    const session = get().sessions[sessionId]
+    if (!session) return
+    const targets = (session.pendingSteers ?? []).filter((steer) => steer.status === 'draft' || steer.status === 'failed')
+    if (targets.length === 0) return
+
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, (current) => ({
+        pendingSteers: (current.pendingSteers ?? []).map((steer) =>
+          targets.some((target) => target.id === steer.id)
+            ? { ...steer, status: 'queued', priority, error: undefined }
+            : steer,
+        ),
+      })),
+    }))
+
+    for (const steer of targets) {
+      wsManager.send(sessionId, {
+        type: 'user_steer',
+        steerId: steer.id,
+        content: steer.content,
+        attachments: steer.attachments?.map((attachment) => ({
+          type: attachment.type,
+          name: attachment.name,
+          path: attachment.path,
+          data: attachment.data,
+          mimeType: attachment.mimeType,
+        })),
+        priority,
+      })
+    }
+  },
+
+  editPendingSteer: (sessionId, steerId) => {
+    const steer = get().sessions[sessionId]?.pendingSteers?.find((entry) => entry.id === steerId)
+    if (!steer || (steer.status !== 'draft' && steer.status !== 'failed')) return
+
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, (session) => ({
+        pendingSteers: (session.pendingSteers ?? []).filter((entry) => entry.id !== steerId),
+        composerPrefill: {
+          text: steer.content,
+          attachments: steer.attachments,
+          nonce: Date.now(),
+        },
+      })),
+    }))
+  },
+
+  cancelPendingSteer: (sessionId, steerId) => {
+    const steer = get().sessions[sessionId]?.pendingSteers?.find((entry) => entry.id === steerId)
+    if (!steer) return
+    if (steer.status === 'queued' || steer.status === 'processing') {
+      wsManager.send(sessionId, { type: 'cancel_steer', steerId })
+    }
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, (session) => ({
+        pendingSteers: (session.pendingSteers ?? []).filter((entry) => entry.id !== steerId),
+      })),
+    }))
   },
 
   respondToPermission: (sessionId, requestId, allowed, options) => {
@@ -1043,6 +1178,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         chatState: 'idle',
         turnStartedAt: null,
         lastModelActivityAt: null,
+        pendingSteers: [],
       })),
     }))
   },
@@ -1295,9 +1431,33 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           elapsedTimer: null,
           turnStartedAt: null,
           lastModelActivityAt: null,
+          pendingSteers: (session.pendingSteers ?? []).filter((steer) => steer.status === 'draft' || steer.status === 'failed'),
         }))
         break
       }
+
+      case 'steer_status':
+        update((session) => {
+          if (msg.status === 'cancelled' || msg.status === 'processed') {
+            return {
+              ...markConnectionActivity(),
+              pendingSteers: (session.pendingSteers ?? []).filter((steer) => steer.id !== msg.steerId),
+            }
+          }
+          return {
+            ...markConnectionActivity(),
+            pendingSteers: (session.pendingSteers ?? []).map((steer) =>
+              steer.id === msg.steerId
+                ? {
+                    ...steer,
+                    status: msg.status,
+                    error: msg.status === 'failed' ? msg.message ?? 'Failed to queue input.' : undefined,
+                  }
+                : steer,
+            ),
+          }
+        })
+        break
 
       case 'error':
         update((s) => {
@@ -1383,6 +1543,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             lastModelActivityAt: null,
             tokenUsage: { input_tokens: 0, output_tokens: 0 },
             slashCommands: [],
+            pendingSteers: [],
           }))
           useCLITaskStore.getState().clearTasks()
           const defaultTitle = getDefaultSessionTitle(t)

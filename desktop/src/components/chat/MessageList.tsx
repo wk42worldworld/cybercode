@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, memo, useState, useCallback, forwardRef } from 'react'
+import { useRef, useEffect, useMemo, memo, useState, useCallback, forwardRef, type CSSProperties } from 'react'
 import { Virtuoso, type ScrollerProps, type VirtuosoHandle } from 'react-virtuoso'
 import { ApiError } from '../../api/client'
 import { sessionsApi, type SessionRewindResponse } from '../../api/sessions'
@@ -130,7 +130,7 @@ function ErrorMessageBubble({
   const normalizedMessage = displayMessage.replace(/^Error:\s*/i, '')
 
   return (
-    <div className="flex w-full justify-center px-[24px] py-[12px]">
+    <div className="flex w-full justify-center px-[24px] py-[8px]">
       <div data-message-shell="error" className="flex w-full max-w-[878px] flex-col items-start">
         <div
           data-message-error
@@ -164,13 +164,15 @@ type MessageListProps = {
 }
 
 const MessageScroller = forwardRef<HTMLDivElement, ScrollerProps>(function MessageScroller({ style, ...props }, ref) {
+  const safeStyle = sanitizeScrollerStyle(style)
+
   return (
     <div
       {...props}
       ref={ref}
       className="message-scrollbar scrollbar-no-track"
       style={{
-        ...style,
+        ...safeStyle,
         overflowY: 'scroll',
         scrollbarGutter: 'stable',
       }}
@@ -180,6 +182,22 @@ const MessageScroller = forwardRef<HTMLDivElement, ScrollerProps>(function Messa
 
 const MIN_BOTTOM_SPACER_HEIGHT = 176
 const BOTTOM_SPACER_CLEARANCE = 8
+
+function sanitizeScrollerStyle(style: CSSProperties | undefined): CSSProperties | undefined {
+  if (!style) return undefined
+
+  let hasInvalidValue = false
+  const sanitized = { ...style }
+  for (const key of Object.keys(sanitized) as Array<keyof CSSProperties>) {
+    const value = sanitized[key]
+    if (typeof value === 'number' && !Number.isFinite(value)) {
+      delete sanitized[key]
+      hasInvalidValue = true
+    }
+  }
+
+  return hasInvalidValue ? sanitized : style
+}
 
 export function MessageList({ sessionId, projectPath, isActive: _isActive = true, bottomOverlayHeight = 0, __testInitialItemCount }: MessageListProps = {}) {
   const activeTabId = useTabStore((s) => s.activeTabId)
@@ -761,7 +779,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       // Fallback: standalone tool_group that wasn't merged into an assistant message.
       if (item.kind === 'tool_group') {
         return (
-          <div className="flex w-full justify-center px-[24px] py-[12px]">
+          <div className="flex w-full justify-center px-[24px] py-[8px]">
             <div className="w-full max-w-[878px]">
               <ToolCallGroup
                 toolCalls={item.toolCalls}
@@ -1084,7 +1102,7 @@ export const MessageBlock = memo(function MessageBlock({
 
   // Wrap non-user/assistant messages in iMessage-style assistant bubble
   const wrapInAssistantBubble = (content: React.ReactNode) => (
-    <div className="flex w-full justify-center px-[24px] py-[12px]">
+    <div className="flex w-full justify-center px-[24px] py-[8px]">
       <div className="flex w-full max-w-[878px] flex-col items-start">
         <div className="chat-bubble-text w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
           {content}

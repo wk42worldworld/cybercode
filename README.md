@@ -35,8 +35,10 @@ A **locally runnable client** that **heavily references Claude Code's design**, 
 
 ## Latest Highlights
 
-Latest stable desktop release: [CyberCode v1.0.8](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.8)
+Latest stable desktop release: [CyberCode v1.0.9](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.9)
 
+- **Running-turn input steering**: when an assistant response is still running, new user input is saved in a pending bar instead of disappearing or interrupting blindly. You can edit it, delete it, add it to the current turn, or send it after the current turn finishes.
+- **Provider-aware model context windows**: model presets can now carry context-window metadata, and CyberCode forwards those limits into desktop sessions so third-party providers behave more predictably.
 - **Cross-platform desktop releases**: GitHub Actions now publishes macOS Apple Silicon, macOS Intel, Windows x64, and Linux x64 desktop builds together, with updater metadata included in `latest.json`.
 - **Notarized macOS installers**: macOS desktop packages are signed and Apple-notarized to avoid the previous Gatekeeper "malicious software" style warning on normal installs.
 - **Smarter Windows tool runtime**: CyberCode finds Git Bash when available, falls back to PowerShell when it is not, and only exposes executable tools that are actually available to the model.
@@ -51,6 +53,8 @@ Latest stable desktop release: [CyberCode v1.0.8](https://github.com/wk42worldwo
 - `--print` headless mode for scripts and CI
 - MCP server, plugin, and Skills support
 - Custom API endpoint and model support ([Third-Party Models Guide](docs/en/guide/third-party-models.md))
+- Running-turn input steering with editable pending prompts
+- Provider/model context-window metadata for more reliable long-context sessions
 - Runtime-aware tool availability, including Git Bash / PowerShell fallback on Windows
 - Desktop file upload fallback for unsupported file types
 - Streaming command execution blocks with active progress highlighting

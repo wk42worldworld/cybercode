@@ -35,8 +35,10 @@
 
 ## 最新重点特性
 
-最新稳定桌面版：[CyberCode v1.0.8](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.8)
+最新稳定桌面版：[CyberCode v1.0.9](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.9)
 
+- **运行中输入缓存与引导**：AI 正在答复时再次发送内容，会先进入待处理提示条；用户可以编辑、删除、加入当前任务，或等本轮结束后再发送。
+- **模型上下文窗口感知**：模型预设现在可以携带 context window 元数据，桌面会把这些限制传入会话，让第三方模型长上下文行为更稳定。
 - **四平台桌面端发布**：GitHub Actions 现在会同时发布 macOS Apple Silicon、macOS Intel、Windows x64、Linux x64，并生成 `latest.json` 更新元数据。
 - **macOS 安装包已公证**：macOS 桌面端包已完成签名和 Apple notarization，正常安装时不再触发之前那类“可能是恶意软件”的 Gatekeeper 提示。
 - **Windows 工具运行时兜底**：CyberCode 会优先寻找 Git Bash，找不到就自动回退到 PowerShell，并且只把当前环境真正可执行的工具暴露给模型。
@@ -51,6 +53,8 @@
 - `--print` 无头模式（脚本/CI 场景）
 - 支持 MCP 服务器、插件、Skills
 - 支持自定义 API 端点和模型（[第三方模型使用指南](docs/guide/third-party-models.md)）
+- AI 运行中再次输入时支持待处理提示条、编辑、删除和加入当前任务
+- 模型/供应商上下文窗口元数据，让长上下文会话更可靠
 - 工具运行时会按当前环境兜底，包括 Windows 上的 Git Bash / PowerShell 自动切换
 - 桌面端上传不支持的文件类型时会自动按文件路径传给模型
 - 命令执行块支持运行中高光进度效果

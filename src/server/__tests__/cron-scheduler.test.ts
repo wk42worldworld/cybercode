@@ -18,6 +18,7 @@ import { CronService, type CronTask } from '../services/cronService.js'
 
 let tmpDir: string
 const originalConfigDir = process.env.CLAUDE_CONFIG_DIR
+const originalTaskTimeoutMs = process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS
 
 async function createTmpDir(): Promise<string> {
   const dir = path.join(
@@ -162,6 +163,7 @@ describe('CronScheduler', () => {
   beforeEach(async () => {
     tmpDir = await createTmpDir()
     process.env.CLAUDE_CONFIG_DIR = tmpDir
+    process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS = '50'
     cronService = new CronService()
     scheduler = new CronScheduler(cronService)
   })
@@ -172,6 +174,11 @@ describe('CronScheduler', () => {
       process.env.CLAUDE_CONFIG_DIR = originalConfigDir
     } else {
       delete process.env.CLAUDE_CONFIG_DIR
+    }
+    if (originalTaskTimeoutMs) {
+      process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS = originalTaskTimeoutMs
+    } else {
+      delete process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS
     }
     await cleanupTmpDir(tmpDir)
   })
@@ -374,6 +381,7 @@ describe('Execution log trimming', () => {
   beforeEach(async () => {
     tmpDir = await createTmpDir()
     process.env.CLAUDE_CONFIG_DIR = tmpDir
+    process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS = '50'
     cronService = new CronService()
     scheduler = new CronScheduler(cronService)
   })
@@ -384,6 +392,11 @@ describe('Execution log trimming', () => {
       process.env.CLAUDE_CONFIG_DIR = originalConfigDir
     } else {
       delete process.env.CLAUDE_CONFIG_DIR
+    }
+    if (originalTaskTimeoutMs) {
+      process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS = originalTaskTimeoutMs
+    } else {
+      delete process.env.CYBERCODE_SCHEDULED_TASK_TIMEOUT_MS
     }
     await cleanupTmpDir(tmpDir)
   })

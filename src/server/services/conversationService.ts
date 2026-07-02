@@ -15,6 +15,7 @@ import {
   buildClaudeCliArgs,
   resolveClaudeCliLauncher,
 } from '../../utils/desktopBundledCli.js'
+import { CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV } from '../../utils/modelContextWindows.js'
 
 type AttachmentRef = {
   type: 'file' | 'image'
@@ -22,6 +23,13 @@ type AttachmentRef = {
   path?: string
   data?: string
   mimeType?: string
+}
+
+type MessagePriority = 'now' | 'next' | 'later'
+
+type SendMessageOptions = {
+  uuid?: string
+  priority?: MessagePriority
 }
 
 type SessionProcess = {
@@ -50,6 +58,7 @@ type SessionStartOptions = {
   model?: string
   effort?: string
   providerId?: string | null
+  contextWindow?: number
 }
 
 export class ConversationStartupError extends Error {
@@ -259,6 +268,7 @@ export class ConversationService {
     sessionId: string,
     content: string,
     attachments?: AttachmentRef[],
+    options?: SendMessageOptions,
   ): boolean {
     return this.sendSdkMessage(sessionId, {
       type: 'user',
@@ -268,7 +278,18 @@ export class ConversationService {
       },
       parent_tool_use_id: null,
       session_id: '',
+      ...(options?.uuid ? { uuid: options.uuid } : {}),
+      ...(options?.priority ? { priority: options.priority } : {}),
+      ...(options?.uuid ? { timestamp: new Date().toISOString() } : {}),
     })
+  }
+
+  cancelAsyncMessage(sessionId: string, messageUuid: string): Promise<boolean> {
+    return this.requestControl(sessionId, {
+      subtype: 'cancel_async_message',
+      message_uuid: messageUuid,
+    })
+      .then((response) => response.cancelled === true)
   }
 
   respondToPermission(
@@ -622,6 +643,7 @@ export class ConversationService {
       'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
       'ANTHROPIC_DEFAULT_OPUS_MODEL',
       'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+      CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
     ] as const
 
     const cleanEnv = { ...process.env }
@@ -648,6 +670,15 @@ export class ConversationService {
         : null
     if (explicitProviderEnv && options?.model?.trim()) {
       explicitProviderEnv.ANTHROPIC_MODEL = options.model.trim()
+    }
+
+    const runtimeContextWindowEnv = this.buildRuntimeContextWindowEnv(
+      explicitProviderEnv?.[CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV],
+      options,
+    )
+    if (explicitProviderEnv && runtimeContextWindowEnv) {
+      explicitProviderEnv[CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV] =
+        runtimeContextWindowEnv[CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV]!
     }
 
     return {
@@ -744,6 +775,7 @@ export class ConversationService {
         'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
         'ANTHROPIC_DEFAULT_OPUS_MODEL',
         'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+        CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
       ].some((key) => typeof env[key] === 'string' && env[key]!.trim().length > 0)
     } catch {
       return false
@@ -999,6 +1031,38 @@ export class ConversationService {
   private getSdkTokenFromUrl(sdkUrl: string): string {
     const url = new URL(sdkUrl)
     return url.searchParams.get('token') || ''
+  }
+
+  private buildRuntimeContextWindowEnv(
+    existingRaw: string | undefined,
+    options?: SessionStartOptions,
+  ): Record<string, string> | undefined {
+    const model = options?.model?.trim()
+    const contextWindow = options?.contextWindow
+    if (!model || typeof contextWindow !== 'number' || !Number.isFinite(contextWindow) || contextWindow <= 0) {
+      return undefined
+    }
+
+    let map: Record<string, number> = {}
+    if (existingRaw?.trim()) {
+      try {
+        const parsed = JSON.parse(existingRaw) as unknown
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          map = Object.fromEntries(
+            Object.entries(parsed)
+              .filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
+              .map(([key, value]) => [key, Math.round(value as number)]),
+          )
+        }
+      } catch {
+        map = {}
+      }
+    }
+
+    map[model] = Math.round(contextWindow)
+    return {
+      [CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(map),
+    }
   }
 }
 

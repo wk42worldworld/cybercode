@@ -7,12 +7,15 @@ export type ModelMapping = {
   opus: string
 }
 
+export type ModelContextWindows = Partial<Record<keyof ModelMapping, number>>
+
 export type ProviderPreset = {
   id: string
   name: string
   baseUrl: string
   apiFormat: ApiFormat
   defaultModels: ModelMapping
+  defaultModelContextWindows?: ModelContextWindows
   needsApiKey: boolean
   websiteUrl: string
   apiKeyUrl?: string
