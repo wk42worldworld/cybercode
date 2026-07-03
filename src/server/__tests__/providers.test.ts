@@ -382,6 +382,43 @@ describe('ProviderService', () => {
       expect(clearedEnv.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
     })
 
+    test('should not overwrite saved provider models when preset defaults change', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'minimax',
+        name: 'Existing MiniMax',
+        baseUrl: 'https://api.minimaxi.com/anthropic',
+        models: {
+          main: 'MiniMax-M2.7',
+          haiku: 'MiniMax-M2.7',
+          sonnet: 'MiniMax-M2.7',
+          opus: 'MiniMax-M2.7',
+        },
+        modelContextWindows: {
+          main: 200_000,
+          haiku: 200_000,
+          sonnet: 200_000,
+          opus: 200_000,
+        },
+      }))
+
+      await svc.activateProvider(provider.id)
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(env.ANTHROPIC_MODEL).toBe('MiniMax-M2.7')
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('MiniMax-M2.7')
+      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('MiniMax-M2.7')
+      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('MiniMax-M2.7')
+      expect(JSON.parse(env.CYBERCODE_MODEL_CONTEXT_WINDOWS)).toEqual({
+        'MiniMax-M2.7': 200_000,
+      })
+
+      const runtimeEnv = await svc.getProviderRuntimeEnv(provider.id)
+      expect(runtimeEnv.ANTHROPIC_MODEL).toBe('MiniMax-M2.7')
+      expect(runtimeEnv.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('MiniMax-M2.7')
+    })
+
     test('should preserve existing settings.json fields on activation', async () => {
       // Pre-seed settings with an extra field
       await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })

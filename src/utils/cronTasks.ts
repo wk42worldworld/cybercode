@@ -80,7 +80,7 @@ export type CronTask = {
   description?: string
   /** Working directory for the task execution. */
   folder?: string
-  /** Model to use (e.g. "claude-opus-4-7", "claude-sonnet-4-6"). */
+  /** Model to use (e.g. "claude-opus-4-8", "claude-sonnet-5"). */
   model?: string
   /** Permission mode: "ask" | "auto-accept" | "plan" | "bypass". */
   permissionMode?: string

@@ -46,7 +46,11 @@ export function modelSupports1M(model: string): boolean {
     return false
   }
   const canonical = getCanonicalName(model)
-  return canonical.includes('claude-sonnet-4') || canonical.includes('opus-4-6')
+  return (
+    canonical.includes('claude-sonnet-5') ||
+    canonical.includes('claude-sonnet-4') ||
+    canonical.includes('claude-opus-4')
+  )
 }
 
 export function getContextWindowForModel(
@@ -107,7 +111,8 @@ export function getSonnet1mExpTreatmentEnabled(model: string): boolean {
   if (is1mContextDisabled()) {
     return false
   }
-  // Only applies to sonnet 4.6 without an explicit [1m] suffix
+  // Only applies to Sonnet 4.6 without an explicit [1m] suffix.
+  // Sonnet 5 has a 1M context window directly in the model metadata/defaults.
   if (has1mContext(model)) {
     return false
   }
@@ -170,10 +175,10 @@ export function getModelMaxOutputTokens(model: string): {
 
   const m = getCanonicalName(model)
 
-  if (m.includes('opus-4-6')) {
+  if (m.includes('opus-4-8') || m.includes('opus-4-6')) {
     defaultTokens = 64_000
     upperLimit = 128_000
-  } else if (m.includes('sonnet-4-6')) {
+  } else if (m.includes('sonnet-5') || m.includes('sonnet-4-6')) {
     defaultTokens = 32_000
     upperLimit = 128_000
   } else if (

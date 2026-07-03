@@ -217,9 +217,13 @@ function EffortOptionLabel(t0) {
  * - Everyone else: mark as dismissed so it never shows
  */
 export function shouldShowEffortCallout(model: string): boolean {
-  // Only show for Opus 4.7 for now
+  // Only show for Opus 4.8 for now
   const parsed = parseUserSpecifiedModel(model);
-  if (!parsed.toLowerCase().includes('opus-4-6')) {
+  const normalizedModel = parsed.toLowerCase();
+  if (
+    !normalizedModel.includes('opus-4-8') &&
+    !normalizedModel.includes('opus-4-6')
+  ) {
     return false;
   }
   const config = getGlobalConfig();

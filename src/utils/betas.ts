@@ -116,6 +116,7 @@ function vertexModelSupportsWebSearch(model: string): boolean {
   // Web search only supported on Claude 4.0+ models on Vertex
   return (
     canonical.includes('claude-opus-4') ||
+    canonical.includes('claude-sonnet-5') ||
     canonical.includes('claude-sonnet-4') ||
     canonical.includes('claude-haiku-4')
   )
@@ -147,10 +148,12 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
     return false
   }
   return (
+    canonical.includes('claude-sonnet-5') ||
     canonical.includes('claude-sonnet-4-6') ||
     canonical.includes('claude-sonnet-4-5') ||
     canonical.includes('claude-opus-4-1') ||
     canonical.includes('claude-opus-4-5') ||
+    canonical.includes('claude-opus-4-8') ||
     canonical.includes('claude-opus-4-7') ||
     canonical.includes('claude-haiku-4-5')
   )

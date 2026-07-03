@@ -382,25 +382,25 @@ describe('Business Flow: Models & Effort', () => {
     const { data } = await api('GET', '/api/models')
     expect(data.models.length).toBe(3)
     const names = data.models.map((m: any) => m.name)
-    expect(names).toContain('Opus 4.7')
-    expect(names).toContain('Sonnet 4.6')
+    expect(names).toContain('Opus 4.8')
+    expect(names).toContain('Sonnet 5')
     expect(names).toContain('Haiku 4.5')
   })
 
   it('should default to Opus model', async () => {
     const { data } = await api('GET', '/api/models/current')
-    expect(data.model.id).toBe('claude-opus-4-7')
+    expect(data.model.id).toBe('claude-opus-4-8')
   })
 
-  it('should switch to Opus 4.7', async () => {
+  it('should switch to Opus 4.8', async () => {
     const { status } = await api('PUT', '/api/models/current', {
-      modelId: 'claude-opus-4-7',
+      modelId: 'claude-opus-4-8',
     })
     expect(status).toBe(200)
 
     const { data } = await api('GET', '/api/models/current')
-    expect(data.model.id).toBe('claude-opus-4-7')
-    expect(data.model.name).toBe('Opus 4.7')
+    expect(data.model.id).toBe('claude-opus-4-8')
+    expect(data.model.name).toBe('Opus 4.8')
   })
 
   it('should switch to Haiku 4.5', async () => {

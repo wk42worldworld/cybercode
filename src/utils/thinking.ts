@@ -108,8 +108,8 @@ export function modelSupportsThinking(model: string): boolean {
   ) {
     return !canonical.includes('claude-3-')
   }
-  // 3P (Bedrock/Vertex): only Opus 4+ and Sonnet 4+
-  return canonical.includes('sonnet-4') || canonical.includes('opus-4')
+  // 3P (Bedrock/Vertex): only Opus 4+ and Sonnet 4+/5+
+  return canonical.includes('sonnet-5') || canonical.includes('sonnet-4') || canonical.includes('opus-4')
 }
 
 // @[MODEL LAUNCH]: Add the new model to the allowlist if it supports adaptive thinking.
@@ -127,8 +127,13 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
     return false
   }
 
-  // Supported by a subset of Claude 4 models
-  if (canonical.includes('opus-4-6') || canonical.includes('sonnet-4-6')) {
+  // Supported by latest adaptive-thinking Claude models.
+  if (
+    canonical.includes('opus-4-8') ||
+    canonical.includes('opus-4-6') ||
+    canonical.includes('sonnet-5') ||
+    canonical.includes('sonnet-4-6')
+  ) {
     return true
   }
   // Exclude any other known legacy models (allowlist above catches 4-6 variants first)

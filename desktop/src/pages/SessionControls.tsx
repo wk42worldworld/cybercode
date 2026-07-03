@@ -383,7 +383,7 @@ export default function SessionControls() {
                 className="btn-ghost flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all"
               >
                 <Icon name={modelIcons[selectedModel] || 'smart_toy'} size={16} />
-                {activeModel?.name || 'Sonnet 4.6'}
+                {activeModel?.name || 'Sonnet 5'}
               </button>
 
               {/* Attach file button */}

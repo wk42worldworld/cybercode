@@ -15,11 +15,15 @@ import {
   formatContextWindowInput,
   resolveRoleContextWindows,
 } from '../../utils/modelContextWindows'
+import { ProviderLogo } from '../providers/ProviderLogo'
 import { Icon } from '../shared/Icon'
 
 type ProviderChoice = {
   providerId: string | null
+  providerLogoId?: string | null
   providerName: string
+  providerBaseUrl?: string
+  providerModelHint?: string
   isDefault: boolean
   models: ModelInfo[]
 }
@@ -39,10 +43,26 @@ type Props = {
 function officialChoices(availableModels: ModelInfo[], isDefault: boolean, officialName: string): ProviderChoice {
   return {
     providerId: null,
+    providerLogoId: 'official',
     providerName: officialName,
+    providerModelHint: OFFICIAL_DEFAULT_MODEL_ID,
     isDefault,
     models: availableModels.length > 0 ? availableModels : OFFICIAL_MODELS,
   }
+}
+
+function resolveProviderLogoId(provider: SavedProvider): string | null {
+  return provider.presetId === 'custom' ? null : provider.presetId
+}
+
+function buildProviderModelHint(provider: SavedProvider): string {
+  if (provider.presetId === 'custom') return ''
+  return [
+    provider.models.main,
+    provider.models.haiku,
+    provider.models.sonnet,
+    provider.models.opus,
+  ].filter(Boolean).join(' ')
 }
 
 function buildProviderModels(
@@ -102,7 +122,10 @@ function buildProviderChoices(
     officialChoices(availableModels, activeId === null, officialName),
     ...providers.map((provider) => ({
       providerId: provider.id,
+      providerLogoId: resolveProviderLogoId(provider),
       providerName: provider.name,
+      providerBaseUrl: provider.baseUrl,
+      providerModelHint: buildProviderModelHint(provider),
       isDefault: activeId === provider.id,
       models: buildProviderModels(provider, presets, labels),
     })),
@@ -238,6 +261,7 @@ export function ModelSelector({
   const selectedProviderChoice = activeRuntimeSelection
     ? providerChoices.find((choice) => choice.providerId === activeRuntimeSelection.providerId) ?? null
     : null
+  const defaultProviderChoice = providerChoices.find((choice) => choice.isDefault) ?? providerChoices[0] ?? null
 
   const selectedRuntimeModel = activeRuntimeSelection
     ? selectedProviderChoice?.models.find((model) => model.id === activeRuntimeSelection.modelId)
@@ -256,6 +280,9 @@ export function ModelSelector({
   const buttonProviderLabel = isRuntimeScoped
     ? selectedProviderChoice?.providerName ?? activeProviderName ?? t('settings.providers.officialName')
     : null
+  const buttonProviderChoice = isRuntimeScoped
+    ? selectedProviderChoice ?? defaultProviderChoice
+    : defaultProviderChoice
 
   const handleRuntimeSelect = (selection: RuntimeSelection) => {
     if (!runtimeKey) return
@@ -283,6 +310,17 @@ export function ModelSelector({
           }
         `}
       >
+        {!compact && buttonProviderChoice && (
+          <ProviderLogo
+            name={buttonProviderChoice.providerName}
+            providerId={buttonProviderChoice.providerLogoId}
+            baseUrl={buttonProviderChoice.providerBaseUrl}
+            modelId={buttonProviderChoice.providerModelHint}
+            size="sm"
+            active={open}
+            decorative
+          />
+        )}
         <span className={`min-w-0 truncate ${compact ? compactLabelClassName : 'flex-1 text-[14px] font-semibold text-[var(--color-text-primary)]'}`} style={compact ? undefined : { fontFamily: 'var(--font-headline)' }}>
           {buttonModelLabel}
         </span>
@@ -307,8 +345,20 @@ export function ModelSelector({
                 {t('model.configuration')}
               </div>
               {buttonProviderLabel && (
-                <div className="max-w-[132px] truncate rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-[9px] py-[4px] text-[11px] font-medium text-[var(--color-text-tertiary)]">
-                  {buttonProviderLabel}
+                <div className="flex max-w-[160px] items-center gap-[6px] rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] px-[7px] py-[4px] text-[11px] font-medium text-[var(--color-text-tertiary)]">
+                  {buttonProviderChoice && (
+                    <ProviderLogo
+                      name={buttonProviderChoice.providerName}
+                      providerId={buttonProviderChoice.providerLogoId}
+                      baseUrl={buttonProviderChoice.providerBaseUrl}
+                      modelId={buttonProviderChoice.providerModelHint}
+                      size="xs"
+                      decorative
+                    />
+                  )}
+                  <span className="min-w-0 truncate">
+                    {buttonProviderLabel}
+                  </span>
                 </div>
               )}
             </div>
@@ -318,6 +368,15 @@ export function ModelSelector({
                 {providerChoices.map((choice) => (
                   <div key={choice.providerId ?? 'official'} className="rounded-[18px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] p-[6px]">
                     <div className="flex items-center gap-[8px] px-[8px] py-[6px]">
+                      <ProviderLogo
+                        name={choice.providerName}
+                        providerId={choice.providerLogoId}
+                        baseUrl={choice.providerBaseUrl}
+                        modelId={choice.providerModelHint}
+                        size="sm"
+                        active={choice.isDefault}
+                        decorative
+                      />
                       <span className="min-w-0 truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
                         {choice.providerName}
                       </span>

@@ -70,17 +70,17 @@ export const CLAUDE_OPUS_4_5_CONFIG = {
 } as const satisfies ModelConfig
 
 export const CLAUDE_OPUS_4_6_CONFIG = {
-  firstParty: 'claude-opus-4-7',
-  bedrock: 'us.anthropic.claude-opus-4-7-v1',
-  vertex: 'claude-opus-4-7',
-  foundry: 'claude-opus-4-7',
+  firstParty: 'claude-opus-4-8',
+  bedrock: 'anthropic.claude-opus-4-8',
+  vertex: 'claude-opus-4-8',
+  foundry: 'claude-opus-4-8',
 } as const satisfies ModelConfig
 
 export const CLAUDE_SONNET_4_6_CONFIG = {
-  firstParty: 'claude-sonnet-4-6',
-  bedrock: 'us.anthropic.claude-sonnet-4-6',
-  vertex: 'claude-sonnet-4-6',
-  foundry: 'claude-sonnet-4-6',
+  firstParty: 'claude-sonnet-5',
+  bedrock: 'anthropic.claude-sonnet-5',
+  vertex: 'claude-sonnet-5',
+  foundry: 'claude-sonnet-5',
 } as const satisfies ModelConfig
 
 // @[MODEL LAUNCH]: Register the new config here.
@@ -100,7 +100,7 @@ export const ALL_MODEL_CONFIGS = {
 
 export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
 
-/** Union of all canonical first-party model IDs, e.g. 'claude-opus-4-7' | 'claude-sonnet-4-5-20250929' | … */
+/** Union of all canonical first-party model IDs, e.g. 'claude-opus-4-8' | 'claude-sonnet-4-5-20250929' | … */
 export type CanonicalModelId =
   (typeof ALL_MODEL_CONFIGS)[ModelKey]['firstParty']
 

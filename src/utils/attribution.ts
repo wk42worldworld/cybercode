@@ -69,13 +69,13 @@ export function getAttributionTexts(): AttributionTexts {
 
   // @[MODEL LAUNCH]: Update the hardcoded fallback model name below (guards against codename leaks).
   // For internal repos, use the real model name. For external repos,
-  // fall back to "Claude Opus 4.7" for unrecognized models to avoid leaking codenames.
+  // fall back to "Claude Opus 4.8" for unrecognized models to avoid leaking codenames.
   const model = getMainLoopModel()
   const isKnownPublicModel = getPublicModelDisplayName(model) !== null
   const modelName =
     isInternalModelRepoCached() || isKnownPublicModel
       ? getPublicModelName(model)
-      : 'Claude Opus 4.7'
+      : 'Claude Opus 4.8'
   const defaultAttribution = `🤖 Generated with [Claude Code](${PRODUCT_URL})`
   const defaultCommit = `Co-Authored-By: ${modelName} <noreply@anthropic.com>`
 

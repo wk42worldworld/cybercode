@@ -59,12 +59,12 @@ export const COST_TIER_5_25 = {
   webSearchRequests: 0.01,
 } as const satisfies ModelCosts
 
-// Fast mode pricing for Opus 4.7: $30 input / $150 output per Mtok
-export const COST_TIER_30_150 = {
-  inputTokens: 30,
-  outputTokens: 150,
-  promptCacheWriteTokens: 37.5,
-  promptCacheReadTokens: 3,
+// Fast mode pricing for Opus 4.8: $10 input / $50 output per Mtok
+export const COST_TIER_10_50 = {
+  inputTokens: 10,
+  outputTokens: 50,
+  promptCacheWriteTokens: 12.5,
+  promptCacheReadTokens: 1,
   webSearchRequests: 0.01,
 } as const satisfies ModelCosts
 
@@ -89,11 +89,11 @@ export const COST_HAIKU_45 = {
 const DEFAULT_UNKNOWN_MODEL_COST = COST_TIER_5_25
 
 /**
- * Get the cost tier for Opus 4.7 based on fast mode.
+ * Get the cost tier for Opus 4.8 based on fast mode.
  */
 export function getOpus46CostTier(fastMode: boolean): ModelCosts {
   if (isFastModeEnabled() && fastMode) {
-    return COST_TIER_30_150
+    return COST_TIER_10_50
   }
   return COST_TIER_5_25
 }
@@ -144,7 +144,7 @@ function tokensToUSDCost(modelCosts: ModelCosts, usage: Usage): number {
 export function getModelCosts(model: string, usage: Usage): ModelCosts {
   const shortName = getCanonicalName(model)
 
-  // Check if this is an Opus 4.7 model with fast mode active.
+  // Check if this is an Opus 4.8 model with fast mode active.
   if (
     shortName === firstPartyNameToCanonical(CLAUDE_OPUS_4_6_CONFIG.firstParty)
   ) {

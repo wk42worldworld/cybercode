@@ -98,9 +98,9 @@ function getSonnet46Option(): ModelOption {
   return {
     value: is3P ? getModelStrings().sonnet46 : 'sonnet',
     label: 'Sonnet',
-    description: `Sonnet 4.6 · Best for everyday tasks${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
+    description: `Sonnet 5 · Best for everyday tasks${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
     descriptionForModel:
-      'Sonnet 4.6 - best for everyday tasks. Generally recommended for most coding tasks',
+      'Sonnet 5 - best for everyday tasks. Generally recommended for most coding tasks',
   }
 }
 
@@ -135,8 +135,8 @@ function getOpus46Option(fastMode = false): ModelOption {
   return {
     value: is3P ? getModelStrings().opus46 : 'opus',
     label: 'Opus',
-    description: `Opus 4.7 · Most capable for complex work${getOpus46PricingSuffix(fastMode)}`,
-    descriptionForModel: 'Opus 4.7 - most capable for complex work',
+    description: `Opus 4.8 · Most capable for complex work${getOpus46PricingSuffix(fastMode)}`,
+    descriptionForModel: 'Opus 4.8 - most capable for complex work',
   }
 }
 
@@ -145,9 +145,9 @@ export function getSonnet46_1MOption(): ModelOption {
   return {
     value: is3P ? getModelStrings().sonnet46 + '[1m]' : 'sonnet[1m]',
     label: 'Sonnet (1M context)',
-    description: `Sonnet 4.6 for long sessions${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
+    description: `Sonnet 5 for long sessions${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
     descriptionForModel:
-      'Sonnet 4.6 with 1M context window - for long sessions with large codebases',
+      'Sonnet 5 with 1M context window - for long sessions with large codebases',
   }
 }
 
@@ -156,9 +156,9 @@ export function getOpus46_1MOption(fastMode = false): ModelOption {
   return {
     value: is3P ? getModelStrings().opus46 + '[1m]' : 'opus[1m]',
     label: 'Opus (1M context)',
-    description: `Opus 4.7 for long sessions${getOpus46PricingSuffix(fastMode)}`,
+    description: `Opus 4.8 for long sessions${getOpus46PricingSuffix(fastMode)}`,
     descriptionForModel:
-      'Opus 4.7 with 1M context window - for long sessions with large codebases',
+      'Opus 4.8 with 1M context window - for long sessions with large codebases',
   }
 }
 
@@ -185,7 +185,7 @@ function getHaiku45Option(): ModelOption {
     label: 'Haiku',
     description: `Haiku 4.5 · Fastest for quick answers${is3P ? '' : ` · ${formatModelPricing(COST_HAIKU_45)}`}`,
     descriptionForModel:
-      'Haiku 4.5 - fastest for quick answers. Lower cost but less capable than Sonnet 4.6.',
+      'Haiku 4.5 - fastest for quick answers. Lower cost but less capable than Sonnet 5.',
   }
 }
 
@@ -212,7 +212,7 @@ function getMaxOpusOption(fastMode = false): ModelOption {
   return {
     value: 'opus',
     label: 'Opus',
-    description: `Opus 4.7 · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`,
+    description: `Opus 4.8 · Most capable for complex work${fastMode ? getOpus46PricingSuffix(true) : ''}`,
   }
 }
 
@@ -222,7 +222,7 @@ export function getMaxSonnet46_1MOption(): ModelOption {
   return {
     value: 'sonnet[1m]',
     label: 'Sonnet (1M context)',
-    description: `Sonnet 4.6 with 1M context${billingInfo}${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
+    description: `Sonnet 5 with 1M context${billingInfo}${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
   }
 }
 
@@ -231,7 +231,7 @@ export function getMaxOpus46_1MOption(fastMode = false): ModelOption {
   return {
     value: 'opus[1m]',
     label: 'Opus (1M context)',
-    description: `Opus 4.7 with 1M context${billingInfo}${getOpus46PricingSuffix(fastMode)}`,
+    description: `Opus 4.8 with 1M context${billingInfo}${getOpus46PricingSuffix(fastMode)}`,
   }
 }
 
@@ -240,16 +240,16 @@ function getMergedOpus1MOption(fastMode = false): ModelOption {
   return {
     value: is3P ? getModelStrings().opus46 + '[1m]' : 'opus[1m]',
     label: 'Opus (1M context)',
-    description: `Opus 4.7 with 1M context · Most capable for complex work${!is3P && fastMode ? getOpus46PricingSuffix(fastMode) : ''}`,
+    description: `Opus 4.8 with 1M context · Most capable for complex work${!is3P && fastMode ? getOpus46PricingSuffix(fastMode) : ''}`,
     descriptionForModel:
-      'Opus 4.7 with 1M context - most capable for complex work',
+      'Opus 4.8 with 1M context - most capable for complex work',
   }
 }
 
 const MaxSonnet46Option: ModelOption = {
   value: 'sonnet',
   label: 'Sonnet',
-  description: 'Sonnet 4.6 · Best for everyday tasks',
+  description: 'Sonnet 5 · Best for everyday tasks',
 }
 
 const MaxHaiku45Option: ModelOption = {
@@ -262,7 +262,7 @@ function getOpusPlanOption(): ModelOption {
   return {
     value: 'opusplan',
     label: 'Opus Plan Mode',
-    description: 'Use Opus 4.7 in plan mode, Sonnet 4.6 otherwise',
+    description: 'Use Opus 4.8 in plan mode, Sonnet 5 otherwise',
   }
 }
 
@@ -323,7 +323,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     return standardOptions
   }
 
-  // PAYG 1P API: Default (Sonnet) + Sonnet 1M + Opus 4.7 + Opus 1M + Haiku
+  // PAYG 1P API: Default (Sonnet) + Sonnet 1M + Opus 4.8 + Opus 1M + Haiku
   if (getAPIProvider() === 'firstParty') {
     const payg1POptions = [getDefaultOptionForUser(fastMode)]
     if (checkSonnet1mAccess()) {
@@ -341,14 +341,14 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     return payg1POptions
   }
 
-  // PAYG 3P: Default (Sonnet 4.5) + Sonnet (3P custom) or Sonnet 4.6/1M + Opus (3P custom) or Opus 4.1/Opus 4.7/Opus1M + Haiku + Opus 4.1
+  // PAYG 3P: Default (Sonnet 4.5) + Sonnet (3P custom) or Sonnet 5/1M + Opus (3P custom) or Opus 4.1/Opus 4.8/Opus1M + Haiku + Opus 4.1
   const payg3pOptions = [getDefaultOptionForUser(fastMode)]
 
   const customSonnet = getCustomSonnetOption()
   if (customSonnet !== undefined) {
     payg3pOptions.push(customSonnet)
   } else {
-    // Add Sonnet 4.6 since Sonnet 4.5 is the default
+    // Add Sonnet 5 since Sonnet 4.5 is the default
     payg3pOptions.push(getSonnet46Option())
     if (checkSonnet1mAccess()) {
       payg3pOptions.push(getSonnet46_1MOption())
@@ -359,7 +359,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
   if (customOpus !== undefined) {
     payg3pOptions.push(customOpus)
   } else {
-    // Add Opus 4.1, Opus 4.7 and Opus 4.7 1M
+    // Add Opus 4.1, Opus 4.8 and Opus 4.8 1M
     payg3pOptions.push(getOpus41Option()) // This is the default opus
     payg3pOptions.push(getOpus46Option(fastMode))
     if (checkOpus1mAccess()) {
@@ -389,6 +389,7 @@ function getModelFamilyInfo(
 
   // Sonnet family
   if (
+    canonical.includes('claude-sonnet-5') ||
     canonical.includes('claude-sonnet-4-6') ||
     canonical.includes('claude-sonnet-4-5') ||
     canonical.includes('claude-sonnet-4-') ||

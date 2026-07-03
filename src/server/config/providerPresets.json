@@ -26,7 +26,7 @@
     },
     "defaultModelContextWindows": {
       "main": 1000000,
-      "haiku": 200000,
+      "haiku": 1000000,
       "sonnet": 1000000,
       "opus": 1000000
     },
@@ -40,16 +40,16 @@
     "baseUrl": "https://open.bigmodel.cn/api/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "glm-5.1",
-      "haiku": "glm-4.5-air",
-      "sonnet": "glm-5-turbo",
-      "opus": "glm-5.1"
+      "main": "glm-5.2[1m]",
+      "haiku": "glm-4.7",
+      "sonnet": "glm-5.2[1m]",
+      "opus": "glm-5.2[1m]"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
+      "main": 1000000,
       "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "sonnet": 1000000,
+      "opus": 1000000
     },
     "needsApiKey": true,
     "websiteUrl": "https://open.bigmodel.cn",
@@ -58,19 +58,19 @@
   {
     "id": "kimi",
     "name": "Kimi",
-    "baseUrl": "https://api.kimi.com/coding",
+    "baseUrl": "https://api.moonshot.cn/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "kimi-k2.6",
-      "haiku": "kimi-k2.6",
-      "sonnet": "kimi-k2.6",
-      "opus": "kimi-k2.6"
+      "main": "kimi-k2.7-code",
+      "haiku": "kimi-k2.7-code",
+      "sonnet": "kimi-k2.7-code",
+      "opus": "kimi-k2.7-code"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
-      "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "main": 256000,
+      "haiku": 256000,
+      "sonnet": 256000,
+      "opus": 256000
     },
     "needsApiKey": true,
     "websiteUrl": "https://platform.moonshot.cn",
@@ -82,16 +82,16 @@
     "baseUrl": "https://api.minimaxi.com/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "MiniMax-M2.7",
-      "haiku": "MiniMax-M2.7",
-      "sonnet": "MiniMax-M2.7",
-      "opus": "MiniMax-M2.7"
+      "main": "MiniMax-M3[1m]",
+      "haiku": "MiniMax-M3[1m]",
+      "sonnet": "MiniMax-M3[1m]",
+      "opus": "MiniMax-M3[1m]"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
-      "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "main": 1000000,
+      "haiku": 1000000,
+      "sonnet": 1000000,
+      "opus": 1000000
     },
     "needsApiKey": true,
     "websiteUrl": "https://platform.minimaxi.com",
@@ -104,15 +104,15 @@
     "apiFormat": "anthropic",
     "defaultModels": {
       "main": "mimo-v2.5-pro",
-      "haiku": "mimo-v2.5-flash",
+      "haiku": "mimo-v2.5",
       "sonnet": "mimo-v2.5",
       "opus": "mimo-v2.5-pro"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
-      "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "main": 1000000,
+      "haiku": 1000000,
+      "sonnet": 1000000,
+      "opus": 1000000
     },
     "needsApiKey": true,
     "websiteUrl": "https://platform.xiaomimimo.com",
@@ -148,20 +148,20 @@
     "baseUrl": "http://localhost:11434",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "qwen3.5",
-      "haiku": "qwen3.5",
-      "sonnet": "qwen3.5",
-      "opus": "qwen3.5"
+      "main": "qwen3.6",
+      "haiku": "qwen3.6",
+      "sonnet": "qwen3.6",
+      "opus": "qwen3.6"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
-      "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "main": 256000,
+      "haiku": 256000,
+      "sonnet": 256000,
+      "opus": 256000
     },
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
-    "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
+    "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",
     "defaultEnv": {
       "ANTHROPIC_AUTH_TOKEN": "ollama"
     }

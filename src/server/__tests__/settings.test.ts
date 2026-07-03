@@ -330,25 +330,25 @@ describe('Models API', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.model.id).toBe('claude-opus-4-7')
+    expect(body.model.id).toBe('claude-opus-4-8')
   })
 
   it('PUT /api/models/current should switch model', async () => {
     const { req, url, segments } = makeRequest('PUT', '/api/models/current', {
-      modelId: 'claude-opus-4-7',
+      modelId: 'claude-opus-4-8',
     })
     const res = await handleModelsApi(req, url, segments)
 
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.ok).toBe(true)
-    expect(body.model).toBe('claude-opus-4-7')
+    expect(body.model).toBe('claude-opus-4-8')
 
     // Verify persisted
     const { req: r2, url: u2, segments: s2 } = makeRequest('GET', '/api/models/current')
     const res2 = await handleModelsApi(r2, u2, s2)
     const body2 = await res2.json()
-    expect(body2.model.id).toBe('claude-opus-4-7')
+    expect(body2.model.id).toBe('claude-opus-4-8')
   })
 
   it('PUT /api/models/current should reject missing modelId', async () => {
