@@ -28,7 +28,7 @@ function sessionKey(id: string, projectPath?: string): string {
 }
 
 function isTemporarySession(session: SessionListItem) {
-  return !session.workDir || !session.projectPath
+  return session.isTemporary || (!session.workDir && !session.projectPath)
 }
 
 export function Sidebar() {
@@ -82,7 +82,7 @@ export function Sidebar() {
     if (showTemporaryOnly) {
       result = result.filter(isTemporarySession)
     } else if (selectedProjects.length > 0) {
-      result = result.filter((s) => selectedProjects.includes(s.projectPath))
+      result = result.filter((s) => !isTemporarySession(s) && selectedProjects.includes(s.projectPath))
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -550,6 +550,7 @@ function buildSidebarProjectOptions(
   const optionsByPath = new Map<string, SidebarProjectOption>()
 
   for (const session of sessions) {
+    if (isTemporarySession(session)) continue
     if (!session.projectPath || !availableSet.has(session.projectPath)) continue
 
     const previous = optionsByPath.get(session.projectPath)

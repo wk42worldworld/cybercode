@@ -188,9 +188,9 @@ async function getSessionMessages(sessionId: string, url: URL): Promise<Response
 }
 
 async function createSession(req: Request): Promise<Response> {
-  let body: { workDir?: string }
+  let body: { workDir?: string; temporary?: boolean }
   try {
-    body = (await req.json()) as { workDir?: string }
+    body = (await req.json()) as { workDir?: string; temporary?: boolean }
   } catch {
     throw ApiError.badRequest('Invalid JSON body')
   }
@@ -198,8 +198,14 @@ async function createSession(req: Request): Promise<Response> {
   if (body.workDir && typeof body.workDir !== 'string') {
     throw ApiError.badRequest('workDir must be a string')
   }
+  if (body.temporary !== undefined && typeof body.temporary !== 'boolean') {
+    throw ApiError.badRequest('temporary must be a boolean')
+  }
 
-  const result = await sessionService.createSession(body.workDir)
+  const result = await sessionService.createSession({
+    workDir: body.workDir,
+    temporary: body.temporary === true,
+  })
   return Response.json(result, { status: 201 })
 }
 
@@ -486,7 +492,11 @@ async function getRecentProjects(url: URL): Promise<Response> {
   }
 
   const { sessions } = await sessionService.listSessions({ limit: 200 })
-  const validSessions = sessions.filter((session) => session.workDirExists && session.workDir)
+  const validSessions = sessions.filter((session) =>
+    !session.isTemporary &&
+    session.workDirExists &&
+    session.workDir
+  )
 
   // First pass: resolve realPath for each session and group by realPath to dedup
   const realPathMap = new Map<string, { projectPath: string; modifiedAt: string; sessionCount: number; sessionId: string }>()

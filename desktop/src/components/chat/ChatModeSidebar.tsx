@@ -9,7 +9,7 @@ export function ChatModeSidebar({ label, ariaLabel }: ChatModeSidebarProps) {
   return (
     <aside
       aria-label={ariaLabel}
-      className="native-ui-text relative z-20 flex h-full w-[var(--sidebar-rail-width)] shrink-0 select-none flex-col items-center border-l border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] py-[20px] text-[var(--color-text-tertiary)]"
+      className="chat-mode-sidebar native-ui-text relative z-20 flex h-full w-[var(--sidebar-rail-width)] shrink-0 select-none flex-col items-center border-l border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] py-[20px] text-[var(--color-text-tertiary)]"
     >
       <button
         type="button"

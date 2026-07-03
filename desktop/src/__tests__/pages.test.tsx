@@ -166,7 +166,7 @@ describe('Content-only pages render without errors', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Temporary session' }))
 
     await waitFor(() => {
-      expect(createSession).toHaveBeenCalledWith(undefined)
+      expect(createSession).toHaveBeenCalledWith({ temporary: true })
       expect(ensureSessionReady).toHaveBeenCalledWith('session-empty-1', undefined)
     })
     expect(useTabStore.getState().tabs).toEqual([
@@ -276,6 +276,7 @@ describe('Content-only pages render without errors', () => {
         projectPath: '',
         workDir: null,
         workDirExists: true,
+        isTemporary: true,
       }],
       activeSessionId: SESSION_ID,
       isLoading: false,
@@ -358,6 +359,7 @@ describe('Content-only pages render without errors', () => {
         projectPath: '/workspace/project',
         workDir: '/workspace/project',
         workDirExists: true,
+        isTemporary: false,
       }],
       activeSessionId: SESSION_ID,
       isLoading: false,
@@ -433,6 +435,7 @@ describe('Content-only pages render without errors', () => {
         projectPath: '/workspace/project',
         workDir: '/workspace/project',
         workDirExists: true,
+        isTemporary: false,
       }],
       activeSessionId: SESSION_ID,
       isLoading: false,
@@ -493,6 +496,7 @@ describe('Content-only pages render without errors', () => {
         projectPath: '/workspace/project',
         workDir: '/workspace/project',
         workDirExists: true,
+        isTemporary: false,
       }],
       activeSessionId: SESSION_ID,
       isLoading: false,
@@ -554,6 +558,7 @@ describe('Content-only pages render without errors', () => {
         projectPath: '/workspace/project',
         workDir: '/workspace/project',
         workDirExists: true,
+        isTemporary: false,
       }],
       activeSessionId: SESSION_ID,
       isLoading: false,

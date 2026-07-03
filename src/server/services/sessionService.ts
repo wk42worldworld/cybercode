@@ -38,10 +38,16 @@ export type SessionListItem = {
   projectPath: string
   workDir: string | null
   workDirExists: boolean
+  isTemporary: boolean
 }
 
 export type SessionDetail = SessionListItem & {
   messages: MessageEntry[]
+}
+
+export type CreateSessionOptions = {
+  workDir?: string
+  temporary?: boolean
 }
 
 export type SessionLaunchInfo = {
@@ -302,6 +308,13 @@ export class SessionService {
     }
 
     return fallbackProjectDir ? this.desanitizePath(fallbackProjectDir) : null
+  }
+
+  private resolveIsTemporaryFromEntries(entries: RawEntry[]): boolean {
+    return entries.some((entry) =>
+      entry.type === 'session-meta' &&
+      (entry as Record<string, unknown>).isTemporary === true
+    )
   }
 
   // --------------------------------------------------------------------------
@@ -1201,6 +1214,7 @@ export class SessionService {
         const entries = await this.readJsonlFile(filePath)
         const workDir = this.resolveWorkDirFromEntries(entries, projectDir)
         const workDirExists = await this.pathExists(workDir)
+        const isTemporary = this.resolveIsTemporaryFromEntries(entries)
 
         // Count transcript messages only (user + assistant)
         const messageCount = entries.filter(
@@ -1229,6 +1243,7 @@ export class SessionService {
           projectPath: projectDir,
           workDir,
           workDirExists,
+          isTemporary,
         })
       } catch {
         // Skip unreadable files
@@ -1266,6 +1281,7 @@ export class SessionService {
     const lastMessage = this.extractLastMessage(entries)
     const workDir = this.resolveWorkDirFromEntries(entries, projectDir)
     const workDirExists = await this.pathExists(workDir)
+    const isTemporary = this.resolveIsTemporaryFromEntries(entries)
 
     let createdAt = stat.birthtime.toISOString()
     for (const e of entries) {
@@ -1285,6 +1301,7 @@ export class SessionService {
       projectPath: projectDir,
       workDir,
       workDirExists,
+      isTemporary,
       messages,
     }
   }
@@ -1324,7 +1341,12 @@ export class SessionService {
   /**
    * Create a new session file for the given working directory.
    */
-  async createSession(workDir?: string): Promise<{ sessionId: string }> {
+  async createSession(
+    input?: string | CreateSessionOptions,
+  ): Promise<{ sessionId: string; session: SessionListItem }> {
+    const workDir = typeof input === 'string' ? input : input?.workDir
+    const isTemporary = typeof input === 'object' && input.temporary === true
+
     // Default to user home directory when no workDir specified
     const resolvedWorkDir = workDir || os.homedir()
 
@@ -1375,13 +1397,28 @@ export class SessionService {
       type: 'session-meta',
       isMeta: true,
       workDir: absWorkDir,
+      isTemporary,
       timestamp: now,
     }
 
     await fs.writeFile(filePath, JSON.stringify(initialEntry) + '\n' + JSON.stringify(metaEntry) + '\n', 'utf-8')
     await this.syncSessionSearchIndex({ filePath, projectDir: sanitized, sessionId })
 
-    return { sessionId }
+    return {
+      sessionId,
+      session: {
+        id: sessionId,
+        title: 'Untitled Session',
+        lastMessage: '',
+        createdAt: now,
+        modifiedAt: now,
+        messageCount: 0,
+        projectPath: sanitized,
+        workDir: absWorkDir,
+        workDirExists: true,
+        isTemporary,
+      },
+    }
   }
 
   /**
@@ -1526,6 +1563,16 @@ export class SessionService {
 
     const entries = await this.readJsonlFile(found.filePath)
     const workDir = this.resolveWorkDirFromEntries(entries, found.projectDir) || fallbackWorkDir || process.cwd()
+    let isTemporary = this.resolveIsTemporaryFromEntries(entries)
+    const placeholderPath = this.placeholderBackupPath(found.filePath)
+    if (placeholderPath !== found.filePath) {
+      try {
+        const placeholderEntries = await this.readJsonlFile(placeholderPath)
+        isTemporary ||= this.resolveIsTemporaryFromEntries(placeholderEntries)
+      } catch {
+        // Missing placeholder backups are expected for normal active transcripts.
+      }
+    }
     const now = new Date().toISOString()
 
     const initialEntry = {
@@ -1543,6 +1590,7 @@ export class SessionService {
       type: 'session-meta',
       isMeta: true,
       workDir,
+      isTemporary,
       timestamp: now,
     }
 
@@ -1558,6 +1606,7 @@ export class SessionService {
     metadata: { workDir: string; customTitle?: string | null }
   ): Promise<void> {
     let found = await this.findSessionFile(sessionId)
+    let isTemporary = false
     if (!found) {
       if (!this.isValidSessionId(sessionId)) return
 
@@ -1587,20 +1636,35 @@ export class SessionService {
         if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
       }
       found = { filePath, projectDir }
-    } else if (found.filePath.endsWith('.jsonl.placeholder')) {
+    } else {
       const activePath = this.activeSessionFilePath(found.filePath)
-      try {
-        await fs.rename(found.filePath, activePath)
-      } catch (err: unknown) {
-        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+      const candidatePaths = new Set([found.filePath, this.placeholderBackupPath(activePath)])
+      for (const candidatePath of candidatePaths) {
+        try {
+          const entries = await this.readJsonlFile(candidatePath)
+          isTemporary ||= this.resolveIsTemporaryFromEntries(entries)
+        } catch {
+          // Missing placeholder backups are expected after the real transcript starts.
+        }
       }
-      found = { filePath: activePath, projectDir: found.projectDir }
+
+      if (!found.filePath.endsWith('.jsonl.placeholder')) {
+        found = { filePath: activePath, projectDir: found.projectDir }
+      } else {
+        try {
+          await fs.rename(found.filePath, activePath)
+        } catch (err: unknown) {
+          if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
+        }
+        found = { filePath: activePath, projectDir: found.projectDir }
+      }
     }
 
     await this.appendJsonlEntry(found.filePath, {
       type: 'session-meta',
       isMeta: true,
       workDir: metadata.workDir,
+      isTemporary,
       timestamp: new Date().toISOString(),
     })
 

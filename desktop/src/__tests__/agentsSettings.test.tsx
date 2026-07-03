@@ -153,6 +153,7 @@ describe('Settings > Agents tab', () => {
           projectPath: '/workspace/project',
           workDir: '/workspace/project',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
       activeSessionId: 'session-1',

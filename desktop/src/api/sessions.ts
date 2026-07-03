@@ -1,9 +1,9 @@
 import { api } from './client'
-import type { SessionListItem, MessageEntry } from '../types/session'
+import type { CreateSessionInput, SessionListItem, MessageEntry } from '../types/session'
 
 type SessionsResponse = { sessions: SessionListItem[]; total: number }
 type MessagesResponse = { messages: MessageEntry[]; hasMore: boolean }
-type CreateSessionResponse = { sessionId: string }
+type CreateSessionResponse = { sessionId: string; session?: SessionListItem }
 type SessionLocatorParams = { projectPath?: string }
 export type SessionRewindResponse = {
   target: {
@@ -160,8 +160,13 @@ export const sessionsApi = {
     return api.get<MessagesResponse>(`/api/sessions/${sessionId}/messages${qs ? `?${qs}` : ''}`)
   },
 
-  create(workDir?: string) {
-    return api.post<CreateSessionResponse>('/api/sessions', workDir ? { workDir } : {})
+  create(input?: CreateSessionInput) {
+    const workDir = typeof input === 'string' ? input : input?.workDir
+    const temporary = typeof input === 'object' && input.temporary === true
+    return api.post<CreateSessionResponse>('/api/sessions', {
+      ...(workDir ? { workDir } : {}),
+      ...(temporary ? { temporary: true } : {}),
+    })
   },
 
   delete(sessionId: string, params?: SessionLocatorParams) {

@@ -74,6 +74,7 @@ describe('tabStore', () => {
           projectPath: '-project-a',
           workDir: '/project/a',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
     })

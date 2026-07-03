@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { sessionsApi } from '../api/sessions'
 import { t } from '../i18n'
 import { useSessionRuntimeStore } from './sessionRuntimeStore'
-import type { SessionListItem } from '../types/session'
+import type { CreateSessionInput, SessionListItem } from '../types/session'
 import { getDefaultSessionTitle } from '../utils/sessionTitle'
 
 function matchesSessionLocator(session: SessionListItem, id: string, projectPath?: string): boolean {
@@ -19,7 +19,7 @@ type SessionStore = {
   availableProjects: string[]
 
   fetchSessions: (project?: string) => Promise<void>
-  createSession: (workDir?: string) => Promise<string>
+  createSession: (input?: CreateSessionInput) => Promise<string>
   deleteSession: (id: string, projectPath?: string) => Promise<void>
   renameSession: (id: string, title: string, projectPath?: string) => Promise<void>
   updateSessionTitle: (id: string, title: string) => void
@@ -44,22 +44,31 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         byLocator.set(`${s.id}:${s.projectPath}`, s)
       }
       const sessions = [...byLocator.values()]
-      const availableProjects = [...new Set(sessions.map((s) => s.projectPath).filter(Boolean))].sort()
+      const availableProjects = [
+        ...new Set(
+          sessions
+            .filter((s) => !s.isTemporary)
+            .map((s) => s.projectPath)
+            .filter(Boolean),
+        ),
+      ].sort()
       set({ sessions, availableProjects, isLoading: false })
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false })
     }
   },
 
-  createSession: async (workDir?: string) => {
-    const { sessionId: id } = await sessionsApi.create(workDir || undefined)
+  createSession: async (input?: CreateSessionInput) => {
+    const requestedWorkDir = typeof input === 'string' ? input : input?.workDir
+    const isTemporary = typeof input === 'object' && input.temporary === true
+    const { sessionId: id, session } = await sessionsApi.create(input)
     const now = new Date().toISOString()
     // Compute projectPath the same way the server does (sanitizePath)
-    const resolvedWorkDir = workDir || ''
+    const resolvedWorkDir = requestedWorkDir || ''
     const projectPath = resolvedWorkDir
       .replace(/[^a-zA-Z0-9]/g, '-')
       .slice(0, 200)
-    const optimisticSession: SessionListItem = {
+    const optimisticSession: SessionListItem = session ?? {
       id,
       title: getDefaultSessionTitle(t),
       lastMessage: '',
@@ -67,8 +76,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       modifiedAt: now,
       messageCount: 0,
       projectPath,
-      workDir: workDir ?? null,
+      workDir: requestedWorkDir ?? null,
       workDirExists: true,
+      isTemporary,
     }
 
     set((state) => ({

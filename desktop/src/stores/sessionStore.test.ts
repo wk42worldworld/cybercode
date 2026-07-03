@@ -63,8 +63,74 @@ describe('sessionStore', () => {
       title: '新会话',
       workDir: 'D:/workspace/code/myself_code/cybercode',
       workDirExists: true,
+      isTemporary: false,
     })
     expect(listMock).toHaveBeenCalledOnce()
+  })
+
+  it('uses the server session payload for explicit temporary sessions', async () => {
+    const now = '2026-01-01T00:00:00.000Z'
+    createMock.mockResolvedValue({
+      sessionId: 'session-temp-1',
+      session: {
+        id: 'session-temp-1',
+        title: 'Untitled Session',
+        lastMessage: '',
+        createdAt: now,
+        modifiedAt: now,
+        messageCount: 0,
+        projectPath: '-Users-test',
+        workDir: '/Users/test',
+        workDirExists: true,
+        isTemporary: true,
+      },
+    })
+    listMock.mockImplementation(() => new Promise(() => {}))
+
+    const result = await useSessionStore.getState().createSession({ temporary: true })
+
+    expect(result).toBe('session-temp-1')
+    expect(createMock).toHaveBeenCalledWith({ temporary: true })
+    expect(useSessionStore.getState().sessions[0]).toMatchObject({
+      id: 'session-temp-1',
+      projectPath: '-Users-test',
+      workDir: '/Users/test',
+      isTemporary: true,
+    })
+  })
+
+  it('excludes temporary sessions from available projects after refresh', async () => {
+    listMock.mockResolvedValue({
+      sessions: [
+        {
+          id: 'session-project',
+          title: 'Project',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          modifiedAt: '2026-01-01T00:00:00.000Z',
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+          isTemporary: false,
+        },
+        {
+          id: 'session-temp',
+          title: 'Temporary',
+          createdAt: '2026-01-01T00:01:00.000Z',
+          modifiedAt: '2026-01-01T00:01:00.000Z',
+          messageCount: 1,
+          projectPath: '-Users-test',
+          workDir: '/Users/test',
+          workDirExists: true,
+          isTemporary: true,
+        },
+      ],
+      total: 2,
+    })
+
+    await useSessionStore.getState().fetchSessions()
+
+    expect(useSessionStore.getState().availableProjects).toEqual(['-workspace-project'])
   })
 
   it('deletes only the session matching the selected projectPath locator', async () => {
@@ -80,6 +146,7 @@ describe('sessionStore', () => {
           projectPath: '-project-alpha',
           workDir: '/workspace/alpha',
           workDirExists: true,
+          isTemporary: false,
         },
         {
           id: 'session-dup',
@@ -90,6 +157,7 @@ describe('sessionStore', () => {
           projectPath: '-project-beta',
           workDir: '/workspace/beta',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
       activeSessionId: 'session-dup',
@@ -117,6 +185,7 @@ describe('sessionStore', () => {
           projectPath: '-project-alpha',
           workDir: '/workspace/alpha',
           workDirExists: true,
+          isTemporary: false,
         },
         {
           id: 'session-dup',
@@ -127,6 +196,7 @@ describe('sessionStore', () => {
           projectPath: '-project-beta',
           workDir: '/workspace/beta',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
     })

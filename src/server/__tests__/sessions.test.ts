@@ -646,7 +646,7 @@ describe('SessionService', () => {
   })
 
   it('should default to the user home directory when workDir is missing', async () => {
-    const { sessionId } = await service.createSession('')
+    const { sessionId, session } = await service.createSession('')
     const filePath = path.join(
       tmpDir,
       'projects',
@@ -656,6 +656,31 @@ describe('SessionService', () => {
 
     const stat = await fs.stat(filePath)
     expect(stat.isFile()).toBe(true)
+    expect(session.isTemporary).toBe(false)
+  })
+
+  it('should keep explicitly temporary sessions discoverable as temporary', async () => {
+    const { sessionId, session } = await service.createSession({ temporary: true })
+    expect(session).toMatchObject({
+      id: sessionId,
+      projectPath: sanitizePath(os.homedir()),
+      workDir: path.resolve(os.homedir()),
+      isTemporary: true,
+    })
+
+    const list = await service.listSessions()
+    expect(list.sessions.find((item) => item.id === sessionId)).toMatchObject({
+      id: sessionId,
+      isTemporary: true,
+      projectPath: sanitizePath(os.homedir()),
+      workDir: path.resolve(os.homedir()),
+    })
+
+    const detail = await service.getSession(sessionId)
+    expect(detail).toMatchObject({
+      id: sessionId,
+      isTemporary: true,
+    })
   })
 
   it('should throw when workDir does not exist', async () => {
@@ -959,6 +984,28 @@ describe('Sessions API', () => {
     expect(body.sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     )
+  })
+
+  it('POST /api/sessions should create an explicit temporary session', async () => {
+    const res = await fetch(`${baseUrl}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ temporary: true }),
+    })
+    expect(res.status).toBe(201)
+
+    const body = (await res.json()) as {
+      sessionId: string
+      session: { isTemporary: boolean; projectPath: string; workDir: string }
+    }
+    expect(body.sessionId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    )
+    expect(body.session).toMatchObject({
+      isTemporary: true,
+      projectPath: sanitizePath(os.homedir()),
+      workDir: path.resolve(os.homedir()),
+    })
   })
 
   it('GET /api/sessions/:id should return session detail', async () => {

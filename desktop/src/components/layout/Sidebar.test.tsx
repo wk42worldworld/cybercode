@@ -131,7 +131,7 @@ describe('Sidebar', () => {
     })
 
     await waitFor(() => {
-      expect(createSession).toHaveBeenCalledWith(undefined)
+      expect(createSession).toHaveBeenCalledWith({ temporary: true })
       expect(ensureSessionReady).toHaveBeenCalledWith('session-new-1', undefined)
     })
 
@@ -180,6 +180,7 @@ describe('Sidebar', () => {
           projectPath: '-workspace-project',
           workDir: '/workspace/project',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
     })
@@ -217,6 +218,7 @@ describe('Sidebar', () => {
           projectPath: '-workspace-project',
           workDir: '/workspace/project',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
     })
@@ -264,6 +266,7 @@ describe('Sidebar', () => {
           projectPath: '-project-alpha',
           workDir: '/workspace/alpha',
           workDirExists: true,
+          isTemporary: false,
         },
         {
           id: 'session-dup',
@@ -275,6 +278,7 @@ describe('Sidebar', () => {
           projectPath: '-project-beta',
           workDir: '/workspace/beta',
           workDirExists: true,
+          isTemporary: false,
         },
       ],
     })
@@ -318,6 +322,7 @@ describe('Sidebar', () => {
           projectPath: '-workspace-alpha',
           workDir: '/workspace/alpha',
           workDirExists: true,
+          isTemporary: false,
         },
         {
           id: 'session-beta',
@@ -329,6 +334,7 @@ describe('Sidebar', () => {
           projectPath: '-workspace-beta',
           workDir: '/workspace/beta',
           workDirExists: true,
+          isTemporary: false,
         },
         {
           id: 'session-temp',
@@ -337,9 +343,10 @@ describe('Sidebar', () => {
           createdAt: now,
           modifiedAt: now,
           messageCount: 1,
-          projectPath: '',
-          workDir: null,
+          projectPath: '-Users-test',
+          workDir: '/Users/test',
           workDirExists: true,
+          isTemporary: true,
         },
       ],
       availableProjects: [

@@ -284,6 +284,9 @@
   --statusbar-height: 36px;
   --motion-sidebar-duration: 240ms;
   --motion-sidebar-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-route-duration: 160ms;
+  --motion-route-easing: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-panel-duration: 180ms;
 
   /* mac glass tokens */
   --mac-bg: #f5f5f7;
@@ -886,6 +889,38 @@ button, input, textarea, select, a, [role="button"] {
   box-shadow: var(--shadow-focus-ring), var(--shadow-dropdown);
 }
 
+.content-route-panel {
+  backface-visibility: hidden;
+}
+
+.content-route-panel--active {
+  animation: content-route-in var(--motion-route-duration) var(--motion-route-easing) both;
+}
+
+.content-route-panel--inactive {
+  transform: translate3d(0, 4px, 0);
+  transition:
+    opacity var(--motion-route-duration) var(--motion-route-easing),
+    transform var(--motion-route-duration) var(--motion-route-easing);
+}
+
+.settings-panel-overlay {
+  animation: fade-in 120ms var(--motion-route-easing) both;
+}
+
+.settings-panel-card {
+  transform-origin: 50% 48%;
+  animation: settings-panel-in var(--motion-panel-duration) var(--motion-route-easing) both;
+}
+
+.settings-panel-content {
+  animation: content-route-in 140ms var(--motion-route-easing) both;
+}
+
+.chat-mode-sidebar {
+  animation: chat-mode-sidebar-in 160ms var(--motion-route-easing) both;
+}
+
 .sidebar-shell {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -1026,6 +1061,19 @@ button, input, textarea, select, a, [role="button"] {
   .sidebar-panel,
   .sidebar-copy,
   .sidebar-section {
+    transition-duration: 0.01ms !important;
+  }
+
+  .content-route-panel--active,
+  .settings-panel-overlay,
+  .settings-panel-card,
+  .settings-panel-content,
+  .chat-mode-sidebar {
+    animation: none !important;
+  }
+
+  .content-route-panel--inactive {
+    transform: none !important;
     transition-duration: 0.01ms !important;
   }
 }
@@ -1180,6 +1228,18 @@ button, input, textarea, select, a, [role="button"] {
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes content-route-in {
+  from { opacity: 0; transform: translate3d(0, 5px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes settings-panel-in {
+  from { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes chat-mode-sidebar-in {
+  from { opacity: 0; transform: translate3d(8px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 @keyframes modal-in {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }

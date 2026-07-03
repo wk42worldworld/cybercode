@@ -26,7 +26,7 @@ export function ContentRouter() {
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
       {showEmptySession && (
-        <div className="absolute inset-0 flex min-h-0 flex-col overflow-hidden">
+        <div className="content-route-panel content-route-panel--active absolute inset-0 flex min-h-0 flex-col overflow-hidden">
           <EmptySession />
         </div>
       )}
@@ -43,7 +43,7 @@ export function ContentRouter() {
             key={sessionId}
             aria-hidden={!isActive}
             style={{ display: isActive ? 'flex' : 'none' }}
-            className="absolute inset-0 flex-col min-h-0 overflow-hidden"
+            className="content-route-panel content-route-panel--active absolute inset-0 flex-col min-h-0 overflow-hidden"
           >
             {isActive ? (
               <ActiveSession sessionId={sessionId} projectPath={tab?.projectPath} isActive={isActive} />
@@ -54,7 +54,10 @@ export function ContentRouter() {
 
       {/* Non-session pages sit above session panels */}
       {nonSessionPage && (
-        <div className="absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden">
+        <div
+          key={activeTabId ?? activeTabType}
+          className="content-route-panel content-route-panel--active absolute inset-0 z-10 flex min-h-0 flex-col overflow-hidden"
+        >
           {nonSessionPage}
         </div>
       )}
@@ -68,8 +71,10 @@ export function ContentRouter() {
             key={tab.sessionId}
             aria-hidden={!visible}
             data-testid={`terminal-tab-panel-${tab.sessionId}`}
-            className={`absolute inset-0 flex min-h-0 flex-col overflow-hidden ${
-              visible ? 'z-20 opacity-100' : 'pointer-events-none z-0 opacity-0'
+            className={`content-route-panel absolute inset-0 flex min-h-0 flex-col overflow-hidden ${
+              visible
+                ? 'content-route-panel--active z-20 opacity-100'
+                : 'content-route-panel--inactive pointer-events-none z-0 opacity-0'
             }`}
           >
             <TerminalSettings

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { sessionsApi, type RecentProject } from '../../api/sessions'
 import { useTranslation } from '../../i18n'
-import type { SessionListItem } from '../../types/session'
+import type { CreateSessionInput, SessionListItem } from '../../types/session'
 import { Icon } from '../shared/Icon'
 
 export type CurrentProject = {
@@ -13,7 +13,7 @@ export type CurrentProject = {
 type NewSessionChooserProps = {
   currentProject?: CurrentProject
   onClose?: () => void
-  onCreate: (workDir?: string) => Promise<boolean>
+  onCreate: (input?: CreateSessionInput) => Promise<boolean>
 }
 
 function isTauriRuntime() {
@@ -55,6 +55,7 @@ export function resolveCurrentProject(
   const projectPath = selectedProjects[0]!
   const latestSession = sessions
     .filter((session) =>
+      !session.isTemporary &&
       session.projectPath === projectPath &&
       session.workDir &&
       session.workDirExists,
@@ -104,11 +105,11 @@ export function NewSessionChooser({
     return projects.filter((project) => project.realPath !== currentProject.workDir)
   }, [currentProject, projects])
 
-  const handleCreate = async (key: string, workDir?: string) => {
+  const handleCreate = async (key: string, input?: CreateSessionInput) => {
     if (creatingKey) return
     setCreatingKey(key)
     try {
-      const ok = await onCreate(workDir)
+      const ok = await onCreate(input)
       if (ok) onClose?.()
     } finally {
       setCreatingKey(null)
@@ -191,7 +192,7 @@ export function NewSessionChooser({
           subtle
           loading={creatingKey === 'temporary'}
           disabled={!!creatingKey}
-          onClick={() => void handleCreate('temporary', undefined)}
+          onClick={() => void handleCreate('temporary', { temporary: true })}
         />
       </div>
     </>

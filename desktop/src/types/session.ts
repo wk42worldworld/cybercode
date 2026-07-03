@@ -10,7 +10,13 @@ export type SessionListItem = {
   projectPath: string
   workDir: string | null
   workDirExists: boolean
+  isTemporary: boolean
 }
+
+export type CreateSessionInput = string | {
+  workDir?: string
+  temporary?: boolean
+} | undefined
 
 export type MessageEntry = {
   id: string

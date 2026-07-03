@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from '../../i18n'
 import { NewSessionChooser, type CurrentProject } from './NewSessionChooser'
+import type { CreateSessionInput } from '../../types/session'
 
 type MenuPosition = {
   top: number
@@ -15,7 +16,7 @@ type NewSessionMenuProps = {
   anchorRef: RefObject<HTMLElement | null>
   currentProject?: CurrentProject
   onClose: () => void
-  onCreate: (workDir?: string) => Promise<boolean>
+  onCreate: (input?: CreateSessionInput) => Promise<boolean>
 }
 
 const MENU_WIDTH = 336

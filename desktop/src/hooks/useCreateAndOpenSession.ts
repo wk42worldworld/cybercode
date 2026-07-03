@@ -5,14 +5,15 @@ import { useTabStore } from '../stores/tabStore'
 import { useUIStore } from '../stores/uiStore'
 import { useTranslation } from '../i18n'
 import { getDefaultSessionTitle } from '../utils/sessionTitle'
+import type { CreateSessionInput } from '../types/session'
 
 export function useCreateAndOpenSession() {
   const createSession = useSessionStore((state) => state.createSession)
   const t = useTranslation()
 
-  return useCallback(async (workDir?: string): Promise<boolean> => {
+  return useCallback(async (input?: CreateSessionInput): Promise<boolean> => {
     try {
-      const newSessionId = await createSession(workDir)
+      const newSessionId = await createSession(input)
       const createdSession = useSessionStore.getState().sessions.find((session) => session.id === newSessionId)
 
       useTabStore.getState().openTab(newSessionId, getDefaultSessionTitle(t), 'session', createdSession?.projectPath)

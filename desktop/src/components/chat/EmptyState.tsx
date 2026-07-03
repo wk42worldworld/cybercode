@@ -103,7 +103,7 @@ function HeroEmptyStateForDraft({ t }: { t: TranslateFn }) {
           modelId: settings.currentModel?.id ?? OFFICIAL_DEFAULT_MODEL_ID,
           contextWindow: settings.currentModel?.contextWindow,
         }
-      const newSessionId = await createSession(workDir || undefined)
+      const newSessionId = await createSession(workDir ? workDir : { temporary: true })
       useSessionRuntimeStore.getState().setSelection(newSessionId, draftSelection)
       useSessionRuntimeStore.getState().clearSelection(DRAFT_RUNTIME_SELECTION_KEY)
       setActiveView('code')

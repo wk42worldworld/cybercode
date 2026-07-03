@@ -50,16 +50,18 @@ export function SettingsPanel({ visible }: Props) {
       role="region"
       aria-label={getPanelLabel(panelView, t)}
       data-testid="settings-panel"
-      className="settings-ui native-ui-text absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/10 p-[16px] animate-fade-in dark:bg-black/45"
+      className="settings-ui settings-panel-overlay native-ui-text absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/10 p-[16px] dark:bg-black/45"
     >
-      <div className="flex h-[88vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)]">
+      <div className="settings-panel-card flex h-[88vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)]">
         <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
           {isSettingsHome ? (
-            <MemoSettings />
+            <div key="settings-home" className="settings-panel-content min-h-0 flex flex-1 flex-col overflow-hidden">
+              <MemoSettings />
+            </div>
           ) : (
             <>
               <PanelHeader onClose={closeSettings} />
-              <PanelBody view={panelView}>
+              <PanelBody key={panelView} view={panelView}>
                 {renderPanelContent(panelView)}
               </PanelBody>
             </>
@@ -88,14 +90,14 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
 function PanelBody({ view, children }: { view: SettingsPanelView; children: ReactNode }) {
   if (view === 'terminal' || view === 'scheduled') {
     return (
-      <div className="min-h-0 flex-1 flex flex-col overflow-hidden bg-[var(--color-background)] pt-[10px]">
+      <div className="settings-panel-content min-h-0 flex-1 flex flex-col overflow-hidden bg-[var(--color-background)] pt-[10px]">
         {children}
       </div>
     )
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-background)] px-[24px] pb-[24px] pt-[34px] md:px-[32px]">
+    <div className="settings-panel-content min-h-0 flex-1 overflow-y-auto bg-[var(--color-background)] px-[24px] pb-[24px] pt-[34px] md:px-[32px]">
       {children}
     </div>
   )
