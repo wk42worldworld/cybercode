@@ -774,7 +774,7 @@ export const en = {
   'computerUseApproval.tryAgainHint': 'Try again returns control to Claude so it can call request_access once more after macOS permission changes take effect.',
 
   // ─── Ask User Question ──────────────────────────────────────
-  'question.needsInput': 'Claude needs your input',
+  'question.needsInput': 'Needs your input',
   'question.answered': 'Answered',
   'question.customResponse': 'Or type a custom response:',
   'question.typePlaceholder': 'Type your answer...',

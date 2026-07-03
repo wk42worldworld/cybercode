@@ -170,6 +170,13 @@ export const ja = {
   'longRunning.connectionStaleBody': '{idle} の間、サーバーイベントを受信していません。このターンを停止できます。',
   'longRunning.stop': '停止',
 
+  'question.needsInput': '入力が必要です',
+  'question.answered': '回答済み',
+  'question.customResponse': 'またはカスタム回答を入力:',
+  'question.typePlaceholder': '回答を入力...',
+  'question.submit': '送信',
+  'question.answeredPrefix': '回答済み: ',
+
   'model.selectModel': 'モデルを選択',
   'model.configuration': 'モデル設定',
   'model.effort': '推論強度',

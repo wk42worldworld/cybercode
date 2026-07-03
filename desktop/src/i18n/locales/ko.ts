@@ -170,6 +170,13 @@ export const ko = {
   'longRunning.connectionStaleBody': '{idle} 동안 서버 이벤트를 받지 못했습니다. 이 턴을 중지할 수 있습니다.',
   'longRunning.stop': '중지',
 
+  'question.needsInput': '입력이 필요합니다',
+  'question.answered': '답변 완료',
+  'question.customResponse': '또는 직접 답변 입력:',
+  'question.typePlaceholder': '답변을 입력하세요...',
+  'question.submit': '제출',
+  'question.answeredPrefix': '답변 완료: ',
+
   'model.selectModel': '모델 선택',
   'model.configuration': '모델 설정',
   'model.effort': '추론 강도',

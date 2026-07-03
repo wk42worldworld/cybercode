@@ -28,6 +28,11 @@ type Props = {
   result?: unknown
 }
 
+type QuestionAnswer = {
+  type: 'option' | 'custom'
+  value: string
+}
+
 /**
  * Parse the AskUserQuestion input which may come in different shapes.
  */
@@ -56,8 +61,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
   const questions = parseInput(input)
   const inputObject = (input && typeof input === 'object') ? input as Record<string, unknown> : {}
   const [activeTab, setActiveTab] = useState(0)
-  const [selections, setSelections] = useState<Record<number, string>>({})
-  const [freeText, setFreeText] = useState('')
+  const [answersByIndex, setAnswersByIndex] = useState<Record<number, QuestionAnswer>>({})
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const composingRef = useRef(false)
 
@@ -79,42 +83,50 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
         .filter((answer): answer is string => typeof answer === 'string' && answer.trim().length > 0)
         .join(', ')
     }
-    return freeText.trim() || Object.values(selections).join(', ')
-  }, [freeText, questions, resultAnswers, selections])
+    return Object.values(answersByIndex)
+      .map((answer) => answer.value.trim())
+      .filter(Boolean)
+      .join(', ')
+  }, [answersByIndex, questions, resultAnswers])
   const submitted = Object.keys(resultAnswers).length > 0 || hasSubmitted
 
   const handleSelect = (qIndex: number, label: string) => {
     if (submitted) return
-    setSelections((prev) => {
+    setAnswersByIndex((prev) => {
       // Toggle: deselect if already selected
-      if (prev[qIndex] === label) {
+      if (prev[qIndex]?.type === 'option' && prev[qIndex]?.value === label) {
         const next = { ...prev }
         delete next[qIndex]
         return next
       }
-      return { ...prev, [qIndex]: label }
+      return { ...prev, [qIndex]: { type: 'option', value: label } }
     })
-    setFreeText('')
+  }
+
+  const handleCustomChange = (qIndex: number, value: string) => {
+    if (submitted) return
+    setAnswersByIndex((prev) => {
+      const next = { ...prev }
+      if (value.trim()) {
+        next[qIndex] = { type: 'custom', value }
+      } else if (next[qIndex]?.type === 'custom') {
+        delete next[qIndex]
+      }
+      return next
+    })
   }
 
   const handleSubmit = () => {
     if (submitted) return
 
-    const parts: string[] = []
-    for (let i = 0; i < questions.length; i++) {
-      const selected = selections[i]
-      if (selected) parts.push(selected)
-    }
-    const response = freeText.trim() || parts.join('; ') || ''
-    if (!response) return
+    if (!allAnswered) return
 
     if (!activeTabId || !pendingRequest) return
 
     const answers = questions.reduce<Record<string, string>>((acc, question, index) => {
-      if (freeText.trim()) {
-        acc[question.question] = freeText.trim()
-      } else if (selections[index]) {
-        acc[question.question] = selections[index]!
+      const answer = answersByIndex[index]?.value.trim()
+      if (answer) {
+        acc[question.question] = answer
       }
       return acc
     }, {})
@@ -129,9 +141,10 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
   }
 
   // All questions must be answered (via selection or free text) to enable submit
-  const allAnswered = freeText.trim().length > 0 || questions.every((_, i) => selections[i] !== undefined)
+  const allAnswered = questions.every((_, i) => answersByIndex[i]?.value.trim())
   const safeActiveTab = Math.min(activeTab, questions.length - 1)
   const activeQuestion = questions[safeActiveTab]
+  const activeAnswer = answersByIndex[safeActiveTab]
 
   if (!activeQuestion) return null
 
@@ -167,7 +180,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
         <div className="flex px-4 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] overflow-x-auto">
           {questions.map((q, i) => {
             const isActive = safeActiveTab === i
-            const isAnswered = selections[i] !== undefined
+            const isAnswered = Boolean(answersByIndex[i]?.value.trim())
             const tabLabel = q.header || `Q${i + 1}`
             return (
               <button
@@ -202,7 +215,7 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
         {activeQuestion.options && activeQuestion.options.length > 0 && (
           <div className="space-y-2 mb-3">
             {activeQuestion.options.map((opt, optIndex) => {
-              const isSelected = selections[activeTab] === opt.label
+              const isSelected = activeAnswer?.type === 'option' && activeAnswer.value === opt.label
               return (
                 <button
                   key={optIndex}
@@ -254,10 +267,9 @@ export function AskUserQuestion({ toolUseId, input, result }: Props) {
             </label>
             <input
               type="text"
-              value={freeText}
+              value={activeAnswer?.type === 'custom' ? activeAnswer.value : ''}
               onChange={(e) => {
-                setFreeText(e.target.value)
-                if (e.target.value.trim()) setSelections({})
+                handleCustomChange(safeActiveTab, e.target.value)
               }}
               onCompositionStart={() => { composingRef.current = true }}
               onCompositionEnd={() => { composingRef.current = false }}

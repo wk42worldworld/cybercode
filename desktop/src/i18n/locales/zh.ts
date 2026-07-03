@@ -776,7 +776,7 @@ export const zh: Record<TranslationKey, string> = {
   'computerUseApproval.tryAgainHint': '“稍后重试”会把控制权交还给 Claude，让它在 macOS 权限生效后重新调用 request_access。',
 
   // ─── Ask User Question ──────────────────────────────────────
-  'question.needsInput': 'Claude 需要你的输入',
+  'question.needsInput': '需要你的输入',
   'question.answered': '已回答',
   'question.customResponse': '或输入自定义回复:',
   'question.typePlaceholder': '输入你的回答...',
