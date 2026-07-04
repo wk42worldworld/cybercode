@@ -14,6 +14,7 @@ export const en = {
   'common.enable': 'Enable',
   'common.disable': 'Disable',
   'common.active': 'ACTIVE',
+  'common.close': 'Close',
 
   // ─── Sidebar ──────────────────────────────────────
   'sidebar.newSession': 'New session',
@@ -221,6 +222,13 @@ export const en = {
   'settings.adapters.unbindConfirm': 'Are you sure you want to unbind this user? They will need to re-pair to use the bot.',
   'settings.adapters.platform.telegram': 'Telegram',
   'settings.adapters.platform.feishu': 'Feishu',
+  'settings.adapters.guideTitle': 'Connection guides',
+  'settings.adapters.guideDesc': 'Open the local setup guide for Feishu or Telegram and follow the checklist without leaving the desktop app.',
+  'settings.adapters.openGuide': 'Open guide',
+  'settings.adapters.feishuGuideTitle': 'Feishu setup guide',
+  'settings.adapters.feishuGuideDesc': 'Create a Feishu bot, publish its menu, fill App ID/App Secret, and pair it with CyberCode.',
+  'settings.adapters.telegramGuideTitle': 'Telegram setup guide',
+  'settings.adapters.telegramGuideDesc': 'Create a bot with BotFather, paste the Bot Token, then pair it from a private chat.',
 
   // Settings > MCP
   'settings.mcp.title': 'MCP servers',

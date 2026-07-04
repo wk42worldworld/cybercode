@@ -16,6 +16,7 @@ export const zh: Record<TranslationKey, string> = {
   'common.enable': '启用',
   'common.disable': '禁用',
   'common.active': '已激活',
+  'common.close': '关闭',
 
   // ─── Sidebar ──────────────────────────────────────
   'sidebar.newSession': '新建会话',
@@ -223,6 +224,13 @@ export const zh: Record<TranslationKey, string> = {
   'settings.adapters.unbindConfirm': '确定要解绑该用户吗？解绑后需重新配对才能使用。',
   'settings.adapters.platform.telegram': 'Telegram',
   'settings.adapters.platform.feishu': '飞书',
+  'settings.adapters.guideTitle': '连接教程',
+  'settings.adapters.guideDesc': '打开飞书或 Telegram 的本地步骤文档，在桌面端内照着做即可完成连接。',
+  'settings.adapters.openGuide': '打开教程',
+  'settings.adapters.feishuGuideTitle': '飞书接入教程',
+  'settings.adapters.feishuGuideDesc': '创建飞书机器人、发布菜单、填写 App ID/App Secret，并用配对码绑定 CyberCode。',
+  'settings.adapters.telegramGuideTitle': 'Telegram 接入教程',
+  'settings.adapters.telegramGuideDesc': '通过 BotFather 创建机器人，粘贴 Bot Token，再在私聊里发送配对码完成绑定。',
 
   // Settings > MCP
   'settings.mcp.title': 'MCP 服务',
