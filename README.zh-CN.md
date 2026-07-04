@@ -28,16 +28,16 @@
 **高度借鉴 Claude Code 设计**的本地可运行客户端，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）。在完整 TUI 之外，还补全了 Computer Use（macOS / Windows）、打造了图形化**桌面端**，并支持通过 Telegram / 飞书**完整远程驱动**。
 
 <p align="center">
-  <a href="#功能">功能</a> · <a href="#架构概览">架构概览</a> · <a href="#快速开始">快速开始</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="docs/guide/faq.md">FAQ</a> · <a href="docs/guide/global-usage.md">全局使用</a> · <a href="#更多文档">更多文档</a>
+  <a href="#功能">功能</a> · <a href="#架构概览">架构概览</a> · <a href="#快速开始">快速开始</a> · <a href="#分章节教程">分章节教程</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="docs/guide/faq.md">FAQ</a> · <a href="docs/guide/global-usage.md">全局使用</a> · <a href="#更多文档">更多文档</a>
 </p>
 
 ---
 
 ## 最新重点特性
 
-最新稳定桌面版：[CyberCode v1.0.9](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.9)
+最新稳定桌面版：[CyberCode v1.0.13](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.13)
 
-- **运行中输入缓存与引导**：AI 正在答复时再次发送内容，会先进入待处理提示条；用户可以编辑、删除、加入当前任务，或等本轮结束后再发送。
+- **运行中输入缓存与引导**：AI 正在答复时再次发送内容，会先进入待处理提示条；用户可以编辑、删除、加入当前任务；如果继续排队，本轮结束后会自动作为下一轮发送。
 - **模型上下文窗口感知**：模型预设现在可以携带 context window 元数据，桌面会把这些限制传入会话，让第三方模型长上下文行为更稳定。
 - **四平台桌面端发布**：GitHub Actions 现在会同时发布 macOS Apple Silicon、macOS Intel、Windows x64、Linux x64，并生成 `latest.json` 更新元数据。
 - **macOS 安装包已公证**：macOS 桌面端包已完成签名和 Apple notarization，正常安装时不再触发之前那类“可能是恶意软件”的 Gatekeeper 提示。
@@ -187,6 +187,153 @@ http://127.0.0.1:2024
 - 如果 `3456` 端口已经被旧服务端占用，先执行 `lsof -nP -iTCP:3456 -sTCP:LISTEN` 找到 PID，再 `kill <PID>`。
 - 测试聊天时建议新建一个 session，并重新选择一个真实存在的工作目录。
 - 如果某个旧 session 绑定的目录已被删除，服务端会返回 `Working directory does not exist`，这和服务端是否启动是两回事。
+
+---
+
+## 分章节教程
+
+第一次使用 CyberCode 时，可以按下面章节一步一步走。每章最后都有“完成结果”，方便确认当前步骤是否成功。
+
+### 第 1 章：选择使用方式
+
+CyberCode 常见有三种使用方式：
+
+| 方式 | 适合场景 | 你需要做什么 |
+|------|------|------|
+| 桌面端 App | 日常编码、多会话聊天、可视化切换项目 | 从 [GitHub Releases](https://github.com/wk42worldworld/cybercode/releases) 下载最新安装包 |
+| 源码 CLI | 喜欢终端、需要本地开发、脚本化调用 | 克隆仓库，安装 Bun，然后执行 `bun install` |
+| 桌面端开发模式 | 调试 React/Tauri 前端源码 | 按 [桌面端联调](#5-桌面端联调desktop) 同时启动 API 服务和 Vite 前端 |
+
+完成结果：你已经明确自己要安装桌面端、运行 CLI，还是调试桌面端前端。
+
+### 第 2 章：准备模型供应商
+
+CyberCode 使用 Anthropic 兼容接口。MiniMax、OpenRouter 等如果提供兼容端点，可以直接使用；只有 OpenAI 协议的供应商通常需要通过 LiteLLM 这类代理转换。
+
+1. 在模型供应商控制台创建或复制 API Key。
+2. 复制示例环境变量文件：
+
+```bash
+cp .env.example .env
+```
+
+3. 编辑 `.env`，至少填写：
+
+```env
+ANTHROPIC_AUTH_TOKEN=your_api_key_here
+ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
+ANTHROPIC_MODEL=MiniMax-M2.7
+```
+
+如果供应商要求使用 `x-api-key` 头，也可以把 `ANTHROPIC_AUTH_TOKEN` 换成 `ANTHROPIC_API_KEY`。更多供应商示例见 [环境变量](docs/guide/env-vars.md) 和 [第三方模型](docs/guide/third-party-models.md)。
+
+完成结果：`.env` 里已经有可用的 Key、接口地址和模型名。
+
+### 第 3 章：运行第一个 CLI 任务
+
+先启动交互式终端界面：
+
+```bash
+./bin/cybercode
+```
+
+建议先发一个小任务，例如：
+
+```text
+阅读这个项目，并总结主要入口文件。
+```
+
+如果是脚本或 CI 场景，可以使用无头模式：
+
+```bash
+./bin/cybercode -p "总结 package.json，并列出可用 scripts"
+```
+
+完成结果：CyberCode 能连接到模型供应商，并在终端里流式输出回答。
+
+### 第 4 章：打开真实项目
+
+CyberCode 最适合在需要修改的项目目录里工作。
+
+1. 在项目根目录启动 CyberCode，或在桌面端选择项目文件夹。
+2. 先让它做一个小范围检查：`解释 src/ 目录结构`。
+3. 当 CyberCode 请求运行命令或编辑文件权限时，先看清楚动作，只批准你信任的操作。
+4. 第一轮成功后，再提出更聚焦的任务，例如：`修复这个文件里的失败测试`。
+
+完成结果：助手已经在正确目录工作，你也能看见它准备使用哪些文件和命令。
+
+### 第 5 章：顺畅使用桌面端
+
+如果使用已安装桌面端，直接打开 CyberCode 并为项目创建会话即可。如果是本地前端开发，先运行：
+
+```bash
+SERVER_PORT=3456 bun run src/server/index.ts
+```
+
+再打开另一个终端：
+
+```bash
+cd desktop
+bun run dev --host 127.0.0.1 --port 2024
+```
+
+访问 `http://127.0.0.1:2024`，创建或选择会话，然后绑定真实存在的工作目录。
+
+几个实用习惯：
+
+- AI 正在回复时继续输入，新内容会进入待处理输入行。
+- 待处理输入在发送前可以编辑或删除。
+- 当前 AI 回复结束后，排队的待处理输入会自动作为下一轮用户消息发送。
+- 如果某类文件不能直接发给模型，桌面端会按文件路径传递，让 Agent 仍然可以处理。
+
+完成结果：你可以连续多轮编码，不会丢失 AI 忙碌期间输入的消息。
+
+### 第 6 章：让 CLI 在任意目录可用
+
+把仓库的 `bin/` 目录加入 PATH：
+
+```bash
+export PATH="$HOME/path/to/cybercode/bin:$PATH"
+```
+
+然后在另一个项目目录测试：
+
+```bash
+cybercode --help
+cybercode -p "当前目录有哪些文件？"
+```
+
+如果想永久生效，把 `export PATH=...` 这一行加入 `~/.zshrc` 或 `~/.bashrc`。
+
+完成结果：你可以在任意项目目录直接运行 `cybercode`。
+
+### 第 7 章：排查首次运行常见问题
+
+| 问题 | 检查方式 |
+|------|------|
+| `command not found: cybercode` | 在仓库内用 `./bin/cybercode`，或把 `bin/` 加入 PATH |
+| API Key 或 401 错误 | 重新检查 `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL` 和模型名 |
+| Windows 命令执行失败 | 安装 [Git for Windows](https://git-scm.com/download/win)，或让 CyberCode 自动回退到 PowerShell |
+| 桌面端连不上服务 | 确认服务端运行在 `127.0.0.1:3456` |
+| `3456` 端口被占用 | 用 `lsof -nP -iTCP:3456 -sTCP:LISTEN` 找到旧进程，再执行 `kill <PID>` |
+| `Working directory does not exist` | 为当前会话重新选择一个真实存在的项目目录 |
+| 长提示词异常失败 | 选择上下文窗口足够大的模型/供应商，或更新模型配置里的上下文元数据 |
+
+完成结果：你能判断问题属于终端环境、API 配置、服务启动，还是项目路径选择。
+
+### 第 8 章：继续学习核心功能
+
+| 目标 | 继续阅读 |
+|------|------|
+| 接入 OpenAI、DeepSeek、Ollama 或其他供应商 | [第三方模型](docs/guide/third-party-models.md) |
+| 配置全部环境变量 | [环境变量](docs/guide/env-vars.md) |
+| 在任意目录启动 CyberCode | [全局使用](docs/guide/global-usage.md) |
+| 使用跨会话记忆 | [记忆系统](docs/memory/01-usage-guide.md) |
+| 使用多个 Agent 协作 | [多 Agent 系统](docs/agent/01-usage-guide.md) |
+| 接入 Telegram 或飞书 | [Channel 系统](docs/channel/01-channel-system.md) |
+| 控制桌面应用 | [Computer Use](docs/features/computer-use.md) |
+
+完成结果：你可以从第一个可用会话，自然进入自己真正需要的功能模块。
 
 ---
 

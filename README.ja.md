@@ -28,7 +28,7 @@
 CyberCode は、**Claude Code のプロダクト設計を強く参考にした**ローカル実行可能なクライアントです。MiniMax、OpenRouter など、Anthropic 互換 API エンドポイントに接続できます。フル機能の TUI に加えて、Computer Use（macOS / Windows）、Tauri + React の**デスクトップアプリ**、Telegram / Feishu からの**リモート操作**にも対応しています。
 
 <p align="center">
-  <a href="#機能">機能</a> · <a href="#アーキテクチャ概要">アーキテクチャ</a> · <a href="#クイックスタート">クイックスタート</a> · <a href="docs/en/guide/env-vars.md">環境変数</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">グローバル利用</a>
+  <a href="#機能">機能</a> · <a href="#アーキテクチャ概要">アーキテクチャ</a> · <a href="#クイックスタート">クイックスタート</a> · <a href="#ステップ別チュートリアル">チュートリアル</a> · <a href="docs/en/guide/env-vars.md">環境変数</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">グローバル利用</a>
 </p>
 
 ---
@@ -117,7 +117,7 @@ cp .env.example .env
 
 #### Windows
 
-> **前提条件**：[Git for Windows](https://git-scm.com/download/win) が必要です。
+> [Git for Windows](https://git-scm.com/download/win) の利用を推奨します。Git Bash がない場合、CyberCode は自動的に PowerShell にフォールバックします。
 
 ```powershell
 # PowerShell / cmd から Bun を直接実行
@@ -134,6 +134,153 @@ bun --env-file=.env ./src/entrypoints/cli.tsx
 ```bash
 export PATH="$HOME/path/to/cybercode/bin:$PATH"
 ```
+
+---
+
+## ステップ別チュートリアル
+
+初めて CyberCode を使う場合は、この章を上から順に進めてください。各章の最後に「完了結果」を置いているので、次へ進める状態か確認できます。
+
+### 第 1 章: 実行方法を選ぶ
+
+CyberCode には主に 3 つの使い方があります。
+
+| 方法 | 向いている用途 | やること |
+|------|------|------|
+| デスクトップアプリ | 日常的な開発、複数セッション、GUI でのプロジェクト切り替え | [GitHub Releases](https://github.com/wk42worldworld/cybercode/releases) から最新パッケージをダウンロード |
+| ソースから CLI 実行 | ターミナル中心の作業、ローカル開発、スクリプト実行 | リポジトリを clone し、Bun を入れて `bun install` を実行 |
+| デスクトップ開発モード | React/Tauri フロントエンドの検証 | API サーバーと Vite フロントエンドを両方起動 |
+
+完了結果: デスクトップアプリを使うのか、CLI を使うのか、開発モードで動かすのかを決められています。
+
+### 第 2 章: モデルプロバイダーを準備する
+
+CyberCode は Anthropic 互換 API と通信します。MiniMax や OpenRouter は互換エンドポイントがあれば直接利用できます。OpenAI 形式のみのプロバイダーは、通常 LiteLLM などのプロキシが必要です。
+
+1. モデルプロバイダーの管理画面で API Key を作成またはコピーします。
+2. サンプル環境変数ファイルをコピーします。
+
+```bash
+cp .env.example .env
+```
+
+3. `.env` を編集し、最低限以下を設定します。
+
+```env
+ANTHROPIC_AUTH_TOKEN=your_api_key_here
+ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
+ANTHROPIC_MODEL=MiniMax-M2.7
+```
+
+プロバイダーが `x-api-key` ヘッダーを要求する場合は、`ANTHROPIC_AUTH_TOKEN` の代わりに `ANTHROPIC_API_KEY` も使えます。詳しい例は [Environment Variables](docs/en/guide/env-vars.md) と [Third-Party Models](docs/en/guide/third-party-models.md) を参照してください。
+
+完了結果: `.env` に有効なキー、エンドポイント、モデル名が入っています。
+
+### 第 3 章: 最初の CLI タスクを実行する
+
+まずインタラクティブ TUI を起動します。
+
+```bash
+./bin/cybercode
+```
+
+最初は小さな依頼から試します。
+
+```text
+このプロジェクトを読み、主要なエントリーポイントを要約してください。
+```
+
+スクリプトや CI ではヘッドレスモードを使えます。
+
+```bash
+./bin/cybercode -p "package.json を要約し、利用できる scripts を列挙してください"
+```
+
+完了結果: CyberCode がモデルプロバイダーへ接続し、ターミナルに回答をストリーミング表示します。
+
+### 第 4 章: 実際のプロジェクトを開く
+
+CyberCode は、変更したいプロジェクトディレクトリを見られる状態で最も力を発揮します。
+
+1. プロジェクトルートで CyberCode を起動するか、デスクトップアプリでプロジェクトフォルダを選択します。
+2. まず小さな調査を依頼します: `src/ ディレクトリ構成を説明してください`。
+3. コマンド実行やファイル編集の許可を求められたら、内容を確認して信頼できる操作だけ承認します。
+4. 最初の回答が成功したら、`このファイルの失敗しているテストを修正してください` のように対象を絞った依頼をします。
+
+完了結果: アシスタントが正しいディレクトリで作業し、どのファイルやコマンドを使うか確認できます。
+
+### 第 5 章: デスクトップアプリを快適に使う
+
+インストール済みアプリでは CyberCode を開き、プロジェクト用のセッションを作成します。ローカル開発では、まず以下を実行します。
+
+```bash
+SERVER_PORT=3456 bun run src/server/index.ts
+```
+
+別のターミナルで以下を実行します。
+
+```bash
+cd desktop
+bun run dev --host 127.0.0.1 --port 2024
+```
+
+`http://127.0.0.1:2024` を開き、セッションを作成または選択して、実在する作業ディレクトリを選びます。
+
+便利な使い方:
+
+- アシスタントが応答中に新しいメッセージを入力すると、保留入力行として保存されます。
+- 保留入力は送信前に編集または削除できます。
+- 現在の応答が終わると、キューにある保留入力は次のユーザーメッセージとして自動送信されます。
+- モデルへ直接送れないファイル形式は、デスクトップアプリがファイルパスとして渡すため、Agent が扱えます。
+
+完了結果: アシスタントが処理中でも入力を失わず、通常の複数ターンの開発作業を続けられます。
+
+### 第 6 章: CLI をどこからでも使えるようにする
+
+リポジトリの `bin/` ディレクトリを PATH に追加します。
+
+```bash
+export PATH="$HOME/path/to/cybercode/bin:$PATH"
+```
+
+別のプロジェクトで確認します。
+
+```bash
+cybercode --help
+cybercode -p "このディレクトリにはどんなファイルがありますか？"
+```
+
+永続化する場合は、この `export PATH=...` 行を `~/.zshrc` や `~/.bashrc` に追加します。
+
+完了結果: 任意のプロジェクトディレクトリから `cybercode` を実行できます。
+
+### 第 7 章: 初回によくある問題を直す
+
+| 問題 | 確認すること |
+|------|------|
+| `command not found: cybercode` | リポジトリ内では `./bin/cybercode` を使うか、`bin/` を PATH に追加 |
+| API Key または 401 エラー | `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY`、`ANTHROPIC_BASE_URL`、モデル名を再確認 |
+| Windows のシェルコマンドが失敗する | [Git for Windows](https://git-scm.com/download/win) を入れるか、PowerShell フォールバックを使う |
+| デスクトップが接続できない | サーバーが `127.0.0.1:3456` で動いているか確認 |
+| ポート `3456` が使用中 | `lsof -nP -iTCP:3456 -sTCP:LISTEN` で PID を確認し、`kill <PID>` |
+| `Working directory does not exist` | セッションで実在するプロジェクトフォルダを選び直す |
+| 長いプロンプトが失敗する | 十分なコンテキストウィンドウを持つモデルを選ぶか、モデル設定メタデータを更新 |
+
+完了結果: 問題がシェル設定、API 設定、サーバー起動、プロジェクトパスのどこにあるか切り分けられます。
+
+### 第 8 章: 次に読む機能
+
+| 目的 | 次に読む |
+|------|------|
+| OpenAI、DeepSeek、Ollama などを使う | [Third-Party Models](docs/en/guide/third-party-models.md) |
+| 環境変数を詳しく設定する | [Environment Variables](docs/en/guide/env-vars.md) |
+| どのディレクトリからも CyberCode を起動する | [Global Usage](docs/en/guide/global-usage.md) |
+| 永続メモリを使う | [Memory System](docs/memory/01-usage-guide.md) |
+| 複数 Agent を使う | [Multi-Agent System](docs/agent/01-usage-guide.md) |
+| Telegram / Feishu と接続する | [Channel System](docs/en/channel/01-channel-system.md) |
+| デスクトップアプリを操作させる | [Computer Use](docs/en/features/computer-use.md) |
+
+完了結果: 最初の動作確認から、自分が必要とする機能へ進めます。
 
 ---
 
