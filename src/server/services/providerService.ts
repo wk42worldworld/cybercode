@@ -14,6 +14,7 @@ import { anthropicToOpenaiChat } from '../proxy/transform/anthropicToOpenaiChat.
 import { anthropicToOpenaiResponses } from '../proxy/transform/anthropicToOpenaiResponses.js'
 import { openaiChatToAnthropic } from '../proxy/transform/openaiChatToAnthropic.js'
 import { openaiResponsesToAnthropic } from '../proxy/transform/openaiResponsesToAnthropic.js'
+import { buildOpenAICompatibleUrl } from '../proxy/openaiCompatUrl.js'
 import type { AnthropicRequest, AnthropicResponse } from '../proxy/transform/types.js'
 import { PROVIDER_PRESETS } from '../config/providerPresets.js'
 import {
@@ -554,10 +555,10 @@ export class ProviderService {
       let transformedBody: unknown
       if (format === 'openai_chat') {
         transformedBody = anthropicToOpenaiChat(anthropicReq)
-        upstreamUrl = `${base}/v1/chat/completions`
+        upstreamUrl = buildOpenAICompatibleUrl(base, 'chat/completions')
       } else {
         transformedBody = anthropicToOpenaiResponses(anthropicReq)
-        upstreamUrl = `${base}/v1/responses`
+        upstreamUrl = buildOpenAICompatibleUrl(base, 'responses')
       }
 
       // Call upstream with transformed request
@@ -612,14 +613,14 @@ function buildDirectTestRequest(
 
   if (format === 'openai_chat') {
     return {
-      url: `${base}/v1/chat/completions`,
+      url: buildOpenAICompatibleUrl(base, 'chat/completions'),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: { model: modelId, max_tokens: 16, messages: [{ role: 'user', content: prompt }] },
     }
   }
   if (format === 'openai_responses') {
     return {
-      url: `${base}/v1/responses`,
+      url: buildOpenAICompatibleUrl(base, 'responses'),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: { model: modelId, max_output_tokens: 16, input: [{ type: 'message', role: 'user', content: prompt }] },
     }

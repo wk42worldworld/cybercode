@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <a href="#为什么是-cybercode">为什么</a> · <a href="#快速对比">对比</a> · <a href="#功能">功能</a> · <a href="#快速开始">快速开始</a> · <a href="#分章节教程">分章节教程</a> · <a href="#功能模块教程">模块教程</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="#社区与传播">社区</a> · <a href="#更多文档">更多文档</a>
+  <a href="#为什么是-cybercode">为什么</a> · <a href="#快速对比">对比</a> · <a href="#图形界面速览">图形界面</a> · <a href="#功能">功能</a> · <a href="#快速开始">快速开始</a> · <a href="#分章节教程">分章节教程</a> · <a href="#功能模块教程">模块教程</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="#社区与传播">社区</a> · <a href="#更多文档">更多文档</a>
 </p>
 
 ---
@@ -58,6 +58,25 @@
 | 定时编码任务 | 集成到桌面端工作流 | 不是默认工作流 | 视工具而定 |
 | Computer Use | 支持 macOS 和 Windows | 官方功能路径 | 视工具而定 |
 | 开源可改造 | 仓库包含桌面端、服务端、适配器和文档 | 闭源产品 | 视工具而定 |
+
+## 图形界面速览
+
+CyberCode 桌面端把核心编码工作流放在一个界面里：选择项目、和 Agent 对话、配置供应商、切换模型、创建定时任务，都可以直接在 GUI 内完成。
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-gui-home.png" alt="CyberCode 桌面端首页和会话选择" width="860">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-chat.png" alt="CyberCode 桌面端聊天工作区"><br><b>项目聊天工作区</b><br>支持多会话桌面聊天、紧凑输入框、文件附件入口、供应商/模型选择，并保留项目上下文。</td>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-model-picker.png" alt="CyberCode 供应商模型选择器"><br><b>按供应商选择模型</b><br>每个供应商既能手动填写自定义模型名，也能从按新到旧整理的模型下拉选项里选择。</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-providers.png" alt="CyberCode 供应商列表"><br><b>内置供应商列表</b><br>内置 OpenAI、Google、DeepSeek、Kimi、MiniMax、GLM、OpenRouter、Claude 兼容端点等常见供应商入口。</td>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-scheduled-tasks.png" alt="CyberCode 定时任务面板"><br><b>定时编码任务</b><br>可以创建一次性或周期性的自动化任务，让本地 Agent 在你离开时继续处理工作。</td>
+  </tr>
+</table>
 
 ## 社区与传播
 

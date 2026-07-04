@@ -484,6 +484,44 @@ describe('ProviderService', () => {
       expect(active!.apiFormat).toBe('anthropic')
     })
   })
+
+  describe('testProviderConfig', () => {
+    test('should not duplicate /v1 for Gemini OpenAI-compatible endpoints', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const urls: string[] = []
+
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        urls.push(String(input))
+        return Response.json({
+          model: 'gemini-3.5-flash',
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: 'ok' },
+            finish_reason: 'stop',
+          }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+          apiKey: 'test-key',
+          modelId: 'gemini-3.5-flash',
+          apiFormat: 'openai_chat',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.proxy?.success).toBe(true)
+        expect(urls).toEqual([
+          'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+          'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        ])
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+  })
 })
 
 // =============================================================================

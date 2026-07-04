@@ -283,6 +283,18 @@ describe('Settings > Providers tab', () => {
           sonnet: 'deepseek-v4-pro[1m]',
           opus: 'deepseek-v4-pro[1m]',
         },
+        modelOptions: [
+          {
+            id: 'deepseek-v4-pro[1m]',
+            label: 'DeepSeek V4 Pro 1M',
+            contextWindow: 1_000_000,
+          },
+          {
+            id: 'deepseek-v4-flash',
+            label: 'DeepSeek V4 Flash',
+            contextWindow: 1_000_000,
+          },
+        ],
         needsApiKey: true,
         websiteUrl: 'https://platform.deepseek.com',
         apiKeyUrl: 'https://platform.deepseek.com/api_keys',
@@ -318,6 +330,11 @@ describe('Settings > Providers tab', () => {
     expect(within(dialog).queryByRole('button', { name: 'DeepSeek' })).not.toBeInTheDocument()
     expect(within(dialog).getByDisplayValue('https://api.deepseek.com/anthropic')).toBeInTheDocument()
     expect(within(dialog).getByDisplayValue('deepseek-v4-pro[1m]')).toBeInTheDocument()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Select model: Main Model/i }))
+    fireEvent.click(within(dialog).getByRole('button', { name: /DeepSeek V4 Flash/i }))
+
+    expect(within(dialog).getByDisplayValue('deepseek-v4-flash')).toBeInTheDocument()
   })
 
   it('hides the API key by default and reveals it from the eye button', () => {

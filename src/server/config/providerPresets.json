@@ -30,6 +30,23 @@
       "sonnet": 1000000,
       "opus": 1000000
     },
+    "modelOptions": [
+      {
+        "id": "deepseek-v4-pro[1m]",
+        "label": "DeepSeek V4 Pro 1M",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "deepseek-v4-flash",
+        "label": "DeepSeek V4 Flash",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "deepseek-v4-pro",
+        "label": "DeepSeek V4 Pro",
+        "contextWindow": 1000000
+      }
+    ],
     "needsApiKey": true,
     "websiteUrl": "https://platform.deepseek.com",
     "apiKeyUrl": "https://platform.deepseek.com/api_keys"
@@ -51,6 +68,48 @@
       "sonnet": 1000000,
       "opus": 1000000
     },
+    "modelOptions": [
+      {
+        "id": "glm-5.2[1m]",
+        "label": "GLM-5.2 1M",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "glm-5.2",
+        "label": "GLM-5.2",
+        "contextWindow": 200000
+      },
+      {
+        "id": "glm-5.1",
+        "label": "GLM-5.1",
+        "contextWindow": 200000
+      },
+      {
+        "id": "glm-5",
+        "label": "GLM-5",
+        "contextWindow": 200000
+      },
+      {
+        "id": "glm-5-turbo",
+        "label": "GLM-5 Turbo",
+        "contextWindow": 200000
+      },
+      {
+        "id": "glm-4.7",
+        "label": "GLM-4.7",
+        "contextWindow": 200000
+      },
+      {
+        "id": "glm-4.7-flashx",
+        "label": "GLM-4.7 FlashX",
+        "contextWindow": 200000
+      },
+      {
+        "id": "glm-4.6",
+        "label": "GLM-4.6",
+        "contextWindow": 200000
+      }
+    ],
     "needsApiKey": true,
     "websiteUrl": "https://open.bigmodel.cn",
     "apiKeyUrl": "https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys"
@@ -72,6 +131,43 @@
       "sonnet": 256000,
       "opus": 256000
     },
+    "modelOptions": [
+      {
+        "id": "kimi-k2.7-code",
+        "label": "Kimi K2.7 Code",
+        "contextWindow": 256000
+      },
+      {
+        "id": "kimi-k2.6",
+        "label": "Kimi K2.6",
+        "contextWindow": 256000
+      },
+      {
+        "id": "kimi-k2.5",
+        "label": "Kimi K2.5",
+        "contextWindow": 256000
+      },
+      {
+        "id": "kimi-k2-thinking-turbo",
+        "label": "Kimi K2 Thinking Turbo",
+        "contextWindow": 256000
+      },
+      {
+        "id": "kimi-k2-thinking",
+        "label": "Kimi K2 Thinking",
+        "contextWindow": 256000
+      },
+      {
+        "id": "kimi-k2-turbo-preview",
+        "label": "Kimi K2 Turbo Preview",
+        "contextWindow": 256000
+      },
+      {
+        "id": "kimi-k2-0905-preview",
+        "label": "Kimi K2 0905 Preview",
+        "contextWindow": 256000
+      }
+    ],
     "needsApiKey": true,
     "websiteUrl": "https://platform.moonshot.cn",
     "apiKeyUrl": "https://platform.kimi.com/console/api-keys"
@@ -93,6 +189,18 @@
       "sonnet": 1000000,
       "opus": 1000000
     },
+    "modelOptions": [
+      {
+        "id": "MiniMax-M3[1m]",
+        "label": "MiniMax M3 1M",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "MiniMax-M3",
+        "label": "MiniMax M3",
+        "contextWindow": 1000000
+      }
+    ],
     "needsApiKey": true,
     "websiteUrl": "https://platform.minimaxi.com",
     "apiKeyUrl": "https://platform.minimaxi.com/user-center/basic-information/interface-key"
@@ -114,9 +222,153 @@
       "sonnet": 1000000,
       "opus": 1000000
     },
+    "modelOptions": [
+      {
+        "id": "mimo-v2.5-pro",
+        "label": "MiMo V2.5 Pro",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "mimo-v2.5",
+        "label": "MiMo V2.5",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "mimo-v2-pro",
+        "label": "MiMo V2 Pro",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "mimo-v2-flash",
+        "label": "MiMo V2 Flash",
+        "contextWindow": 1000000
+      }
+    ],
     "needsApiKey": true,
     "websiteUrl": "https://platform.xiaomimimo.com",
     "apiKeyUrl": "https://platform.xiaomimimo.com"
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "baseUrl": "https://api.openai.com",
+    "apiFormat": "openai_responses",
+    "defaultModels": {
+      "main": "gpt-5.5",
+      "haiku": "gpt-5.4-mini",
+      "sonnet": "gpt-5.4",
+      "opus": "gpt-5.5"
+    },
+    "defaultModelContextWindows": {
+      "main": 1000000,
+      "haiku": 400000,
+      "sonnet": 1000000,
+      "opus": 1000000
+    },
+    "modelOptions": [
+      {
+        "id": "gpt-5.5",
+        "label": "GPT-5.5",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "gpt-5.5-pro",
+        "label": "GPT-5.5 Pro",
+        "contextWindow": 1050000
+      },
+      {
+        "id": "gpt-5.4",
+        "label": "GPT-5.4",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "gpt-5.4-pro",
+        "label": "GPT-5.4 Pro",
+        "contextWindow": 1000000
+      },
+      {
+        "id": "gpt-5.4-mini",
+        "label": "GPT-5.4 mini",
+        "contextWindow": 400000
+      },
+      {
+        "id": "gpt-5.4-nano",
+        "label": "GPT-5.4 nano",
+        "contextWindow": 400000
+      },
+      {
+        "id": "gpt-5",
+        "label": "GPT-5",
+        "contextWindow": 400000
+      },
+      {
+        "id": "gpt-5-mini",
+        "label": "GPT-5 mini",
+        "contextWindow": 400000
+      },
+      {
+        "id": "gpt-5-nano",
+        "label": "GPT-5 nano",
+        "contextWindow": 400000
+      }
+    ],
+    "needsApiKey": true,
+    "websiteUrl": "https://platform.openai.com/docs/models",
+    "apiKeyUrl": "https://platform.openai.com/api-keys"
+  },
+  {
+    "id": "google",
+    "name": "Google Gemini",
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "apiFormat": "openai_chat",
+    "defaultModels": {
+      "main": "gemini-3.5-flash",
+      "haiku": "gemini-3.1-flash-lite",
+      "sonnet": "gemini-3.5-flash",
+      "opus": "gemini-3.1-pro-preview"
+    },
+    "defaultModelContextWindows": {
+      "main": 1048576,
+      "haiku": 1048576,
+      "sonnet": 1048576,
+      "opus": 1048576
+    },
+    "modelOptions": [
+      {
+        "id": "gemini-3.5-flash",
+        "label": "Gemini 3.5 Flash",
+        "contextWindow": 1048576
+      },
+      {
+        "id": "gemini-3.1-pro-preview",
+        "label": "Gemini 3.1 Pro Preview",
+        "contextWindow": 1048576
+      },
+      {
+        "id": "gemini-3.1-flash-lite",
+        "label": "Gemini 3.1 Flash-Lite",
+        "contextWindow": 1048576
+      },
+      {
+        "id": "gemini-2.5-pro",
+        "label": "Gemini 2.5 Pro",
+        "contextWindow": 1048576
+      },
+      {
+        "id": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash",
+        "contextWindow": 1048576
+      },
+      {
+        "id": "gemini-2.5-flash-lite",
+        "label": "Gemini 2.5 Flash-Lite",
+        "contextWindow": 1048576
+      }
+    ],
+    "needsApiKey": true,
+    "websiteUrl": "https://ai.google.dev/gemini-api/docs/models",
+    "apiKeyUrl": "https://aistudio.google.com/apikey",
+    "promoText": "Google Gemini 使用官方 OpenAI 兼容接口，Base URL 已包含 /v1beta/openai，CyberCode 会自动避免重复拼接 /v1。"
   },
   {
     "id": "lmstudio",
@@ -135,6 +387,18 @@
       "sonnet": 200000,
       "opus": 200000
     },
+    "modelOptions": [
+      {
+        "id": "openai/gpt-oss-20b",
+        "label": "GPT-OSS 20B",
+        "contextWindow": 200000
+      },
+      {
+        "id": "openai/gpt-oss-120b",
+        "label": "GPT-OSS 120B",
+        "contextWindow": 200000
+      }
+    ],
     "needsApiKey": false,
     "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
     "promoText": "LM Studio 使用 Anthropic 兼容协议，Base URL 填 http://localhost:1234，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
@@ -159,6 +423,13 @@
       "sonnet": 256000,
       "opus": 256000
     },
+    "modelOptions": [
+      {
+        "id": "qwen3.6",
+        "label": "Qwen 3.6",
+        "contextWindow": 256000
+      }
+    ],
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
     "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",

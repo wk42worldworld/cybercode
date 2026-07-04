@@ -16,6 +16,7 @@ import { openaiChatToAnthropic } from './transform/openaiChatToAnthropic.js'
 import { openaiResponsesToAnthropic } from './transform/openaiResponsesToAnthropic.js'
 import { openaiChatStreamToAnthropic } from './streaming/openaiChatStreamToAnthropic.js'
 import { openaiResponsesStreamToAnthropic } from './streaming/openaiResponsesStreamToAnthropic.js'
+import { buildOpenAICompatibleUrl } from './openaiCompatUrl.js'
 import type { AnthropicRequest } from './transform/types.js'
 
 const providerService = new ProviderService()
@@ -110,7 +111,7 @@ async function handleOpenaiChat(
   isStream: boolean,
 ): Promise<Response> {
   const transformed = anthropicToOpenaiChat(body)
-  const url = `${baseUrl}/v1/chat/completions`
+  const url = buildOpenAICompatibleUrl(baseUrl, 'chat/completions')
 
   const upstream = await fetch(url, {
     method: 'POST',
@@ -167,7 +168,7 @@ async function handleOpenaiResponses(
   isStream: boolean,
 ): Promise<Response> {
   const transformed = anthropicToOpenaiResponses(body)
-  const url = `${baseUrl}/v1/responses`
+  const url = buildOpenAICompatibleUrl(baseUrl, 'responses')
 
   const upstream = await fetch(url, {
     method: 'POST',

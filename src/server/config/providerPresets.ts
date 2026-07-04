@@ -20,6 +20,12 @@ const ModelContextWindowsSchema = z.object({
   opus: z.number().int().positive().optional(),
 })
 
+const ProviderModelOptionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().optional(),
+  contextWindow: z.number().int().positive().optional(),
+})
+
 const ProviderPresetSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -27,6 +33,7 @@ const ProviderPresetSchema = z.object({
   apiFormat: ApiFormatSchema,
   defaultModels: ModelMappingSchema,
   defaultModelContextWindows: ModelContextWindowsSchema.optional(),
+  modelOptions: z.array(ProviderModelOptionSchema).optional(),
   needsApiKey: z.boolean(),
   websiteUrl: z.string(),
   apiKeyUrl: z.string().optional(),
@@ -39,6 +46,7 @@ const ProviderPresetsSchema = z.array(ProviderPresetSchema)
 
 export type ModelMapping = z.infer<typeof ModelMappingSchema>
 export type ModelContextWindows = z.infer<typeof ModelContextWindowsSchema>
+export type ProviderModelOption = z.infer<typeof ProviderModelOptionSchema>
 export type ProviderPreset = z.infer<typeof ProviderPresetSchema>
 
 export const PROVIDER_PRESETS = ProviderPresetsSchema.parse(providerPresetsJson)

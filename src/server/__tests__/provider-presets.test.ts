@@ -68,6 +68,8 @@ describe('provider presets API', () => {
     const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
     const minimax = PROVIDER_PRESETS.find((preset) => preset.id === 'minimax')
     const xiaomi = PROVIDER_PRESETS.find((preset) => preset.id === 'xiaomimimo')
+    const openai = PROVIDER_PRESETS.find((preset) => preset.id === 'openai')
+    const google = PROVIDER_PRESETS.find((preset) => preset.id === 'google')
 
     expect(lmstudio?.baseUrl).toBe('http://localhost:1234')
     expect(lmstudio?.apiFormat).toBe('anthropic')
@@ -95,6 +97,52 @@ describe('provider presets API', () => {
     expect(xiaomi?.defaultModels.sonnet).toBe('mimo-v2.5')
     expect(xiaomi?.defaultModels.opus).toBe('mimo-v2.5-pro')
     expect(xiaomi?.defaultModelContextWindows?.opus).toBe(1_000_000)
+    expect(openai?.baseUrl).toBe('https://api.openai.com')
+    expect(openai?.apiFormat).toBe('openai_responses')
+    expect(openai?.defaultModels.main).toBe('gpt-5.5')
+    expect(openai?.defaultModels.haiku).toBe('gpt-5.4-mini')
+    expect(openai?.defaultModels.sonnet).toBe('gpt-5.4')
+    expect(openai?.defaultModels.opus).toBe('gpt-5.5')
+    expect(openai?.defaultModelContextWindows?.main).toBe(1_000_000)
+    expect(openai?.defaultModelContextWindows?.haiku).toBe(400_000)
+    expect(google?.baseUrl).toBe('https://generativelanguage.googleapis.com/v1beta/openai')
+    expect(google?.apiFormat).toBe('openai_chat')
+    expect(google?.defaultModels.main).toBe('gemini-3.5-flash')
+    expect(google?.defaultModels.haiku).toBe('gemini-3.1-flash-lite')
+    expect(google?.defaultModels.sonnet).toBe('gemini-3.5-flash')
+    expect(google?.defaultModels.opus).toBe('gemini-3.1-pro-preview')
+    expect(google?.defaultModelContextWindows?.main).toBe(1_048_576)
+  })
+
+  test('configured presets expose newest-first model options without requiring them for custom providers', () => {
+    const deepseek = PROVIDER_PRESETS.find((preset) => preset.id === 'deepseek')
+    const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
+    const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
+    const openai = PROVIDER_PRESETS.find((preset) => preset.id === 'openai')
+    const google = PROVIDER_PRESETS.find((preset) => preset.id === 'google')
+    const custom = PROVIDER_PRESETS.find((preset) => preset.id === 'custom')
+
+    expect(deepseek?.modelOptions?.map((option) => option.id).slice(0, 2)).toEqual([
+      'deepseek-v4-pro[1m]',
+      'deepseek-v4-flash',
+    ])
+    expect(zhipu?.modelOptions?.[0]).toEqual({
+      id: 'glm-5.2[1m]',
+      label: 'GLM-5.2 1M',
+      contextWindow: 1_000_000,
+    })
+    expect(kimi?.modelOptions?.[0]?.id).toBe('kimi-k2.7-code')
+    expect(openai?.modelOptions?.map((option) => option.id).slice(0, 3)).toEqual([
+      'gpt-5.5',
+      'gpt-5.5-pro',
+      'gpt-5.4',
+    ])
+    expect(google?.modelOptions?.map((option) => option.id).slice(0, 3)).toEqual([
+      'gemini-3.5-flash',
+      'gemini-3.1-pro-preview',
+      'gemini-3.1-flash-lite',
+    ])
+    expect(custom?.modelOptions).toBeUndefined()
   })
 
   test('configured presets can expose optional API key and promo metadata', () => {
@@ -104,6 +152,8 @@ describe('provider presets API', () => {
     const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
     const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
     const minimax = PROVIDER_PRESETS.find((preset) => preset.id === 'minimax')
+    const openai = PROVIDER_PRESETS.find((preset) => preset.id === 'openai')
+    const google = PROVIDER_PRESETS.find((preset) => preset.id === 'google')
     const custom = PROVIDER_PRESETS.find((preset) => preset.id === 'custom')
 
     expect(lmstudio?.needsApiKey).toBe(false)
@@ -120,6 +170,9 @@ describe('provider presets API', () => {
     expect(zhipu?.apiKeyUrl).toBe('https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys')
     expect(kimi?.apiKeyUrl).toBe('https://platform.kimi.com/console/api-keys')
     expect(minimax?.apiKeyUrl).toBe('https://platform.minimaxi.com/user-center/basic-information/interface-key')
+    expect(openai?.apiKeyUrl).toBe('https://platform.openai.com/api-keys')
+    expect(google?.apiKeyUrl).toBe('https://aistudio.google.com/apikey')
+    expect(google?.promoText).toContain('/v1beta/openai')
     expect(custom?.promoText).toBeUndefined()
   })
 

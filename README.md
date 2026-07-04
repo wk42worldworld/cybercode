@@ -33,7 +33,7 @@ A **locally runnable client** that **heavily references Claude Code's design**, 
 </p>
 
 <p align="center">
-  <a href="#why-cybercode">Why</a> · <a href="#quick-comparison">Compare</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="#community-and-growth">Community</a> · <a href="#more-documentation">More Docs</a>
+  <a href="#why-cybercode">Why</a> · <a href="#quick-comparison">Compare</a> · <a href="#gui-tour">GUI</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="#community-and-growth">Community</a> · <a href="#more-documentation">More Docs</a>
 </p>
 
 ---
@@ -58,6 +58,25 @@ A **locally runnable client** that **heavily references Claude Code's design**, 
 | Scheduled coding tasks | Built into desktop workflow | Not the default workflow | Varies |
 | Computer Use | macOS and Windows support | Official feature path | Varies |
 | Open-source hackability | Full repo, desktop, server, adapters, docs | Closed source product | Varies |
+
+## GUI Tour
+
+CyberCode's desktop GUI keeps the coding loop visible: pick a project, chat with an agent, configure providers, switch models, and schedule background work without leaving the app.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-gui-home.png" alt="CyberCode desktop home and session picker" width="860">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-chat.png" alt="CyberCode desktop chat workspace"><br><b>Project chat workspace</b><br>Use multi-session desktop chats with a compact composer, file attachment entry, provider/model selection, and project-aware context.</td>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-model-picker.png" alt="CyberCode provider model picker"><br><b>Provider-aware model picker</b><br>Configure each provider with either a custom model name or a curated model dropdown ordered from newer to older options.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-providers.png" alt="CyberCode provider catalog"><br><b>Built-in provider catalog</b><br>Start from common providers such as OpenAI, Google, DeepSeek, Kimi, MiniMax, GLM, OpenRouter, and Claude-compatible endpoints.</td>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-scheduled-tasks.png" alt="CyberCode scheduled tasks panel"><br><b>Scheduled coding tasks</b><br>Create recurring or one-off automation tasks so local agents can continue useful work while you are away.</td>
+  </tr>
+</table>
 
 ## Community and Growth
 

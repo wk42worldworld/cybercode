@@ -9,6 +9,12 @@ export type ModelMapping = {
 
 export type ModelContextWindows = Partial<Record<keyof ModelMapping, number>>
 
+export type ProviderModelOption = {
+  id: string
+  label?: string
+  contextWindow?: number
+}
+
 export type ProviderPreset = {
   id: string
   name: string
@@ -16,6 +22,7 @@ export type ProviderPreset = {
   apiFormat: ApiFormat
   defaultModels: ModelMapping
   defaultModelContextWindows?: ModelContextWindows
+  modelOptions?: ProviderModelOption[]
   needsApiKey: boolean
   websiteUrl: string
   apiKeyUrl?: string

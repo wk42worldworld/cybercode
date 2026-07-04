@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useProviderStore } from '../stores/providerStore'
 import { localeOptions, useTranslation } from '../i18n'
@@ -10,7 +10,7 @@ import { Button } from '../components/shared/Button'
 import { Dropdown } from '../components/shared/Dropdown'
 import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
 import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat, ModelContextWindows } from '../types/provider'
-import type { ProviderPreset } from '../types/providerPreset'
+import type { ProviderPreset, ProviderModelOption } from '../types/providerPreset'
 import {
   MODEL_ROLES,
   buildModelContextWindowMap,
@@ -19,7 +19,6 @@ import {
   inferContextWindowFromModelId,
   parseContextWindowInput,
   parseContextWindowValue,
-  resolveRoleContextWindows,
   type ModelRole,
 } from '../utils/modelContextWindows'
 import { useAgentStore } from '../stores/agentStore'
@@ -532,13 +531,15 @@ function createContextWindowInputs(
   provider: SavedProvider | undefined,
   preset: ProviderPreset,
 ): Record<ModelRole, string> {
-  const resolved = resolveRoleContextWindows(
-    models,
-    provider?.modelContextWindows,
-    preset.defaultModelContextWindows,
-  )
   return Object.fromEntries(
-    MODEL_ROLES.map((role) => [role, formatContextWindowInput(resolved[role])]),
+    MODEL_ROLES.map((role) => {
+      const value =
+        provider?.modelContextWindows?.[role] ??
+        getPresetModelContextWindow(preset, models[role]) ??
+        inferContextWindowFromModelId(models[role]) ??
+        preset.defaultModelContextWindows?.[role]
+      return [role, formatContextWindowInput(value)]
+    }),
   ) as Record<ModelRole, string>
 }
 
@@ -557,6 +558,136 @@ function createContextWindowTouched(provider?: SavedProvider): Record<ModelRole,
   return Object.fromEntries(
     MODEL_ROLES.map((role) => [role, provider?.modelContextWindows?.[role] !== undefined]),
   ) as Record<ModelRole, boolean>
+}
+
+function getPresetModelContextWindow(
+  preset: ProviderPreset,
+  modelId: string | undefined,
+): number | undefined {
+  const normalized = modelId?.trim()
+  if (!normalized) return undefined
+  return preset.modelOptions?.find((option) => option.id === normalized)?.contextWindow
+}
+
+function ModelIdInput({
+  label,
+  required,
+  value,
+  onChange,
+  placeholder,
+  options = [],
+  selectLabel,
+}: {
+  label: string
+  required?: boolean
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  options?: ProviderModelOption[]
+  selectLabel: string
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const inputId = label.toLowerCase().replace(/\s+/g, '-')
+  const hasOptions = options.length > 0
+
+  useEffect(() => {
+    if (!open) return
+    const handleClick = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={inputId} className="text-[13px] font-bold tracking-normal text-[var(--color-text-primary)]" style={{ fontFamily: 'var(--font-label)' }}>
+        {label}
+        {required && <span className="text-[var(--color-error)] ml-0.5">*</span>}
+      </label>
+      <div ref={wrapperRef} className="relative">
+        <input
+          id={inputId}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (hasOptions && (event.key === 'ArrowDown' || event.key === 'Enter')) {
+              setOpen(true)
+            }
+          }}
+          placeholder={placeholder}
+          className={`
+            h-[40px] w-full rounded-[10px] border border-[var(--color-border)] bg-white px-[14px] text-[13px] font-medium
+            text-[var(--color-text-primary)] outline-none transition-all duration-200
+            placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)] focus:shadow-[var(--shadow-focus-ring)]
+            dark:bg-[var(--color-surface-container-low)]
+            ${hasOptions ? 'pr-[42px]' : ''}
+          `}
+        />
+        {hasOptions && (
+          <button
+            type="button"
+            onClick={() => setOpen((next) => !next)}
+            aria-label={`${selectLabel}: ${label}`}
+            className="absolute right-[6px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)]"
+          >
+            <Icon name="expand_more" size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+          </button>
+        )}
+        {hasOptions && open && (
+          <div className="absolute left-0 right-0 z-50 mt-1.5 max-h-[260px] overflow-y-auto rounded-[10px] border border-[var(--color-border-separator)] bg-[var(--color-background)] py-1 shadow-[var(--shadow-dropdown)] animate-slide-down">
+            {options.map((option) => {
+              const selected = option.id === value
+              const contextLabel = formatContextWindowInput(option.contextWindow)
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    onChange(option.id)
+                    setOpen(false)
+                  }}
+                  className={`
+                    flex min-h-[42px] w-full items-center gap-2 px-3 py-2 text-left transition-colors
+                    hover:bg-[var(--color-surface-hover)] focus-visible:bg-[var(--color-surface-hover)] focus-visible:outline-none
+                    ${selected ? 'bg-[var(--color-surface-selected)]' : ''}
+                  `}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-semibold tracking-normal text-[var(--color-text-primary)]">
+                      {option.label ?? option.id}
+                    </div>
+                    {option.label && option.label !== option.id && (
+                      <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--color-text-tertiary)]">
+                        {option.id}
+                      </div>
+                    )}
+                  </div>
+                  {contextLabel && (
+                    <span className="shrink-0 rounded-[6px] border border-[var(--color-border)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--color-text-tertiary)]">
+                      {contextLabel}
+                    </span>
+                  )}
+                  {selected && <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-secondary)]" />}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function maskSettingsJsonSecrets(raw: string, apiKey: string): string {
@@ -639,6 +770,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     setModels((prev) => ({ ...prev, [role]: value }))
     if (contextWindowTouched[role]) return
     const inferred =
+      getPresetModelContextWindow(selectedPreset, value) ??
       inferContextWindowFromModelId(value) ??
       selectedPreset.defaultModelContextWindows?.[role]
     setContextWindowInputs((prev) => ({
@@ -862,7 +994,15 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_128px]">
           <Input label={t('settings.providers.baseUrl')} required value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={t('settings.providers.baseUrlPlaceholder')} />
-          <Input label={t('settings.providers.mainModel')} required value={models.main} onChange={(e) => updateModel('main', e.target.value)} placeholder="Model ID" />
+          <ModelIdInput
+            label={t('settings.providers.mainModel')}
+            required
+            value={models.main}
+            onChange={(value) => updateModel('main', value)}
+            placeholder="Model ID"
+            options={selectedPreset.modelOptions}
+            selectLabel={t('model.selectModel')}
+          />
           <Input
             label={t('settings.providers.contextWindow')}
             value={contextWindowInputs.main}
@@ -1002,15 +1142,17 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                 <div className="grid grid-cols-1 gap-2">
                   {MODEL_ROLES.filter((role) => role !== 'main').map((role) => (
                     <div key={role} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_128px]">
-                      <Input
+                      <ModelIdInput
                         label={role === 'haiku'
                           ? t('settings.providers.haikuModel')
                           : role === 'sonnet'
                             ? t('settings.providers.sonnetModel')
                             : t('settings.providers.opusModel')}
                         value={models[role]}
-                        onChange={(e) => updateModel(role, e.target.value)}
+                        onChange={(value) => updateModel(role, value)}
                         placeholder={t('settings.providers.sameAsMain')}
+                        options={selectedPreset.modelOptions}
+                        selectLabel={t('model.selectModel')}
                       />
                       <Input
                         label={t('settings.providers.contextWindow')}
