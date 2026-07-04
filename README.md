@@ -28,7 +28,7 @@
 A **locally runnable client** that **heavily references Claude Code's design**, with support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
 
 <p align="center">
-  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
+  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
 </p>
 
 ---
@@ -334,6 +334,318 @@ Expected result: you can identify whether the issue is shell setup, API configur
 | Control desktop apps | [Computer Use](docs/en/features/computer-use.md) |
 
 Expected result: you can move from the first working session to the feature area you actually need.
+
+---
+
+## Feature Module Tutorials
+
+This section is a module-by-module manual. Use it when you already have CyberCode running and want to understand each feature in a practical way.
+
+### Module 1. Desktop App Installation and Updates
+
+Use this module if you want the normal GUI app instead of running from source.
+
+1. Open [GitHub Releases](https://github.com/wk42worldworld/cybercode/releases).
+2. Download the package that matches your platform:
+   - macOS Apple Silicon: `macos_arm64_dmg.dmg`
+   - macOS Intel: `macos_x64_dmg.dmg`
+   - Windows x64: `windows_x64_nsis.exe`
+   - Linux x64: `linux_x64_deb.deb`
+3. Install the package with the normal platform installer.
+4. Launch CyberCode and create a new session.
+5. Select a real project folder before sending your first coding request.
+
+Verify it: the app opens, the sidebar shows sessions, and the status bar shows the selected project and model.
+
+Notes:
+
+- macOS packages are notarized. If macOS still blocks the app, see [Installation](docs/desktop/04-installation.md).
+- The release also includes `latest.json` for desktop update metadata.
+
+### Module 2. Model Providers, Models, and Context Windows
+
+Use this module when you want CyberCode to call MiniMax, OpenRouter, OpenAI through a proxy, Ollama, or another compatible provider.
+
+1. Open the desktop app.
+2. Go to Settings -> Providers.
+3. Choose a preset or add a custom provider.
+4. Fill in:
+   - Provider name
+   - API key
+   - Base URL
+   - API format: `Anthropic`, `OpenAI Chat`, or `OpenAI Responses`
+   - Model mapping: `main`, `haiku`, `sonnet`, `opus`
+5. Fill the context window fields when you know the model limits, for example `200k` or `1m`.
+6. Click Test Connection.
+7. Activate the provider.
+8. Click the model name in the status bar and select the model you want for the current session.
+
+Verify it: send a short message, then open `/context` or the context inspector and confirm the active model and context limit look right.
+
+Notes:
+
+- For Anthropic-compatible endpoints, use the provider URL directly.
+- For OpenAI-only APIs, use LiteLLM or another Anthropic-to-OpenAI proxy. See [Third-Party Models](docs/en/guide/third-party-models.md).
+- If a model name contains a recognizable value like `200k` or `1m`, CyberCode can infer a context window, but explicit provider settings are clearer.
+
+### Module 3. CLI and Headless Mode
+
+Use this module when you prefer terminal workflows, automation, or CI.
+
+1. Install dependencies:
+
+```bash
+bun install
+```
+
+2. Create your environment file:
+
+```bash
+cp .env.example .env
+```
+
+3. Edit `.env` with your provider settings.
+4. Start the interactive TUI:
+
+```bash
+./bin/cybercode
+```
+
+5. Run a one-shot prompt:
+
+```bash
+./bin/cybercode -p "Explain this repository structure"
+```
+
+6. Check available options:
+
+```bash
+./bin/cybercode --help
+```
+
+Verify it: the interactive mode opens, and the `-p` command prints a complete answer without opening the TUI.
+
+Notes:
+
+- On Windows, Git Bash is recommended. If it is unavailable, CyberCode falls back to PowerShell.
+- Add `bin/` to PATH if you want to run `cybercode` from any directory.
+
+### Module 4. Desktop Sessions, Projects, and Tabs
+
+Use this module to organize real coding work across multiple projects.
+
+1. Click `+` in the sidebar or press `Cmd/Ctrl + N`.
+2. Choose the project working directory.
+3. Send a small inspection prompt first, such as `Explain this project layout`.
+4. Use the project filter in the sidebar to show only sessions for one project.
+5. Use sidebar search to find old sessions by title.
+6. Right-click a session to rename or delete it.
+7. Open multiple tabs when you want to keep separate tasks active.
+8. Use tab right-click actions to close the current tab, other tabs, left tabs, right tabs, or all tabs.
+
+Verify it: each session is tied to the expected project path, and the status bar displays the current project and model.
+
+Notes:
+
+- Closing a running tab asks whether to keep running, stop and close, or cancel.
+- If a session points to a deleted directory, re-select an existing folder.
+
+### Module 5. Chat Composer, Attachments, Slash Commands, and Pending Input
+
+Use this module to send richer messages and manage input while the assistant is busy.
+
+1. Type in the bottom composer.
+2. Press `Enter` to send, or `Shift + Enter` for a new line.
+3. Add files by pasting, dragging into the composer, or using the `+` file picker.
+4. Type `/` to open slash commands such as `/status`, `/context`, `/memory`, `/mcp`, and `/skills`.
+5. Type `@` to search and reference project files.
+6. While the assistant is responding, send another message. It appears as a pending input row.
+7. Edit or remove a pending row before it is sent.
+8. Let the current assistant response finish. Queued pending input is sent automatically as the next user turn.
+9. Click Stop or press `Cmd/Ctrl + .` if you need to interrupt generation.
+
+Verify it: attachments appear above the composer, slash commands open the right panel or command, `@` references resolve to files, and busy-turn input is not lost.
+
+Notes:
+
+- Unsupported file types are passed as file paths so the agent can still inspect them with tools.
+- The pending input row is for actual queued content, not a reminder banner.
+
+### Module 6. Permissions and Tool Safety
+
+Use this module whenever CyberCode wants to run shell commands or edit files.
+
+1. Keep the default permission mode when working in an unfamiliar repository.
+2. Read every permission card before approving it.
+3. Choose Allow for a single action.
+4. Choose Always Allow only when you trust that class of action for the current session.
+5. Choose Deny if the command, file path, or diff does not look right.
+6. Switch to Plan mode when you only want an implementation plan.
+7. Use bypass permissions only in disposable or fully trusted environments.
+
+Verify it: file edits and shell commands do not run until the permission policy allows them.
+
+Notes:
+
+- Permission cards show tool type, command or file preview, and expandable details.
+- IM adapters also render permission requests as approval buttons.
+
+### Module 7. Memory System
+
+Use this module when you want CyberCode to remember preferences, project rules, or external references across sessions.
+
+1. Work normally. CyberCode can extract useful memories after conversations.
+2. Say `remember this: ...` when you want to save something explicitly.
+3. Use `/memory` to open editable memory files.
+4. Use `/remember` to review, promote, merge, or clean up automatic memories.
+5. Ask CyberCode to forget a memory when it is no longer valid.
+6. Say `ignore memory for this turn` when you want a clean answer.
+
+Verify it: memory update notifications appear, and later sessions can use the saved preference or project context.
+
+Good memory examples:
+
+- Testing must use a real database, not mocks.
+- Release freezes start on a specific date.
+- A dashboard, ticket queue, or on-call reference lives in an external system.
+
+Notes:
+
+- Memory should store context that cannot be inferred from code.
+- Disable automatic memory with `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`.
+
+### Module 8. Multi-Agent Workflows and Agent Teams
+
+Use this module for large tasks that benefit from parallel exploration, planning, or verification.
+
+1. Ask CyberCode to split a large task into agents, for example `Explore frontend, backend, and tests in parallel before planning changes`.
+2. Use Explore agents for read-only codebase research.
+3. Use Plan agents for architecture and implementation plans.
+4. Use verification agents to independently check a completed change.
+5. Ask for background agents when a task may take a long time.
+6. Ask for worktree isolation when an experimental implementation should not touch the main working tree.
+7. For collaborative work, ask CyberCode to create an Agent Team with named responsibilities.
+
+Verify it: CyberCode reports agent launches, background task completions, verification results, or team summaries.
+
+Notes:
+
+- Keep each agent prompt focused.
+- Use verification agents before trusting broad or risky changes.
+
+### Module 9. Skills, Plugins, and MCP
+
+Use this module to turn repeatable workflows into reusable capabilities.
+
+1. Type `/` and browse available slash commands.
+2. Start with built-in skills such as `/verify`, `/debug`, `/simplify`, `/remember`, and `/batch`.
+3. In the desktop app, use `/skills` to inspect user-invocable skills for the current context.
+4. For a project skill, create `.claude/skills/<skill-name>/SKILL.md`.
+5. Add frontmatter fields such as `description`, `when_to_use`, `allowed-tools`, `model`, or `paths`.
+6. Write the workflow instructions in Markdown below the frontmatter.
+7. Trigger the skill with `/skill-name`, or describe a task that clearly matches its `when_to_use`.
+8. Add MCP servers when you need external tools or prompts exposed to CyberCode.
+
+Verify it: the skill appears in slash command discovery or is called by the model when the matching task appears.
+
+Notes:
+
+- Use `allowed-tools` to keep powerful skills scoped.
+- Project skills are useful for team workflows because they can live in the repository.
+
+### Module 10. IM Remote Control with Telegram and Feishu
+
+Use this module when you want to control CyberCode from your phone or team chat.
+
+1. Open the desktop app settings.
+2. Go to the IM or Adapters section.
+3. Set `serverUrl` and a default project directory if you want new chats to start in a known project.
+4. Fill platform credentials:
+   - Telegram: Bot Token
+   - Feishu: App ID and App Secret
+5. Set allowed users when needed.
+6. Generate a six-character pairing code.
+7. Start the adapter process:
+
+```bash
+cd adapters
+bun install
+bun run telegram
+# or
+bun run feishu
+```
+
+8. Send the pairing code to the bot in a private chat.
+9. Send normal coding requests after pairing succeeds.
+10. Use `/new`, `/projects`, and `/stop` from IM when needed.
+
+Verify it: the bot connects to a CyberCode session, streams replies, and shows permission requests as buttons.
+
+Notes:
+
+- Pairing codes are single-use and expire after 60 minutes.
+- If no default project is configured, the bot asks you to choose from recent projects.
+
+### Module 11. Scheduled Tasks
+
+Use this module when you want CyberCode to run a prompt on a schedule.
+
+1. Open the desktop app.
+2. Click the clock icon in the sidebar.
+3. Click New Task.
+4. Fill in task name and prompt.
+5. Set the cron schedule or use the visual weekday/time controls.
+6. Choose the model and permission mode for the run.
+7. Save the task.
+8. Use the enable switch to activate or pause it.
+9. Click Run Now to test it manually.
+10. Expand run history to inspect previous results.
+
+Verify it: the task appears in the list with a readable schedule, and manual runs create history entries.
+
+Notes:
+
+- Scheduled tasks run while the desktop app and local service are available.
+- Use conservative permission modes for unattended tasks.
+
+### Module 12. Computer Use
+
+Use this module when you want the model to operate desktop applications through screenshots, mouse, and keyboard.
+
+1. Make sure Bun dependencies are installed.
+2. Confirm Python 3.8 or newer is available:
+
+```bash
+python3 --version
+```
+
+3. On macOS, grant Accessibility and Screen Recording permissions to your terminal or the desktop app host.
+4. Start CyberCode.
+5. Ask for a visual desktop action, such as `Take a screenshot and tell me what is open`.
+6. Approve the application access request when CyberCode asks.
+7. Let the model screenshot, inspect, click, type, and verify step by step.
+
+Verify it: CyberCode can take a screenshot, request app access, and operate only approved applications.
+
+Notes:
+
+- macOS Apple Silicon, macOS Intel, and Windows x64 are supported.
+- Disable the feature with `CLAUDE_COMPUTER_USE_ENABLED=0`.
+- Use simple, observable tasks first before asking for multi-app workflows.
+
+### Module 13. Diagnostics, Context, and Cost Inspection
+
+Use this module when something feels wrong or you need to inspect the current session.
+
+1. Type `/status` to inspect the current session state.
+2. Type `/context` to see context window usage, free tokens, and message/tool breakdowns.
+3. Type `/cost` to inspect usage and cost-related data when available.
+4. Type `/doctor` to check local setup health.
+5. Use `curl http://127.0.0.1:3456/health` when testing the local desktop server.
+6. If a provider fails, run the provider test from Settings -> Providers.
+7. If the desktop cannot reach a session, confirm the project directory still exists.
+
+Verify it: you can tell whether the problem is provider configuration, context pressure, local server state, or missing project paths.
 
 ---
 
