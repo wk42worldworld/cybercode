@@ -7,6 +7,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
 import { TaskService } from '../services/taskService.js'
+import { ProviderService } from '../services/providerService.js'
 
 // ============================================================================
 // TaskService unit tests
@@ -125,10 +126,12 @@ describe('Tasks API', () => {
   let server: any
   let baseUrl: string
   let tmpDir: string
+  let originalProviderServerPort: number
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-tasks-api-'))
     process.env.CLAUDE_CONFIG_DIR = tmpDir
+    originalProviderServerPort = ProviderService.getServerPort()
     await fs.mkdir(path.join(tmpDir, 'projects'), { recursive: true })
 
     const port = 15500 + Math.floor(Math.random() * 500)
@@ -139,6 +142,7 @@ describe('Tasks API', () => {
 
   afterEach(async () => {
     server?.stop()
+    ProviderService.setServerPort(originalProviderServerPort)
     await fs.rm(tmpDir, { recursive: true, force: true })
     delete process.env.CLAUDE_CONFIG_DIR
   })

@@ -27,6 +27,10 @@ import {
   buildPathRequiredAttachmentMessage,
   getInlineFileAttachmentsWithoutPath,
 } from './attachmentPolicy.js'
+import { openSessionSearchDb } from '../../sessionSearch/db.js'
+import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
+import { buildProjectMemoryPromptContext } from '../../sessionSearch/projectMemory.js'
+import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
 
 const settingsService = new SettingsService()
 const providerService = new ProviderService()
@@ -330,9 +334,15 @@ async function handleUserMessage(
     shouldForward: (cliMsg) => userMessageSent || (cliMsg.type === 'result' && cliMsg.is_error),
   })
 
-  const sent = conversationService.sendMessage(
+  const contentForModel = await buildContentWithInitialProjectMemory(
     sessionId,
     message.content,
+    message.attachments,
+  )
+
+  const sent = conversationService.sendMessage(
+    sessionId,
+    contentForModel,
     message.attachments
   )
   if (!sent) {
@@ -346,6 +356,50 @@ async function handleUserMessage(
   }
 
   userMessageSent = true
+}
+
+async function buildContentWithInitialProjectMemory(
+  sessionId: string,
+  content: string,
+  attachments?: Extract<ClientMessage, { type: 'user_message' }>['attachments'],
+): Promise<string> {
+  try {
+    const launchInfo = await sessionService.getSessionLaunchInfo(sessionId)
+    if (!launchInfo?.isTemporary || launchInfo.transcriptMessageCount > 0) {
+      return content
+    }
+
+    const query = [
+      content,
+      ...(attachments ?? []).flatMap((attachment) =>
+        [attachment.name, attachment.path].filter(
+          (value): value is string => typeof value === 'string' && value.trim().length > 0,
+        ),
+      ),
+    ].join('\n')
+
+    const db = openSessionSearchDb()
+    try {
+      await ensureSessionSearchIndexFresh({ db })
+      const memoryContext = buildProjectMemoryPromptContext({
+        db,
+        query,
+        currentSessionId: sessionId,
+        limit: 4,
+      })
+      return memoryContext
+        ? appendProjectMemoryContext(content, memoryContext)
+        : content
+    } finally {
+      db.close()
+    }
+  } catch (error) {
+    console.warn(
+      `[WS] Failed to attach project memory context for ${sessionId}:`,
+      error,
+    )
+    return content
+  }
 }
 
 async function handleUserSteer(

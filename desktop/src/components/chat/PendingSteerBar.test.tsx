@@ -68,4 +68,50 @@ describe('PendingSteerBar', () => {
       text: 'Please also check the migration',
     })
   })
+
+  it('shows multiple saved steers as separate one-line rows', () => {
+    useChatStore.setState({
+      sessions: {
+        'multi-session': makeChatSession({
+          pendingSteers: [
+            {
+              id: 'steer-1',
+              content: 'First follow-up with a specific constraint',
+              createdAt: 1,
+              status: 'draft',
+            },
+            {
+              id: 'steer-2',
+              content: 'Second follow-up should stay editable by itself',
+              createdAt: 2,
+              status: 'draft',
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<PendingSteerBar sessionId="multi-session" />)
+
+    expect(screen.getByText('First follow-up with a specific constraint')).toBeInTheDocument()
+    expect(screen.getByText('Second follow-up should stay editable by itself')).toBeInTheDocument()
+    expect(screen.queryByTitle(/AI is working/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Send after')).not.toBeInTheDocument()
+    expect(screen.queryByText(/\+1/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Join task' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Edit saved input' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Cancel queued input' })).toHaveLength(2)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit saved input' })[1]!)
+
+    expect(useChatStore.getState().sessions['multi-session']?.pendingSteers).toMatchObject([
+      {
+        id: 'steer-1',
+        content: 'First follow-up with a specific constraint',
+      },
+    ])
+    expect(useChatStore.getState().sessions['multi-session']?.composerPrefill).toMatchObject({
+      text: 'Second follow-up should stay editable by itself',
+    })
+  })
 })

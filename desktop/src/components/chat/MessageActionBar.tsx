@@ -46,13 +46,11 @@ export function MessageActionBar({
           <CopyButton
             text={copyText!}
             label={copyLabel}
-            displayLabel="Copy"
-            displayCopiedLabel="Copied"
-            className="inline-flex min-h-6 items-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-2 text-[10px] font-medium text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-brand)]/30"
+            iconOnly
+            className="border border-[var(--color-border)] hover:border-[var(--color-brand)]"
           />
         )}
       </div>
     </div>
   )
 }
-

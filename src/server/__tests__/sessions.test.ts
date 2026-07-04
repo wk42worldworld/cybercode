@@ -9,6 +9,7 @@ import * as os from 'node:os'
 import { SessionService } from '../services/sessionService.js'
 import { clearCommandsCache } from '../../commands.js'
 import { sanitizePath } from '../../utils/sessionStoragePortable.js'
+import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
 
 // ============================================================================
 // Test helpers
@@ -490,6 +491,26 @@ describe('SessionService', () => {
       type: 'assistant',
       content: [{ type: 'text', text: '正常助手消息' }],
     })
+  })
+
+  it('should strip injected project memory context from visible session messages', async () => {
+    const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    await writeSessionFile('-tmp-project', sessionId, [
+      makeSnapshotEntry(),
+      makeUserEntry(appendProjectMemoryContext(
+        'Continue the visible project.',
+        'Hidden project memory should stay internal.',
+      )),
+      makeAssistantEntry('Visible answer'),
+    ])
+
+    const detail = await service.getSession(sessionId)
+    const messages = await service.getSessionMessages(sessionId).then(r => r.messages)
+
+    expect(detail?.title).toBe('Continue the visible project.')
+    expect(detail?.lastMessage).toBe('Visible answer')
+    expect(messages[0]?.content).toBe('Continue the visible project.')
+    expect(JSON.stringify(messages)).not.toContain('Hidden project memory')
   })
 
   it('should reconstruct parent agent tool linkage from parentUuid chains', async () => {

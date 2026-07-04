@@ -642,6 +642,12 @@ html[data-runtime="tauri"] #root {
   font-kerning: auto;
 }
 
+.chat-bubble-text::selection,
+.chat-bubble-text *::selection {
+  background: #0A84FF;
+  color: #FFFFFF;
+}
+
 .settings-ui {
   --color-background: #ffffff;
   --color-surface: #ffffff;

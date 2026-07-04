@@ -15,6 +15,7 @@ import {
   deleteSessionFromSearchIndex,
   indexSessionSearchFile,
 } from '../../sessionSearch/indexer.js'
+import { stripProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
 import type { FileHistorySnapshot } from '../../utils/fileHistory.js'
 import { calculateUSDCost, MODEL_COSTS } from '../../utils/modelCost.js'
 import {
@@ -56,6 +57,7 @@ export type SessionLaunchInfo = {
   workDir: string
   transcriptMessageCount: number
   customTitle: string | null
+  isTemporary: boolean
 }
 
 export type TrimSessionResult = {
@@ -327,6 +329,7 @@ export class SessionService {
   ): MessageEntry | null {
     const msg = entry.message
     if (!msg || !msg.role) return null
+    const content = this.stripProjectMemoryContextFromContent(msg.content)
 
     // Determine our normalized type
     let type: MessageEntry['type']
@@ -334,8 +337,8 @@ export class SessionService {
 
     if (role === 'user') {
       // Check if the content is a tool_result array
-      if (Array.isArray(msg.content)) {
-        const hasToolResult = msg.content.some(
+      if (Array.isArray(content)) {
+        const hasToolResult = content.some(
           (block: Record<string, unknown>) => block.type === 'tool_result'
         )
         if (hasToolResult) {
@@ -348,8 +351,8 @@ export class SessionService {
       }
     } else if (role === 'assistant') {
       // Check if the content contains tool_use blocks
-      if (Array.isArray(msg.content)) {
-        const hasToolUse = msg.content.some(
+      if (Array.isArray(content)) {
+        const hasToolUse = content.some(
           (block: Record<string, unknown>) => block.type === 'tool_use'
         )
         type = hasToolUse ? 'tool_use' : 'assistant'
@@ -363,7 +366,7 @@ export class SessionService {
     return {
       id: entry.uuid || crypto.randomUUID(),
       type,
-      content: msg.content,
+      content,
       timestamp: entry.timestamp || new Date().toISOString(),
       model: msg.model,
       parentUuid: entry.parentUuid ?? undefined,
@@ -373,7 +376,7 @@ export class SessionService {
   }
 
   private extractTextBlocks(content: unknown): string[] {
-    if (typeof content === 'string') return [content]
+    if (typeof content === 'string') return [stripProjectMemoryContext(content)]
     if (!Array.isArray(content)) return []
 
     return content
@@ -381,7 +384,7 @@ export class SessionService {
         if (!block || typeof block !== 'object') return []
         const record = block as Record<string, unknown>
         return record.type === 'text' && typeof record.text === 'string'
-          ? [record.text]
+          ? [stripProjectMemoryContext(record.text)]
           : []
       })
       .map((text) => text.trim())
@@ -461,12 +464,38 @@ export class SessionService {
   }
 
   private extractTextFromContent(content: unknown): string {
-    if (typeof content === 'string') return content
+    if (typeof content === 'string') return stripProjectMemoryContext(content)
     if (!Array.isArray(content)) return ''
 
     return (content as ContentBlock[])
-      .flatMap((block) => (typeof block.text === 'string' ? [block.text] : []))
+      .flatMap((block) => (
+        typeof block.text === 'string'
+          ? [stripProjectMemoryContext(block.text)]
+          : []
+      ))
       .join('\n')
+  }
+
+  private stripProjectMemoryContextFromContent(content: unknown): unknown {
+    if (typeof content === 'string') return stripProjectMemoryContext(content)
+    if (!Array.isArray(content)) return content
+
+    return (content as ContentBlock[]).map((block) => {
+      if (!block || typeof block !== 'object') return block
+      if (typeof block.text === 'string') {
+        return {
+          ...block,
+          text: stripProjectMemoryContext(block.text),
+        }
+      }
+      if (typeof block.content === 'string') {
+        return {
+          ...block,
+          content: stripProjectMemoryContext(block.content),
+        }
+      }
+      return block
+    })
   }
 
   private extractAgentIdFromResultText(text: string): string | undefined {
@@ -663,12 +692,12 @@ export class SessionService {
         const content = e.message.content
         let text: string | undefined
         if (typeof content === 'string') {
-          text = content
+          text = stripProjectMemoryContext(content)
         } else if (Array.isArray(content)) {
           const textBlock = content.find(
             (block: Record<string, unknown>) => block.type === 'text' && typeof block.text === 'string'
           )
-          if (textBlock) text = textBlock.text as string
+          if (textBlock) text = stripProjectMemoryContext(textBlock.text as string)
         }
         if (text) {
           return text.length > 80 ? text.slice(0, 80) + '...' : text
@@ -1503,6 +1532,7 @@ export class SessionService {
 
     const entries = await this.readJsonlFile(found.filePath)
     const workDir = this.resolveWorkDirFromEntries(entries, found.projectDir) || process.cwd()
+    const isTemporary = this.resolveIsTemporaryFromEntries(entries)
     let customTitle: string | null = null
     let transcriptMessageCount = 0
 
@@ -1525,6 +1555,7 @@ export class SessionService {
       workDir,
       transcriptMessageCount,
       customTitle,
+      isTemporary,
     }
   }
 

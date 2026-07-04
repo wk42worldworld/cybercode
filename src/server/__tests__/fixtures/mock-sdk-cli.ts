@@ -1,3 +1,6 @@
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+
 const args = process.argv.slice(2)
 
 function getArg(name: string): string | undefined {
@@ -28,6 +31,7 @@ const initMode = process.env.MOCK_SDK_INIT_MODE || 'on_open'
 const streamDelayMs = Number(process.env.MOCK_SDK_STREAM_DELAY_MS || '0')
 const exitAfterOpenMs = Number(process.env.MOCK_SDK_EXIT_AFTER_OPEN_MS || '0')
 const exitAfterFirstUserMs = Number(process.env.MOCK_SDK_EXIT_AFTER_FIRST_USER_MS || '0')
+const inboundLogDir = process.env.MOCK_SDK_INBOUND_LOG_DIR
 let initSent = false
 let firstUserExitScheduled = false
 
@@ -50,6 +54,20 @@ function sendInit() {
   })
 }
 
+function recordInbound(payload: unknown) {
+  if (!inboundLogDir) return
+  try {
+    mkdirSync(inboundLogDir, { recursive: true })
+    appendFileSync(
+      join(inboundLogDir, `${sessionId}.jsonl`),
+      `${JSON.stringify(payload)}\n`,
+      'utf-8',
+    )
+  } catch {
+    // Test-only logging must not affect the mock CLI behavior.
+  }
+}
+
 ws.addEventListener('open', () => {
   if (initMode !== 'on_first_user') {
     sendInit()
@@ -68,6 +86,7 @@ ws.addEventListener('message', (event) => {
       const parsed = JSON.parse(line)
 
       if (parsed.type === 'user') {
+        recordInbound(parsed)
         sendInit()
         if (exitAfterFirstUserMs > 0 && !firstUserExitScheduled) {
           firstUserExitScheduled = true

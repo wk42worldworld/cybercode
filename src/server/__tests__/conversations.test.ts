@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { ConversationService, conversationService } from '../services/conversationService.js'
 import { SessionService } from '../services/sessionService.js'
 import { ProviderService } from '../services/providerService.js'
+import { PROJECT_MEMORY_CONTEXT_TAG } from '../../sessionSearch/projectMemoryContext.js'
 
 // ============================================================================
 // ConversationService unit tests
@@ -344,6 +345,7 @@ describe('WebSocket Chat Integration', () => {
   let baseUrl: string
   let wsUrl: string
   let tmpDir: string
+  let mockSdkInboundDir: string
 
   async function withMockInitMode<T>(
     mode: string | undefined,
@@ -501,11 +503,38 @@ describe('WebSocket Chat Integration', () => {
     }
     throw new Error(`Timed out waiting for ${label}`)
   }
+
+  async function readMockSdkInbound(sessionId: string): Promise<any[]> {
+    const filePath = path.join(mockSdkInboundDir, `${sessionId}.jsonl`)
+    const raw = await fs.readFile(filePath, 'utf-8')
+    return raw
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => JSON.parse(line))
+  }
+
+  function extractSdkUserText(payload: any): string {
+    const content = payload?.message?.content
+    if (!Array.isArray(content)) return ''
+    return content
+      .flatMap((block: any) =>
+        block?.type === 'text' && typeof block.text === 'string'
+          ? [block.text]
+          : [],
+      )
+      .join('\n')
+  }
   const originalCliPath = process.env.CLAUDE_CLI_PATH
+  const originalConfigDir = process.env.CLAUDE_CONFIG_DIR
+  const originalMockSdkInboundLogDir = process.env.MOCK_SDK_INBOUND_LOG_DIR
+  const originalProviderServerPort = ProviderService.getServerPort()
 
   beforeAll(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-conv-'))
+    mockSdkInboundDir = path.join(tmpDir, 'mock-sdk-inbound')
     process.env.CLAUDE_CONFIG_DIR = tmpDir
+    process.env.MOCK_SDK_INBOUND_LOG_DIR = mockSdkInboundDir
     process.env.CLAUDE_CLI_PATH = fileURLToPath(
       new URL('./fixtures/mock-sdk-cli.ts', import.meta.url)
     )
@@ -528,7 +557,17 @@ describe('WebSocket Chat Integration', () => {
     } else {
       delete process.env.CLAUDE_CLI_PATH
     }
-    delete process.env.CLAUDE_CONFIG_DIR
+    if (originalMockSdkInboundLogDir) {
+      process.env.MOCK_SDK_INBOUND_LOG_DIR = originalMockSdkInboundLogDir
+    } else {
+      delete process.env.MOCK_SDK_INBOUND_LOG_DIR
+    }
+    if (originalConfigDir) {
+      process.env.CLAUDE_CONFIG_DIR = originalConfigDir
+    } else {
+      delete process.env.CLAUDE_CONFIG_DIR
+    }
+    ProviderService.setServerPort(originalProviderServerPort)
   })
 
   it('should connect and receive connected event', async () => {
@@ -848,6 +887,67 @@ describe('WebSocket Chat Integration', () => {
     expect(secondTurn.some((m) => m.type === 'message_complete')).toBe(true)
     expect(secondTurn.some((m) => m.type === 'error')).toBe(false)
   })
+
+  it('should inject searchable temporary project memory into a new temporary session first turn', async () => {
+    const svc = new SessionService()
+    const oldSession = await svc.createSession({ temporary: true })
+    const oldFound = await svc.findSessionFile(oldSession.sessionId)
+    expect(oldFound).not.toBeNull()
+
+    const memoryNeedle = `nebula-memory-${crypto.randomUUID()}`
+    await fs.appendFile(
+      oldFound!.filePath,
+      [
+        {
+          type: 'user',
+          uuid: crypto.randomUUID(),
+          timestamp: '2026-01-01T00:01:00.000Z',
+          message: {
+            role: 'user',
+            content: `Temporary project ${memoryNeedle} lives at /tmp/${memoryNeedle}/app. Please remember the test runner command.`,
+          },
+        },
+        {
+          type: 'assistant',
+          uuid: crypto.randomUUID(),
+          timestamp: '2026-01-01T00:02:00.000Z',
+          message: {
+            role: 'assistant',
+            model: 'mock-opus',
+            content: [
+              {
+                type: 'tool_use',
+                id: 'toolu_memory_test',
+                name: 'Bash',
+                input: { command: `cd /tmp/${memoryNeedle}/app && bun test` },
+              },
+            ],
+          },
+        },
+      ].map(entry => JSON.stringify(entry)).join('\n') + '\n',
+      'utf-8',
+    )
+
+    const createRes = await fetch(`${baseUrl}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ temporary: true }),
+    })
+    expect(createRes.status).toBe(201)
+    const { sessionId } = await createRes.json() as { sessionId: string }
+
+    const messages = await runTurn(sessionId, `continue ${memoryNeedle}`)
+    expect(messages.some((msg) => msg.type === 'message_complete')).toBe(true)
+
+    const inbound = await readMockSdkInbound(sessionId)
+    const userPayload = inbound.find((payload) => payload.type === 'user')
+    const userText = extractSdkUserText(userPayload)
+
+    expect(userText).toContain(`continue ${memoryNeedle}`)
+    expect(userText).toContain(PROJECT_MEMORY_CONTEXT_TAG)
+    expect(userText).toContain(memoryNeedle)
+    expect(userText).toContain(`/tmp/${memoryNeedle}/app`)
+  }, 20_000)
 
   it('should clear a desktop session without sending /clear to the CLI turn loop', async () => {
     const createRes = await fetch(`${baseUrl}/api/sessions`, {

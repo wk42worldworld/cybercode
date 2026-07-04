@@ -521,6 +521,40 @@ describe('chatStore history mapping', () => {
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toEqual([])
   })
 
+  it('sends only the selected pending steering input when steer ids are provided', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }),
+      },
+    })
+
+    const firstId = useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, '第一条补充')
+    const secondId = useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, '第二条补充')
+    sendMock.mockClear()
+
+    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'next', [secondId])
+
+    expect(sendMock).toHaveBeenCalledTimes(1)
+    expect(sendMock).toHaveBeenCalledWith(TEST_SESSION_ID, {
+      type: 'user_steer',
+      steerId: secondId,
+      content: '第二条补充',
+      attachments: undefined,
+      priority: 'next',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      {
+        id: firstId,
+        status: 'draft',
+      },
+      {
+        id: secondId,
+        status: 'queued',
+        priority: 'next',
+      },
+    ])
+  })
+
   it('moves draft steering input back into the composer for editing', () => {
     useChatStore.setState({
       sessions: {
@@ -542,6 +576,75 @@ describe('chatStore history mapping', () => {
         { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
       ],
     })
+  })
+
+  it('auto-sends draft steering input as the next user turn after message completion', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          streamingText: '当前回复完成。',
+          pendingSteers: [
+            {
+              id: 'steer-1',
+              content: '第一条补充',
+              createdAt: 1,
+              status: 'draft',
+            },
+            {
+              id: 'steer-2',
+              content: '第二条补充',
+              attachments: [
+                { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
+              ],
+              createdAt: 2,
+              status: 'draft',
+            },
+            {
+              id: 'steer-failed',
+              content: '失败项需要人工处理',
+              createdAt: 3,
+              status: 'failed',
+              error: 'Queue rejected',
+            },
+          ],
+        }),
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 10, output_tokens: 20 },
+    })
+
+    expect(sendMock).toHaveBeenLastCalledWith(TEST_SESSION_ID, {
+      type: 'user_message',
+      content: '第一条补充\n\n第二条补充',
+      attachments: [
+        { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt', data: undefined, mimeType: undefined },
+      ],
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      { type: 'assistant_text', content: '当前回复完成。' },
+      {
+        type: 'user_text',
+        content: '第一条补充\n\n第二条补充',
+        attachments: [
+          { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
+        ],
+      },
+    ])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      {
+        id: 'steer-failed',
+        status: 'failed',
+        error: 'Queue rejected',
+      },
+    ])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+
+    const timer = useChatStore.getState().sessions[TEST_SESSION_ID]?.elapsedTimer
+    if (timer) clearInterval(timer)
   })
 
   it('passes the projectPath locator when loading history', async () => {

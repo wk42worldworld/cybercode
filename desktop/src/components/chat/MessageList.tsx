@@ -910,7 +910,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
           style={{ height: '100%' }}
           components={{
             Scroller: MessageScroller,
-            Header: isLoadingMoreHistory ? LoadingMoreHistoryHeader : undefined,
+            Header: () => <ListHeader isLoadingMoreHistory={isLoadingMoreHistory} />,
             Footer: () => (
               <ListFooter
                 streamingText={streamingText}
@@ -1044,15 +1044,20 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   )
 }
 
-/** Virtuoso Header component: spinner shown while loading more history. */
-function LoadingMoreHistoryHeader() {
+/** Virtuoso Header: keeps the first bubble breathing below the top chrome. */
+function ListHeader({ isLoadingMoreHistory }: { isLoadingMoreHistory: boolean }) {
   return (
-    <div className="flex items-center justify-center py-3">
-      <div className="flex items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-text-secondary)]" />
-        <span>加载更多记录…</span>
-      </div>
-    </div>
+    <>
+      <div className="h-[10px] shrink-0" />
+      {isLoadingMoreHistory && (
+        <div className="flex items-center justify-center py-3">
+          <div className="flex items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-text-secondary)]" />
+            <span>加载更多记录…</span>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

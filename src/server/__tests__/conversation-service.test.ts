@@ -14,6 +14,7 @@ describe('ConversationService', () => {
   let originalEntrypoint: string | undefined
   let originalOAuthToken: string | undefined
   let originalProviderManagedByHost: string | undefined
+  let originalProviderServerPort: number
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cybercode-conversation-service-'))
@@ -24,6 +25,7 @@ describe('ConversationService', () => {
     originalEntrypoint = process.env.CLAUDE_CODE_ENTRYPOINT
     originalOAuthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN
     originalProviderManagedByHost = process.env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST
+    originalProviderServerPort = ProviderService.getServerPort()
 
     process.env.CLAUDE_CONFIG_DIR = tmpDir
     process.env.ANTHROPIC_AUTH_TOKEN = 'test-token'
@@ -34,6 +36,7 @@ describe('ConversationService', () => {
     // buildChildEnv injects it or not without interference from the shell env.
     delete process.env.CLAUDE_CODE_ENTRYPOINT
     delete process.env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST
+    ProviderService.setServerPort(3456)
   })
 
   afterEach(async () => {
@@ -58,6 +61,7 @@ describe('ConversationService', () => {
     if (originalProviderManagedByHost === undefined) delete process.env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST
     else process.env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST = originalProviderManagedByHost
 
+    ProviderService.setServerPort(originalProviderServerPort)
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 

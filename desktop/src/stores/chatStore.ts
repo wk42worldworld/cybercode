@@ -173,7 +173,8 @@ type ChatStore = {
     attachments?: AttachmentRef[],
     options?: { displayContent?: string },
   ) => string
-  sendPendingSteers: (sessionId: string, priority: 'next' | 'later') => void
+  sendPendingSteers: (sessionId: string, priority: 'next' | 'later', steerIds?: string[]) => void
+  autoSendPendingSteers: (sessionId: string) => void
   editPendingSteer: (sessionId: string, steerId: string) => void
   cancelPendingSteer: (sessionId: string, steerId: string) => void
   respondToPermission: (
@@ -266,6 +267,37 @@ function nextSteerId(): string {
     return crypto.randomUUID()
   }
   return `00000000-0000-4000-8000-${String(++msgCounter).padStart(12, '0')}`
+}
+
+function isPendingSteerActionable(steer: PendingSteer): boolean {
+  return steer.status === 'draft' || steer.status === 'failed'
+}
+
+function isPendingSteerAutoSendable(steer: PendingSteer): boolean {
+  return steer.status === 'draft'
+}
+
+function pendingSteerAttachmentsToRefs(attachments?: UIAttachment[]): AttachmentRef[] | undefined {
+  if (!attachments?.length) return undefined
+  return attachments.map((attachment) => ({
+    type: attachment.type,
+    name: attachment.name,
+    path: attachment.path,
+    data: attachment.data,
+    mimeType: attachment.mimeType,
+  }))
+}
+
+function mergePendingSteers(steers: PendingSteer[]): { content: string; attachments?: AttachmentRef[] } {
+  const content = steers
+    .map((steer) => steer.content.trim())
+    .filter(Boolean)
+    .join('\n\n')
+  const attachments = steers.flatMap((steer) => pendingSteerAttachmentsToRefs(steer.attachments) ?? [])
+  return {
+    content,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  }
 }
 
 // Streaming throttle for content_delta
@@ -600,7 +632,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             lastConnectionActivityAt: now,
             elapsedTimer: timer,
             connectionState: isMemberSession ? 'connected' : session.connectionState,
-            pendingSteers: (session.pendingSteers ?? []).filter((steer) => steer.status === 'draft' || steer.status === 'failed'),
+            pendingSteers: (session.pendingSteers ?? []).filter(isPendingSteerActionable),
           },
         },
       }
@@ -675,10 +707,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     return id
   },
 
-  sendPendingSteers: (sessionId, priority) => {
+  sendPendingSteers: (sessionId, priority, steerIds) => {
     const session = get().sessions[sessionId]
     if (!session) return
-    const targets = (session.pendingSteers ?? []).filter((steer) => steer.status === 'draft' || steer.status === 'failed')
+    const targetIds = steerIds ? new Set(steerIds) : null
+    const targets = (session.pendingSteers ?? []).filter((steer) =>
+      isPendingSteerActionable(steer) && (!targetIds || targetIds.has(steer.id))
+    )
     if (targets.length === 0) return
 
     set((s) => ({
@@ -708,9 +743,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
+  autoSendPendingSteers: (sessionId) => {
+    const session = get().sessions[sessionId]
+    if (!session) return
+    const targets = (session.pendingSteers ?? [])
+      .filter(isPendingSteerAutoSendable)
+      .sort((a, b) => a.createdAt - b.createdAt)
+    if (targets.length === 0) return
+
+    const targetIds = new Set(targets.map((steer) => steer.id))
+    const { content, attachments } = mergePendingSteers(targets)
+
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, (current) => ({
+        pendingSteers: (current.pendingSteers ?? []).filter((steer) => !targetIds.has(steer.id)),
+      })),
+    }))
+
+    get().sendMessage(sessionId, content, attachments)
+  },
+
   editPendingSteer: (sessionId, steerId) => {
     const steer = get().sessions[sessionId]?.pendingSteers?.find((entry) => entry.id === steerId)
-    if (!steer || (steer.status !== 'draft' && steer.status !== 'failed')) return
+    if (!steer || !isPendingSteerActionable(steer)) return
 
     set((s) => ({
       sessions: updateSessionIn(s.sessions, sessionId, (session) => ({
@@ -1410,6 +1465,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'message_complete': {
         const session = get().sessions[sessionId]
         if (!session) break
+        const shouldAutoSendPending = (session.pendingSteers ?? []).some(isPendingSteerAutoSendable)
         const text = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (text.trim()) {
           update((s) => ({
@@ -1431,8 +1487,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           elapsedTimer: null,
           turnStartedAt: null,
           lastModelActivityAt: null,
-          pendingSteers: (session.pendingSteers ?? []).filter((steer) => steer.status === 'draft' || steer.status === 'failed'),
+          pendingSteers: (session.pendingSteers ?? []).filter(isPendingSteerActionable),
         }))
+        if (shouldAutoSendPending) {
+          get().autoSendPendingSteers(sessionId)
+        }
         break
       }
 

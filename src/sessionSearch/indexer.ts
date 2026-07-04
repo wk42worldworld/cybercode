@@ -5,6 +5,10 @@ import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
 import { sanitizePath as sanitizePortablePath } from '../utils/sessionStoragePortable.js'
 import { openSessionSearchDb, sessionKey } from './db.js'
 import { getSessionSearchDbPath } from './paths.js'
+import {
+  deleteProjectMemoryBySessionKey,
+  upsertProjectMemoryForParsedSession,
+} from './projectMemory.js'
 import { parseSessionTranscript, type ParsedSessionTranscript } from './transcript.js'
 
 const UUID_RE =
@@ -209,6 +213,8 @@ function writeParsedSession(db: Database, parsed: ParsedSessionTranscript): void
       insertTrigram.run(id, message.contentText)
     }
 
+    upsertProjectMemoryForParsedSession(db, parsed)
+
     db.query(
       `INSERT INTO indexed_files (
         file_path, session_key, session_id, project_path,
@@ -313,6 +319,7 @@ export async function deleteSessionSearchIndexByKey(
   try {
     db.transaction(() => {
       deleteSessionRows(db, key)
+      deleteProjectMemoryBySessionKey(db, key)
       db.query('DELETE FROM sessions WHERE session_key = ?').run(key)
       db.query('DELETE FROM indexed_files WHERE session_key = ?').run(key)
     })()

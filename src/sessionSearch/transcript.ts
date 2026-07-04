@@ -1,5 +1,6 @@
 import { readFile, stat } from 'fs/promises'
 import { basename } from 'path'
+import { stripProjectMemoryContext } from './projectMemoryContext.js'
 
 export type TranscriptSearchMessage = {
   messageUuid: string
@@ -17,6 +18,7 @@ export type ParsedSessionTranscript = {
   projectPath: string
   filePath: string
   workDir: string | null
+  isTemporary: boolean
   title: string
   createdAt: string
   modifiedAt: string
@@ -34,6 +36,8 @@ type RawEntry = {
   timestamp?: string
   customTitle?: string
   aiTitle?: string
+  workDir?: string
+  isTemporary?: boolean
   message?: {
     role?: string
     content?: unknown
@@ -49,13 +53,15 @@ const USER_INTERRUPTION_TEXTS = new Set([
 const NO_RESPONSE_REQUESTED_TEXT = 'No response requested.'
 
 function extractText(content: unknown): string {
-  if (typeof content === 'string') return content
+  if (typeof content === 'string') return stripProjectMemoryContext(content)
   if (Array.isArray(content)) {
-    return content
+    const text = content
       .flatMap(block => {
         if (!block || typeof block !== 'object') return []
         const record = block as Record<string, unknown>
-        if (typeof record.text === 'string') return [record.text]
+        if (typeof record.text === 'string') {
+          return [stripProjectMemoryContext(record.text)]
+        }
         if (record.type === 'tool_use') {
           const name = typeof record.name === 'string' ? record.name : 'tool'
           const input =
@@ -73,6 +79,7 @@ function extractText(content: unknown): string {
       .map(text => text.trim())
       .filter(Boolean)
       .join('\n')
+    return stripProjectMemoryContext(text)
   }
   return ''
 }
@@ -153,9 +160,9 @@ function extractWorkDir(entries: RawEntry[], fallbackProjectPath: string): strin
   for (const entry of entries) {
     if (
       entry.type === 'session-meta' &&
-      typeof (entry as Record<string, unknown>).workDir === 'string'
+      typeof entry.workDir === 'string'
     ) {
-      return (entry as Record<string, unknown>).workDir as string
+      return entry.workDir
     }
   }
   for (let index = entries.length - 1; index >= 0; index -= 1) {
@@ -163,6 +170,10 @@ function extractWorkDir(entries: RawEntry[], fallbackProjectPath: string): strin
     if (typeof cwd === 'string' && cwd.trim()) return cwd
   }
   return fallbackProjectPath.replace(/-/g, '/')
+}
+
+function extractIsTemporary(entries: RawEntry[]): boolean {
+  return entries.some(entry => entry.type === 'session-meta' && entry.isTemporary === true)
 }
 
 function extractTitle(entries: RawEntry[], fallbackSessionId: string): string {
@@ -244,6 +255,7 @@ export async function parseSessionTranscript(params: {
     projectPath: params.projectPath,
     filePath: params.filePath,
     workDir: extractWorkDir(entries, params.projectPath),
+    isTemporary: extractIsTemporary(entries),
     title: extractTitle(entries, sessionId),
     createdAt: firstTimestamp ?? fileStat.birthtime.toISOString(),
     modifiedAt: fileStat.mtime.toISOString(),

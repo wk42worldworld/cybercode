@@ -8,11 +8,17 @@ import {
   scrollSessionSearch,
 } from './search.js'
 import {
+  deleteSessionFromSearchIndex,
   indexSessionSearchTranscript,
   resetSessionSearchIndex,
   sessionSearchIndexerForTesting,
 } from './indexer.js'
 import { openSessionSearchDb } from './db.js'
+import { searchProjectMemories, buildProjectMemoryPromptContext } from './projectMemory.js'
+import {
+  PROJECT_MEMORY_CONTEXT_TAG,
+  appendProjectMemoryContext,
+} from './projectMemoryContext.js'
 import { SearchService } from '../server/services/searchService.js'
 import { SessionService } from '../server/services/sessionService.js'
 
@@ -54,6 +60,24 @@ function assistant(uuid: string, text: string, timestamp: string): Record<string
     message: {
       role: 'assistant',
       content: [{ type: 'text', text }],
+      model: 'claude-test',
+    },
+  }
+}
+
+function assistantTool(
+  uuid: string,
+  name: string,
+  input: Record<string, unknown>,
+  timestamp: string,
+): Record<string, unknown> {
+  return {
+    type: 'assistant',
+    uuid,
+    timestamp,
+    message: {
+      role: 'assistant',
+      content: [{ type: 'tool_use', id: `toolu_${uuid}`, name, input }],
       model: 'claude-test',
     },
   }
@@ -171,6 +195,135 @@ describe('session search memory index', () => {
     } finally {
       db.close()
     }
+  })
+
+  it('distills temporary sessions into searchable project memories', async () => {
+    const sessionId = '99999999-9999-4999-8999-999999999999'
+    const filePath = await writeSession({
+      projectPath: '-Users-wang-temp-memory',
+      sessionId,
+      lines: [
+        {
+          type: 'session-meta',
+          isMeta: true,
+          workDir: '/Users/wang',
+          isTemporary: true,
+          timestamp: '2026-01-08T00:00:00.000Z',
+        },
+        user(
+          'u1',
+          'CyberCode desktop project lives at /Volumes/thinkplus/下载/myproject/cybercode. password=super-secret',
+          '2026-01-08T00:00:01.000Z',
+        ),
+        assistantTool(
+          'a1',
+          'Bash',
+          { command: 'cd /Volumes/thinkplus/下载/myproject/cybercode && bun test' },
+          '2026-01-08T00:00:02.000Z',
+        ),
+        assistant(
+          'a2',
+          'The project memory should remember the desktop UI work without storing secrets.',
+          '2026-01-08T00:00:03.000Z',
+        ),
+      ],
+    })
+
+    await indexSessionSearchTranscript(filePath, { sessionId })
+
+    const memories = searchProjectMemories({ query: 'CyberCode', limit: 3 })
+    expect(memories).toHaveLength(1)
+    expect(memories[0]?.sessionId).toBe(sessionId)
+    expect(memories[0]?.summary).toContain('/Volumes/thinkplus/下载/myproject/cybercode')
+    expect(memories[0]?.summary).not.toContain('super-secret')
+
+    const context = buildProjectMemoryPromptContext({
+      query: 'continue CyberCode',
+      currentSessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+    expect(context).toContain('Lightweight memories')
+    expect(context).toContain('CyberCode')
+  })
+
+  it('does not distill normal project sessions into temporary project memories', async () => {
+    const sessionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const filePath = await writeSession({
+      projectPath: '-Users-wang-normal-memory',
+      sessionId,
+      lines: [
+        {
+          type: 'session-meta',
+          isMeta: true,
+          workDir: '/Users/wang/normal-memory',
+          isTemporary: false,
+          timestamp: '2026-01-09T00:00:00.000Z',
+        },
+        user('u1', 'Normal project memory should stay out of the temp recall table.', '2026-01-09T00:00:01.000Z'),
+      ],
+    })
+
+    await indexSessionSearchTranscript(filePath, { sessionId })
+
+    expect(searchProjectMemories({ query: 'normal-memory' })).toHaveLength(0)
+  })
+
+  it('strips injected project memory context from transcript search text', async () => {
+    const sessionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    await writeSession({
+      projectPath: '-Users-wang-context-strip',
+      sessionId,
+      lines: [
+        {
+          type: 'session-meta',
+          isMeta: true,
+          workDir: '/Users/wang',
+          isTemporary: true,
+          timestamp: '2026-01-10T00:00:00.000Z',
+        },
+        user(
+          'u1',
+          appendProjectMemoryContext(
+            'Please continue the visible user request.',
+            'Hidden recall needle should not be indexed.',
+          ),
+          '2026-01-10T00:00:01.000Z',
+        ),
+      ],
+    })
+
+    expect((await discoverSessionSearch({ query: 'visible user request' })).count).toBe(1)
+    expect((await discoverSessionSearch({ query: 'Hidden recall needle' })).count).toBe(0)
+
+    const read = await readSessionSearch({ sessionId })
+    expect(read?.mode).toBe('read')
+    expect(read?.messages[0]?.content).toBe('Please continue the visible user request.')
+    expect(read?.messages[0]?.content).not.toContain(PROJECT_MEMORY_CONTEXT_TAG)
+  })
+
+  it('removes project memory rows when a session leaves the search index', async () => {
+    const sessionId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    const projectPath = '-Users-wang-delete-memory'
+    const filePath = await writeSession({
+      projectPath,
+      sessionId,
+      lines: [
+        {
+          type: 'session-meta',
+          isMeta: true,
+          workDir: '/Users/wang',
+          isTemporary: true,
+          timestamp: '2026-01-11T00:00:00.000Z',
+        },
+        user('u1', 'Delete-memory project path is /tmp/delete-memory-project.', '2026-01-11T00:00:01.000Z'),
+      ],
+    })
+
+    await indexSessionSearchTranscript(filePath, { sessionId })
+    expect(searchProjectMemories({ query: 'delete-memory-project' })).toHaveLength(1)
+
+    await deleteSessionFromSearchIndex({ sessionId, projectPath })
+
+    expect(searchProjectMemories({ query: 'delete-memory-project' })).toHaveLength(0)
   })
 
   it('does not treat nested subagent transcripts as main sessions', () => {
