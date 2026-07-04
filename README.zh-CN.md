@@ -28,8 +28,42 @@
 **高度借鉴 Claude Code 设计**的本地可运行客户端，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）。在完整 TUI 之外，还补全了 Computer Use（macOS / Windows）、打造了图形化**桌面端**，并支持通过 Telegram / 飞书**完整远程驱动**。
 
 <p align="center">
-  <a href="#功能">功能</a> · <a href="#架构概览">架构概览</a> · <a href="#快速开始">快速开始</a> · <a href="#分章节教程">分章节教程</a> · <a href="#功能模块教程">模块教程</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="docs/guide/faq.md">FAQ</a> · <a href="docs/guide/global-usage.md">全局使用</a> · <a href="#更多文档">更多文档</a>
+  <strong>面向任意模型供应商的开源 Claude Code 风格桌面 Agent。</strong><br>
+  自带 CLI、桌面端、IM 远程控制、定时任务和 Computer Use；你可以接自己的模型，在本地跑真实编码会话。
 </p>
+
+<p align="center">
+  <a href="#为什么是-cybercode">为什么</a> · <a href="#快速对比">对比</a> · <a href="#功能">功能</a> · <a href="#快速开始">快速开始</a> · <a href="#分章节教程">分章节教程</a> · <a href="#功能模块教程">模块教程</a> · <a href="docs/guide/env-vars.md">环境变量</a> · <a href="#社区与传播">社区</a> · <a href="#更多文档">更多文档</a>
+</p>
+
+---
+
+## 为什么是 CyberCode
+
+| 如果你想要... | CyberCode 提供... |
+|------|------|
+| Claude Code 风格 Agent，但不想被单一供应商绑定 | Anthropic 兼容端点、OpenAI 兼容供应商代理接入、供应商/模型上下文窗口元数据 |
+| 不只在终端里用，而是有桌面端 | Tauri + React GUI、多会话标签、项目切换、文件附件、权限弹窗、模型/供应商设置 |
+| 本地 Agent 能在你离开时继续工作 | Telegram / 飞书远程控制、定时任务、后台 Agent、跨会话记忆 |
+| 一个能研究高级 Agent 能力的开源项目 | 多 Agent 编排、Skills、MCP、Computer Use、自定义供应商、CLI 无头模式 |
+
+## 快速对比
+
+| 需求 | CyberCode | Claude Code | Cursor / Cline / Roo 类工具 |
+|------|------|------|------|
+| 自带供应商配置 | 围绕自定义供应商和 Anthropic 兼容接口设计 | 主要是官方 Anthropic 路径 | 视工具而定 |
+| 桌面 GUI | 内置跨平台桌面端 | 终端优先 | 通常编辑器优先 |
+| CLI 和无头模式 | 支持 | 支持 | 通常不是主路径 |
+| IM 远程控制 | Telegram / 飞书 adapters | 不是默认工作流 | 通常需要外部方案 |
+| 定时编码任务 | 集成到桌面端工作流 | 不是默认工作流 | 视工具而定 |
+| Computer Use | 支持 macOS 和 Windows | 官方功能路径 | 视工具而定 |
+| 开源可改造 | 仓库包含桌面端、服务端、适配器和文档 | 闭源产品 | 视工具而定 |
+
+## 社区与传播
+
+- 新贡献者可以先看 [CONTRIBUTING.md](CONTRIBUTING.md) 和 [Roadmap](ROADMAP.md)。
+- 想帮忙传播，可以直接使用 [Launch Kit](docs/marketing/launch-kit.md) 里的发布文案。
+- 适合新手贡献的方向：文档、供应商预设、翻译、可复现 bug 报告、桌面端交互打磨、不同平台安装说明。
 
 ---
 
@@ -677,6 +711,9 @@ python3 --version
 | [全局使用](docs/guide/global-usage.md) | 在任意目录启动 cybercode |
 | [常见问题](docs/guide/faq.md) | 常见错误排查 |
 | [项目结构](docs/reference/project-structure.md) | 代码目录结构说明 |
+| [Roadmap](ROADMAP.md) | 近期优先级和适合新手的贡献方向 |
+| [Contributing](CONTRIBUTING.md) | 如何贡献文档、供应商配置、测试和桌面端修复 |
+| [Launch Kit](docs/marketing/launch-kit.md) | 可直接复制使用的传播文案 |
 
 ---
 

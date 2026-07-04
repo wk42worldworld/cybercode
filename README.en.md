@@ -28,8 +28,42 @@
 A **locally runnable client** that **heavily references Claude Code's design**, with support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
 
 <p align="center">
-  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
+  <strong>Open-source Claude Code-style desktop agent for any model provider.</strong><br>
+  Bring your own model, run real coding sessions locally, and use CLI, desktop, IM remote control, scheduled tasks, and Computer Use from one project.
 </p>
+
+<p align="center">
+  <a href="#why-cybercode">Why</a> · <a href="#quick-comparison">Compare</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="#community-and-growth">Community</a> · <a href="#more-documentation">More Docs</a>
+</p>
+
+---
+
+## Why CyberCode
+
+| If you want... | CyberCode gives you... |
+|------|------|
+| Claude Code-style agent workflows without being locked to one provider | Anthropic-compatible endpoints, OpenAI-compatible providers through proxy, and provider/model context-window metadata |
+| A desktop app instead of only a terminal | Tauri + React GUI, multi-session tabs, project switching, file attachments, permission dialogs, and model/provider settings |
+| A local coding agent that can keep working while you are away | Telegram / Feishu remote control, scheduled tasks, background agents, and persistent memory |
+| A playground for advanced agent features | Multi-agent orchestration, Skills, MCP, Computer Use, custom providers, and CLI/headless mode |
+
+## Quick Comparison
+
+| Need | CyberCode | Claude Code | Cursor / Cline / Roo-style tools |
+|------|------|------|------|
+| Bring your own provider | Built around custom providers and Anthropic-compatible endpoints | Primarily official Anthropic path | Varies by tool |
+| Desktop GUI | Built-in cross-platform desktop app | Terminal-first | Usually editor-first |
+| CLI and headless mode | Yes | Yes | Usually not the main path |
+| IM remote control | Telegram / Feishu adapters | Not the default workflow | Usually external setup |
+| Scheduled coding tasks | Built into desktop workflow | Not the default workflow | Varies |
+| Computer Use | macOS and Windows support | Official feature path | Varies |
+| Open-source hackability | Full repo, desktop, server, adapters, docs | Closed source product | Varies |
+
+## Community and Growth
+
+- New contributors: start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [Roadmap](ROADMAP.md).
+- Want to share CyberCode: use the ready-to-post copy in [Launch Kit](docs/marketing/launch-kit.md).
+- Good first contribution areas: docs, provider presets, translations, reproducible bug reports, desktop UX polish, and platform-specific install notes.
 
 ---
 
@@ -677,6 +711,9 @@ Verify it: you can tell whether the problem is provider configuration, context p
 | [Global Usage](docs/en/guide/global-usage.md) | Run cybercode from any directory |
 | [FAQ](docs/en/guide/faq.md) | Common error troubleshooting |
 | [Project Structure](docs/en/reference/project-structure.md) | Code directory structure |
+| [Roadmap](ROADMAP.md) | Near-term priorities and good first issue ideas |
+| [Contributing](CONTRIBUTING.md) | How to contribute docs, providers, tests, and desktop fixes |
+| [Launch Kit](docs/marketing/launch-kit.md) | Ready-to-post copy for sharing CyberCode |
 
 ---
 

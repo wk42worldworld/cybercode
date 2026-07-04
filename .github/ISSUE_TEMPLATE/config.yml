@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+  - name: 使用文档 / Docs
+    url: https://github.com/wk42worldworld/cybercode#readme
+    about: 先从 README、模块教程和更多文档入口了解 CyberCode。
+  - name: 第三方模型配置 / Third-party models
+    url: https://github.com/wk42worldworld/cybercode/blob/main/docs/guide/third-party-models.md
+    about: OpenAI、DeepSeek、Ollama、OpenRouter、MiniMax 等供应商配置说明。

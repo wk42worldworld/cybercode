@@ -28,8 +28,42 @@
 CyberCode は、**Claude Code のプロダクト設計を強く参考にした**ローカル実行可能なクライアントです。MiniMax、OpenRouter など、Anthropic 互換 API エンドポイントに接続できます。フル機能の TUI に加えて、Computer Use（macOS / Windows）、Tauri + React の**デスクトップアプリ**、Telegram / Feishu からの**リモート操作**にも対応しています。
 
 <p align="center">
-  <a href="#機能">機能</a> · <a href="#アーキテクチャ概要">アーキテクチャ</a> · <a href="#クイックスタート">クイックスタート</a> · <a href="#ステップ別チュートリアル">チュートリアル</a> · <a href="#機能モジュール別チュートリアル">モジュール別</a> · <a href="docs/en/guide/env-vars.md">環境変数</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">グローバル利用</a>
+  <strong>任意のモデルプロバイダーで使える、オープンソースの Claude Code 風デスクトップ Agent。</strong><br>
+  自分のモデルを接続し、CLI、デスクトップ、IM リモート操作、定期タスク、Computer Use を 1 つのプロジェクトで扱えます。
 </p>
+
+<p align="center">
+  <a href="#なぜ-cybercode">なぜ</a> · <a href="#クイック比較">比較</a> · <a href="#機能">機能</a> · <a href="#クイックスタート">クイックスタート</a> · <a href="#ステップ別チュートリアル">チュートリアル</a> · <a href="#機能モジュール別チュートリアル">モジュール別</a> · <a href="docs/en/guide/env-vars.md">環境変数</a> · <a href="#コミュニティと成長">コミュニティ</a>
+</p>
+
+---
+
+## なぜ CyberCode
+
+| やりたいこと | CyberCode が提供するもの |
+|------|------|
+| Claude Code 風 Agent を使いたいが、1 つのプロバイダーに縛られたくない | Anthropic 互換エンドポイント、プロキシ経由の OpenAI 互換プロバイダー、モデル別コンテキスト設定 |
+| ターミナルだけでなくデスクトップ UI も使いたい | Tauri + React GUI、複数セッションタブ、プロジェクト切替、添付、権限ダイアログ、モデル設定 |
+| ローカル Agent に離席中も作業させたい | Telegram / Feishu リモート操作、定期タスク、バックグラウンド Agent、永続メモリ |
+| 高度な Agent 機能を試せる OSS が欲しい | Multi-Agent、Skills、MCP、Computer Use、カスタムプロバイダー、CLI ヘッドレスモード |
+
+## クイック比較
+
+| ニーズ | CyberCode | Claude Code | Cursor / Cline / Roo 系 |
+|------|------|------|------|
+| 自分のプロバイダーを使う | カスタムプロバイダーと Anthropic 互換 API を中心に設計 | 主に公式 Anthropic 経路 | ツールによる |
+| デスクトップ GUI | クロスプラットフォームのデスクトップアプリ内蔵 | ターミナル中心 | 多くはエディタ中心 |
+| CLI / ヘッドレス | 対応 | 対応 | 主経路ではないことが多い |
+| IM リモート操作 | Telegram / Feishu adapters | 標準ワークフローではない | 外部構成が必要なことが多い |
+| 定期実行タスク | デスクトップワークフローに統合 | 標準ワークフローではない | ツールによる |
+| Computer Use | macOS / Windows 対応 | 公式機能経路 | ツールによる |
+| OSS として改造 | デスクトップ、サーバー、adapter、docs まで公開 | クローズド製品 | ツールによる |
+
+## コミュニティと成長
+
+- 新しい貢献者は [CONTRIBUTING.md](CONTRIBUTING.md) と [Roadmap](ROADMAP.md) から始められます。
+- CyberCode を紹介したい場合は [Launch Kit](docs/marketing/launch-kit.md) の投稿文を使えます。
+- 最初に取り組みやすい領域: docs、プロバイダープリセット、翻訳、再現可能な bug report、デスクトップ UX、各 OS のインストールメモ。
 
 ---
 
@@ -621,6 +655,9 @@ python3 --version
 | [Channel System](docs/en/channel/01-channel-system.md) | IM プラットフォームからのリモート操作 |
 | [Computer Use](docs/en/features/computer-use.md) | デスクトップ操作機能 |
 | [Desktop App](docs/desktop/) | Tauri 2 + React GUI クライアント |
+| [Roadmap](ROADMAP.md) | 近い優先事項と beginner-friendly な貢献案 |
+| [Contributing](CONTRIBUTING.md) | docs、provider、test、desktop 修正への貢献方法 |
+| [Launch Kit](docs/marketing/launch-kit.md) | CyberCode を紹介するための投稿文 |
 
 ---
 
