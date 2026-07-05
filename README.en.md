@@ -26,6 +26,10 @@
 
 </div>
 
+<p align="center">
+  <strong>她不是工具，她是伙伴。</strong>
+</p>
+
 A **Claude Code-style local coding agent** with **permanent memory** and **self-evolution** capabilities, plus support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
 
 <p align="center">

@@ -26,6 +26,10 @@
 
 </div>
 
+<p align="center">
+  <strong>她不是工具，她是伙伴。</strong>
+</p>
+
 CyberCode は、**Claude Code 風の基盤に永続メモリと自己進化機能を加えた**ローカル実行可能な Agent です。MiniMax、OpenRouter など、Anthropic 互換 API エンドポイントに接続できます。フル機能の TUI に加えて、Computer Use（macOS / Windows）、Tauri + React の**デスクトップアプリ**、Telegram / Feishu からの**リモート操作**にも対応しています。
 
 <p align="center">
