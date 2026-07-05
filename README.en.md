@@ -74,7 +74,7 @@ A **Claude Code-style local coding agent** with **permanent memory** and **self-
 
 ## Latest Highlights
 
-Latest stable desktop release: [CyberCode v1.0.13](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.13)
+Latest stable desktop release: [CyberCode v1.0.15](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.15)
 
 - **Running-turn input steering**: when an assistant response is still running, new user input is saved in a pending bar instead of disappearing or interrupting blindly. You can edit it, delete it, or add it to the current turn; otherwise queued input is sent automatically when the current turn finishes.
 - **Provider-aware model context windows**: model presets can now carry context-window metadata, and CyberCode forwards those limits into desktop sessions so third-party providers behave more predictably.
