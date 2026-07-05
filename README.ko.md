@@ -27,7 +27,10 @@
 </div>
 
 <p align="center">
-  <strong>她不是工具，她是伙伴。</strong>
+  <strong>她不是工具，她是伙伴。</strong><br>
+  <strong>She is not a tool. She is a partner.</strong><br>
+  <strong>彼女はツールではなく、パートナーです。</strong><br>
+  <strong>그녀는 도구가 아니라, 파트너입니다.</strong>
 </p>
 
 CyberCode는 **Claude Code 스타일 기반 위에 영구 기억과 자기 진화 기능을 더한** 로컬 실행 Agent입니다. MiniMax, OpenRouter 등 Anthropic 호환 API 엔드포인트를 연결할 수 있습니다. 완전한 TUI 외에도 Computer Use(macOS / Windows), Tauri + React 기반 **데스크톱 앱**, Telegram / Feishu를 통한 **원격 제어**를 제공합니다.

@@ -27,7 +27,10 @@
 </div>
 
 <p align="center">
-  <strong>她不是工具，她是伙伴。</strong>
+  <strong>她不是工具，她是伙伴。</strong><br>
+  <strong>She is not a tool. She is a partner.</strong><br>
+  <strong>彼女はツールではなく、パートナーです。</strong><br>
+  <strong>그녀는 도구가 아니라, 파트너입니다.</strong>
 </p>
 
 CyberCode は、**Claude Code 風の基盤に永続メモリと自己進化機能を加えた**ローカル実行可能な Agent です。MiniMax、OpenRouter など、Anthropic 互換 API エンドポイントに接続できます。フル機能の TUI に加えて、Computer Use（macOS / Windows）、Tauri + React の**デスクトップアプリ**、Telegram / Feishu からの**リモート操作**にも対応しています。

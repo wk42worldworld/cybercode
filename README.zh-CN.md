@@ -27,7 +27,10 @@
 </div>
 
 <p align="center">
-  <strong>她不是工具，她是伙伴。</strong>
+  <strong>她不是工具，她是伙伴。</strong><br>
+  <strong>She is not a tool. She is a partner.</strong><br>
+  <strong>彼女はツールではなく、パートナーです。</strong><br>
+  <strong>그녀는 도구가 아니라, 파트너입니다.</strong>
 </p>
 
 一个在 **Claude Code 风格基础上扩展永久记忆与自进化能力** 的本地可运行 Agent，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）。在完整 TUI 之外，还补全了 Computer Use（macOS / Windows）、打造了图形化**桌面端**，并支持通过 Telegram / 飞书**完整远程驱动**。
