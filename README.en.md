@@ -26,10 +26,10 @@
 
 </div>
 
-A **locally runnable client** that **heavily references Claude Code's design**, with support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
+A **Claude Code-style local coding agent** with **permanent memory** and **self-evolution** capabilities, plus support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
 
 <p align="center">
-  <strong>Open-source Claude Code-style desktop agent for any model provider.</strong><br>
+  <strong>Open-source Claude Code-style desktop agent with permanent memory and self-evolution.</strong><br>
   Bring your own model, run real coding sessions locally, and use CLI, desktop, IM remote control, scheduled tasks, and Computer Use from one project.
 </p>
 

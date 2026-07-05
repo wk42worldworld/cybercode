@@ -26,10 +26,10 @@
 
 </div>
 
-CyberCode는 **Claude Code의 제품 설계를 강하게 참고한** 로컬 실행 클라이언트입니다. MiniMax, OpenRouter 등 Anthropic 호환 API 엔드포인트를 연결할 수 있습니다. 완전한 TUI 외에도 Computer Use(macOS / Windows), Tauri + React 기반 **데스크톱 앱**, Telegram / Feishu를 통한 **원격 제어**를 제공합니다.
+CyberCode는 **Claude Code 스타일 기반 위에 영구 기억과 자기 진화 기능을 더한** 로컬 실행 Agent입니다. MiniMax, OpenRouter 등 Anthropic 호환 API 엔드포인트를 연결할 수 있습니다. 완전한 TUI 외에도 Computer Use(macOS / Windows), Tauri + React 기반 **데스크톱 앱**, Telegram / Feishu를 통한 **원격 제어**를 제공합니다.
 
 <p align="center">
-  <strong>어떤 모델 공급자에도 연결할 수 있는 오픈소스 Claude Code 스타일 데스크톱 Agent.</strong><br>
+  <strong>영구 기억과 자기 진화 기능을 갖춘 오픈소스 Claude Code 스타일 데스크톱 Agent.</strong><br>
   직접 고른 모델로 로컬 코딩 세션을 실행하고, CLI, 데스크톱, IM 원격 제어, 예약 작업, Computer Use를 한 프로젝트에서 사용할 수 있습니다.
 </p>
 

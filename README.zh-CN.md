@@ -26,10 +26,10 @@
 
 </div>
 
-**高度借鉴 Claude Code 设计**的本地可运行客户端，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）。在完整 TUI 之外，还补全了 Computer Use（macOS / Windows）、打造了图形化**桌面端**，并支持通过 Telegram / 飞书**完整远程驱动**。
+一个在 **Claude Code 风格基础上扩展永久记忆与自进化能力** 的本地可运行 Agent，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）。在完整 TUI 之外，还补全了 Computer Use（macOS / Windows）、打造了图形化**桌面端**，并支持通过 Telegram / 飞书**完整远程驱动**。
 
 <p align="center">
-  <strong>面向任意模型供应商的开源 Claude Code 风格桌面 Agent。</strong><br>
+  <strong>带有永久记忆与自进化能力的开源 Claude Code 风格桌面 Agent。</strong><br>
   自带 CLI、桌面端、IM 远程控制、定时任务和 Computer Use；你可以接自己的模型，在本地跑真实编码会话。
 </p>
 
