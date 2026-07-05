@@ -59,6 +59,8 @@ export async function handleScheduledTasksApi(
         permanent: body.permanent as boolean | undefined,
         permissionMode: body.permissionMode as string | undefined,
         model: body.model as string | undefined,
+        providerId: normalizeProviderId(body.providerId),
+        contextWindow: normalizeContextWindow(body.contextWindow),
         folderPath: body.folderPath as string | undefined,
         useWorktree: body.useWorktree as boolean | undefined,
         notification: body.notification as CronTask['notification'],
@@ -84,7 +86,7 @@ export async function handleScheduledTasksApi(
     // ── PUT /api/scheduled-tasks/:id ──────────────────────────────────────
     if (method === 'PUT' && taskId && !subResource) {
       const body = await parseJsonBody(req)
-      const task = await cronService.updateTask(taskId, body)
+      const task = await cronService.updateTask(taskId, normalizeTaskUpdates(body))
       return Response.json({ task })
     }
 
@@ -112,4 +114,29 @@ async function parseJsonBody(req: Request): Promise<Record<string, unknown>> {
   } catch {
     throw ApiError.badRequest('Invalid JSON body')
   }
+}
+
+function normalizeProviderId(value: unknown): string | null | undefined {
+  if (value === null) return null
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeContextWindow(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return undefined
+  }
+  return Math.round(value)
+}
+
+function normalizeTaskUpdates(body: Record<string, unknown>): Partial<CronTask> {
+  const updates = { ...body } as Partial<CronTask>
+  if ('providerId' in body) {
+    updates.providerId = normalizeProviderId(body.providerId)
+  }
+  if ('contextWindow' in body) {
+    updates.contextWindow = normalizeContextWindow(body.contextWindow)
+  }
+  return updates
 }

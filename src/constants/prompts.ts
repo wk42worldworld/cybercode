@@ -61,6 +61,7 @@ import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { loadPromptMemory } from '../promptMemory/loadPromptMemory.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
+import agentWorkRulesSection from '../defaults/agent-work-rules.md' with { type: 'text' }
 
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -102,6 +103,8 @@ import { CYBER_RISK_INSTRUCTION } from './cyberRiskInstruction.js'
 
 export const CLAUDE_CODE_DOCS_MAP_URL =
   'https://code.claude.com/docs/en/claude_code_docs_map.md'
+
+const AGENT_WORK_RULES_SECTION: string = agentWorkRulesSection.trimEnd()
 
 /**
  * Boundary marker separating static (cross-org cacheable) content from dynamic content.
@@ -251,6 +254,10 @@ function getSimpleDoingTasksSection(): string {
   ]
 
   return [`# Doing tasks`, ...prependBullets(items)].join(`\n`)
+}
+
+function getAgentWorkRulesSection(): string {
+  return AGENT_WORK_RULES_SECTION
 }
 
 function getActionsSection(): string {
@@ -559,15 +566,16 @@ ${CYBER_RISK_INSTRUCTION}`,
 
   const resolvedDynamicSections =
     await resolveSystemPromptSections(dynamicSections)
+  const keepCodingInstructions =
+    outputStyleConfig === null ||
+    outputStyleConfig.keepCodingInstructions === true
 
   return [
     // --- Static content (cacheable) ---
     getSimpleIntroSection(outputStyleConfig),
     getSimpleSystemSection(),
-    outputStyleConfig === null ||
-    outputStyleConfig.keepCodingInstructions === true
-      ? getSimpleDoingTasksSection()
-      : null,
+    keepCodingInstructions ? getSimpleDoingTasksSection() : null,
+    keepCodingInstructions ? getAgentWorkRulesSection() : null,
     getActionsSection(),
     getUsingYourToolsSection(enabledTools),
     getSimpleToneAndStyleSection(),

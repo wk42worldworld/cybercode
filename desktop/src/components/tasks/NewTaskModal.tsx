@@ -9,6 +9,8 @@ import { PromptEditor } from './PromptEditor'
 import { DayOfWeekPicker } from './DayOfWeekPicker'
 import { useTranslation } from '../../i18n'
 import { describeCron, isValidCron, parseCron, type FrequencyKey } from '../../lib/cronDescribe'
+import { OFFICIAL_DEFAULT_MODEL_ID } from '../../constants/modelCatalog'
+import type { RuntimeSelection } from '../../types/runtime'
 import type { PermissionMode } from '../../types/settings'
 import type { CronTask } from '../../types/task'
 import { Icon } from '../shared/Icon'
@@ -91,7 +93,11 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
   const [prompt, setPrompt] = useState(editTask?.prompt || '')
   const [frequency, setFrequency] = useState<FrequencyKey>(parsed?.frequency || 'daily')
   const [time, setTime] = useState(parsed?.time || '09:00')
-  const [model, setModel] = useState(editTask?.model || '')
+  const [model, setModel] = useState(editTask?.model || OFFICIAL_DEFAULT_MODEL_ID)
+  const [providerId, setProviderId] = useState<string | null>(editTask?.providerId ?? null)
+  const [contextWindow, setContextWindow] = useState<number | undefined>(
+    typeof editTask?.contextWindow === 'number' ? editTask.contextWindow : undefined,
+  )
   const [permissionMode, setPermissionMode] = useState<PermissionMode>((editTask?.permissionMode as PermissionMode) || 'default')
   const [folderPath, setFolderPath] = useState(editTask?.folderPath || defaultWorkDir)
   const [useWorktree, setUseWorktree] = useState(editTask?.useWorktree || false)
@@ -120,16 +126,30 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
     (frequency !== 'customCron' || isValidCron(customCron)) &&
     (frequency !== 'specificDays' || selectedDays.length > 0)
 
+  const handleRuntimeModelChange = (selection: RuntimeSelection) => {
+    setProviderId(selection.providerId)
+    setModel(selection.modelId)
+    setContextWindow(selection.contextWindow)
+  }
+
   const handleSubmit = async () => {
     if (!canSubmit) return
     setIsSubmitting(true)
     try {
+      const normalizedContextWindow =
+        typeof contextWindow === 'number' &&
+        Number.isFinite(contextWindow) &&
+        contextWindow > 0
+          ? Math.round(contextWindow)
+          : undefined
       const payload = {
         name: name.trim(),
         description: description.trim(),
         cron: cronValue,
         prompt: prompt.trim(),
         model: model || undefined,
+        providerId: providerId ?? null,
+        contextWindow: normalizedContextWindow ?? null,
         permissionMode: permissionMode !== 'default' ? permissionMode : undefined,
         folderPath: folderPath.trim() || undefined,
         useWorktree: useWorktree || undefined,
@@ -200,6 +220,9 @@ export function NewTaskModal({ open, onClose, editTask }: Props) {
           onPermissionModeChange={setPermissionMode}
           modelId={model}
           onModelChange={setModel}
+          providerId={providerId}
+          contextWindow={contextWindow}
+          onRuntimeModelChange={handleRuntimeModelChange}
           folderPath={folderPath}
           onFolderPathChange={setFolderPath}
           useWorktree={useWorktree}

@@ -309,6 +309,40 @@ describe('Scheduled Tasks API', () => {
     expect(body.task.prompt).toBe('Daily review')
   })
 
+  it('should create a task with provider runtime selection via POST', async () => {
+    const req = new Request('http://localhost/api/scheduled-tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cron: '0 9 * * *',
+        prompt: 'Daily review',
+        model: 'kimi-k2.6',
+        providerId: 'provider-kimi',
+        contextWindow: 1000000.4,
+        recurring: true,
+      }),
+    })
+    const url = new URL(req.url)
+    const resp = await handleScheduledTasksApi(req, url, [
+      'api',
+      'scheduled-tasks',
+    ])
+    const body = (await resp.json()) as {
+      task: {
+        id: string
+        model?: string
+        providerId?: string | null
+        contextWindow?: number
+      }
+    }
+
+    expect(resp.status).toBe(201)
+    expect(body.task.id).toBeDefined()
+    expect(body.task.model).toBe('kimi-k2.6')
+    expect(body.task.providerId).toBe('provider-kimi')
+    expect(body.task.contextWindow).toBe(1000000)
+  })
+
   it('should CRUD a full lifecycle', async () => {
     // Create
     const createReq = new Request('http://localhost/api/scheduled-tasks', {

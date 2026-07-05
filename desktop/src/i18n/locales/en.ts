@@ -225,6 +225,7 @@ export const en = {
   'settings.adapters.guideTitle': 'Connection guides',
   'settings.adapters.guideDesc': 'Open the local setup guide for Feishu or Telegram and follow the checklist without leaving the desktop app.',
   'settings.adapters.openGuide': 'Open guide',
+  'settings.adapters.openFullGuide': 'View full setup guide',
   'settings.adapters.feishuGuideTitle': 'Feishu setup guide',
   'settings.adapters.feishuGuideDesc': 'Create a Feishu bot, publish its menu, fill App ID/App Secret, and pair it with CyberCode.',
   'settings.adapters.telegramGuideTitle': 'Telegram setup guide',

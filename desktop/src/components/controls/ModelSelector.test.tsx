@@ -99,4 +99,41 @@ describe('ModelSelector', () => {
     expect(qianfanHeader?.querySelector('[data-provider-logo="deepseek"]')).not.toBeInTheDocument()
     expect(qianfanHeader?.querySelector('[data-provider-logo="zhipuglm"]')).not.toBeInTheDocument()
   })
+
+  it('supports externally controlled provider and model selection', () => {
+    useProviderStore.setState({
+      providers: [
+        makeProvider({
+          id: 'kimi',
+          presetId: 'kimi',
+          name: 'Kimi',
+          models: {
+            main: 'kimi-k2.6',
+            haiku: '',
+            sonnet: '',
+            opus: '',
+          },
+        }),
+      ],
+    })
+    const onRuntimeChange = vi.fn()
+
+    render(
+      <ModelSelector
+        runtimeValue={{ providerId: null, modelId: 'claude-opus-4-8' }}
+        onRuntimeChange={onRuntimeChange}
+        compact
+        variant="pill"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Opus 4\.8/i }))
+    fireEvent.click(screen.getByText('kimi-k2.6').closest('button')!)
+
+    expect(onRuntimeChange).toHaveBeenCalledWith({
+      providerId: 'kimi',
+      modelId: 'kimi-k2.6',
+      contextWindow: undefined,
+    })
+  })
 })

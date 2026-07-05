@@ -14,6 +14,10 @@ import * as path from 'path'
 import * as crypto from 'crypto'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { CronService, type CronTask } from './cronService.js'
+import {
+  ConversationService,
+  type SessionStartOptions,
+} from './conversationService.js'
 import { SessionService } from './sessionService.js'
 import { sendTaskNotification } from './notificationService.js'
 
@@ -258,10 +262,12 @@ export class CronScheduler {
   private lastFiredMinuteKey = new Map<string, string>()
   private cronService: CronService
   private sessionService: SessionService
+  private conversationService: ConversationService
 
   constructor(cronService?: CronService) {
     this.cronService = cronService || new CronService()
     this.sessionService = new SessionService()
+    this.conversationService = new ConversationService()
   }
 
   /** Return a string key representing the calendar minute of `date`. */
@@ -418,27 +424,32 @@ export class CronScheduler {
       session_id: sessionId || '',
     }) + '\n'
 
-    const proc = Bun.spawn(
-      [
-        'bun',
-        '--preload',
-        preloadPath,
-        cliPath,
-        '--print',
-        '--verbose',
-        '--input-format',
-        'stream-json',
-        '--output-format',
-        'stream-json',
-        ...(sessionId ? ['--session-id', sessionId] : []),
-      ],
-      {
-        stdin: 'pipe',
-        stdout: 'pipe',
-        stderr: 'pipe',
-        cwd: workDir,
-      },
-    )
+    let proc: ReturnType<typeof Bun.spawn>
+    try {
+      const childEnv = await this.buildTaskChildEnv(workDir, task)
+      proc = Bun.spawn(
+        this.buildTaskCliArgs(cliPath, preloadPath, task, sessionId),
+        {
+          stdin: 'pipe',
+          stdout: 'pipe',
+          stderr: 'pipe',
+          cwd: workDir,
+          env: childEnv,
+        },
+      )
+    } catch (err) {
+      const completedAt = new Date().toISOString()
+      const failedRun: TaskRun = {
+        ...run,
+        completedAt,
+        status: 'failed',
+        error: err instanceof Error ? err.message : String(err),
+        durationMs:
+          new Date(completedAt).getTime() - new Date(startedAt).getTime(),
+      }
+      await updateRun(failedRun)
+      return failedRun
+    }
 
     this.runningTasks.set(task.id, { proc, startedAt: Date.now(), runId })
 
@@ -571,7 +582,7 @@ export class CronScheduler {
       const startedAt = new Date(run.startedAt).getTime()
       // If "running" for longer than the task timeout + 1-minute buffer,
       // the owning process is certainly dead.
-      if (now - startedAt > TASK_TIMEOUT_MS + 60_000) {
+      if (now - startedAt > getTaskTimeoutMs() + 60_000) {
         run.status = 'failed'
         run.error = 'Process terminated before task could complete'
         run.completedAt = new Date().toISOString()
@@ -610,6 +621,68 @@ export class CronScheduler {
           new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
       )
       .slice(0, limit)
+  }
+
+  private buildTaskCliArgs(
+    cliPath: string,
+    preloadPath: string,
+    task: CronTask,
+    sessionId?: string,
+  ): string[] {
+    return [
+      'bun',
+      '--preload',
+      preloadPath,
+      cliPath,
+      '--print',
+      '--verbose',
+      '--input-format',
+      'stream-json',
+      '--output-format',
+      'stream-json',
+      ...this.getTaskRuntimeArgs(task),
+      ...this.getTaskPermissionArgs(task),
+      ...(sessionId ? ['--session-id', sessionId] : []),
+    ]
+  }
+
+  private getTaskRuntimeArgs(task: CronTask): string[] {
+    const model = task.model?.trim()
+    return model ? ['--model', model] : []
+  }
+
+  private getTaskPermissionArgs(task: CronTask): string[] {
+    const mode = task.permissionMode?.trim()
+    if (!mode || mode === 'default') return []
+    if (mode === 'bypassPermissions') {
+      return ['--dangerously-skip-permissions']
+    }
+    return ['--permission-mode', mode]
+  }
+
+  private buildTaskStartOptions(task: CronTask): SessionStartOptions {
+    const model = task.model?.trim() || undefined
+    return {
+      ...(task.permissionMode ? { permissionMode: task.permissionMode } : {}),
+      ...(model ? { model } : {}),
+      ...(task.providerId !== undefined ? { providerId: task.providerId } : {}),
+      ...(typeof task.contextWindow === 'number' &&
+      Number.isFinite(task.contextWindow) &&
+      task.contextWindow > 0
+        ? { contextWindow: Math.round(task.contextWindow) }
+        : {}),
+    }
+  }
+
+  private async buildTaskChildEnv(
+    workDir: string,
+    task: CronTask,
+  ): Promise<Record<string, string>> {
+    return this.conversationService.buildChildEnv(
+      workDir,
+      undefined,
+      this.buildTaskStartOptions(task),
+    )
   }
 }
 

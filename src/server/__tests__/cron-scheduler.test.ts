@@ -198,6 +198,100 @@ describe('CronScheduler', () => {
     scheduler.stop()
   })
 
+  it('should build task CLI args with selected model and permission mode', async () => {
+    const task = await cronService.createTask({
+      cron: '* * * * *',
+      prompt: 'use selected model',
+      model: 'kimi-k2.6',
+      permissionMode: 'acceptEdits',
+      recurring: true,
+    })
+
+    const args = (scheduler as any).buildTaskCliArgs(
+      '/tmp/cli.tsx',
+      '/tmp/preload.ts',
+      task,
+      'session-1',
+    ) as string[]
+
+    expect(args).toContain('--model')
+    expect(args[args.indexOf('--model') + 1]).toBe('kimi-k2.6')
+    expect(args).toContain('--permission-mode')
+    expect(args[args.indexOf('--permission-mode') + 1]).toBe('acceptEdits')
+    expect(args).toContain('--session-id')
+    expect(args[args.indexOf('--session-id') + 1]).toBe('session-1')
+  })
+
+  it('should build task child env for an explicit provider selection', async () => {
+    const cybercodeDir = path.join(tmpDir, 'cybercode')
+    await fs.mkdir(cybercodeDir, { recursive: true })
+    await fs.writeFile(
+      path.join(cybercodeDir, 'providers.json'),
+      JSON.stringify({
+        activeId: null,
+        providers: [
+          {
+            id: 'provider-kimi',
+            presetId: 'custom',
+            name: 'Kimi',
+            apiKey: 'secret-key',
+            baseUrl: 'https://api.example.com',
+            apiFormat: 'anthropic',
+            models: {
+              main: 'provider-default-model',
+              haiku: '',
+              sonnet: '',
+              opus: '',
+            },
+          },
+        ],
+      }, null, 2),
+      'utf-8',
+    )
+
+    const task = await cronService.createTask({
+      cron: '* * * * *',
+      prompt: 'use provider',
+      model: 'kimi-k2.6',
+      providerId: 'provider-kimi',
+      contextWindow: 1000000,
+      recurring: true,
+    })
+
+    const env = (await (scheduler as any).buildTaskChildEnv(
+      tmpDir,
+      task,
+    )) as Record<string, string>
+
+    expect(env.CALLER_DIR).toBe(tmpDir)
+    expect(env.PWD).toBe(tmpDir)
+    expect(env.ANTHROPIC_BASE_URL).toBe('https://api.example.com')
+    expect(env.ANTHROPIC_API_KEY).toBe('secret-key')
+    expect(env.ANTHROPIC_MODEL).toBe('kimi-k2.6')
+    expect(JSON.parse(env.CYBERCODE_MODEL_CONTEXT_WINDOWS)).toEqual({
+      'kimi-k2.6': 1000000,
+    })
+  })
+
+  it('should record a failed run when the selected provider no longer exists', async () => {
+    const task = await cronService.createTask({
+      cron: '* * * * *',
+      prompt: 'use missing provider',
+      model: 'missing-model',
+      providerId: 'missing-provider',
+      recurring: true,
+    })
+
+    const run = await scheduler.executeTask(task)
+
+    expect(run.status).toBe('failed')
+    expect(run.error).toContain('Provider not found: missing-provider')
+
+    const runs = await scheduler.getTaskRuns(task.id)
+    expect(runs[0].status).toBe('failed')
+    expect(runs[0].error).toContain('Provider not found: missing-provider')
+  })
+
   it('should return empty runs when no tasks have executed', async () => {
     const runs = await scheduler.getRecentRuns()
     expect(runs).toEqual([])

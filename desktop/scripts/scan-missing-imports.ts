@@ -91,6 +91,11 @@ const IMPORT_PATTERNS = [
 
 const SOURCE_EXT = new Set(['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts', '.mjs', '.cjs'])
 
+function stripResourceQuery(spec: string): string {
+  const queryIndex = spec.search(/[?#]/)
+  return queryIndex === -1 ? spec : spec.slice(0, queryIndex)
+}
+
 async function* walk(dir: string): AsyncGenerator<string> {
   const entries = await readdir(dir, { withFileTypes: true })
   for (const entry of entries) {
@@ -173,8 +178,9 @@ async function main() {
       let match: RegExpExecArray | null
       while ((match = pattern.exec(contents)) !== null) {
         const spec = match[1]!
-        if (!spec.startsWith('.')) continue
-        const candidates = resolveCandidates(file, spec)
+        const resolvedSpec = stripResourceQuery(spec)
+        if (!resolvedSpec.startsWith('.')) continue
+        const candidates = resolveCandidates(file, resolvedSpec)
         let exists = false
         for (const c of candidates) {
           if (existsSync(c)) {
@@ -183,7 +189,7 @@ async function main() {
           }
         }
         if (exists) continue
-        const stubPath = pickStubPath(file, spec)
+        const stubPath = pickStubPath(file, resolvedSpec)
         if (!missing.has(stubPath)) missing.set(stubPath, new Set())
         missing.get(stubPath)!.add(path.relative(repoRoot, file))
       }

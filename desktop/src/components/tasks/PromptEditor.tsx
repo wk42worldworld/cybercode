@@ -2,6 +2,8 @@ import { PermissionModeSelector } from '../controls/PermissionModeSelector'
 import { ModelSelector } from '../controls/ModelSelector'
 import { DirectoryPicker } from '../shared/DirectoryPicker'
 import { useTranslation } from '../../i18n'
+import { OFFICIAL_DEFAULT_MODEL_ID } from '../../constants/modelCatalog'
+import type { RuntimeSelection } from '../../types/runtime'
 import type { PermissionMode } from '../../types/settings'
 import { Icon } from '../shared/Icon'
 
@@ -15,6 +17,9 @@ type Props = {
 
   modelId: string
   onModelChange: (modelId: string) => void
+  providerId?: string | null
+  contextWindow?: number
+  onRuntimeModelChange?: (selection: RuntimeSelection) => void
 
   folderPath: string
   onFolderPathChange: (path: string) => void
@@ -31,6 +36,9 @@ export function PromptEditor({
   onPermissionModeChange,
   modelId,
   onModelChange,
+  providerId,
+  contextWindow,
+  onRuntimeModelChange,
   folderPath,
   onFolderPathChange,
   useWorktree: _useWorktree,
@@ -54,7 +62,18 @@ export function PromptEditor({
         {/* Row 1: Permission + Model selectors */}
         <div className="flex items-center justify-between">
           <PermissionModeSelector value={permissionMode} onChange={onPermissionModeChange} workDir={folderPath || undefined} />
-          <ModelSelector value={modelId} onChange={onModelChange} />
+          {onRuntimeModelChange ? (
+            <ModelSelector
+              runtimeValue={{
+                providerId: providerId ?? null,
+                modelId: modelId || OFFICIAL_DEFAULT_MODEL_ID,
+                contextWindow,
+              }}
+              onRuntimeChange={onRuntimeModelChange}
+            />
+          ) : (
+            <ModelSelector value={modelId} onChange={onModelChange} />
+          )}
         </div>
 
         {/* Row 2: Folder picker */}

@@ -227,6 +227,7 @@ export const zh: Record<TranslationKey, string> = {
   'settings.adapters.guideTitle': '连接教程',
   'settings.adapters.guideDesc': '打开飞书或 Telegram 的本地步骤文档，在桌面端内照着做即可完成连接。',
   'settings.adapters.openGuide': '打开教程',
+  'settings.adapters.openFullGuide': '查看完整接入教程',
   'settings.adapters.feishuGuideTitle': '飞书接入教程',
   'settings.adapters.feishuGuideDesc': '创建飞书机器人、发布菜单、填写 App ID/App Secret，并用配对码绑定 CyberCode。',
   'settings.adapters.telegramGuideTitle': 'Telegram 接入教程',

@@ -31,6 +31,8 @@ type ProviderChoice = {
 type Props = {
   value?: string
   onChange?: (modelId: string) => void
+  runtimeValue?: RuntimeSelection
+  onRuntimeChange?: (selection: RuntimeSelection) => void
   runtimeKey?: string
   disabled?: boolean
   placement?: 'top' | 'bottom'
@@ -153,6 +155,8 @@ function resolveDefaultRuntimeSelection(
 export function ModelSelector({
   value,
   onChange,
+  runtimeValue,
+  onRuntimeChange,
   runtimeKey,
   disabled = false,
   placement = 'top',
@@ -177,7 +181,7 @@ export function ModelSelector({
     isLoading: providersLoading,
     fetchProviders,
   } = useProviderStore()
-  const runtimeSelection = useSessionRuntimeStore((state) =>
+  const storedRuntimeSelection = useSessionRuntimeStore((state) =>
     runtimeKey ? state.selections[runtimeKey] : undefined,
   )
   const [open, setOpen] = useState(false)
@@ -192,7 +196,8 @@ export function ModelSelector({
   ]
 
   const isControlled = value !== undefined
-  const isRuntimeScoped = !isControlled && runtimeKey !== undefined
+  const isRuntimeControlled = runtimeValue !== undefined
+  const isRuntimeScoped = isRuntimeControlled || (!isControlled && runtimeKey !== undefined)
 
   useEffect(() => {
     if (!isRuntimeScoped || providersLoading || requestedProvidersRef.current) return
@@ -250,7 +255,7 @@ export function ModelSelector({
     : storeModel
 
   const activeRuntimeSelection = isRuntimeScoped
-    ? runtimeSelection ?? resolveDefaultRuntimeSelection(
+    ? runtimeValue ?? storedRuntimeSelection ?? resolveDefaultRuntimeSelection(
       activeId,
       activeProviderName,
       providers,
@@ -285,10 +290,13 @@ export function ModelSelector({
     : defaultProviderChoice
 
   const handleRuntimeSelect = (selection: RuntimeSelection) => {
-    if (!runtimeKey) return
-    useSessionRuntimeStore.getState().setSelection(runtimeKey, selection)
-    if (runtimeKey !== DRAFT_RUNTIME_SELECTION_KEY) {
-      useChatStore.getState().setSessionRuntime(runtimeKey, selection)
+    if (onRuntimeChange) {
+      onRuntimeChange(selection)
+    } else if (runtimeKey) {
+      useSessionRuntimeStore.getState().setSelection(runtimeKey, selection)
+      if (runtimeKey !== DRAFT_RUNTIME_SELECTION_KEY) {
+        useChatStore.getState().setSessionRuntime(runtimeKey, selection)
+      }
     }
     setOpen(false)
   }

@@ -276,14 +276,14 @@ export function AdapterSettings() {
             title={t('settings.adapters.feishuGuideTitle')}
             description={t('settings.adapters.feishuGuideDesc')}
             onOpen={() => openGuide('feishu')}
-            openLabel={t('settings.adapters.openGuide')}
+            openLabel={t('settings.adapters.openFullGuide')}
           />
           <GuideLauncherRow
             icon="chat"
             title={t('settings.adapters.telegramGuideTitle')}
             description={t('settings.adapters.telegramGuideDesc')}
             onOpen={() => openGuide('telegram')}
-            openLabel={t('settings.adapters.openGuide')}
+            openLabel={t('settings.adapters.openFullGuide')}
           />
         </SettingsSection>
 
@@ -383,6 +383,13 @@ export function AdapterSettings() {
         >
           {activeIm === 'feishu' && (
             <div className="space-y-4 px-5 py-4">
+              <PlatformGuidePrompt
+                icon="forum"
+                title={t('settings.adapters.feishuGuideTitle')}
+                description={t('settings.adapters.feishuGuideDesc')}
+                buttonLabel={t('settings.adapters.openFullGuide')}
+                onOpen={() => openGuide('feishu')}
+              />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
                   label={t('settings.adapters.appId')}
@@ -436,6 +443,13 @@ export function AdapterSettings() {
 
           {activeIm === 'telegram' && (
             <div className="space-y-4 px-5 py-4">
+              <PlatformGuidePrompt
+                icon="chat"
+                title={t('settings.adapters.telegramGuideTitle')}
+                description={t('settings.adapters.telegramGuideDesc')}
+                buttonLabel={t('settings.adapters.openFullGuide')}
+                onOpen={() => openGuide('telegram')}
+              />
               <Input
                 label={t('settings.adapters.botToken')}
                 type="password"
@@ -511,7 +525,7 @@ function GuideLauncherRow({
   onOpen: () => void
 }) {
   return (
-    <div className="flex min-h-[76px] items-center justify-between gap-4 px-5 py-4">
+    <div className="flex min-h-[76px] flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0 flex items-start gap-3">
         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] text-[var(--color-text-secondary)]">
           <Icon name={icon} size={16} />
@@ -523,13 +537,55 @@ function GuideLauncherRow({
       </div>
       <Button
         type="button"
-        variant="secondary"
-        size="sm"
+        variant="primary"
+        size="md"
         onClick={onOpen}
         icon={<Icon name="article" size={14} />}
-        className="shrink-0"
+        className="w-full shrink-0 sm:w-auto"
       >
         {openLabel}
+      </Button>
+    </div>
+  )
+}
+
+function PlatformGuidePrompt({
+  icon,
+  title,
+  description,
+  buttonLabel,
+  onOpen,
+}: {
+  icon: 'forum' | 'chat'
+  title: string
+  description: string
+  buttonLabel: string
+  onOpen: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-text-primary)] text-[var(--color-background)]">
+          <Icon name={icon} size={17} />
+        </span>
+        <div className="min-w-0">
+          <div className="text-[13px] font-bold text-[var(--color-text-primary)]">
+            {title}
+          </div>
+          <p className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">
+            {description}
+          </p>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="primary"
+        size="md"
+        onClick={onOpen}
+        icon={<Icon name="article" size={14} />}
+        className="w-full shrink-0 sm:w-auto"
+      >
+        {buttonLabel}
       </Button>
     </div>
   )

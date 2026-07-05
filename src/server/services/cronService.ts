@@ -29,6 +29,8 @@ export type CronTask = {
   permanent?: boolean
   permissionMode?: string
   model?: string
+  providerId?: string | null
+  contextWindow?: number
   folderPath?: string
   useWorktree?: boolean
   notification?: TaskNotificationConfig

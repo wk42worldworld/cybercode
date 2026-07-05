@@ -53,7 +53,7 @@ type SessionProcess = {
   >
 }
 
-type SessionStartOptions = {
+export type SessionStartOptions = {
   permissionMode?: string
   model?: string
   effort?: string
@@ -620,7 +620,7 @@ export class ConversationService {
     return args
   }
 
-  private async buildChildEnv(
+  async buildChildEnv(
     workDir: string,
     sdkUrl?: string,
     options?: SessionStartOptions,
