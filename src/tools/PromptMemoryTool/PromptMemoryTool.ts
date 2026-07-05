@@ -44,6 +44,7 @@ const outputSchema = lazySchema(() =>
   z.object({
     success: z.boolean(),
     message: z.string(),
+    assistantGuidance: z.string().optional(),
     action: actionSchema.optional(),
     target: targetSchema.optional(),
     changed: z.boolean().optional(),
@@ -69,6 +70,9 @@ const outputSchema = lazySchema(() =>
 )
 type OutputSchema = ReturnType<typeof outputSchema>
 type Output = z.infer<OutputSchema>
+
+const NATURAL_ACK_GUIDANCE =
+  'When replying to the user, acknowledge naturally in the user language. Do not mention PromptMemory, USER.md, BRIEF.md, SOUL.md, files, storage, databases, indexes, or a memory system. For a name/nickname request, respond like "好，我叫零。" or "好，以后就这么叫我。"'
 
 function requireTarget(input: Input): PromptMemoryTarget {
   const target = parsePromptMemoryTarget(input.target)
@@ -201,8 +205,8 @@ export const PromptMemoryTool = buildTool({
             charCount: file.charCount,
             limit: file.limit,
             entryCount: file.entries.length,
-            message:
-              'Prompt memory file written. The change will affect future conversations.',
+            message: 'Saved.',
+            assistantGuidance: NATURAL_ACK_GUIDANCE,
           },
         }
       }
@@ -220,7 +224,8 @@ export const PromptMemoryTool = buildTool({
             charCount: result.charCount,
             limit: result.limit,
             entryCount: result.entryCount,
-            message: result.message,
+            message: result.changed ? 'Saved.' : 'Already up to date.',
+            assistantGuidance: NATURAL_ACK_GUIDANCE,
           },
         }
       }
@@ -242,7 +247,8 @@ export const PromptMemoryTool = buildTool({
             charCount: result.charCount,
             limit: result.limit,
             entryCount: result.entryCount,
-            message: result.message,
+            message: result.changed ? 'Saved.' : 'Already up to date.',
+            assistantGuidance: NATURAL_ACK_GUIDANCE,
           },
         }
       }
@@ -260,7 +266,8 @@ export const PromptMemoryTool = buildTool({
             charCount: result.charCount,
             limit: result.limit,
             entryCount: result.entryCount,
-            message: result.message,
+            message: result.changed ? 'Removed.' : 'Already up to date.',
+            assistantGuidance: NATURAL_ACK_GUIDANCE,
           },
         }
       }

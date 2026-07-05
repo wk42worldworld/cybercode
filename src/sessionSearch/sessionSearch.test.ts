@@ -7,8 +7,10 @@ import {
   readSessionSearch,
   scrollSessionSearch,
 } from './search.js'
+import { buildPastSessionPromptContext } from './promptContext.js'
 import {
   deleteSessionFromSearchIndex,
+  ensureSessionSearchIndexFresh,
   indexSessionSearchTranscript,
   resetSessionSearchIndex,
   sessionSearchIndexerForTesting,
@@ -123,6 +125,89 @@ describe('session search memory index', () => {
     expect(result.results[0]?.projectPath).toBe('-Users-wang-demo')
     expect(result.results[0]?.messages.some(message => message.anchor)).toBe(true)
     expect(result.results[0]?.matches[0]?.text).toContain('neural')
+  })
+
+  it('indexes history.jsonl user prompts as fallback FTS sessions', async () => {
+    await writeFile(
+      join(configDir, 'history.jsonl'),
+      [
+        line({
+          display: '我创建了一个叫做 CyberCamera 的 Xcode iOS 项目',
+          project: '/Users/wang',
+          sessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          timestamp: Date.parse('2026-01-02T00:00:00.000Z'),
+        }),
+        line({
+          display: '/Users/wang/Documents/MyProject/iosapp/CyberCamera',
+          project: '/Users/wang',
+          sessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          timestamp: Date.parse('2026-01-02T00:01:00.000Z'),
+        }),
+      ].join(''),
+      'utf-8',
+    )
+
+    const result = await discoverSessionSearch({ query: 'CyberCamera', limit: 3 })
+
+    expect(result.count).toBe(1)
+    expect(result.results[0]?.projectPath).toBe('-Users-wang')
+    expect(result.results[0]?.messages.map(message => message.content).join('\n')).toContain('CyberCamera')
+  })
+
+  it('builds first-turn past-session context from recent history for vague recall queries', async () => {
+    await writeFile(
+      join(configDir, 'history.jsonl'),
+      line({
+        display: '我创建了一个叫做 CyberCamera 的 Xcode iOS 项目',
+        project: '/Users/wang',
+        sessionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        timestamp: Date.parse('2026-01-03T00:00:00.000Z'),
+      }),
+      'utf-8',
+    )
+
+    const db = openSessionSearchDb()
+    try {
+      const context = await buildPastSessionPromptContext({
+        db,
+        query: '之前那个项目叫什么',
+        currentSessionId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        limit: 2,
+      })
+
+      expect(context).toContain('previous CyberCode conversations')
+      expect(context).toContain('CyberCamera')
+    } finally {
+      db.close()
+    }
+  })
+
+  it('builds first-turn past-session context for assistant name questions', async () => {
+    await writeFile(
+      join(configDir, 'history.jsonl'),
+      line({
+        display: '我现在给你取一个新名字，叫做零。',
+        project: '/Users/wang',
+        sessionId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        timestamp: Date.parse('2026-01-04T00:00:00.000Z'),
+      }),
+      'utf-8',
+    )
+
+    const db = openSessionSearchDb()
+    try {
+      const context = await buildPastSessionPromptContext({
+        db,
+        query: '你叫什么',
+        currentSessionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+        limit: 2,
+      })
+
+      expect(context).toContain('previous CyberCode conversations')
+      expect(context).toContain('叫做零')
+    } finally {
+      db.close()
+    }
   })
 
   it('supports CJK trigram search without external dependencies', async () => {
@@ -243,6 +328,85 @@ describe('session search memory index', () => {
     })
     expect(context).toContain('Lightweight memories')
     expect(context).toContain('CyberCode')
+  })
+
+  it('indexes project auto-memory markdown into globally searchable memory FTS', async () => {
+    const memoryDir = join(configDir, 'projects', '-Users-wang-CyberCamera', 'memory')
+    await mkdir(memoryDir, { recursive: true })
+    await writeFile(
+      join(memoryDir, 'MEMORY.md'),
+      '# CyberCamera\n\n这是一个 iOS 相机项目，项目名叫 CyberCamera。',
+      'utf-8',
+    )
+
+    const db = openSessionSearchDb()
+    try {
+      await ensureSessionSearchIndexFresh({ db })
+      const memories = searchProjectMemories({
+        db,
+        query: 'CyberCamera',
+        currentSessionId: '11111111-1111-4111-8111-111111111111',
+      })
+
+      expect(memories).toHaveLength(1)
+      expect(memories[0]?.source).toBe('auto-memory-file')
+      expect(memories[0]?.summary).toContain('CyberCamera')
+
+      const context = buildProjectMemoryPromptContext({
+        db,
+        query: '之前那个相机项目叫什么',
+        currentSessionId: '22222222-2222-4222-8222-222222222222',
+      })
+      expect(context).toContain('CyberCamera')
+    } finally {
+      db.close()
+    }
+  })
+
+  it('indexes global prompt memory into the shared memory FTS', async () => {
+    const promptMemoryDir = join(configDir, 'prompt-memory')
+    await mkdir(promptMemoryDir, { recursive: true })
+    await writeFile(
+      join(promptMemoryDir, 'USER.md'),
+      '用户给 CyberCode 取名为「零」；被问到名字时应回答自己叫「零」。',
+      'utf-8',
+    )
+
+    const db = openSessionSearchDb()
+    try {
+      await ensureSessionSearchIndexFresh({ db })
+      const memories = searchProjectMemories({
+        db,
+        query: '零',
+        currentSessionId: '33333333-3333-4333-8333-333333333333',
+      })
+
+      expect(memories).toHaveLength(1)
+      expect(memories[0]?.source).toBe('prompt-memory')
+      expect(memories[0]?.summary).toContain('零')
+    } finally {
+      db.close()
+    }
+  })
+
+  it('removes memory-file FTS rows when markdown memory files disappear', async () => {
+    const memoryDir = join(configDir, 'projects', '-Users-wang-stale-memory', 'memory')
+    const memoryPath = join(memoryDir, 'project.md')
+    await mkdir(memoryDir, { recursive: true })
+    await writeFile(memoryPath, 'stale-memory-needle should be searchable.', 'utf-8')
+
+    const db = openSessionSearchDb()
+    try {
+      await ensureSessionSearchIndexFresh({ db })
+      expect(searchProjectMemories({ db, query: 'stale-memory-needle' })).toHaveLength(1)
+
+      await rm(memoryPath, { force: true })
+      await ensureSessionSearchIndexFresh({ db })
+
+      expect(searchProjectMemories({ db, query: 'stale-memory-needle' })).toHaveLength(0)
+    } finally {
+      db.close()
+    }
   })
 
   it('does not distill normal project sessions into temporary project memories', async () => {

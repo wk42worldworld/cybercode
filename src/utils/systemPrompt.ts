@@ -25,6 +25,35 @@ function isProactiveActive_SAFE_TO_CALL_ANYWHERE(): boolean {
   return proactiveModule?.isProactiveActive() ?? false
 }
 
+const PROMPT_MEMORY_MARKERS = ['# CyberCode Soul', '# Prompt Memory']
+
+export function getPromptMemorySections(
+  defaultSystemPrompt: readonly string[],
+): string[] {
+  return defaultSystemPrompt.filter(section =>
+    PROMPT_MEMORY_MARKERS.some(marker => section.includes(marker)),
+  )
+}
+
+function containsPromptMemorySection(sections: readonly string[]): boolean {
+  return sections.some(section =>
+    PROMPT_MEMORY_MARKERS.some(marker => section.includes(marker)),
+  )
+}
+
+export function preservePromptMemoryForReplacement(params: {
+  defaultSystemPrompt: readonly string[]
+  replacementSystemPrompt: readonly string[]
+}): string[] {
+  if (containsPromptMemorySection(params.replacementSystemPrompt)) {
+    return [...params.replacementSystemPrompt]
+  }
+  return [
+    ...getPromptMemorySections(params.defaultSystemPrompt),
+    ...params.replacementSystemPrompt,
+  ]
+}
+
 /**
  * Builds the effective system prompt array based on priority:
  * 0. Override system prompt (if set, e.g., via loop mode - REPLACES all other prompts)
@@ -112,12 +141,20 @@ export function buildEffectiveSystemPrompt({
     ])
   }
 
+  const basePrompt = agentSystemPrompt
+    ? preservePromptMemoryForReplacement({
+        defaultSystemPrompt,
+        replacementSystemPrompt: [agentSystemPrompt],
+      })
+    : customSystemPrompt
+      ? preservePromptMemoryForReplacement({
+          defaultSystemPrompt,
+          replacementSystemPrompt: [customSystemPrompt],
+        })
+      : defaultSystemPrompt
+
   return asSystemPrompt([
-    ...(agentSystemPrompt
-      ? [agentSystemPrompt]
-      : customSystemPrompt
-        ? [customSystemPrompt]
-        : defaultSystemPrompt),
+    ...basePrompt,
     ...(appendSystemPrompt ? [appendSystemPrompt] : []),
   ])
 }

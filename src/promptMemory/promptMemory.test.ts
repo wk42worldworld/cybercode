@@ -48,6 +48,9 @@ import {
   replacePromptMemoryEntry,
   writePromptMemoryFile,
 } from './store.js'
+import { PromptMemoryTool } from '../tools/PromptMemoryTool/PromptMemoryTool.js'
+import { PROMPT as PROMPT_MEMORY_TOOL_PROMPT } from '../tools/PromptMemoryTool/prompt.js'
+import { fetchSystemPromptParts } from '../utils/queryContext.js'
 
 describe('prompt memory', () => {
   let tmpRoot: string
@@ -140,6 +143,28 @@ describe('prompt memory', () => {
     expect(prompt).toContain('- Use Bun for this project.')
     expect(prompt).toContain('## User')
     expect(prompt).toContain('- User prefers Chinese.')
+  })
+
+  test('loads prompt memory even when a custom system prompt is set', async () => {
+    await mkdir(getPromptMemoryDir(), { recursive: true })
+    await writeFile(getSoulPath(), 'CyberCode is named 零.')
+    await writeFile(getBriefPath(), 'Prefer Bun for local scripts.')
+    await writeFile(getUserPromptMemoryPath(), 'User prefers Chinese replies.')
+
+    const { defaultSystemPrompt } = await fetchSystemPromptParts({
+      tools: [],
+      mainLoopModel: 'claude-test',
+      additionalWorkingDirectories: [],
+      mcpClients: [],
+      customSystemPrompt: 'Custom behavior prompt.',
+    })
+    const prompt = defaultSystemPrompt.join('\n\n')
+
+    expect(prompt).toContain('# CyberCode Soul')
+    expect(prompt).toContain('CyberCode is named 零.')
+    expect(prompt).toContain('# Prompt Memory')
+    expect(prompt).toContain('Prefer Bun for local scripts.')
+    expect(prompt).toContain('User prefers Chinese replies.')
   })
 
   test('freezes prompt memory for the active session', async () => {
@@ -248,6 +273,42 @@ describe('prompt memory', () => {
     } as any
 
     expect(hasExplicitPromptMemorySignal([firstUserMessage])).toBe(true)
+    expect(
+      hasExplicitPromptMemorySignal([
+        {
+          type: 'user',
+          uuid: 'u-name',
+          message: { content: '我现在给你取一个新名字，叫做零。' },
+        } as any,
+      ]),
+    ).toBe(true)
+    expect(
+      hasExplicitPromptMemorySignal([
+        {
+          type: 'user',
+          uuid: 'u-user-name',
+          message: { content: '我叫王小明。' },
+        } as any,
+      ]),
+    ).toBe(true)
+    expect(
+      hasExplicitPromptMemorySignal([
+        {
+          type: 'user',
+          uuid: 'u-agent-name',
+          message: { content: '你叫零。' },
+        } as any,
+      ]),
+    ).toBe(true)
+    expect(
+      hasExplicitPromptMemorySignal([
+        {
+          type: 'user',
+          uuid: 'u-language',
+          message: { content: '中文回答。' },
+        } as any,
+      ]),
+    ).toBe(true)
 
     expect(
       shouldRunPromptMemoryAutoReview({
@@ -300,7 +361,29 @@ describe('prompt memory', () => {
     expect(prompt).toContain('PromptMemory tool')
     expect(prompt).toContain('Allowed targets: brief, user.')
     expect(prompt).toContain('Never write or modify SOUL.md')
+    expect(prompt).toContain('Basic user relationship facts')
+    expect(prompt).toContain('save that in USER.md')
     expect(prompt).toContain('User prefers Chinese.')
+  })
+
+  test('PromptMemory tool guides the assistant to acknowledge naturally', async () => {
+    expect(PROMPT_MEMORY_TOOL_PROMPT).toContain(
+      'respond to the user like a person',
+    )
+    expect(PROMPT_MEMORY_TOOL_PROMPT).toContain(
+      'Do not say "I wrote it to memory"',
+    )
+
+    const result = await PromptMemoryTool.call({
+      action: 'add',
+      target: 'user',
+      content: '用户给 CyberCode 取名为「零」。',
+    } as any)
+
+    expect(result.data.message).toBe('Saved.')
+    expect(result.data.assistantGuidance).toContain('acknowledge naturally')
+    expect(result.data.assistantGuidance).toContain('Do not mention PromptMemory')
+    expect(result.data.assistantGuidance).toContain('好，我叫零')
   })
 
   test('extracts changed PromptMemory tool results into auto-review logs', () => {

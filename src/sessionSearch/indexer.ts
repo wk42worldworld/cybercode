@@ -1,13 +1,24 @@
-import { readdir, rm, stat } from 'fs/promises'
+import type { Dirent } from 'fs'
+import { readFile, readdir, rm, stat } from 'fs/promises'
 import { basename, dirname, isAbsolute, join, relative, sep } from 'path'
 import { type Database } from 'bun:sqlite'
+import { getMemoryBaseDir } from '../memdir/paths.js'
+import {
+  BRIEF_FILENAME,
+  USER_PROMPT_MEMORY_FILENAME,
+  getBriefPath,
+  getPromptMemoryDir,
+  getUserPromptMemoryPath,
+} from '../promptMemory/paths.js'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
 import { sanitizePath as sanitizePortablePath } from '../utils/sessionStoragePortable.js'
 import { openSessionSearchDb, sessionKey } from './db.js'
 import { getSessionSearchDbPath } from './paths.js'
 import {
   deleteProjectMemoryBySessionKey,
+  projectMemoryFileSessionId,
   upsertProjectMemoryForParsedSession,
+  upsertProjectMemoryFile,
 } from './projectMemory.js'
 import { parseSessionTranscript, type ParsedSessionTranscript } from './transcript.js'
 
@@ -20,8 +31,28 @@ export type SessionFileInfo = {
   sessionId: string
 }
 
+type HistoryLogEntry = {
+  display?: string
+  timestamp?: number | string
+  project?: string
+  sessionId?: string
+}
+
+type MemoryFileInfo = {
+  filePath: string
+  projectPath: string
+  workDir: string | null
+  title: string
+  keywords: string[]
+  source: 'auto-memory-file' | 'prompt-memory'
+}
+
 function getProjectsDir(): string {
   return join(getClaudeConfigHomeDir(), 'projects')
+}
+
+function getAutoMemoryProjectsDir(): string {
+  return join(getMemoryBaseDir(), 'projects')
 }
 
 function activeSessionFilePath(filePath: string): string {
@@ -32,6 +63,119 @@ function activeSessionFilePath(filePath: string): string {
 
 function placeholderBackupPath(filePath: string): string {
   return `${activeSessionFilePath(filePath)}.placeholder`
+}
+
+function getHistoryLogPath(): string {
+  return join(getClaudeConfigHomeDir(), 'history.jsonl')
+}
+
+function historySyntheticFilePath(historyPath: string, key: string): string {
+  return `${historyPath}#${key}`
+}
+
+function isHistorySyntheticFilePath(filePath: string): boolean {
+  return filePath.includes('/history.jsonl#') || filePath.includes('\\history.jsonl#')
+}
+
+function parseHistoryTimestamp(value: number | string | undefined): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? value : date.toISOString()
+  }
+  return null
+}
+
+function memoryFileTitle(filePath: string, content: string, fallback: string): string {
+  const heading = content.match(/^#{1,3}\s+(.+)$/m)?.[1]?.trim()
+  if (heading) return heading.length > 80 ? `${heading.slice(0, 80)}...` : heading
+  return fallback || basename(filePath)
+}
+
+async function collectMarkdownFiles(dir: string): Promise<string[]> {
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+
+  const files: string[] = []
+  for (const entry of entries) {
+    const filePath = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...(await collectMarkdownFiles(filePath)))
+      continue
+    }
+    if (entry.isFile() && entry.name.endsWith('.md')) {
+      files.push(filePath)
+    }
+  }
+  return files
+}
+
+async function discoverAutoMemoryFiles(projectFilter?: string): Promise<MemoryFileInfo[]> {
+  const projectsDir = getAutoMemoryProjectsDir()
+  const projectNames: string[] = []
+
+  if (projectFilter) {
+    projectNames.push(projectFilter)
+  } else {
+    try {
+      const entries = await readdir(projectsDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) projectNames.push(entry.name)
+      }
+    } catch {
+      return []
+    }
+  }
+
+  const files: MemoryFileInfo[] = []
+  for (const projectPath of projectNames) {
+    const memoryDir = join(projectsDir, projectPath, 'memory')
+    const markdownFiles = await collectMarkdownFiles(memoryDir)
+    for (const filePath of markdownFiles) {
+      const relativePath = relative(memoryDir, filePath)
+      files.push({
+        filePath,
+        projectPath,
+        workDir: projectPath.replace(/-/g, '/'),
+        title: `Project memory: ${relativePath}`,
+        keywords: [projectPath, relativePath, basename(filePath)],
+        source: 'auto-memory-file',
+      })
+    }
+  }
+  return files
+}
+
+async function discoverPromptMemoryFiles(): Promise<MemoryFileInfo[]> {
+  const files = [
+    { filePath: getBriefPath(), filename: BRIEF_FILENAME },
+    { filePath: getUserPromptMemoryPath(), filename: USER_PROMPT_MEMORY_FILENAME },
+  ]
+  const memoryFiles: MemoryFileInfo[] = []
+  for (const file of files) {
+    try {
+      const fileStat = await stat(file.filePath)
+      if (!fileStat.isFile()) continue
+    } catch {
+      continue
+    }
+    memoryFiles.push({
+      filePath: file.filePath,
+      projectPath: '__global_prompt_memory',
+      workDir: getPromptMemoryDir(),
+      title: `Prompt memory: ${file.filename}`,
+      keywords: ['prompt-memory', file.filename],
+      source: 'prompt-memory',
+    })
+  }
+  return memoryFiles
 }
 
 export function sessionSearchFileInfoFromTranscriptPath(
@@ -151,6 +295,9 @@ function writeParsedSession(db: Database, parsed: ParsedSessionTranscript): void
   const key = sessionKey(parsed.projectPath, parsed.sessionId)
   const now = new Date().toISOString()
   db.transaction(() => {
+    db.query(
+      'DELETE FROM indexed_files WHERE session_key = ? AND file_path <> ?',
+    ).run(key, parsed.filePath)
     deleteSessionRows(db, key)
     db.query(
       `INSERT INTO sessions (
@@ -239,6 +386,215 @@ function writeParsedSession(db: Database, parsed: ParsedSessionTranscript): void
   })()
 }
 
+function parseHistoryLog(raw: string): Array<{ entry: HistoryLogEntry; lineNo: number }> {
+  const parsed: Array<{ entry: HistoryLogEntry; lineNo: number }> = []
+  const lines = raw.split('\n')
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index]!.trim()
+    if (!trimmed) continue
+    try {
+      parsed.push({ entry: JSON.parse(trimmed) as HistoryLogEntry, lineNo: index + 1 })
+    } catch {
+      // History is append-only JSONL; ignore partial/corrupt tail lines.
+    }
+  }
+  return parsed
+}
+
+async function buildHistoryLogSessions(projectFilter?: string): Promise<ParsedSessionTranscript[]> {
+  const historyPath = getHistoryLogPath()
+  let raw: string
+  let fileStat: Awaited<ReturnType<typeof stat>>
+  try {
+    const result = await Promise.all([
+      readFile(historyPath, 'utf-8'),
+      stat(historyPath),
+    ])
+    raw = result[0]
+    fileStat = result[1]
+  } catch {
+    return []
+  }
+
+  const sanitizedFilter = projectFilter
+    ? sanitizePortablePath(projectFilter)
+    : undefined
+  const grouped = new Map<
+    string,
+    {
+      sessionId: string
+      projectPath: string
+      workDir: string | null
+      messages: ParsedSessionTranscript['messages']
+    }
+  >()
+
+  for (const { entry, lineNo } of parseHistoryLog(raw)) {
+    const display = typeof entry.display === 'string' ? entry.display.trim() : ''
+    const project = typeof entry.project === 'string' ? entry.project.trim() : ''
+    const sessionId = typeof entry.sessionId === 'string' ? entry.sessionId : ''
+    if (!display || !project || !UUID_RE.test(sessionId)) continue
+
+    const projectPath = sanitizePortablePath(project)
+    if (sanitizedFilter && projectPath !== sanitizedFilter) continue
+
+    const key = sessionKey(projectPath, sessionId)
+    const group =
+      grouped.get(key) ??
+      {
+        sessionId,
+        projectPath,
+        workDir: project,
+        messages: [],
+      }
+    group.messages.push({
+      messageUuid: `history:${sessionId}:${lineNo}`,
+      role: 'user',
+      type: 'user',
+      contentText: display,
+      timestamp: parseHistoryTimestamp(entry.timestamp),
+      model: null,
+      lineNo,
+      isSidechain: false,
+    })
+    grouped.set(key, group)
+  }
+
+  return [...grouped.values()].map(group => {
+    const timestamps = group.messages
+      .map(message => message.timestamp)
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    const createdAt = timestamps[0] ?? fileStat.birthtime.toISOString()
+    const modifiedAt = timestamps.at(-1) ?? fileStat.mtime.toISOString()
+    const titleText = group.messages[0]?.contentText.trim() || group.sessionId
+    const key = sessionKey(group.projectPath, group.sessionId)
+    return {
+      sessionId: group.sessionId,
+      projectPath: group.projectPath,
+      filePath: historySyntheticFilePath(historyPath, key),
+      workDir: group.workDir,
+      isTemporary: false,
+      title: titleText.length > 80 ? `${titleText.slice(0, 80)}...` : titleText,
+      createdAt,
+      modifiedAt,
+      fileMtimeMs: fileStat.mtimeMs,
+      fileSize: fileStat.size,
+      messages: group.messages,
+    }
+  })
+}
+
+async function indexHistoryLogSessions(params: {
+  db: Database
+  projectFilter?: string
+}): Promise<Set<string>> {
+  const liveFilePaths = new Set<string>()
+  const sessions = await buildHistoryLogSessions(params.projectFilter)
+
+  for (const session of sessions) {
+    const key = sessionKey(session.projectPath, session.sessionId)
+    const existing = params.db
+      .query('SELECT file_path FROM sessions WHERE session_key = ?')
+      .get(key) as { file_path: string } | null
+    if (existing && !isHistorySyntheticFilePath(existing.file_path)) {
+      continue
+    }
+    writeParsedSession(params.db, session)
+    liveFilePaths.add(session.filePath)
+  }
+
+  return liveFilePaths
+}
+
+async function indexProjectMemoryFiles(params: {
+  db: Database
+  projectFilter?: string
+}): Promise<Set<string>> {
+  const liveFilePaths = new Set<string>()
+  const files = [
+    ...(await discoverAutoMemoryFiles(params.projectFilter)),
+    ...(await discoverPromptMemoryFiles()),
+  ]
+
+  for (const file of files) {
+    let fileStat: Awaited<ReturnType<typeof stat>>
+    try {
+      fileStat = await stat(file.filePath)
+      if (!fileStat.isFile()) continue
+    } catch {
+      continue
+    }
+
+    const sessionId = projectMemoryFileSessionId(file.filePath)
+    const key = sessionKey(file.projectPath, sessionId)
+    liveFilePaths.add(file.filePath)
+
+    const indexed = getIndexedFile(params.db, file.filePath)
+    const existingMemory = params.db
+      .query('SELECT id FROM project_memories WHERE session_key = ?')
+      .get(key) as { id: number } | null
+    if (
+      indexed &&
+      existingMemory &&
+      indexed.file_mtime_ms === fileStat.mtimeMs &&
+      indexed.file_size === fileStat.size
+    ) {
+      continue
+    }
+
+    const raw = await readFile(file.filePath, 'utf-8')
+    const title = memoryFileTitle(file.filePath, raw, file.title)
+    const result = params.db.transaction(() => {
+      const upsert = upsertProjectMemoryFile(params.db, {
+        filePath: file.filePath,
+        projectPath: file.projectPath,
+        workDir: file.workDir,
+        title,
+        content: raw,
+        keywords: file.keywords,
+        source: file.source,
+        createdAt: fileStat.birthtime.toISOString(),
+        updatedAt: fileStat.mtime.toISOString(),
+      })
+
+      if (!upsert) {
+        deleteProjectMemoryBySessionKey(params.db, key)
+        params.db.query('DELETE FROM indexed_files WHERE file_path = ?').run(file.filePath)
+        return null
+      }
+
+      params.db.query(
+        `INSERT INTO indexed_files (
+          file_path, session_key, session_id, project_path,
+          file_mtime_ms, file_size, indexed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(file_path) DO UPDATE SET
+          session_key = excluded.session_key,
+          session_id = excluded.session_id,
+          project_path = excluded.project_path,
+          file_mtime_ms = excluded.file_mtime_ms,
+          file_size = excluded.file_size,
+          indexed_at = excluded.indexed_at`,
+      ).run(
+        file.filePath,
+        upsert.sessionKey,
+        upsert.sessionId,
+        file.projectPath,
+        fileStat.mtimeMs,
+        fileStat.size,
+        new Date().toISOString(),
+      )
+      return upsert
+    })()
+
+    if (!result) {
+      liveFilePaths.delete(file.filePath)
+    }
+  }
+
+  return liveFilePaths
+}
+
 export async function indexSessionSearchFile(
   file: SessionFileInfo,
   db?: Database,
@@ -293,6 +649,20 @@ export async function ensureSessionSearchIndexFresh(options?: {
     for (const file of files) {
       await indexSessionSearchFile(file, db)
     }
+    const liveHistoryFilePaths = await indexHistoryLogSessions({
+      db,
+      projectFilter: projectPath,
+    })
+    for (const filePath of liveHistoryFilePaths) {
+      liveFilePaths.add(filePath)
+    }
+    const liveMemoryFilePaths = await indexProjectMemoryFiles({
+      db,
+      projectFilter: projectPath,
+    })
+    for (const filePath of liveMemoryFilePaths) {
+      liveFilePaths.add(filePath)
+    }
     const indexedFiles = projectPath
       ? (db
           .query(
@@ -304,6 +674,15 @@ export async function ensureSessionSearchIndexFresh(options?: {
           .all() as Array<{ file_path: string; session_key: string }>)
     for (const row of indexedFiles) {
       if (liveFilePaths.has(row.file_path)) continue
+      const replacementRows = db
+        .query(
+          'SELECT file_path FROM indexed_files WHERE session_key = ? AND file_path <> ?',
+        )
+        .all(row.session_key, row.file_path) as Array<{ file_path: string }>
+      if (replacementRows.some(replacement => liveFilePaths.has(replacement.file_path))) {
+        db.query('DELETE FROM indexed_files WHERE file_path = ?').run(row.file_path)
+        continue
+      }
       await deleteSessionSearchIndexByKey(row.session_key, db)
     }
   } finally {

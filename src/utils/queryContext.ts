@@ -12,6 +12,7 @@
 import type { Command } from '../commands.js'
 import { getSystemPrompt } from '../constants/prompts.js'
 import { getSystemContext, getUserContext } from '../context.js'
+import { loadPromptMemory } from '../promptMemory/loadPromptMemory.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
@@ -21,6 +22,7 @@ import { createAbortController } from './abortController.js'
 import type { FileStateCache } from './fileStateCache.js'
 import type { CacheSafeParams } from './forkedAgent.js'
 import { getMainLoopModel } from './model/model.js'
+import { preservePromptMemoryForReplacement } from './systemPrompt.js'
 import { asSystemPrompt } from './systemPromptType.js'
 import {
   shouldEnableThinkingByDefault,
@@ -60,7 +62,7 @@ export async function fetchSystemPromptParts({
 }> {
   const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([
     customSystemPrompt !== undefined
-      ? Promise.resolve([])
+      ? loadPromptMemory().then(prompt => (prompt ? [prompt] : []))
       : getSystemPrompt(
           tools,
           mainLoopModel,
@@ -126,7 +128,10 @@ export async function buildSideQuestionFallbackParams({
 
   const systemPrompt = asSystemPrompt([
     ...(customSystemPrompt !== undefined
-      ? [customSystemPrompt]
+      ? preservePromptMemoryForReplacement({
+          defaultSystemPrompt,
+          replacementSystemPrompt: [customSystemPrompt],
+        })
       : defaultSystemPrompt),
     ...(appendSystemPrompt ? [appendSystemPrompt] : []),
   ])

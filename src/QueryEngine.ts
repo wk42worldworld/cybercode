@@ -75,6 +75,7 @@ import {
   flushSessionStorage,
   recordTranscript,
 } from './utils/sessionStorage.js'
+import { preservePromptMemoryForReplacement } from './utils/systemPrompt.js'
 import { asSystemPrompt } from './utils/systemPromptType.js'
 import { resolveThemeSetting } from './utils/systemTheme.js'
 import {
@@ -318,8 +319,16 @@ export class QueryEngine {
         ? await loadMemoryPrompt()
         : null
 
+    const baseSystemPrompt =
+      customPrompt !== undefined
+        ? preservePromptMemoryForReplacement({
+            defaultSystemPrompt,
+            replacementSystemPrompt: [customPrompt],
+          })
+        : defaultSystemPrompt
+
     const systemPrompt = asSystemPrompt([
-      ...(customPrompt !== undefined ? [customPrompt] : defaultSystemPrompt),
+      ...baseSystemPrompt,
       ...(memoryMechanicsPrompt ? [memoryMechanicsPrompt] : []),
       ...(appendSystemPrompt ? [appendSystemPrompt] : []),
     ])

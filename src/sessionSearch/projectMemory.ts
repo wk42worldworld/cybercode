@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { homedir } from 'os'
 import { type Database } from 'bun:sqlite'
 import { openSessionSearchDb, sessionKey } from './db.js'
@@ -36,6 +37,7 @@ type ProjectMemoryRow = {
 
 const MAX_NOTE_CHARS = 240
 const MAX_SUMMARY_CHARS = 2400
+const MAX_MEMORY_FILE_SUMMARY_CHARS = 6000
 const MAX_CONTEXT_CHARS = 3200
 const MAX_KEYWORDS_CHARS = 800
 const PROJECT_SIGNAL_RE =
@@ -80,6 +82,14 @@ function truncate(value: string, max: number): string {
   return normalized.length > max ? `${normalized.slice(0, max - 3)}...` : normalized
 }
 
+function truncatePreservingLines(value: string, max: number): string {
+  const normalized = value
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return normalized.length > max ? `${normalized.slice(0, max - 3)}...` : normalized
+}
+
 function redactSensitiveText(value: string): string {
   return value
     .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, '[redacted-key]')
@@ -95,6 +105,17 @@ function redactSensitiveText(value: string): string {
 
 function cleanNote(value: string): string {
   return truncate(redactSensitiveText(value), MAX_NOTE_CHARS)
+}
+
+function cleanMemoryFileSummary(value: string): string {
+  return truncatePreservingLines(
+    redactSensitiveText(value),
+    MAX_MEMORY_FILE_SUMMARY_CHARS,
+  )
+}
+
+function contextSummary(value: string): string {
+  return truncate(redactSensitiveText(value), 1200)
 }
 
 function normalizePathCandidate(value: string): string {
@@ -330,6 +351,106 @@ export function upsertProjectMemoryForParsedSession(
   ).run(row.id, candidate.summary, candidate.title, candidate.keywords, candidate.workDir ?? '')
 }
 
+export function projectMemoryFileSessionId(filePath: string): string {
+  const hash = createHash('sha256')
+    .update(filePath.normalize('NFC'))
+    .digest('hex')
+    .slice(0, 32)
+  return `memory-file-${hash}`
+}
+
+export function projectMemoryFileSessionKey(params: {
+  projectPath: string
+  filePath: string
+}): string {
+  return sessionKey(params.projectPath, projectMemoryFileSessionId(params.filePath))
+}
+
+export function upsertProjectMemoryFile(
+  db: Database,
+  params: {
+    filePath: string
+    projectPath: string
+    workDir: string | null
+    title: string
+    content: string
+    keywords?: string[]
+    source: 'auto-memory-file' | 'prompt-memory'
+    createdAt: string
+    updatedAt: string
+  },
+): { sessionKey: string; sessionId: string } | null {
+  const summary = cleanMemoryFileSummary(params.content)
+  if (!summary) return null
+
+  const sessionId = projectMemoryFileSessionId(params.filePath)
+  const key = sessionKey(params.projectPath, sessionId)
+  const title = cleanNote(params.title) || 'Memory File'
+  const keywords = unique(
+    [
+      title,
+      params.projectPath,
+      params.workDir ?? '',
+      params.filePath,
+      ...(params.keywords ?? []),
+    ].map(value => truncate(value, 80)),
+    24,
+  ).join(' ').slice(0, MAX_KEYWORDS_CHARS)
+
+  const existing = db
+    .query('SELECT id, created_at FROM project_memories WHERE session_key = ?')
+    .get(key) as { id: number; created_at: string } | null
+
+  if (existing) {
+    db.query('DELETE FROM project_memories_fts WHERE rowid = ?').run(existing.id)
+    db.query('DELETE FROM project_memories_fts_trigram WHERE rowid = ?').run(existing.id)
+  }
+
+  db.query(
+    `INSERT INTO project_memories (
+      session_key, session_id, project_path, work_dir, title, summary,
+      keywords, source, confidence, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(session_key) DO UPDATE SET
+      project_path = excluded.project_path,
+      work_dir = excluded.work_dir,
+      title = excluded.title,
+      summary = excluded.summary,
+      keywords = excluded.keywords,
+      source = excluded.source,
+      confidence = excluded.confidence,
+      updated_at = excluded.updated_at`,
+  ).run(
+    key,
+    sessionId,
+    params.projectPath,
+    params.workDir,
+    title,
+    summary,
+    keywords,
+    params.source,
+    1,
+    existing?.created_at ?? params.createdAt,
+    params.updatedAt,
+  )
+
+  const row = db
+    .query('SELECT id FROM project_memories WHERE session_key = ?')
+    .get(key) as { id: number } | null
+  if (!row) return null
+
+  db.query(
+    `INSERT INTO project_memories_fts(rowid, summary, title, keywords, work_dir)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(row.id, summary, title, keywords, params.workDir ?? '')
+  db.query(
+    `INSERT INTO project_memories_fts_trigram(rowid, summary, title, keywords, work_dir)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).run(row.id, summary, title, keywords, params.workDir ?? '')
+
+  return { sessionKey: key, sessionId }
+}
+
 function escapeFtsPhrase(value: string): string {
   return `"${value.replace(/"/g, '""')}"`
 }
@@ -515,7 +636,7 @@ export function buildProjectMemoryPromptContext(params: {
   if (memories.length === 0) return null
 
   const chunks: string[] = [
-    'Lightweight memories from previous temporary CyberCode sessions follow. Use them only if they are relevant to the current request; if they conflict with the current request, prefer the current request.',
+    'Lightweight memories from CyberCode sessions, project memory files, and prompt memory follow. Use them only if they are relevant to the current request; if they conflict with the current request, prefer the current request.',
   ]
 
   for (const [index, memory] of memories.entries()) {
@@ -523,8 +644,9 @@ export function buildProjectMemoryPromptContext(params: {
       `Memory ${index + 1}`,
       `Title: ${memory.title}`,
       memory.workDir ? `Work directory: ${memory.workDir}` : '',
+      `Source: ${memory.source}`,
       `Updated: ${memory.updatedAt}`,
-      `Summary:\n${memory.summary}`,
+      `Summary:\n${contextSummary(memory.summary)}`,
     ].filter(Boolean).join('\n')
 
     const next = [...chunks, chunk].join('\n\n')
@@ -538,5 +660,6 @@ export function buildProjectMemoryPromptContext(params: {
 export const projectMemoryForTesting = {
   buildProjectMemoryCandidate,
   extractPaths,
+  projectMemoryFileSessionId,
   redactSensitiveText,
 }

@@ -29,6 +29,7 @@ import {
 } from './attachmentPolicy.js'
 import { openSessionSearchDb } from '../../sessionSearch/db.js'
 import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
+import { buildPastSessionPromptContext } from '../../sessionSearch/promptContext.js'
 import { buildProjectMemoryPromptContext } from '../../sessionSearch/projectMemory.js'
 import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
 
@@ -365,7 +366,7 @@ async function buildContentWithInitialProjectMemory(
 ): Promise<string> {
   try {
     const launchInfo = await sessionService.getSessionLaunchInfo(sessionId)
-    if (!launchInfo?.isTemporary || launchInfo.transcriptMessageCount > 0) {
+    if (!launchInfo || launchInfo.transcriptMessageCount > 0) {
       return content
     }
 
@@ -381,14 +382,23 @@ async function buildContentWithInitialProjectMemory(
     const db = openSessionSearchDb()
     try {
       await ensureSessionSearchIndexFresh({ db })
+      const contexts: string[] = []
       const memoryContext = buildProjectMemoryPromptContext({
         db,
         query,
         currentSessionId: sessionId,
         limit: 4,
       })
-      return memoryContext
-        ? appendProjectMemoryContext(content, memoryContext)
+      if (memoryContext) contexts.push(memoryContext)
+      const pastSessionContext = await buildPastSessionPromptContext({
+        db,
+        query,
+        currentSessionId: sessionId,
+        limit: 4,
+      })
+      if (pastSessionContext) contexts.push(pastSessionContext)
+      return contexts.length > 0
+        ? appendProjectMemoryContext(content, contexts.join('\n\n'))
         : content
     } finally {
       db.close()

@@ -34,7 +34,7 @@ export const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID =
   'prompt_memory_auto_review'
 
 const EXPLICIT_MEMORY_SIGNAL =
-  /(?:\bremember\b|\bforget\b|\bpreference\b|\bprefer\b|记住|记得|记忆|忘记|忘掉|以后|以后默认|默认|偏好|我喜欢|我不喜欢|我希望|每次|下次|不要再|别再|習慣|覚えて|忘れて|기억|잊어|선호)/i
+  /(?:\bremember\b|\bforget\b|\bpreference\b|\bprefer\b|\bmy name is\b|\bcall me\b|\bcall you\b|\brespond in\b|\breply in\b|记住|记得|记忆|忘记|忘掉|以后|以后默认|默认|偏好|我喜欢|我不喜欢|我希望|每次|下次|不要再|别再|取名|新名字|名字叫|叫做|我叫|你叫|我的名字|你的名字|称呼|叫你|叫我|用中文|中文回复|中文回答|英文回复|英文回答|用英文|说中文|说英文|習慣|覚えて|忘れて|기억|잊어|선호)/i
 
 type ReviewTrigger = 'explicit' | 'interval'
 
@@ -243,6 +243,8 @@ export function buildPromptMemoryAutoReviewPrompt(params: {
     '- Never write or modify SOUL.md from this automatic review.',
     '- BRIEF.md stores stable agent facts, environment facts, tool quirks, and cross-session working lessons.',
     '- USER.md stores user preferences, communication style, stable personal workflow preferences, and explicit remember/forget requests.',
+    '- Basic user relationship facts must go in USER.md, not project memory: the user\'s preferred language, communication style, the user\'s name/nickname, and any name/nickname the user gives CyberCode/the assistant/agent.',
+    '- If the user names CyberCode/the assistant/agent or says how they want to call it, save that in USER.md so every project can answer identity/name questions consistently.',
     '- Prefer replace/remove when an existing entry is stale, wrong, or duplicated.',
     '- Keep each new entry concise, declarative, and under 220 characters.',
     '- Do not store secrets, credentials, API keys, private tokens, one-off tasks, transient plans, temporary prices, or details that are only useful inside the current conversation.',
