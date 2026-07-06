@@ -136,7 +136,7 @@ describe('IconRail floating panel navigation', () => {
     expect(useUIStore.getState().settingsPanelView).toBe('scheduled')
   })
 
-  it('shows a blue update button above Settings only when an update is available', () => {
+  it('shows a smaller blue update button above Settings only after an update is downloaded', () => {
     const { rerender } = renderIconRail()
 
     expect(screen.queryByTestId('rail-update-button')).not.toBeInTheDocument()
@@ -144,9 +144,18 @@ describe('IconRail floating panel navigation', () => {
     const installUpdate = vi.fn().mockResolvedValue(undefined)
     act(() => {
       useUpdateStore.setState({
-        status: 'available',
+        status: 'downloading',
         availableVersion: '1.0.4',
         installUpdate,
+      })
+    })
+
+    rerender(<IconRail />)
+    expect(screen.queryByTestId('rail-update-button')).not.toBeInTheDocument()
+
+    act(() => {
+      useUpdateStore.setState({
+        status: 'downloaded',
       })
     })
 
@@ -155,6 +164,7 @@ describe('IconRail floating panel navigation', () => {
     const updateButton = screen.getByRole('button', { name: '更新到 v1.0.4' })
     expect(updateButton).toBeInTheDocument()
     expect(updateButton).toHaveClass('bg-[#0a84ff]')
+    expect(updateButton).toHaveClass('h-[38px]', 'w-[38px]')
 
     fireEvent.click(updateButton)
     expect(installUpdate).toHaveBeenCalledTimes(1)

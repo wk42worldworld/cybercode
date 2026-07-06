@@ -10,6 +10,7 @@
       "sonnet": "",
       "opus": ""
     },
+    "supportsImages": true,
     "needsApiKey": false,
     "websiteUrl": "https://www.anthropic.com/claude-code"
   },
@@ -47,6 +48,7 @@
         "contextWindow": 1000000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": "https://platform.deepseek.com",
     "apiKeyUrl": "https://platform.deepseek.com/api_keys"
@@ -110,6 +112,7 @@
         "contextWindow": 200000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": "https://open.bigmodel.cn",
     "apiKeyUrl": "https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys"
@@ -168,6 +171,7 @@
         "contextWindow": 256000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": "https://platform.moonshot.cn",
     "apiKeyUrl": "https://platform.kimi.com/console/api-keys"
@@ -201,6 +205,7 @@
         "contextWindow": 1000000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": "https://platform.minimaxi.com",
     "apiKeyUrl": "https://platform.minimaxi.com/user-center/basic-information/interface-key"
@@ -244,6 +249,7 @@
         "contextWindow": 1000000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": "https://platform.xiaomimimo.com",
     "apiKeyUrl": "https://platform.xiaomimimo.com"
@@ -312,6 +318,7 @@
         "contextWindow": 400000
       }
     ],
+    "supportsImages": true,
     "needsApiKey": true,
     "websiteUrl": "https://platform.openai.com/docs/models",
     "apiKeyUrl": "https://platform.openai.com/api-keys"
@@ -365,6 +372,7 @@
         "contextWindow": 1048576
       }
     ],
+    "supportsImages": true,
     "needsApiKey": true,
     "websiteUrl": "https://ai.google.dev/gemini-api/docs/models",
     "apiKeyUrl": "https://aistudio.google.com/apikey",
@@ -399,6 +407,7 @@
         "contextWindow": 200000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": false,
     "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
     "promoText": "LM Studio 使用 Anthropic 兼容协议，Base URL 填 http://localhost:1234，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
@@ -430,6 +439,7 @@
         "contextWindow": 256000
       }
     ],
+    "supportsImages": false,
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
     "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",
@@ -448,6 +458,7 @@
       "sonnet": "",
       "opus": ""
     },
+    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": ""
   }

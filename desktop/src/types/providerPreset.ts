@@ -13,6 +13,7 @@ export type ProviderModelOption = {
   id: string
   label?: string
   contextWindow?: number
+  supportsImages?: boolean
 }
 
 export type ProviderPreset = {
@@ -23,6 +24,7 @@ export type ProviderPreset = {
   defaultModels: ModelMapping
   defaultModelContextWindows?: ModelContextWindows
   modelOptions?: ProviderModelOption[]
+  supportsImages?: boolean
   needsApiKey: boolean
   websiteUrl: string
   apiKeyUrl?: string

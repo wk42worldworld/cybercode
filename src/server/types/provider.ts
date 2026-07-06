@@ -46,6 +46,7 @@ export const SavedProviderSchema = z.object({
   apiFormat: ApiFormatSchema.default('anthropic'),
   models: ModelMappingSchema,
   modelContextWindows: ModelContextWindowsSchema.optional(),
+  supportsImages: z.boolean().optional(),
   notes: z.string().optional(),
 })
 
@@ -62,6 +63,7 @@ export const CreateProviderSchema = z.object({
   apiFormat: ApiFormatSchema.default('anthropic'),
   models: ModelMappingSchema,
   modelContextWindows: ModelContextWindowsSchema.optional(),
+  supportsImages: z.boolean().optional(),
   notes: z.string().optional(),
 })
 
@@ -72,6 +74,7 @@ export const UpdateProviderSchema = z.object({
   apiFormat: ApiFormatSchema.optional(),
   models: ModelMappingSchema.optional(),
   modelContextWindows: ModelContextWindowsSchema.optional(),
+  supportsImages: z.boolean().optional(),
   notes: z.string().optional(),
 })
 

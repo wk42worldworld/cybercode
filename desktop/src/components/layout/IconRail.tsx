@@ -268,15 +268,13 @@ function RailUpdateButton({
   onClick: () => void
 }) {
   const t = useTranslation()
-  const visible = !!version && ['available', 'downloading', 'restarting'].includes(status)
+  const visible = !!version && ['downloaded', 'restarting'].includes(status)
   if (!visible) return null
 
-  const busy = status === 'downloading' || status === 'restarting'
+  const busy = status === 'restarting'
   const label = status === 'restarting'
     ? t('update.railRestarting')
-    : status === 'downloading'
-      ? t('update.railDownloading', { version })
-      : t('update.railAvailable', { version })
+    : t('update.railAvailable', { version })
   const IconComponent = busy ? RefreshCw : Download
 
   return (
@@ -286,10 +284,10 @@ function RailUpdateButton({
       aria-label={label}
       data-testid="rail-update-button"
       disabled={busy}
-      className="group relative flex h-[46px] w-[46px] items-center justify-center overflow-visible rounded-full border border-[#1f7aff]/25 bg-[#0a84ff] text-white shadow-[0_8px_22px_rgba(10,132,255,0.28)] transition-[background-color,box-shadow,transform] duration-150 hover:bg-[#0072f0] hover:shadow-[0_10px_28px_rgba(10,132,255,0.34)] active:scale-95 disabled:cursor-default disabled:opacity-95"
+      className="group relative flex h-[38px] w-[38px] items-center justify-center overflow-visible rounded-full border border-[#1f7aff]/25 bg-[#0a84ff] text-white shadow-[0_7px_18px_rgba(10,132,255,0.24)] transition-[background-color,box-shadow,transform] duration-150 hover:bg-[#0072f0] hover:shadow-[0_9px_24px_rgba(10,132,255,0.30)] active:scale-95 disabled:cursor-default disabled:opacity-95"
     >
-      <IconComponent size={21} strokeWidth={1.8} className={busy ? 'animate-spin' : ''} />
-      <span className="absolute right-[7px] top-[7px] h-[7px] w-[7px] rounded-full border border-white/80 bg-white shadow-[0_0_0_3px_rgba(255,255,255,0.22)]" />
+      <IconComponent size={18} strokeWidth={1.8} className={busy ? 'animate-spin' : ''} />
+      <span className="absolute right-[6px] top-[6px] h-[5px] w-[5px] rounded-full border border-white/80 bg-white shadow-[0_0_0_2px_rgba(255,255,255,0.20)]" />
       <RailTooltip label={label} />
     </button>
   )

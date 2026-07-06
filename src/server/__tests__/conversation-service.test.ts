@@ -188,11 +188,12 @@ describe('ConversationService', () => {
     const service = new ConversationService() as any
     const env = (await service.buildChildEnv('/tmp', undefined, {
       providerId: provider.id,
-      model: 'new-provider-sonnet',
+      model: 'gpt-4o-mini',
     })) as Record<string, string>
 
     expect(env.ANTHROPIC_BASE_URL).toBe(`http://127.0.0.1:3456/proxy/providers/${provider.id}`)
-    expect(env.ANTHROPIC_MODEL).toBe('new-provider-sonnet')
+    expect(env.ANTHROPIC_MODEL).toBe('gpt-4o-mini')
+    expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
   })
 
   test('buildChildEnv forwards model context windows for session-scoped providers', async () => {

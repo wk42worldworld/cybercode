@@ -88,6 +88,7 @@ import {
   getSmallFastModel,
   isNonCustomOpusModel,
 } from '../../utils/model/model.js'
+import { modelSupportsImages } from '../../utils/model/imageSupport.js'
 import {
   asSystemPrompt,
   type SystemPrompt,
@@ -943,10 +944,67 @@ function isMedia(
   return block.type === 'image' || block.type === 'document'
 }
 
+function isImageBlock(block: BetaContentBlockParam): block is BetaImageBlockParam {
+  return block.type === 'image'
+}
+
 function isToolResult(
   block: BetaContentBlockParam,
 ): block is BetaToolResultBlockParam {
   return block.type === 'tool_result'
+}
+
+const IMAGE_INPUT_UNSUPPORTED_MODEL_CONTEXT =
+  'The current model does not support image input. Do not attach or upload screenshots/images to the model. If an image is needed, explain that this model cannot read images and ask the user to switch to a vision-capable model or provide a text description.'
+
+const IMAGE_BLOCK_OMITTED_TEXT =
+  '[Image omitted because the current model does not support image input. Ask the user to switch to a vision-capable model or provide a text description.]'
+
+function replaceImageBlockForTextOnlyModel(block: BetaContentBlockParam): BetaContentBlockParam {
+  if (isImageBlock(block)) {
+    return { type: 'text', text: IMAGE_BLOCK_OMITTED_TEXT } as BetaContentBlockParam
+  }
+
+  if (isToolResult(block) && Array.isArray(block.content)) {
+    let changed = false
+    const content = block.content.map((nested) => {
+      if (isImageBlock(nested as BetaContentBlockParam)) {
+        changed = true
+        return { type: 'text', text: IMAGE_BLOCK_OMITTED_TEXT }
+      }
+      return nested
+    })
+
+    return changed ? { ...block, content } : block
+  }
+
+  return block
+}
+
+export function replaceImagesForTextOnlyModel(
+  messages: (UserMessage | AssistantMessage)[],
+): (UserMessage | AssistantMessage)[] {
+  let changed = false
+  const normalized = messages.map((msg) => {
+    const content = msg.message.content
+    if (!Array.isArray(content)) return msg
+
+    let messageChanged = false
+    const nextContent = content.map((block) => {
+      const nextBlock = replaceImageBlockForTextOnlyModel(block)
+      if (nextBlock !== block) messageChanged = true
+      return nextBlock
+    })
+
+    if (!messageChanged) return msg
+    changed = true
+    return {
+      ...msg,
+      message: { ...msg.message, content: nextContent },
+    }
+  })
+
+  return changed ? normalized : messages
 }
 
 /**
@@ -1255,6 +1313,7 @@ async function* queryModel(
   }
 
   queryCheckpoint('query_tool_schema_build_end')
+  const supportsImageInput = modelSupportsImages(options.model)
 
   // Normalize messages before building system prompt (needed for fingerprinting)
   // Instrumentation: Track message count before normalization
@@ -1265,6 +1324,10 @@ async function* queryModel(
   queryCheckpoint('query_message_normalization_start')
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
   queryCheckpoint('query_message_normalization_end')
+
+  if (!supportsImageInput) {
+    messagesForAPI = replaceImagesForTextOnlyModel(messagesForAPI)
+  }
 
   // Model-specific post-processing: strip tool-search-specific fields if the
   // selected model doesn't support tool search.
@@ -1313,6 +1376,10 @@ async function* queryModel(
     messagesForAPI,
     API_MAX_MEDIA_PER_REQUEST,
   )
+
+  if (!supportsImageInput) {
+    messagesForAPI = replaceImagesForTextOnlyModel(messagesForAPI)
+  }
 
   // Instrumentation: Track message count after normalization
   logEvent('tengu_api_after_normalize', {
@@ -1363,6 +1430,7 @@ async function* queryModel(
         hasAppendSystemPrompt: options.hasAppendSystemPrompt,
       }),
       ...systemPrompt,
+      ...(!supportsImageInput ? [IMAGE_INPUT_UNSUPPORTED_MODEL_CONTEXT] : []),
       ...(advisorModel ? [ADVISOR_TOOL_INSTRUCTIONS] : []),
       ...(injectChromeHere ? [CHROME_TOOL_SEARCH_INSTRUCTIONS] : []),
     ].filter(Boolean),

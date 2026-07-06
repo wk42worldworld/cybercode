@@ -637,6 +637,7 @@ export class ConversationService {
       'ANTHROPIC_BASE_URL',
       'ANTHROPIC_AUTH_TOKEN',
       'ANTHROPIC_MODEL',
+      'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
       'ANTHROPIC_DEFAULT_HAIKU_MODEL',
       'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
       'ANTHROPIC_DEFAULT_SONNET_MODEL',
@@ -666,11 +667,8 @@ export class ConversationService {
 
     const explicitProviderEnv =
       typeof options?.providerId === 'string'
-        ? await this.providerService.getProviderRuntimeEnv(options.providerId)
+        ? await this.providerService.getProviderRuntimeEnv(options.providerId, options.model)
         : null
-    if (explicitProviderEnv && options?.model?.trim()) {
-      explicitProviderEnv.ANTHROPIC_MODEL = options.model.trim()
-    }
 
     const runtimeContextWindowEnv = this.buildRuntimeContextWindowEnv(
       explicitProviderEnv?.[CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV],
@@ -769,6 +767,7 @@ export class ConversationService {
         'ANTHROPIC_BASE_URL',
         'ANTHROPIC_AUTH_TOKEN',
         'ANTHROPIC_MODEL',
+        'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
         'ANTHROPIC_DEFAULT_HAIKU_MODEL',
         'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
         'ANTHROPIC_DEFAULT_SONNET_MODEL',

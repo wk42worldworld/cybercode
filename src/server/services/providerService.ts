@@ -35,12 +35,15 @@ import type {
   ModelContextWindows,
   ModelMapping,
 } from '../types/provider.js'
+import { resolveProviderImageSupport } from './modelImageSupport.js'
+import { IMAGE_INPUT_CAPABILITY } from '../../utils/model/imageSupport.js'
 
 const MANAGED_ENV_KEYS = [
   'ANTHROPIC_BASE_URL',
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
   'ANTHROPIC_MODEL',
+  'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
   'ANTHROPIC_DEFAULT_HAIKU_MODEL',
   'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
   'ANTHROPIC_DEFAULT_SONNET_MODEL',
@@ -83,6 +86,23 @@ function compactModelContextWindows(
   }
 
   return Object.keys(compacted).length > 0 ? compacted : undefined
+}
+
+function mergeCapabilityList(raw: string | undefined, capability: string, enabled: boolean): string {
+  const capabilities = new Set(
+    (raw ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean),
+  )
+
+  if (enabled) {
+    capabilities.add(capability)
+  } else {
+    capabilities.delete(capability)
+  }
+
+  return [...capabilities].sort().join(',')
 }
 
 export class ProviderService {
@@ -200,6 +220,7 @@ export class ProviderService {
       ...(compactModelContextWindows(input.modelContextWindows) && {
         modelContextWindows: compactModelContextWindows(input.modelContextWindows),
       }),
+      ...(input.supportsImages !== undefined && { supportsImages: input.supportsImages }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
@@ -224,6 +245,7 @@ export class ProviderService {
       ...(input.modelContextWindows !== undefined && {
         modelContextWindows: compactModelContextWindows(input.modelContextWindows),
       }),
+      ...(input.supportsImages !== undefined && { supportsImages: input.supportsImages }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
@@ -278,23 +300,49 @@ export class ProviderService {
 
   private buildManagedEnv(
     provider: SavedProvider,
-    options?: { proxyPath?: string },
+    options?: { proxyPath?: string; modelId?: string },
   ): Record<string, string> {
     const needsProxy = provider.apiFormat != null && provider.apiFormat !== 'anthropic'
     const proxyPath = options?.proxyPath ?? '/proxy'
     const baseUrl = needsProxy
       ? `http://127.0.0.1:${ProviderService.serverPort}${proxyPath}`
       : provider.baseUrl
+    const mainModel = options?.modelId?.trim() || provider.models.main
     const modelContextWindowMap = this.getProviderModelContextWindowMap(provider)
+    const presetEnv = getPresetDefaultEnv(provider.presetId)
+    const supportsImages = resolveProviderImageSupport(provider, mainModel).supportsImages
+    const roleCapabilities = {
+      ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
+        presetEnv.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES,
+        IMAGE_INPUT_CAPABILITY,
+        supportsImages,
+      ),
+      ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
+        presetEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES,
+        IMAGE_INPUT_CAPABILITY,
+        supportsImages,
+      ),
+      ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
+        presetEnv.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES,
+        IMAGE_INPUT_CAPABILITY,
+        supportsImages,
+      ),
+      ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
+        presetEnv.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES,
+        IMAGE_INPUT_CAPABILITY,
+        supportsImages,
+      ),
+    }
 
     return {
-      ...getPresetDefaultEnv(provider.presetId),
+      ...presetEnv,
       ANTHROPIC_BASE_URL: baseUrl,
       ANTHROPIC_API_KEY: needsProxy ? 'proxy-managed' : provider.apiKey,
-      ANTHROPIC_MODEL: provider.models.main,
+      ANTHROPIC_MODEL: mainModel,
       ANTHROPIC_DEFAULT_HAIKU_MODEL: provider.models.haiku,
       ANTHROPIC_DEFAULT_SONNET_MODEL: provider.models.sonnet,
       ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus,
+      ...roleCapabilities,
       ...(Object.keys(modelContextWindowMap).length > 0
         ? { [CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(modelContextWindowMap) }
         : {}),
@@ -324,10 +372,11 @@ export class ProviderService {
     )
   }
 
-  async getProviderRuntimeEnv(id: string): Promise<Record<string, string>> {
+  async getProviderRuntimeEnv(id: string, modelId?: string): Promise<Record<string, string>> {
     const provider = await this.getProvider(id)
     return this.buildManagedEnv(provider, {
       proxyPath: `/proxy/providers/${provider.id}`,
+      modelId,
     })
   }
 

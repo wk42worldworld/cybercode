@@ -8,6 +8,7 @@ export type UpdateStatus =
   | 'available'
   | 'up-to-date'
   | 'downloading'
+  | 'downloaded'
   | 'restarting'
   | 'error'
 
@@ -35,16 +36,8 @@ type UpdateStore = {
 
 let pendingUpdate: Update | null = null
 let startupCheckPromise: Promise<void> | null = null
-
-function readDismissedUpdateVersion(): string | null {
-  if (typeof window === 'undefined') return null
-
-  try {
-    return window.localStorage.getItem(DISMISSED_UPDATE_VERSION_KEY)
-  } catch {
-    return null
-  }
-}
+let downloadPromise: Promise<void> | null = null
+let downloadingUpdate: Update | null = null
 
 function writeDismissedUpdateVersion(version: string | null) {
   if (typeof window === 'undefined') return
@@ -77,6 +70,90 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
+function startBackgroundDownload(
+  update: Update,
+  set: (partial: UpdateStore | Partial<UpdateStore> | ((state: UpdateStore) => UpdateStore | Partial<UpdateStore>)) => void,
+) {
+  if (downloadPromise && downloadingUpdate === update) return downloadPromise
+
+  downloadingUpdate = update
+  downloadPromise = (async () => {
+    set((state) => ({
+      ...state,
+      status: 'downloading',
+      error: null,
+      shouldPrompt: false,
+      progressPercent: 0,
+      downloadedBytes: 0,
+      totalBytes: null,
+    }))
+
+    try {
+      let totalBytes: number | null = null
+      let downloadedBytes = 0
+
+      await update.download((event) => {
+        if (pendingUpdate !== update) return
+
+        if (event.event === 'Started') {
+          totalBytes = event.data.contentLength ?? null
+          downloadedBytes = 0
+          set((state) => ({
+            ...state,
+            totalBytes,
+            downloadedBytes: 0,
+            progressPercent: 0,
+          }))
+        } else if (event.event === 'Progress') {
+          downloadedBytes += event.data.chunkLength
+          const progressPercent =
+            totalBytes && totalBytes > 0
+              ? Math.min(Math.round((downloadedBytes / totalBytes) * 100), 100)
+              : 0
+
+          set((state) => ({
+            ...state,
+            downloadedBytes,
+            totalBytes,
+            progressPercent,
+          }))
+        } else if (event.event === 'Finished') {
+          set((state) => ({
+            ...state,
+            progressPercent: 100,
+          }))
+        }
+      })
+
+      if (pendingUpdate !== update) return
+
+      set((state) => ({
+        ...state,
+        status: 'downloaded',
+        progressPercent: 100,
+        error: null,
+        shouldPrompt: false,
+      }))
+    } catch (error) {
+      if (pendingUpdate !== update) return
+
+      set((state) => ({
+        ...state,
+        status: 'error',
+        error: getErrorMessage(error),
+        shouldPrompt: false,
+      }))
+    }
+  })().finally(() => {
+    if (downloadingUpdate === update) {
+      downloadingUpdate = null
+      downloadPromise = null
+    }
+  })
+
+  return downloadPromise
+}
+
 export const useUpdateStore = create<UpdateStore>((set, get) => ({
   status: 'idle',
   availableVersion: null,
@@ -104,6 +181,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
 
   checkForUpdates: async ({ silent = false } = {}) => {
     if (!isTauriRuntime()) return null
+    if (get().status === 'downloading' && pendingUpdate) return pendingUpdate
 
     set((state) => ({
       ...state,
@@ -135,12 +213,9 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
         return null
       }
 
-      const dismissedVersion = readDismissedUpdateVersion()
-      const shouldPrompt = dismissedVersion !== update.version
-
       set((state) => ({
         ...state,
-        status: 'available',
+        status: 'downloading',
         availableVersion: update.version,
         releaseNotes: update.body ?? null,
         progressPercent: 0,
@@ -148,8 +223,9 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
         totalBytes: null,
         checkedAt,
         error: null,
-        shouldPrompt,
+        shouldPrompt: false,
       }))
+      void startBackgroundDownload(update, set)
       return update
     } catch (error) {
       if (!silent) {
@@ -179,53 +255,23 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
       if (!update) return
     }
 
-    set((state) => ({
-      ...state,
-      status: 'downloading',
-      error: null,
-      shouldPrompt: true,
-      progressPercent: 0,
-      downloadedBytes: 0,
-      totalBytes: null,
-    }))
-
     try {
       writeDismissedUpdateVersion(null)
+      if (downloadPromise) {
+        await downloadPromise
+      }
+
+      update = pendingUpdate
+      if (!update) return
+
+      if (get().status !== 'downloaded') {
+        await startBackgroundDownload(update, set)
+      }
+
+      if (get().status !== 'downloaded') return
+
       const { invoke } = await import('@tauri-apps/api/core')
       const { relaunch } = await import('@tauri-apps/plugin-process')
-      let totalBytes: number | null = null
-      let downloadedBytes = 0
-
-      await update.download((event) => {
-        if (event.event === 'Started') {
-          totalBytes = event.data.contentLength ?? null
-          downloadedBytes = 0
-          set((state) => ({
-            ...state,
-            totalBytes,
-            downloadedBytes: 0,
-            progressPercent: 0,
-          }))
-        } else if (event.event === 'Progress') {
-          downloadedBytes += event.data.chunkLength
-          const progressPercent =
-            totalBytes && totalBytes > 0
-              ? Math.min(Math.round((downloadedBytes / totalBytes) * 100), 100)
-              : 0
-
-          set((state) => ({
-            ...state,
-            downloadedBytes,
-            totalBytes,
-            progressPercent,
-          }))
-        } else if (event.event === 'Finished') {
-          set((state) => ({
-            ...state,
-            progressPercent: 100,
-          }))
-        }
-      })
 
       await invoke('prepare_for_update_install')
       await update.install()
@@ -240,9 +286,9 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
     } catch (error) {
       set((state) => ({
         ...state,
-        status: 'available',
+        status: 'downloaded',
         error: getErrorMessage(error),
-        shouldPrompt: true,
+        shouldPrompt: false,
       }))
     }
   },

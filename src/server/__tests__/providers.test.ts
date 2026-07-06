@@ -112,13 +112,14 @@ describe('ProviderService', () => {
   describe('addProvider', () => {
     test('should add a provider and return it with generated fields', async () => {
       const svc = new ProviderService()
-      const provider = await svc.addProvider(sampleInput())
+      const provider = await svc.addProvider(sampleInput({ supportsImages: true }))
 
       expect(provider.id).toBeDefined()
       expect(provider.name).toBe('Test Provider')
       expect(provider.baseUrl).toBe('https://api.example.com')
       expect(provider.apiKey).toBe('sk-test-key-123')
       expect(provider.models.main).toBe('model-main')
+      expect(provider.supportsImages).toBe(true)
     })
 
     test('new providers should not be auto-activated', async () => {
@@ -205,10 +206,12 @@ describe('ProviderService', () => {
       const updated = await svc.updateProvider(added.id, {
         name: 'Updated Name',
         baseUrl: 'https://new-api.example.com',
+        supportsImages: false,
       })
 
       expect(updated.name).toBe('Updated Name')
       expect(updated.baseUrl).toBe('https://new-api.example.com')
+      expect(updated.supportsImages).toBe(false)
       // unchanged fields preserved
       expect(updated.apiKey).toBe('sk-test-key-123')
     })
@@ -330,6 +333,29 @@ describe('ProviderService', () => {
       expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('model-haiku')
       expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('model-sonnet')
       expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('model-opus')
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toBe('')
+      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toBe('')
+      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toBe('')
+    })
+
+    test('should write image input capabilities on activation and runtime env', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        supportsImages: true,
+      }))
+
+      await svc.activateProvider(provider.id)
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+
+      const runtimeEnv = await svc.getProviderRuntimeEnv(provider.id)
+      expect(runtimeEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(runtimeEnv.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(runtimeEnv.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
     })
 
     test('should write model context windows on activation', async () => {

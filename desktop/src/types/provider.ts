@@ -20,6 +20,7 @@ export type SavedProvider = {
   apiFormat: ApiFormat
   models: ModelMapping
   modelContextWindows?: ModelContextWindows
+  supportsImages?: boolean
   notes?: string
 }
 
@@ -31,6 +32,7 @@ export type CreateProviderInput = {
   apiFormat?: ApiFormat
   models: ModelMapping
   modelContextWindows?: ModelContextWindows
+  supportsImages?: boolean
   notes?: string
 }
 
@@ -41,6 +43,7 @@ export type UpdateProviderInput = {
   apiFormat?: ApiFormat
   models?: ModelMapping
   modelContextWindows?: ModelContextWindows
+  supportsImages?: boolean
   notes?: string
 }
 

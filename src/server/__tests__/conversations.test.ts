@@ -671,6 +671,89 @@ describe('WebSocket Chat Integration', () => {
     expect(statusMsgs[0].state).toBe('thinking')
   })
 
+  it('should reject image attachments before starting a text-only provider session', async () => {
+    const providerService = new ProviderService()
+    const provider = await providerService.addProvider({
+      presetId: 'deepseek',
+      name: 'Text-only Provider',
+      apiKey: 'key-text-only',
+      baseUrl: 'https://api.deepseek.com/anthropic',
+      apiFormat: 'anthropic',
+      models: {
+        main: 'deepseek-chat',
+        haiku: 'deepseek-chat',
+        sonnet: 'deepseek-chat',
+        opus: 'deepseek-chat',
+      },
+    })
+    await providerService.activateProvider(provider.id)
+
+    const sessionId = `chat-image-unsupported-${crypto.randomUUID()}`
+    const messages: any[] = []
+    const originalStartSession = conversationService.startSession.bind(conversationService)
+    let startCallCount = 0
+
+    conversationService.startSession = (async function patchedStartSession(
+      ...args: Parameters<typeof conversationService.startSession>
+    ) {
+      startCallCount++
+      return originalStartSession(...args)
+    }) as typeof conversationService.startSession
+
+    const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          ws.close()
+          reject(new Error(`Timed out waiting for image unsupported error for ${sessionId}`))
+        }, 5000)
+
+        let sawUnsupportedError = false
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data as string)
+          messages.push(msg)
+          if (msg.type === 'connected') {
+            ws.send(JSON.stringify({
+              type: 'user_message',
+              content: 'Please inspect this image',
+              attachments: [{
+                type: 'image',
+                name: 'photo.png',
+                path: '/tmp/photo.png',
+                mimeType: 'image/png',
+              }],
+            }))
+          }
+          if (msg.type === 'error' && msg.code === 'MODEL_IMAGE_UNSUPPORTED') {
+            sawUnsupportedError = true
+          }
+          if (sawUnsupportedError && msg.type === 'status' && msg.state === 'idle') {
+            clearTimeout(timeout)
+            ws.close()
+            resolve()
+          }
+        }
+
+        ws.onerror = () => {
+          clearTimeout(timeout)
+          ws.close()
+          reject(new Error(`WebSocket error for image unsupported session ${sessionId}`))
+        }
+      })
+
+      expect(messages.some((msg) => msg.type === 'error' && msg.code === 'MODEL_IMAGE_UNSUPPORTED')).toBe(true)
+      expect(messages.some((msg) => msg.type === 'status' && msg.state === 'thinking')).toBe(false)
+      expect(startCallCount).toBe(0)
+      expect(conversationService.hasSession(sessionId)).toBe(false)
+    } finally {
+      ws.close()
+      conversationService.startSession = originalStartSession
+      await providerService.activateOfficial()
+      conversationService.stopSession(sessionId)
+    }
+  })
+
   it('should queue user_steer messages through the SDK input stream', async () => {
     const messages: any[] = []
     const sessionId = `chat-steer-${crypto.randomUUID()}`

@@ -24,6 +24,7 @@ const ProviderModelOptionSchema = z.object({
   id: z.string().min(1),
   label: z.string().optional(),
   contextWindow: z.number().int().positive().optional(),
+  supportsImages: z.boolean().optional(),
 })
 
 const ProviderPresetSchema = z.object({
@@ -34,6 +35,7 @@ const ProviderPresetSchema = z.object({
   defaultModels: ModelMappingSchema,
   defaultModelContextWindows: ModelContextWindowsSchema.optional(),
   modelOptions: z.array(ProviderModelOptionSchema).optional(),
+  supportsImages: z.boolean().optional(),
   needsApiKey: z.boolean(),
   websiteUrl: z.string(),
   apiKeyUrl: z.string().optional(),

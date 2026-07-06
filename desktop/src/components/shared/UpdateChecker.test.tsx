@@ -13,15 +13,15 @@ describe('UpdateChecker', () => {
     })
 
     useUpdateStore.setState({
-      status: 'available',
+      status: 'downloaded',
       availableVersion: '0.1.5',
       releaseNotes: '# CyberCode v0.1.5\n\n[Release notes](https://example.com/releases/v0.1.5)',
-      progressPercent: 0,
-      downloadedBytes: 0,
-      totalBytes: null,
+      progressPercent: 100,
+      downloadedBytes: 2048,
+      totalBytes: 2048,
       error: null,
       checkedAt: null,
-      shouldPrompt: true,
+      shouldPrompt: false,
       initialize: vi.fn().mockResolvedValue(undefined),
       checkForUpdates: vi.fn().mockResolvedValue(null),
       installUpdate: vi.fn().mockResolvedValue(undefined),
@@ -29,37 +29,14 @@ describe('UpdateChecker', () => {
     })
   })
 
-  it('renders markdown release notes in the update prompt', () => {
-    render(<UpdateChecker />)
-
-    expect(screen.getAllByText(/v0\.1\.5/).length).toBeGreaterThan(0)
-    expect(screen.getByRole('heading', { name: 'CyberCode v0.1.5' })).toBeInTheDocument()
-
-    const link = screen.getByRole('link', { name: 'Release notes' })
-    expect(link).toHaveAttribute('href', 'https://example.com/releases/v0.1.5')
-    expect(link).toHaveAttribute('target', '_blank')
-  })
-
-  it('shows downloaded bytes when the updater does not provide total size', () => {
-    useUpdateStore.setState({
-      status: 'downloading',
-      availableVersion: '0.1.5',
-      releaseNotes: '# CyberCode v0.1.5',
-      progressPercent: 0,
-      downloadedBytes: 1536,
-      totalBytes: null,
-      error: null,
-      checkedAt: null,
-      shouldPrompt: true,
-      initialize: vi.fn().mockResolvedValue(undefined),
-      checkForUpdates: vi.fn().mockResolvedValue(null),
-      installUpdate: vi.fn().mockResolvedValue(undefined),
-      dismissPrompt: vi.fn(),
-    })
+  it('initializes background update checks without rendering a popup', () => {
+    const initialize = vi.fn().mockResolvedValue(undefined)
+    useUpdateStore.setState({ initialize })
 
     render(<UpdateChecker />)
 
-    expect(screen.getByText(/1\.5 KB/)).toBeInTheDocument()
-    expect(screen.queryByText(/0%/)).not.toBeInTheDocument()
+    expect(initialize).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/v0\.1\.5/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /update/i })).not.toBeInTheDocument()
   })
 })

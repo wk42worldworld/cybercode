@@ -506,6 +506,7 @@ function buildFallbackPreset(provider?: SavedProvider): ProviderPreset {
     apiFormat: provider?.apiFormat ?? 'anthropic',
     defaultModels: provider?.models ?? { main: '', haiku: '', sonnet: '', opus: '' },
     defaultModelContextWindows: provider?.modelContextWindows,
+    supportsImages: provider?.supportsImages,
     needsApiKey: true,
     websiteUrl: '',
   }
@@ -567,6 +568,50 @@ function getPresetModelContextWindow(
   const normalized = modelId?.trim()
   if (!normalized) return undefined
   return preset.modelOptions?.find((option) => option.id === normalized)?.contextWindow
+}
+
+function normalizeModelId(modelId: string | undefined): string {
+  return (modelId ?? '').trim().replace(/:(?:\d+(?:k|m)?|[a-z]+)$/i, '')
+}
+
+function inferModelSupportsImages(modelId: string | undefined): boolean | undefined {
+  const normalized = normalizeModelId(modelId).toLowerCase()
+  if (!normalized) return undefined
+  if (
+    /\b(?:vision|vl|v[\.-]?l|image|img|omni|multimodal)\b/.test(normalized) ||
+    normalized.includes('gemini') ||
+    normalized.includes('gpt-4o') ||
+    normalized.includes('gpt-4.1') ||
+    normalized.includes('gpt-5') ||
+    normalized.includes('claude-3') ||
+    normalized.includes('claude-4') ||
+    normalized.includes('claude-sonnet') ||
+    normalized.includes('claude-opus')
+  ) {
+    return true
+  }
+  if (
+    normalized.includes('deepseek') ||
+    normalized.includes('kimi-k') ||
+    normalized.includes('minimax-m3') ||
+    normalized.includes('mimo-') ||
+    normalized.includes('gpt-oss') ||
+    /\bqwen3(?:[.\-]|$)/.test(normalized)
+  ) {
+    return false
+  }
+  return undefined
+}
+
+function inferProviderSupportsImages(
+  preset: ProviderPreset,
+  modelId: string | undefined,
+): boolean {
+  const normalized = normalizeModelId(modelId)
+  const presetModel = preset.modelOptions?.find((option) =>
+    normalizeModelId(option.id).toLowerCase() === normalized.toLowerCase()
+  )
+  return presetModel?.supportsImages ?? inferModelSupportsImages(normalized) ?? preset.supportsImages ?? false
 }
 
 function ModelIdInput({
@@ -745,6 +790,10 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const [showApiKey, setShowApiKey] = useState(false)
   const [notes, setNotes] = useState(provider?.notes ?? '')
   const [models, setModels] = useState<ModelMapping>(provider?.models ?? { ...initialPreset.defaultModels })
+  const [supportsImages, setSupportsImages] = useState(
+    provider?.supportsImages ?? inferProviderSupportsImages(initialPreset, provider?.models.main ?? initialPreset.defaultModels.main),
+  )
+  const [supportsImagesTouched, setSupportsImagesTouched] = useState(provider?.supportsImages !== undefined)
   const [contextWindowInputs, setContextWindowInputs] = useState<Record<ModelRole, string>>(() =>
     createContextWindowInputs(provider?.models ?? { ...initialPreset.defaultModels }, provider, initialPreset),
   )
@@ -768,6 +817,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
 
   const updateModel = (role: ModelRole, value: string) => {
     setModels((prev) => ({ ...prev, [role]: value }))
+    if (role === 'main' && !supportsImagesTouched) {
+      setSupportsImages(inferProviderSupportsImages(selectedPreset, value))
+    }
     if (contextWindowTouched[role]) return
     const inferred =
       getPresetModelContextWindow(selectedPreset, value) ??
@@ -782,6 +834,11 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const updateContextWindowInput = (role: ModelRole, value: string) => {
     setContextWindowTouched((prev) => ({ ...prev, [role]: true }))
     setContextWindowInputs((prev) => ({ ...prev, [role]: value }))
+  }
+
+  const updateSupportsImages = (next: boolean) => {
+    setSupportsImagesTouched(true)
+    setSupportsImages(next)
   }
 
   // Load current settings.json and merge provider env vars
@@ -895,6 +952,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           apiFormat,
           models,
           modelContextWindows: parsedContextWindows,
+          supportsImages,
           notes: notes.trim() || undefined,
         })
       } else if (provider) {
@@ -904,6 +962,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           apiFormat,
           models,
           modelContextWindows: parsedContextWindows,
+          supportsImages,
           notes: notes.trim() || undefined,
         }
         if (apiKey.trim()) input.apiKey = apiKey.trim()
@@ -1135,6 +1194,22 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                   </div>
                 </div>
               ) : null}
+
+              <div className="flex min-h-[56px] items-center justify-between gap-4 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[14px] py-[10px]">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-bold text-[var(--color-text-primary)]">
+                    {t('settings.providers.supportsImages')}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-[17px] text-[var(--color-text-tertiary)]">
+                    {t('settings.providers.supportsImagesHint')}
+                  </p>
+                </div>
+                <Switch
+                  checked={supportsImages}
+                  onChange={updateSupportsImages}
+                  ariaLabel={t('settings.providers.supportsImages')}
+                />
+              </div>
 
               {/* Model Mapping */}
               <div>
@@ -1948,21 +2023,23 @@ export function AboutSettings() {
   const hasKnownProgress = typeof totalBytes === 'number' && totalBytes > 0
   const downloadedText = formatBytes(downloadedBytes)
   const updateDescription =
-    updateStatus === 'checking'
-      ? t('update.checking')
-      : updateStatus === 'downloading'
-        ? hasKnownProgress
-          ? t('update.progress', { progress: String(progressPercent) })
-          : t('update.progressBytes', { downloaded: downloadedText })
-        : updateStatus === 'restarting'
-          ? t('update.restarting')
-          : updateStatus === 'available' && availableVersion
-            ? t('update.newVersion', { version: availableVersion })
-            : updateStatus === 'up-to-date'
-              ? t('update.upToDate', { version: version || t('update.currentVersionUnknown') })
-              : error
-                ? t('update.failed', { error })
-                : t('update.idle')
+    error
+      ? t('update.failed', { error })
+      : updateStatus === 'checking'
+        ? t('update.checking')
+        : updateStatus === 'downloading'
+          ? hasKnownProgress
+            ? t('update.progress', { progress: String(progressPercent) })
+            : t('update.progressBytes', { downloaded: downloadedText })
+          : updateStatus === 'downloaded'
+            ? t('update.ready')
+            : updateStatus === 'restarting'
+              ? t('update.restarting')
+              : updateStatus === 'available' && availableVersion
+                ? t('update.newVersion', { version: availableVersion })
+                : updateStatus === 'up-to-date'
+                  ? t('update.upToDate', { version: version || t('update.currentVersionUnknown') })
+                  : t('update.idle')
 
   return (
     <div className="w-full min-w-0 max-w-[480px] mx-auto flex flex-col items-center py-10">

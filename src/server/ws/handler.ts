@@ -7,7 +7,7 @@
  */
 
 import type { ServerWebSocket } from 'bun'
-import type { ClientMessage, ServerMessage } from './events.js'
+import type { AttachmentRef, ClientMessage, ServerMessage } from './events.js'
 import * as os from 'node:os'
 import {
   ConversationStartupError,
@@ -32,6 +32,7 @@ import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
 import { buildPastSessionPromptContext } from '../../sessionSearch/promptContext.js'
 import { buildProjectMemoryPromptContext } from '../../sessionSearch/projectMemory.js'
 import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
+import { resolveProviderImageSupport } from '../services/modelImageSupport.js'
 
 const settingsService = new SettingsService()
 const providerService = new ProviderService()
@@ -70,11 +71,13 @@ const runtimeOverrides = new Map<string, {
 
 const runtimeTransitionPromises = new Map<string, Promise<void>>()
 const sessionStartupPromises = new Map<string, Promise<void>>()
+const mediaRecoveryPromises = new Map<string, Promise<void>>()
 const prewarmPendingSessions = new Set<string>()
 const prewarmedSessions = new Set<string>()
 const prewarmIdleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const DEFAULT_PREWARM_IDLE_TIMEOUT_MS = 5 * 60_000
 const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID = 'prompt_memory_auto_review'
+const IMAGE_ATTACHMENT_EXT_RE = /\.(?:png|jpe?g|webp|gif|bmp|heic|heif|tiff?)(?:"|\s|$)/i
 
 export function getSlashCommands(sessionId: string): Array<{ name: string; description: string }> {
   return sessionSlashCommands.get(sessionId) || []
@@ -247,6 +250,7 @@ async function handleUserMessage(
   // Clear any stale stop flag from a previous turn
   sessionStopRequested.delete(sessionId)
   clearPrewarmState(sessionId)
+  await waitForMediaRecovery(sessionId)
 
   const desktopSlashCommand = getDesktopSlashCommand(message.content)
   if (desktopSlashCommand?.commandName === 'clear' && desktopSlashCommand.args.trim()) {
@@ -276,9 +280,6 @@ async function handleUserMessage(
     return
   }
 
-  // Send thinking status
-  sendMessage(ws, { type: 'status', state: 'thinking', verb: 'Thinking' })
-
   const pendingRuntimeTransition = runtimeTransitionPromises.get(sessionId)
   if (pendingRuntimeTransition) {
     try {
@@ -295,6 +296,13 @@ async function handleUserMessage(
       return
     }
   }
+
+  if (!(await ensureImageAttachmentsSupported(ws, message.attachments))) {
+    return
+  }
+
+  // Send thinking status
+  sendMessage(ws, { type: 'status', state: 'thinking', verb: 'Thinking' })
 
   // 启动 CLI 子进程（如果还没有）
   try {
@@ -420,6 +428,8 @@ async function handleUserSteer(
   const steerId = message.steerId.trim()
   const priority = message.priority === 'later' ? 'later' : 'next'
 
+  await waitForMediaRecovery(sessionId)
+
   if (!steerId) {
     sendMessage(ws, {
       type: 'steer_status',
@@ -466,6 +476,10 @@ async function handleUserSteer(
       })
       return
     }
+  }
+
+  if (!(await ensureSteerImageAttachmentsSupported(ws, steerId, message.attachments))) {
+    return
   }
 
   try {
@@ -623,6 +637,100 @@ function handleComputerUsePermissionResponse(
       `[WS] Ignored Computer Use permission response for unknown request ${message.requestId} from ${sessionId}`
     )
   }
+}
+
+function hasImageAttachments(attachments: AttachmentRef[] | undefined): boolean {
+  return (attachments ?? []).some((attachment) => attachment.type === 'image')
+}
+
+async function resolveCurrentImageSupport(sessionId: string) {
+  const runtimeOverride = runtimeOverrides.get(sessionId)
+  if (runtimeOverride?.providerId) {
+    const provider = await providerService.getProvider(runtimeOverride.providerId)
+    return resolveProviderImageSupport(provider, runtimeOverride.modelId)
+  }
+
+  if (runtimeOverride && runtimeOverride.providerId === null) {
+    return resolveProviderImageSupport(null, runtimeOverride.modelId)
+  }
+
+  const { activeId, providers } = await providerService.listProviders()
+  const provider = activeId
+    ? providers.find((item) => item.id === activeId) ?? null
+    : null
+
+  return resolveProviderImageSupport(provider)
+}
+
+function buildImageUnsupportedMessage(support: Awaited<ReturnType<typeof resolveCurrentImageSupport>>): string {
+  const model = support.modelId ? ` (${support.modelId})` : ''
+  const provider = support.providerName ? ` from ${support.providerName}` : ''
+  return `The current model${model}${provider} cannot read images. Switch to a vision-capable model, enable image input in provider settings, or remove the image and send text only.`
+}
+
+async function ensureImageAttachmentsSupported(
+  ws: ServerWebSocket<WebSocketData>,
+  attachments: AttachmentRef[] | undefined,
+): Promise<boolean> {
+  if (!hasImageAttachments(attachments)) return true
+
+  let support: Awaited<ReturnType<typeof resolveCurrentImageSupport>>
+  try {
+    support = await resolveCurrentImageSupport(ws.data.sessionId)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    sendMessage(ws, {
+      type: 'error',
+      message: `Failed to inspect the selected model image support: ${message}`,
+      code: 'MODEL_IMAGE_SUPPORT_CHECK_FAILED',
+      retryable: false,
+    })
+    sendMessage(ws, { type: 'status', state: 'idle' })
+    return false
+  }
+
+  if (support.supportsImages) return true
+
+  sendMessage(ws, {
+    type: 'error',
+    message: buildImageUnsupportedMessage(support),
+    code: 'MODEL_IMAGE_UNSUPPORTED',
+    retryable: false,
+  })
+  sendMessage(ws, { type: 'status', state: 'idle' })
+  return false
+}
+
+async function ensureSteerImageAttachmentsSupported(
+  ws: ServerWebSocket<WebSocketData>,
+  steerId: string,
+  attachments: AttachmentRef[] | undefined,
+): Promise<boolean> {
+  if (!hasImageAttachments(attachments)) return true
+
+  let support: Awaited<ReturnType<typeof resolveCurrentImageSupport>>
+  try {
+    support = await resolveCurrentImageSupport(ws.data.sessionId)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    sendMessage(ws, {
+      type: 'steer_status',
+      steerId,
+      status: 'failed',
+      message: `Failed to inspect the selected model image support: ${message}`,
+    })
+    return false
+  }
+
+  if (support.supportsImages) return true
+
+  sendMessage(ws, {
+    type: 'steer_status',
+    steerId,
+    status: 'failed',
+    message: buildImageUnsupportedMessage(support),
+  })
+  return false
 }
 
 function handleSetPermissionMode(
@@ -878,6 +986,7 @@ function cleanupSessionRuntimeState(sessionId: string) {
   runtimeOverrides.delete(sessionId)
   runtimeTransitionPromises.delete(sessionId)
   sessionStartupPromises.delete(sessionId)
+  mediaRecoveryPromises.delete(sessionId)
   clearPrewarmState(sessionId)
 }
 
@@ -991,6 +1100,94 @@ async function ensureCliSessionStarted(
       sessionStartupPromises.delete(sessionId)
     }
   }
+}
+
+function isMediaRequestError(message: string): boolean {
+  return (
+    /request too large|payload too large|body too large|413|max\s*\d+\s*mb/i.test(message) ||
+    /image (?:was )?too large|image.*exceeds|unable to resize image/i.test(message) ||
+    /image.*not supported|does not support.*image|image input.*not supported|unsupported.*image|vision.*not supported/i.test(message)
+  )
+}
+
+function textMentionsImageAttachment(text: string, sessionId: string): boolean {
+  return (
+    text.includes(`/uploads/${sessionId}/`) ||
+    (/@"[^"]+"/.test(text) && IMAGE_ATTACHMENT_EXT_RE.test(text))
+  )
+}
+
+function contentHasMediaAttachment(content: unknown, sessionId: string): boolean {
+  if (typeof content === 'string') {
+    return textMentionsImageAttachment(content, sessionId)
+  }
+
+  if (!Array.isArray(content)) return false
+
+  return content.some((block) => {
+    if (!block || typeof block !== 'object') return false
+    const record = block as Record<string, unknown>
+    if (record.type === 'image') return true
+    return (
+      record.type === 'text' &&
+      typeof record.text === 'string' &&
+      textMentionsImageAttachment(record.text, sessionId)
+    )
+  })
+}
+
+async function trimLatestMediaUserMessage(sessionId: string): Promise<void> {
+  const { messages } = await sessionService.getSessionMessages(sessionId, { limit: 200 })
+  const mediaUserMessage = [...messages]
+    .reverse()
+    .find((message) =>
+      message.type === 'user' &&
+      contentHasMediaAttachment(message.content, sessionId)
+    )
+
+  if (!mediaUserMessage) return
+
+  const result = await sessionService.trimSessionMessagesFrom(sessionId, mediaUserMessage.id)
+  console.log(
+    `[WS] Trimmed ${result.removedCount} media-tainted transcript messages from ${sessionId} after API media error`,
+  )
+}
+
+async function waitForMediaRecovery(sessionId: string): Promise<void> {
+  const pendingRecovery = mediaRecoveryPromises.get(sessionId)
+  if (!pendingRecovery) return
+
+  try {
+    await pendingRecovery
+  } catch (error) {
+    console.warn(
+      `[WS] Pending media-error recovery failed before handling input for ${sessionId}:`,
+      error,
+    )
+  }
+}
+
+function recoverSessionAfterMediaRequestError(sessionId: string, message: string): void {
+  if (!isMediaRequestError(message)) return
+
+  conversationService.stopSession(sessionId)
+  cleanupStreamState(sessionId)
+  sessionStartupPromises.delete(sessionId)
+  clearPrewarmState(sessionId)
+
+  const recovery = trimLatestMediaUserMessage(sessionId).catch((error) => {
+    console.warn(
+      `[WS] Failed to trim media-tainted transcript turn for ${sessionId}:`,
+      error,
+    )
+  })
+
+  mediaRecoveryPromises.set(sessionId, recovery)
+  recovery.finally(() => {
+    if (mediaRecoveryPromises.get(sessionId) === recovery) {
+      mediaRecoveryPromises.delete(sessionId)
+    }
+  })
 }
 
 function translateCliMessage(cliMsg: any, sessionId: string): ServerMessage[] {
@@ -1244,6 +1441,7 @@ function translateCliMessage(cliMsg: any, sessionId: string): ServerMessage[] {
           (Array.isArray(cliMsg.errors) && cliMsg.errors.length > 0
             ? cliMsg.errors.join('\n')
             : 'Unknown error')
+        recoverSessionAfterMediaRequestError(sessionId, resultMessage)
         // 错误和完成消息都发送
         return [
           {

@@ -7,8 +7,13 @@ export type ModelCapabilityOverride =
   | 'thinking'
   | 'adaptive_thinking'
   | 'interleaved_thinking'
+  | 'images'
 
 const TIERS = [
+  {
+    modelEnvVar: 'ANTHROPIC_MODEL',
+    capabilitiesEnvVar: 'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
+  },
   {
     modelEnvVar: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
     capabilitiesEnvVar: 'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',

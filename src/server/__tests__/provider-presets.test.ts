@@ -114,6 +114,19 @@ describe('provider presets API', () => {
     expect(google?.defaultModelContextWindows?.main).toBe(1_048_576)
   })
 
+  test('configured presets declare default image-input support', () => {
+    const byId = new Map(PROVIDER_PRESETS.map((preset) => [preset.id, preset]))
+
+    expect(byId.get('official')?.supportsImages).toBe(true)
+    expect(byId.get('openai')?.supportsImages).toBe(true)
+    expect(byId.get('google')?.supportsImages).toBe(true)
+    expect(byId.get('deepseek')?.supportsImages).toBe(false)
+    expect(byId.get('kimi')?.supportsImages).toBe(false)
+    expect(byId.get('lmstudio')?.supportsImages).toBe(false)
+    expect(byId.get('ollama')?.supportsImages).toBe(false)
+    expect(byId.get('custom')?.supportsImages).toBe(false)
+  })
+
   test('configured presets expose newest-first model options without requiring them for custom providers', () => {
     const deepseek = PROVIDER_PRESETS.find((preset) => preset.id === 'deepseek')
     const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
