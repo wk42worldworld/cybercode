@@ -666,6 +666,20 @@ describe('SessionService', () => {
     expect(stat.isFile()).toBe(true)
   })
 
+  it('should create a project folder inside the selected parent directory', async () => {
+    const parentDir = path.join(tmpDir, 'workspace')
+    await fs.mkdir(parentDir, { recursive: true })
+
+    const result = await service.createProjectFolder(parentDir, 'new-app')
+
+    expect(result).toEqual({
+      path: path.join(parentDir, 'new-app'),
+      existed: false,
+    })
+    const stat = await fs.stat(result.path)
+    expect(stat.isDirectory()).toBe(true)
+  })
+
   it('should default to the user home directory when workDir is missing', async () => {
     const { sessionId, session } = await service.createSession('')
     const filePath = path.join(
@@ -991,6 +1005,24 @@ describe('Sessions API', () => {
     expect(body.sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     )
+  })
+
+  it('POST /api/sessions/project-folders should create a project folder', async () => {
+    const parentDir = await fs.mkdtemp(path.join(tmpDir, 'api-project-parent-'))
+    const res = await fetch(`${baseUrl}/api/sessions/project-folders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentDir, name: 'new-app' }),
+    })
+    expect(res.status).toBe(201)
+
+    const body = (await res.json()) as { path: string; existed: boolean }
+    expect(body).toEqual({
+      path: path.join(parentDir, 'new-app'),
+      existed: false,
+    })
+    const stat = await fs.stat(body.path)
+    expect(stat.isDirectory()).toBe(true)
   })
 
   it('POST /api/sessions should create a session when workDir is omitted', async () => {

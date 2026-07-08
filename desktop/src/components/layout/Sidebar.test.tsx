@@ -2,18 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-const { getRecentProjectsMock } = vi.hoisted(() => ({
+const { createProjectFolderMock, getRecentProjectsMock, openDialogMock } = vi.hoisted(() => ({
+  createProjectFolderMock: vi.fn(),
   getRecentProjectsMock: vi.fn(),
+  openDialogMock: vi.fn(),
 }))
 
 vi.mock('./ProjectFilter', () => ({
-  ProjectFilter: () => <div data-testid="project-filter" />,
+  ProjectFilter: () => <button type="button" aria-label="All projects" />,
 }))
 
 vi.mock('../../api/sessions', () => ({
   sessionsApi: {
+    createProjectFolder: createProjectFolderMock,
     getRecentProjects: getRecentProjectsMock,
   },
+}))
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: openDialogMock,
 }))
 
 vi.mock('../../i18n', () => ({
@@ -24,10 +31,13 @@ vi.mock('../../i18n', () => ({
       'sidebar.terminal': 'Terminal',
       'sidebar.settings': 'Settings',
       'sidebar.searchPlaceholder': 'Search sessions',
+      'sidebar.allProjects': 'All projects',
       'sidebar.allSessions': 'All sessions',
       'sidebar.temporarySessions': 'Temporary sessions',
       'sidebar.sessionScope': 'Session scope',
       'sidebar.other': 'Other',
+      'sidebar.projectSessionCount': '{count}',
+      'sidebar.removeProject': 'Remove project from sidebar',
       'sidebar.noSessions': 'No sessions',
       'sidebar.noMatching': 'No matching sessions',
       'sidebar.sessionListFailed': 'Session list failed',
@@ -37,6 +47,14 @@ vi.mock('../../i18n', () => ({
       'newSession.recentProjects': 'Recent projects',
       'newSession.noRecentProjects': 'No recent projects',
       'newSession.chooseFolder': 'Choose folder...',
+      'newSession.createProject': 'Create new project',
+      'newSession.createProjectAction': 'Create project',
+      'newSession.projectName': 'Project name',
+      'newSession.projectNamePlaceholder': 'Project name',
+      'newSession.parentFolder': 'Project creation path',
+      'newSession.parentFolderPlaceholder': 'Click to choose project creation path',
+      'newSession.chooseParentFolder': 'Choose project creation path',
+      'newSession.folderPickerUnavailable': 'Unable to open the folder picker. Please use this in the desktop app.',
       'newSession.temporary': 'Temporary Session',
       'newSession.create': 'Create Session',
       'newSession.selectedWorkspace': 'Selected workspace',
@@ -44,7 +62,9 @@ vi.mock('../../i18n', () => ({
       'common.retry': 'Retry',
       'common.cancel': 'Cancel',
       'common.delete': 'Delete',
+      'common.close': 'Close',
       'common.rename': 'Rename',
+      'common.loading': 'Loading',
       'sidebar.timeGroup.today': 'Today',
       'sidebar.timeGroup.yesterday': 'Yesterday',
       'sidebar.timeGroup.last7days': 'Last 7 Days',
@@ -83,8 +103,11 @@ describe('Sidebar', () => {
     createSession.mockReset()
     deleteSession.mockReset()
     addToast.mockReset()
+    createProjectFolderMock.mockReset()
     getRecentProjectsMock.mockReset()
     getRecentProjectsMock.mockResolvedValue({ projects: [] })
+    openDialogMock.mockReset()
+    delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__
 
     localStorage.clear()
     useTabStore.setState({ tabs: [], activeTabId: null })
@@ -94,7 +117,9 @@ describe('Sidebar', () => {
       isLoading: false,
       error: null,
       selectedProjects: [],
+      selectedSessionScope: 'all',
       availableProjects: [],
+      hiddenProjectPaths: [],
       fetchSessions,
       createSession,
       deleteSession,
@@ -195,7 +220,7 @@ describe('Sidebar', () => {
     expect(createSession).not.toHaveBeenCalled()
 
     await act(async () => {
-      fireEvent.click(within(menu).getByRole('menuitem', { name: /project/ }))
+      fireEvent.click(within(menu).getByRole('menuitem', { name: /^project/ }))
     })
 
     await waitFor(() => {
@@ -203,6 +228,147 @@ describe('Sidebar', () => {
       expect(ensureSessionReady).toHaveBeenCalledWith('session-new-project', undefined)
     })
     expect(screen.queryByRole('menu', { name: 'New Session' })).not.toBeInTheDocument()
+  })
+
+  it('creates a new project folder from the plus menu before opening a session', async () => {
+    ;(window as typeof window & { __TAURI__?: unknown }).__TAURI__ = {}
+    openDialogMock.mockResolvedValue('/workspace')
+    createProjectFolderMock.mockResolvedValue({ path: '/workspace/new-app', existed: false })
+    createSession.mockResolvedValue('session-new-project')
+
+    render(<Sidebar />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'New Session' }))
+    })
+
+    const menu = await screen.findByRole('menu', { name: 'New Session' })
+    await act(async () => {
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Create new project' }))
+    })
+
+    expect(screen.queryByRole('menu', { name: 'New Session' })).not.toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Create new project' })
+    fireEvent.change(within(dialog).getByPlaceholderText('Project name'), {
+      target: { value: 'new-app' },
+    })
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Choose project creation path' }))
+    })
+
+    await waitFor(() => {
+      expect(within(dialog).getByPlaceholderText('Click to choose project creation path')).toHaveValue('/workspace')
+    })
+
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create project' }))
+    })
+
+    await waitFor(() => {
+      expect(openDialogMock).toHaveBeenCalledWith({
+        directory: true,
+        multiple: false,
+        title: 'Choose project creation path',
+      })
+      expect(createProjectFolderMock).toHaveBeenCalledWith({
+        parentDir: '/workspace',
+        name: 'new-app',
+      })
+      expect(createSession).toHaveBeenCalledWith('/workspace/new-app')
+      expect(ensureSessionReady).toHaveBeenCalledWith('session-new-project', undefined)
+    })
+  })
+
+  it('keeps the current project filter when creating from a project in the plus menu', async () => {
+    const now = new Date().toISOString()
+    getRecentProjectsMock.mockResolvedValue({
+      projects: [
+        {
+          projectPath: '-workspace-alpha',
+          realPath: '/workspace/alpha',
+          projectName: 'alpha',
+          isGit: true,
+          repoName: 'Alpha Repo',
+          branch: 'main',
+          modifiedAt: now,
+          sessionCount: 0,
+        },
+      ],
+    })
+    createSession.mockImplementation(async (input) => {
+      expect(input).toBe('/workspace/alpha')
+      useSessionStore.setState((state) => ({
+        sessions: [
+          {
+            id: 'session-created-alpha',
+            title: 'New Session',
+            lastMessage: 'created alpha transcript',
+            createdAt: now,
+            modifiedAt: now,
+            messageCount: 0,
+            projectPath: '-workspace-alpha',
+            workDir: '/workspace/alpha',
+            workDirExists: true,
+            isTemporary: false,
+          },
+          ...state.sessions,
+        ],
+        availableProjects: ['-workspace-alpha', '-workspace-beta'],
+      }))
+      return 'session-created-alpha'
+    })
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-beta',
+          title: 'Beta Session',
+          lastMessage: 'beta transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-beta',
+          workDir: '/workspace/beta',
+          workDirExists: true,
+          isTemporary: false,
+        },
+        {
+          id: 'session-temp',
+          title: 'Temporary Session',
+          lastMessage: 'temp transcript',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-Users-test',
+          workDir: '/Users/test',
+          workDirExists: true,
+          isTemporary: true,
+        },
+      ],
+      availableProjects: ['-workspace-beta'],
+    })
+
+    render(<Sidebar />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'New Session' }))
+    })
+
+    const menu = await screen.findByRole('menu', { name: 'New Session' })
+    const alphaProject = await within(menu).findByRole('menuitem', { name: /Alpha Repo/i })
+
+    await act(async () => {
+      fireEvent.click(alphaProject)
+    })
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().selectedProjects).toEqual([])
+      expect(ensureSessionReady).toHaveBeenCalledWith('session-created-alpha', '-workspace-alpha')
+    })
+
+    expect(screen.getByText('created alpha transcript')).toBeInTheDocument()
+    expect(screen.getByText('beta transcript')).toBeInTheDocument()
+    expect(screen.getByText('temp transcript')).toBeInTheDocument()
   })
 
   it('requires confirmation before deleting a session from the hover action', async () => {
@@ -308,7 +474,7 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 
-  it('filters sessions by all sessions, temporary sessions, and project', async () => {
+  it('groups sessions by project, keeps temporary sessions last, and supports collapse/search/remove', async () => {
     const now = new Date().toISOString()
     useSessionStore.setState({
       sessions: [
@@ -316,8 +482,8 @@ describe('Sidebar', () => {
           id: 'session-alpha',
           title: 'Alpha Session',
           lastMessage: 'alpha transcript',
-          createdAt: now,
-          modifiedAt: now,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          modifiedAt: '2026-01-01T00:03:00.000Z',
           messageCount: 1,
           projectPath: '-workspace-alpha',
           workDir: '/workspace/alpha',
@@ -328,8 +494,8 @@ describe('Sidebar', () => {
           id: 'session-beta',
           title: 'Beta Session',
           lastMessage: 'beta transcript',
-          createdAt: now,
-          modifiedAt: now,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          modifiedAt: '2026-01-01T00:02:00.000Z',
           messageCount: 1,
           projectPath: '-workspace-beta',
           workDir: '/workspace/beta',
@@ -341,7 +507,7 @@ describe('Sidebar', () => {
           title: 'Temporary Session',
           lastMessage: 'temp transcript',
           createdAt: now,
-          modifiedAt: now,
+          modifiedAt: '2026-01-01T00:05:00.000Z',
           messageCount: 1,
           projectPath: '-Users-test',
           workDir: '/Users/test',
@@ -357,31 +523,93 @@ describe('Sidebar', () => {
 
     render(<Sidebar />)
 
+    const list = screen.getByTestId('sidebar-session-list-section')
+    let sections = within(list).getAllByRole('region')
+    expect(sections.map((section) => section.getAttribute('aria-label'))).toEqual([
+      'alpha',
+      'beta',
+      'Temporary sessions',
+    ])
     expect(screen.getByText('alpha transcript')).toBeInTheDocument()
     expect(screen.getByText('beta transcript')).toBeInTheDocument()
     expect(screen.getByText('temp transcript')).toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /All sessions/ }))
-    })
-    await act(async () => {
-      fireEvent.click(screen.getByRole('menuitemradio', { name: /Temporary sessions/ }))
+      useSessionStore.getState().setSelectedProjects(['-workspace-beta'])
     })
 
+    sections = within(list).getAllByRole('region')
+    expect(sections.map((section) => section.getAttribute('aria-label'))).toEqual(['beta'])
+    expect(screen.queryByText('alpha transcript')).not.toBeInTheDocument()
+    expect(screen.getByText('beta transcript')).toBeInTheDocument()
+    expect(screen.queryByText('temp transcript')).not.toBeInTheDocument()
+
+    await act(async () => {
+      useSessionStore.getState().setSelectedProjects([])
+    })
+
+    sections = within(list).getAllByRole('region')
+    expect(sections.map((section) => section.getAttribute('aria-label'))).toEqual([
+      'alpha',
+      'beta',
+      'Temporary sessions',
+    ])
+
+    await act(async () => {
+      useSessionStore.getState().setSessionFilterScope('temporary')
+    })
+
+    sections = within(list).getAllByRole('region')
+    expect(sections.map((section) => section.getAttribute('aria-label'))).toEqual(['Temporary sessions'])
     expect(screen.queryByText('alpha transcript')).not.toBeInTheDocument()
     expect(screen.queryByText('beta transcript')).not.toBeInTheDocument()
     expect(screen.getByText('temp transcript')).toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Temporary sessions/ }))
+      useSessionStore.getState().setSessionFilterScope('all')
     })
+
+    sections = within(list).getAllByRole('region')
+    expect(sections.map((section) => section.getAttribute('aria-label'))).toEqual([
+      'alpha',
+      'beta',
+      'Temporary sessions',
+    ])
+
     await act(async () => {
-      fireEvent.click(screen.getByRole('menuitemradio', { name: /alpha/ }))
+      fireEvent.click(within(sections[0]!).getAllByRole('button')[0]!)
+    })
+
+    expect(screen.queryByText('alpha transcript')).not.toBeInTheDocument()
+    expect(screen.getByText('beta transcript')).toBeInTheDocument()
+    expect(screen.getByText('temp transcript')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('Search sessions'), {
+        target: { value: 'alpha' },
+      })
     })
 
     expect(screen.getByText('alpha transcript')).toBeInTheDocument()
     expect(screen.queryByText('beta transcript')).not.toBeInTheDocument()
     expect(screen.queryByText('temp transcript')).not.toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('Search sessions'), {
+        target: { value: '' },
+      })
+    })
+
+    const alphaHeader = within(screen.getByRole('region', { name: 'alpha' })).getAllByRole('button')[0]!
+    fireEvent.contextMenu(alphaHeader, { clientX: 100, clientY: 100 })
+    await act(async () => {
+      fireEvent.click(screen.getByText('Remove project from sidebar'))
+    })
+
+    expect(useSessionStore.getState().hiddenProjectPaths).toEqual(['-workspace-alpha'])
+    expect(screen.queryByText('alpha transcript')).not.toBeInTheDocument()
+    expect(screen.getByText('beta transcript')).toBeInTheDocument()
+    expect(screen.getByText('temp transcript')).toBeInTheDocument()
   })
 
   it('keeps the session list section in a constrained flex column for scrolling', () => {

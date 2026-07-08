@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from '../../i18n'
 import { NewSessionChooser, type CurrentProject } from './NewSessionChooser'
@@ -17,11 +17,13 @@ type NewSessionMenuProps = {
   currentProject?: CurrentProject
   onClose: () => void
   onCreate: (input?: CreateSessionInput) => Promise<boolean>
+  onCreateProject: () => void
 }
 
 const MENU_WIDTH = 336
 const MENU_MAX_HEIGHT = 460
-const MENU_MIN_HEIGHT = 220
+const MENU_MIN_HEIGHT = 360
+const MENU_PANEL_HEIGHT = 420
 const VIEWPORT_MARGIN = 12
 
 function cssPixelVar(name: string, fallback: number): number {
@@ -37,6 +39,7 @@ export function NewSessionMenu({
   currentProject,
   onClose,
   onCreate,
+  onCreateProject,
 }: NewSessionMenuProps) {
   const t = useTranslation()
   const [position, setPosition] = useState<MenuPosition | null>(null)
@@ -64,7 +67,7 @@ export function NewSessionMenu({
     })
   }, [anchorRef])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return
     updatePosition()
     window.addEventListener('resize', updatePosition)
@@ -106,10 +109,16 @@ export function NewSessionMenu({
         top: position.top,
         left: position.left,
         width: position.width,
+        height: Math.min(position.maxHeight, MENU_PANEL_HEIGHT),
         maxHeight: position.maxHeight,
       }}
     >
-      <NewSessionChooser currentProject={currentProject} onClose={onClose} onCreate={onCreate} />
+      <NewSessionChooser
+        currentProject={currentProject}
+        onClose={onClose}
+        onCreate={onCreate}
+        onCreateProject={onCreateProject}
+      />
     </div>,
     document.body,
   )

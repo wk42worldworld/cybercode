@@ -312,7 +312,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
               {!isMemberSession && <PendingSteerBar sessionId={sessionId} />}
               <TeamStatusBar />
             </div>
-            <div ref={composerShellRef} className="pointer-events-none">
+            <div ref={composerShellRef} className="pointer-events-auto">
               <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" runtimeKey={sessionId} />
             </div>
           </div>

@@ -4,6 +4,7 @@ import { feature } from 'bun:bundle'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
 import { getCanonicalName } from './model/model.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
+import { requiresEnabledThinkingParamForModel } from './model/thinkingPolicy.js'
 import { getAPIProvider, isFirstPartyAnthropicBaseUrl } from './model/providers.js'
 import { getSettingsWithErrors } from './settings/settings.js'
 
@@ -88,6 +89,10 @@ export function getRainbowColor(
 // TODO(inigo): add support for probing unknown models via API error detection
 // Provider-aware thinking support detection (aligns with modelSupportsISP in betas.ts)
 export function modelSupportsThinking(model: string): boolean {
+  if (requiresEnabledThinkingParamForModel(model)) {
+    return true
+  }
+
   const supported3P = get3PModelCapabilityOverride(model, 'thinking')
   if (supported3P !== undefined) {
     return supported3P

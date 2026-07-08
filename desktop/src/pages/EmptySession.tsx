@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { NewProjectDialog } from '../components/layout/NewProjectDialog'
 import { NewSessionChooser, resolveCurrentProject } from '../components/layout/NewSessionChooser'
 import { useCreateAndOpenSession } from '../hooks/useCreateAndOpenSession'
 import { useTranslation } from '../i18n'
@@ -9,6 +10,7 @@ export function EmptySession() {
   const sessions = useSessionStore((state) => state.sessions)
   const selectedProjects = useSessionStore((state) => state.selectedProjects)
   const createAndOpenSession = useCreateAndOpenSession()
+  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false)
   const currentProject = useMemo(
     () => resolveCurrentProject(selectedProjects, sessions),
     [selectedProjects, sessions],
@@ -22,9 +24,18 @@ export function EmptySession() {
           aria-label={t('newSession.title')}
           className="flex max-h-[460px] min-h-[220px] w-full max-w-[336px] flex-col overflow-hidden rounded-[12px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-dropdown)]"
         >
-          <NewSessionChooser currentProject={currentProject} onCreate={createAndOpenSession} />
+          <NewSessionChooser
+            currentProject={currentProject}
+            onCreate={createAndOpenSession}
+            onCreateProject={() => setNewProjectDialogOpen(true)}
+          />
         </div>
       </div>
+      <NewProjectDialog
+        open={newProjectDialogOpen}
+        onClose={() => setNewProjectDialogOpen(false)}
+        onCreate={createAndOpenSession}
+      />
     </div>
   )
 }

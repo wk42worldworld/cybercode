@@ -21,6 +21,7 @@ vi.mock('../../i18n', () => ({
   useTranslation: () => (key: string) => {
     const translations: Record<string, string> = {
       'sidebar.allProjects': 'All projects',
+      'sidebar.temporarySessions': 'Temporary sessions',
       'sidebar.other': 'Other',
       'sidebar.noSessions': 'No sessions',
       'common.loading': 'Loading',
@@ -42,6 +43,7 @@ describe('ProjectFilter', () => {
       isLoading: false,
       error: null,
       selectedProjects: [],
+      selectedSessionScope: 'all',
       availableProjects: [
         'Users-dev-workspace-myself_code-OpenCutSkill',
         'Users-dev-workspace-myself_code-cybercode',
@@ -89,8 +91,33 @@ describe('ProjectFilter', () => {
 
     await waitFor(() => {
       expect(useSessionStore.getState().selectedProjects).toEqual(['Users-dev-workspace-myself_code-cybercode'])
+      expect(useSessionStore.getState().selectedSessionScope).toBe('project')
     })
 
-    expect(screen.getAllByRole('button', { name: /wk42worldworld\/cybercode/i })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /wk42worldworld\/cybercode/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /wk42worldworld\/cybercode/i }))
+    fireEvent.click(screen.getByRole('button', { name: /wk42worldworld\/OpenCutSkill/i }))
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().selectedProjects).toEqual(['Users-dev-workspace-myself_code-OpenCutSkill'])
+      expect(useSessionStore.getState().selectedSessionScope).toBe('project')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /wk42worldworld\/OpenCutSkill/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Temporary sessions/i }))
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().selectedProjects).toEqual([])
+      expect(useSessionStore.getState().selectedSessionScope).toBe('temporary')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Temporary sessions/i }))
+    fireEvent.click(screen.getByRole('button', { name: /All projects/i }))
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().selectedProjects).toEqual([])
+      expect(useSessionStore.getState().selectedSessionScope).toBe('all')
+    })
   })
 })

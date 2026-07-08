@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { sessionsApi, type RecentProject } from '../../api/sessions'
 import { useTranslation } from '../../i18n'
+import { useUIStore } from '../../stores/uiStore'
 import type { CreateSessionInput, SessionListItem } from '../../types/session'
 import { Icon } from '../shared/Icon'
 
@@ -14,11 +15,10 @@ type NewSessionChooserProps = {
   currentProject?: CurrentProject
   onClose?: () => void
   onCreate: (input?: CreateSessionInput) => Promise<boolean>
+  onCreateProject: () => void
 }
 
-function isTauriRuntime() {
-  return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
-}
+let cachedRecentProjects: RecentProject[] | null = null
 
 function basename(path: string) {
   return path.split('/').filter(Boolean).pop() || path
@@ -35,8 +35,6 @@ function compactPath(path: string): string {
 }
 
 async function chooseFolder(title: string): Promise<string | null> {
-  if (!isTauriRuntime()) return null
-
   const { open } = await import('@tauri-apps/plugin-dialog')
   const selected = await open({
     directory: true,
@@ -74,19 +72,28 @@ export function NewSessionChooser({
   currentProject,
   onClose,
   onCreate,
+  onCreateProject,
 }: NewSessionChooserProps) {
   const t = useTranslation()
-  const [projects, setProjects] = useState<RecentProject[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const addToast = useUIStore((state) => state.addToast)
+  const [projects, setProjects] = useState<RecentProject[]>(() => cachedRecentProjects ?? [])
+  const [isLoading, setIsLoading] = useState(() => cachedRecentProjects === null)
   const [creatingKey, setCreatingKey] = useState<string | null>(null)
 
   useEffect(() => {
     let alive = true
 
-    setIsLoading(true)
+    if (cachedRecentProjects) {
+      setProjects(cachedRecentProjects)
+      setIsLoading(false)
+    } else {
+      setIsLoading(true)
+    }
+
     sessionsApi.getRecentProjects(8)
-      .then(({ projects }) => {
-        if (alive) setProjects(projects)
+      .then(({ projects: nextProjects }) => {
+        cachedRecentProjects = nextProjects
+        if (alive) setProjects(nextProjects)
       })
       .catch(() => {
         if (alive) setProjects([])
@@ -124,9 +131,21 @@ export function NewSessionChooser({
       if (!selected) return
       const ok = await onCreate(selected)
       if (ok) onClose?.()
+    } catch (error) {
+      console.error('[NewSessionChooser] Failed to open folder dialog:', error)
+      addToast({
+        type: 'error',
+        message: t('newSession.folderPickerUnavailable'),
+      })
     } finally {
       setCreatingKey(null)
     }
+  }
+
+  const handleCreateProject = () => {
+    if (creatingKey) return
+    onClose?.()
+    window.setTimeout(onCreateProject, 0)
   }
 
   return (
@@ -149,10 +168,8 @@ export function NewSessionChooser({
           </>
         )}
 
-        {isLoading ? (
-          <div className="px-3 py-4 text-center text-[12px] text-[var(--color-text-tertiary)]">
-            {t('common.loading')}
-          </div>
+        {isLoading && projects.length === 0 ? (
+          <RecentProjectsSkeleton />
         ) : recentProjects.length > 0 ? (
           <>
             <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">
@@ -180,6 +197,13 @@ export function NewSessionChooser({
 
       <div className="shrink-0 border-t border-[var(--color-border-separator)] p-1.5">
         <ActionMenuItem
+          icon="create_new_folder"
+          title={t('newSession.createProject')}
+          loading={false}
+          disabled={!!creatingKey}
+          onClick={handleCreateProject}
+        />
+        <ActionMenuItem
           icon="folder_open"
           title={t('newSession.chooseFolder')}
           loading={creatingKey === 'choose-folder'}
@@ -196,6 +220,28 @@ export function NewSessionChooser({
         />
       </div>
     </>
+  )
+}
+
+function RecentProjectsSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="px-2.5 pb-1 pt-1.5">
+        <div className="h-[10px] w-[82px] animate-pulse rounded-full bg-[var(--color-surface-container-high)]" />
+      </div>
+      {[0, 1, 2].map((index) => (
+        <div
+          key={index}
+          className="flex w-full items-center gap-3 rounded-[8px] px-2.5 py-2"
+        >
+          <span className="h-8 w-8 shrink-0 animate-pulse rounded-[6px] bg-[var(--color-surface-container)]" />
+          <span className="min-w-0 flex-1 space-y-2">
+            <span className="block h-[12px] w-[62%] animate-pulse rounded-full bg-[var(--color-surface-container-high)]" />
+            <span className="block h-[10px] w-[86%] animate-pulse rounded-full bg-[var(--color-surface-container)]" />
+          </span>
+        </div>
+      ))}
+    </div>
   )
 }
 

@@ -486,6 +486,97 @@ describe('ProviderService', () => {
       expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
       expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
       expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(settings.model).toBe('model-main')
+      expect(settings.modelContext).toBeUndefined()
+    })
+
+    test('should replace stale managed model when switching providers', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'zhipuglm',
+        name: 'Zhipu GLM',
+        baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+        models: {
+          main: 'glm-5.2',
+          haiku: 'glm-4.7',
+          sonnet: 'glm-5-turbo',
+          opus: 'glm-5.1',
+        },
+      }))
+
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'settings.json'), JSON.stringify({
+        model: 'kimi-k2.6',
+        modelContext: '1m',
+        skipWebFetchPreflight: true,
+      }, null, 2), 'utf-8')
+
+      await svc.activateProvider(provider.id)
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(settings.model).toBe('glm-5.2')
+      expect(settings.modelContext).toBeUndefined()
+      expect(env.ANTHROPIC_MODEL).toBe('glm-5.2')
+    })
+
+    test('should preserve an existing managed model when it belongs to the active provider', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'zhipuglm',
+        name: 'Zhipu GLM',
+        baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+        models: {
+          main: 'glm-5.2',
+          haiku: 'glm-4.7',
+          sonnet: 'glm-5-turbo',
+          opus: 'glm-5.1',
+        },
+      }))
+
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'settings.json'), JSON.stringify({
+        model: 'glm-5-turbo',
+      }, null, 2), 'utf-8')
+
+      await svc.activateProvider(provider.id)
+
+      const settings = await readSettings()
+      expect(settings.model).toBe('glm-5-turbo')
+    })
+
+    test('should repair stale managed model when settings are read', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'zhipuglm',
+        name: 'Zhipu GLM',
+        baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+        models: {
+          main: 'glm-5.2',
+          haiku: 'glm-4.7',
+          sonnet: 'glm-5-turbo',
+          opus: 'glm-5.1',
+        },
+      }))
+      await svc.activateProvider(provider.id)
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'settings.json'), JSON.stringify({
+        model: 'kimi-k2.6',
+        env: {
+          ANTHROPIC_BASE_URL: 'https://open.bigmodel.cn/api/anthropic',
+          ANTHROPIC_API_KEY: 'sk-zhipu',
+          ANTHROPIC_MODEL: 'glm-5.2',
+        },
+      }, null, 2), 'utf-8')
+
+      const settings = await svc.getManagedSettings()
+      const env = settings.env as Record<string, string>
+      const persisted = await readSettings()
+      const persistedEnv = persisted.env as Record<string, string>
+
+      expect(settings.model).toBe('glm-5.2')
+      expect(env.ANTHROPIC_MODEL).toBe('glm-5.2')
+      expect(persisted.model).toBe('glm-5.2')
+      expect(persistedEnv.ANTHROPIC_MODEL).toBe('glm-5.2')
     })
 
     test('should write image input capabilities on activation and runtime env', async () => {
@@ -719,6 +810,35 @@ describe('ProviderService', () => {
           baseUrl: 'https://api.kimi.com/coding/',
           apiKey: 'test-key',
           modelId: 'kimi-for-coding',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(bodies[0].thinking).toEqual({ type: 'enabled' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should apply GLM enabled-thinking defaults during connectivity checks', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const bodies: Array<Record<string, unknown>> = []
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>)
+        return Response.json({
+          type: 'message',
+          model: 'glm-5.2',
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+          apiKey: 'test-key',
+          modelId: 'glm-5.2[1m]',
           apiFormat: 'anthropic',
         })
 

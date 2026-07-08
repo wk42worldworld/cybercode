@@ -284,8 +284,14 @@ function pendingSteerAttachmentsToRefs(attachments?: UIAttachment[]): Attachment
     name: attachment.name,
     path: attachment.path,
     data: attachment.data,
+    previewUrl: attachment.previewUrl || (attachment.type === 'image' ? attachment.data : undefined),
     mimeType: attachment.mimeType,
   }))
+}
+
+function attachmentsForTransport(attachments?: AttachmentRef[]): AttachmentRef[] | undefined {
+  if (!attachments?.length) return attachments
+  return attachments.map(({ previewUrl: _previewUrl, ...attachment }) => attachment)
 }
 
 function mergePendingSteers(steers: PendingSteer[]): { content: string; attachments?: AttachmentRef[] } {
@@ -568,6 +574,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             name: a.name || a.path || a.mimeType || a.type,
             path: a.path,
             data: a.data,
+            previewUrl: a.previewUrl || (a.type === 'image' ? a.data : undefined),
             mimeType: a.mimeType,
           }))
         : undefined
@@ -665,7 +672,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return
     }
 
-    wsManager.send(sessionId, { type: 'user_message', content, attachments })
+    wsManager.send(sessionId, { type: 'user_message', content, attachments: attachmentsForTransport(attachments) })
   },
 
   queuePendingSteer: (sessionId, content, attachments, options) => {
@@ -677,6 +684,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             name: a.name || a.path || a.mimeType || a.type,
             path: a.path,
             data: a.data,
+            previewUrl: a.previewUrl || (a.type === 'image' ? a.data : undefined),
             mimeType: a.mimeType,
           }))
         : undefined

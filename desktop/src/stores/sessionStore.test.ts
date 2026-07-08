@@ -38,7 +38,9 @@ describe('sessionStore', () => {
       isLoading: false,
       error: null,
       selectedProjects: [],
+      selectedSessionScope: 'all',
       availableProjects: [],
+      hiddenProjectPaths: [],
     })
     useSettingsStore.setState({ locale: 'zh' })
   })
@@ -130,6 +132,87 @@ describe('sessionStore', () => {
 
     await useSessionStore.getState().fetchSessions()
 
+    expect(useSessionStore.getState().availableProjects).toEqual(['-workspace-project'])
+  })
+
+  it('keeps the sidebar filter scope mutually exclusive', () => {
+    useSessionStore.getState().setSelectedProjects(['-workspace-alpha', '-workspace-beta'])
+
+    expect(useSessionStore.getState().selectedProjects).toEqual(['-workspace-alpha'])
+    expect(useSessionStore.getState().selectedSessionScope).toBe('project')
+
+    useSessionStore.getState().setSessionFilterScope('temporary')
+
+    expect(useSessionStore.getState().selectedProjects).toEqual([])
+    expect(useSessionStore.getState().selectedSessionScope).toBe('temporary')
+
+    useSessionStore.getState().setSessionFilterScope('project', '-workspace-beta')
+
+    expect(useSessionStore.getState().selectedProjects).toEqual(['-workspace-beta'])
+    expect(useSessionStore.getState().selectedSessionScope).toBe('project')
+
+    useSessionStore.getState().setSessionFilterScope('all')
+
+    expect(useSessionStore.getState().selectedProjects).toEqual([])
+    expect(useSessionStore.getState().selectedSessionScope).toBe('all')
+  })
+
+  it('hides projects from sidebar availability without deleting their sessions', () => {
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-project',
+          title: 'Project',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          modifiedAt: '2026-01-01T00:00:00.000Z',
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+          isTemporary: false,
+        },
+      ],
+      availableProjects: ['-workspace-project'],
+      selectedProjects: ['-workspace-project'],
+      selectedSessionScope: 'project',
+      hiddenProjectPaths: [],
+    })
+
+    useSessionStore.getState().hideProject('-workspace-project')
+
+    expect(useSessionStore.getState().hiddenProjectPaths).toEqual(['-workspace-project'])
+    expect(useSessionStore.getState().availableProjects).toEqual([])
+    expect(useSessionStore.getState().selectedProjects).toEqual([])
+    expect(useSessionStore.getState().selectedSessionScope).toBe('all')
+    expect(useSessionStore.getState().sessions).toHaveLength(1)
+  })
+
+  it('restores a hidden project when creating a session in that project', async () => {
+    const now = '2026-01-01T00:00:00.000Z'
+    createMock.mockResolvedValue({
+      sessionId: 'session-restored-project',
+      session: {
+        id: 'session-restored-project',
+        title: 'Untitled Session',
+        lastMessage: '',
+        createdAt: now,
+        modifiedAt: now,
+        messageCount: 0,
+        projectPath: '-workspace-project',
+        workDir: '/workspace/project',
+        workDirExists: true,
+        isTemporary: false,
+      },
+    })
+    listMock.mockImplementation(() => new Promise(() => {}))
+    useSessionStore.setState({
+      hiddenProjectPaths: ['-workspace-project'],
+      availableProjects: [],
+    })
+
+    await useSessionStore.getState().createSession('/workspace/project')
+
+    expect(useSessionStore.getState().hiddenProjectPaths).toEqual([])
     expect(useSessionStore.getState().availableProjects).toEqual(['-workspace-project'])
   })
 

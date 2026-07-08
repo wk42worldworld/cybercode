@@ -56,6 +56,11 @@ export async function handleSessionsApi(
       return await getRecentProjects(url)
     }
 
+    // Special collection route: /api/sessions/project-folders
+    if (sessionId === 'project-folders' && req.method === 'POST') {
+      return await createProjectFolder(req)
+    }
+
     // -----------------------------------------------------------------------
     // Sub-resource routes: /api/sessions/:id/messages
     // -----------------------------------------------------------------------
@@ -207,6 +212,25 @@ async function createSession(req: Request): Promise<Response> {
     temporary: body.temporary === true,
   })
   return Response.json(result, { status: 201 })
+}
+
+async function createProjectFolder(req: Request): Promise<Response> {
+  let body: { parentDir?: string; name?: string }
+  try {
+    body = (await req.json()) as { parentDir?: string; name?: string }
+  } catch {
+    throw ApiError.badRequest('Invalid JSON body')
+  }
+
+  if (typeof body.parentDir !== 'string' || body.parentDir.trim().length === 0) {
+    throw ApiError.badRequest('parentDir (string) is required in request body')
+  }
+  if (typeof body.name !== 'string' || body.name.trim().length === 0) {
+    throw ApiError.badRequest('name (string) is required in request body')
+  }
+
+  const result = await sessionService.createProjectFolder(body.parentDir, body.name)
+  return Response.json(result, { status: result.existed ? 200 : 201 })
 }
 
 async function deleteSession(sessionId: string, url: URL): Promise<Response> {

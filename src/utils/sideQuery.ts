@@ -16,7 +16,10 @@ import { getAPIMetadata } from '../services/api/claude.js'
 import { getAnthropicClient } from '../services/api/client.js'
 import { getModelBetas, modelSupportsStructuredOutputs } from './betas.js'
 import { computeFingerprint } from './fingerprint.js'
-import { shouldOmitDisabledThinkingForModel } from './model/kimi.js'
+import {
+  requiresEnabledThinkingParamForModel,
+  shouldOmitDisabledThinkingForModel,
+} from './model/thinkingPolicy.js'
 import { normalizeModelStringForAPI } from './model/model.js'
 
 type MessageParam = Anthropic.MessageParam
@@ -168,7 +171,11 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
   ].filter((block): block is TextBlockParam => block !== null)
 
   let thinkingConfig: BetaThinkingConfigParam | undefined
-  if (thinking === false) {
+  if (requiresEnabledThinkingParamForModel(model)) {
+    thinkingConfig = {
+      type: 'enabled',
+    } as BetaThinkingConfigParam
+  } else if (thinking === false) {
     thinkingConfig = shouldOmitDisabledThinkingForModel(model)
       ? undefined
       : { type: 'disabled' }

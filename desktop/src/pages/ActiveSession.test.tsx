@@ -56,6 +56,62 @@ afterEach(() => {
 })
 
 describe('ActiveSession task polling', () => {
+  it('keeps the composer clickable above the bottom overlay', () => {
+    const sessionId = 'clickable-composer-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Clickable Composer',
+        createdAt: '2026-04-10T00:00:00.000Z',
+        modifiedAt: '2026-04-10T00:00:00.000Z',
+        messageCount: 1,
+        projectPath: '',
+        workDir: null,
+        workDirExists: true,
+        isTemporary: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Clickable Composer', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady: vi.fn().mockResolvedValue(undefined),
+      sessions: {
+        [sessionId]: {
+          messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'idle',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    const composerShell = screen.getByTestId('chat-input').parentElement
+    expect(composerShell).toHaveClass('pointer-events-auto')
+    expect(composerShell).not.toHaveClass('pointer-events-none')
+  })
+
   it('refreshes CLI tasks repeatedly while a turn is active', async () => {
     vi.useFakeTimers()
 

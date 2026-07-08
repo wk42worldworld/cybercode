@@ -526,6 +526,20 @@ function openExternalUrl(url: string) {
 const API_KEY_JSON_PLACEHOLDER = '••••••••'
 const API_KEY_JSON_KEYS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'] as const
 const MODEL_CONTEXT_WINDOWS_ENV = 'CYBERCODE_MODEL_CONTEXT_WINDOWS'
+const MANAGED_PROVIDER_JSON_ENV_KEYS = new Set<string>([
+  'ANTHROPIC_BASE_URL',
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_MODEL',
+  'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+  MODEL_CONTEXT_WINDOWS_ENV,
+])
 
 function createContextWindowInputs(
   models: ModelMapping,
@@ -842,19 +856,24 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
         const existingEnv = (settings.env as Record<string, string>) || {}
         const cleanedEnv = Object.fromEntries(
           Object.entries(existingEnv).filter(([key]) =>
-            !presetDefaultEnvKeys.has(key) && key !== MODEL_CONTEXT_WINDOWS_ENV,
+            !presetDefaultEnvKeys.has(key) && !MANAGED_PROVIDER_JSON_ENV_KEYS.has(key),
           ),
         )
+        const previewApiKey =
+          apiKey ||
+          selectedPreset.defaultEnv?.ANTHROPIC_API_KEY ||
+          selectedPreset.defaultEnv?.ANTHROPIC_AUTH_TOKEN ||
+          (selectedPreset.needsApiKey ? '(your API key)' : 'local')
         const merged = {
           ...settings,
+          model: models.main || undefined,
+          modelContext: undefined,
           skipWebFetchPreflight: settings.skipWebFetchPreflight ?? true,
           env: {
             ...cleanedEnv,
             ...(selectedPreset.defaultEnv ?? {}),
             ANTHROPIC_BASE_URL: needsProxy ? 'http://127.0.0.1:3456/proxy' : baseUrl,
-            ANTHROPIC_AUTH_TOKEN: needsProxy
-              ? 'proxy-managed'
-              : (apiKey || selectedPreset.defaultEnv?.ANTHROPIC_AUTH_TOKEN || (selectedPreset.needsApiKey ? '(your API key)' : '')),
+            ANTHROPIC_API_KEY: needsProxy ? 'proxy-managed' : previewApiKey,
             ANTHROPIC_MODEL: models.main,
             ANTHROPIC_DEFAULT_HAIKU_MODEL: models.haiku,
             ANTHROPIC_DEFAULT_SONNET_MODEL: models.sonnet,
@@ -1258,7 +1277,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                         if (env.ANTHROPIC_BASE_URL) {
                           setBaseUrl(env.ANTHROPIC_BASE_URL)
                         }
-                        const nextApiKey = env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY
+                        const nextApiKey = env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN
                         if (nextApiKey && nextApiKey !== '(your API key)' && nextApiKey !== API_KEY_JSON_PLACEHOLDER) {
                           setApiKey(nextApiKey)
                         }

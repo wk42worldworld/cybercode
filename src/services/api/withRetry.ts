@@ -121,6 +121,7 @@ export interface RetryContext {
   maxTokensOverride?: number
   model: string
   thinkingConfig: ThinkingConfig
+  forceEnabledThinking?: boolean
   fastMode?: boolean
 }
 
@@ -310,6 +311,14 @@ export async function* withRetry<T>(
       if (wasFastModeActive && isFastModeNotEnabledError(error)) {
         handleFastModeRejectedByAPI()
         retryContext.fastMode = false
+        continue
+      }
+
+      if (
+        isOnlyEnabledThinkingAllowedError(error) &&
+        !retryContext.forceEnabledThinking
+      ) {
+        retryContext.forceEnabledThinking = true
         continue
       }
 
@@ -605,6 +614,11 @@ function isFastModeNotEnabledError(error: unknown): boolean {
     error.status === 400 &&
     (error.message?.includes('Fast mode is not enabled') ?? false)
   )
+}
+
+function isOnlyEnabledThinkingAllowedError(error: unknown): boolean {
+  const text = errorMessage(error).toLowerCase()
+  return text.includes('invalid thinking') && text.includes('only type=enabled')
 }
 
 export function is529Error(error: unknown): boolean {

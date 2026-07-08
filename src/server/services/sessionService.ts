@@ -1367,6 +1367,52 @@ export class SessionService {
     return this.paginateMessages(allMessages, options)
   }
 
+  async createProjectFolder(
+    parentDir: string,
+    name: string,
+  ): Promise<{ path: string; existed: boolean }> {
+    const parentPath = path.resolve(parentDir)
+    let parentStat
+    try {
+      parentStat = await fs.stat(parentPath)
+    } catch {
+      throw ApiError.badRequest(`Parent directory does not exist: ${parentPath}`)
+    }
+    if (!parentStat.isDirectory()) {
+      throw ApiError.badRequest(`Parent path is not a directory: ${parentPath}`)
+    }
+
+    const projectName = name.trim()
+    if (!projectName || projectName === '.' || projectName === '..') {
+      throw ApiError.badRequest('Project name is invalid')
+    }
+    if (/[<>:"/\\|?*\u0000-\u001F]/.test(projectName)) {
+      throw ApiError.badRequest('Project name contains unsupported characters')
+    }
+    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(projectName)) {
+      throw ApiError.badRequest('Project name is reserved on Windows')
+    }
+
+    const targetPath = path.resolve(parentPath, projectName)
+    const relative = path.relative(parentPath, targetPath)
+    if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw ApiError.badRequest('Project path must be inside the selected parent directory')
+    }
+
+    try {
+      await fs.mkdir(targetPath)
+      return { path: targetPath, existed: false }
+    } catch (error: unknown) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    }
+
+    const targetStat = await fs.stat(targetPath).catch(() => null)
+    if (!targetStat?.isDirectory()) {
+      throw ApiError.badRequest(`Project path already exists and is not a directory: ${targetPath}`)
+    }
+    return { path: targetPath, existed: true }
+  }
+
   /**
    * Create a new session file for the given working directory.
    */

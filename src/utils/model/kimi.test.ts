@@ -20,9 +20,9 @@ describe('Kimi model rules', () => {
     expect(shouldOmitThinkingParamForModel('kimi-k2.6')).toBe(false)
   })
 
-  test('omits thinking params for models that reject disabled thinking', () => {
+  test('does not send disabled thinking for models that require enabled thinking', () => {
     expect(shouldOmitDisabledThinkingForModel('kimi-k2.7-code')).toBe(true)
-    expect(shouldOmitThinkingParamForModel('kimi-k2.7-code-highspeed')).toBe(true)
+    expect(shouldOmitThinkingParamForModel('kimi-k2.7-code-highspeed')).toBe(false)
     expect(shouldOmitDisabledThinkingForModel('kimi-for-coding')).toBe(true)
   })
 

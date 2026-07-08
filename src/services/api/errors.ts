@@ -732,6 +732,15 @@ export function getAssistantMessageFromError(
     })
   }
 
+  const providerFriendlyMessage = getProviderFriendlyAPIErrorMessage(error, model)
+  if (providerFriendlyMessage) {
+    return createAssistantAPIErrorMessage({
+      content: providerFriendlyMessage,
+      error: 'invalid_request',
+      errorDetails: error instanceof Error ? error.message : String(error),
+    })
+  }
+
   // Check for invalid model name error for subscription users trying to use Opus
   if (
     isClaudeAISubscriber() &&
@@ -956,6 +965,84 @@ function get3PModelFallbackSuggestion(model: string): string | undefined {
     return getModelStrings().sonnet40
   }
   return undefined
+}
+
+function getProviderFriendlyAPIErrorMessage(error: unknown, model: string): string | undefined {
+  if (!(error instanceof APIError) || ![400, 401, 403].includes(error.status ?? 0)) {
+    return undefined
+  }
+
+  const text = extractAPIErrorText(error).toLowerCase()
+  const readableModel = model || 'the selected model'
+
+  if (text.includes('unsupported model')) {
+    const unsupportedModel = extractUnsupportedModel(error) ?? readableModel
+    return [
+      `The active provider does not support model "${unsupportedModel}".`,
+      'Open Model Configuration and choose a model from this provider, or add this model to the provider mapping before using it.',
+    ].join(' ')
+  }
+
+  if (text.includes('invalid thinking') && text.includes('only type=enabled')) {
+    return [
+      `Model "${readableModel}" requires thinking to be enabled.`,
+      'CyberCode tried to adapt this automatically; if it still appears, restart the desktop app so the updated provider policy is loaded, then send again.',
+    ].join(' ')
+  }
+
+  if (
+    text.includes('invalidsubscription') ||
+    text.includes('does not have a valid agentplan subscription') ||
+    text.includes('subscription has expired')
+  ) {
+    return [
+      'The provider rejected this request because the account does not have the required coding/agent subscription for the selected model.',
+      'Check the provider console subscription/plan status, then retry.',
+    ].join(' ')
+  }
+
+  if (
+    text.includes('api key appears to be invalid') ||
+    text.includes('invalid api key') ||
+    text.includes('invalid x-api-key') ||
+    text.includes('authentication_error')
+  ) {
+    return [
+      'The provider API key is invalid, expired, or belongs to a different API entry.',
+      'Check that the key matches the selected provider base URL, then save the provider again.',
+    ].join(' ')
+  }
+
+  if (
+    text.includes('not support image input') ||
+    text.includes('does not support image') ||
+    text.includes('unsupported image') ||
+    text.includes('image input')
+  ) {
+    return [
+      `Model "${readableModel}" does not accept image input directly.`,
+      'CyberCode will use file references for non-vision models; if you expected automatic recognition, configure an image-capable model or an image-processing MCP tool.',
+    ].join(' ')
+  }
+
+  return undefined
+}
+
+function extractAPIErrorText(error: APIError): string {
+  const parts = [error.message]
+  const messageMatches = error.message.matchAll(/"message"\s*:\s*"([^"]+)"/g)
+  for (const match of messageMatches) {
+    if (match[1]) parts.push(match[1])
+  }
+  const codeMatches = error.message.matchAll(/"code"\s*:\s*"([^"]+)"/g)
+  for (const match of codeMatches) {
+    if (match[1]) parts.push(match[1])
+  }
+  return parts.join('\n')
+}
+
+function extractUnsupportedModel(error: APIError): string | undefined {
+  return error.message.match(/Unsupported model\s+([^"\\\n}]+)/i)?.[1]?.trim()
 }
 
 /**

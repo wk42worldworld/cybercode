@@ -88,8 +88,11 @@ import {
   getSmallFastModel,
   isNonCustomOpusModel,
 } from '../../utils/model/model.js'
-import { shouldOmitThinkingParamForModel } from '../../utils/model/kimi.js'
 import { modelSupportsImages } from '../../utils/model/imageSupport.js'
+import {
+  requiresEnabledThinkingParamForModel,
+  shouldOmitThinkingParamForModel,
+} from '../../utils/model/thinkingPolicy.js'
 import {
   asSystemPrompt,
   type SystemPrompt,
@@ -1662,17 +1665,26 @@ async function* queryModel(
       options.maxOutputTokensOverride ||
       getMaxOutputTokensForModel(options.model)
 
-    const omitThinkingParam = shouldOmitThinkingParamForModel(options.model)
+    const forceEnabledThinking =
+      retryContext.forceEnabledThinking ||
+      requiresEnabledThinkingParamForModel(options.model)
+    const omitThinkingParam =
+      !forceEnabledThinking && shouldOmitThinkingParamForModel(options.model)
     const hasThinking =
-      !omitThinkingParam &&
+      forceEnabledThinking ||
+      (!omitThinkingParam &&
       thinkingConfig.type !== 'disabled' &&
-      !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_THINKING)
+      !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_THINKING))
     let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined
 
     // IMPORTANT: Do not change the adaptive-vs-budget thinking selection below
     // without notifying the model launch DRI and research. This is a sensitive
     // setting that can greatly affect model quality and bashing.
-    if (hasThinking && modelSupportsThinking(options.model)) {
+    if (hasThinking && forceEnabledThinking) {
+      thinking = {
+        type: 'enabled',
+      } as BetaMessageStreamParams['thinking']
+    } else if (hasThinking && modelSupportsThinking(options.model)) {
       if (
         !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING) &&
         modelSupportsAdaptiveThinking(options.model)

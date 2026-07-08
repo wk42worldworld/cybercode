@@ -4,6 +4,7 @@ import type { CreateSessionInput, SessionListItem, MessageEntry } from '../types
 type SessionsResponse = { sessions: SessionListItem[]; total: number }
 type MessagesResponse = { messages: MessageEntry[]; hasMore: boolean }
 type CreateSessionResponse = { sessionId: string; session?: SessionListItem }
+type CreateProjectFolderResponse = { path: string; existed: boolean }
 type SessionLocatorParams = { projectPath?: string }
 export type SessionRewindResponse = {
   target: {
@@ -182,6 +183,10 @@ export const sessionsApi = {
   getRecentProjects(limit?: number) {
     const query = typeof limit === 'number' ? `?limit=${limit}` : ''
     return api.get<{ projects: RecentProject[] }>(`/api/sessions/recent-projects${query}`)
+  },
+
+  createProjectFolder(input: { parentDir: string; name: string }) {
+    return api.post<CreateProjectFolderResponse>('/api/sessions/project-folders', input)
   },
 
   getGitInfo(sessionId: string, params?: SessionLocatorParams) {

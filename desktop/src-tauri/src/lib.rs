@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, VecDeque},
     io::{Error as IoError, ErrorKind, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command as StdCommand, Stdio},
     str,
     sync::{
@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use base64::{engine::general_purpose, Engine as _};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
@@ -30,6 +31,7 @@ const TRAY_SHOW_ID: &str = "tray_show";
 const TRAY_QUIT_ID: &str = "tray_quit";
 const CYBER_CONFIG_DIR_ENV: &str = "CYBER_CONFIG_DIR";
 const LEGACY_CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
+const IMAGE_PREVIEW_MAX_BYTES: u64 = 10 * 1024 * 1024;
 
 #[derive(Default)]
 struct ServerState(Mutex<ServerStatus>);
@@ -179,6 +181,60 @@ fn open_skills_config_dir() -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|err| format!("open skills directory: {err}"))
+}
+
+fn image_mime_type_for_path(path: &Path, requested_mime_type: Option<&str>) -> Option<String> {
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase())?;
+
+    let inferred = match extension.as_str() {
+        "apng" => "image/apng",
+        "avif" => "image/avif",
+        "bmp" => "image/bmp",
+        "gif" => "image/gif",
+        "heic" => "image/heic",
+        "heif" => "image/heif",
+        "ico" => "image/x-icon",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "svg" => "image/svg+xml",
+        "webp" => "image/webp",
+        _ => return None,
+    };
+
+    let requested = requested_mime_type
+        .map(str::trim)
+        .filter(|value| value.starts_with("image/"))
+        .unwrap_or(inferred);
+
+    Some(requested.to_string())
+}
+
+#[tauri::command]
+fn read_image_preview_data_url(path: String, mime_type: Option<String>) -> Result<String, String> {
+    let file_path = PathBuf::from(path);
+    let mime = image_mime_type_for_path(&file_path, mime_type.as_deref())
+        .ok_or_else(|| "unsupported image type".to_string())?;
+
+    let metadata =
+        std::fs::metadata(&file_path).map_err(|err| format!("read image metadata: {err}"))?;
+    if !metadata.is_file() {
+        return Err("selected image path is not a file".to_string());
+    }
+    if metadata.len() > IMAGE_PREVIEW_MAX_BYTES {
+        return Err(format!(
+            "selected image is larger than {} MB",
+            IMAGE_PREVIEW_MAX_BYTES / 1024 / 1024
+        ));
+    }
+
+    let bytes = std::fs::read(&file_path).map_err(|err| format!("read image file: {err}"))?;
+    Ok(format!(
+        "data:{mime};base64,{}",
+        general_purpose::STANDARD.encode(bytes)
+    ))
 }
 
 fn mark_app_quitting(app: &AppHandle) {
@@ -1023,6 +1079,7 @@ pub fn run() {
             restart_adapters_sidecar,
             prepare_for_update_install,
             open_skills_config_dir,
+            read_image_preview_data_url,
             terminal_spawn,
             terminal_write,
             terminal_resize,
@@ -1033,8 +1090,7 @@ pub fn run() {
     #[cfg(target_os = "macos")]
     let builder = builder
         .menu(|app| {
-            let about_item =
-                MenuItemBuilder::with_id("nav_about", "关于 CyberCode").build(app)?;
+            let about_item = MenuItemBuilder::with_id("nav_about", "关于 CyberCode").build(app)?;
             let settings_item = MenuItemBuilder::with_id("nav_settings", "设置...")
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;

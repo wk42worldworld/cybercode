@@ -412,9 +412,41 @@ describe('Models API', () => {
 
     const managedSettings = await providerSvc.getManagedSettings()
     expect(managedSettings.model).toBe('glm-5-turbo')
+    expect((managedSettings.env as Record<string, string>).ANTHROPIC_MODEL).toBe('glm-5-turbo')
 
     const globalSettings = await settingsSvc.getUserSettings()
     expect(globalSettings.model).toBeUndefined()
+  })
+
+  it('PUT /api/models/current should reject models outside the active provider', async () => {
+    const providerSvc = new ProviderService()
+    const provider = await providerSvc.addProvider({
+      presetId: 'zhipuglm',
+      name: 'Zhipu GLM',
+      baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+      apiKey: 'test-key',
+      apiFormat: 'anthropic',
+      models: {
+        main: 'glm-5.2',
+        haiku: 'glm-4.7',
+        sonnet: 'glm-5-turbo',
+        opus: 'glm-5.1',
+      },
+    })
+    await providerSvc.activateProvider(provider.id)
+
+    const putReq = makeRequest('PUT', '/api/models/current', {
+      modelId: 'kimi-k2.6',
+    })
+    const putRes = await handleModelsApi(putReq.req, putReq.url, putReq.segments)
+
+    expect(putRes.status).toBe(400)
+    const body = await putRes.json()
+    expect(body.message).toContain('not configured for provider')
+
+    const managedSettings = await providerSvc.getManagedSettings()
+    expect(managedSettings.model).toBe('glm-5.2')
+    expect((managedSettings.env as Record<string, string>).ANTHROPIC_MODEL).toBe('glm-5.2')
   })
 
   it('GET /api/effort should return default effort level', async () => {

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { ArrowUp, Folder, Paperclip, Plus, Square } from 'lucide-react'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
@@ -47,6 +48,7 @@ const IMAGE_ATTACHMENT_EXTENSIONS = new Set([
   'gif',
   'heic',
   'heif',
+  'ico',
   'jpeg',
   'jpg',
   'png',
@@ -80,6 +82,37 @@ function getPathFileName(filePath: string): string {
 function isInlineImageFile(file: File): boolean {
   const mimeType = file.type.toLowerCase()
   return mimeType.startsWith('image/') || IMAGE_ATTACHMENT_EXTENSIONS.has(getFileExtension(file.name))
+}
+
+function isImageAttachmentPath(filePath: string): boolean {
+  return IMAGE_ATTACHMENT_EXTENSIONS.has(getFileExtension(filePath))
+}
+
+function getImageMimeTypeFromPath(filePath: string): string | undefined {
+  const extension = getFileExtension(filePath)
+  if (extension === 'jpg' || extension === 'jpeg') return 'image/jpeg'
+  if (extension === 'svg') return 'image/svg+xml'
+  if (extension === 'ico') return 'image/x-icon'
+  if (extension) return `image/${extension}`
+  return undefined
+}
+
+async function getPathPreviewUrl(filePath: string, mimeType?: string): Promise<string | undefined> {
+  if (!isTauriRuntime()) return undefined
+  try {
+    return await invoke<string>('read_image_preview_data_url', {
+      path: filePath,
+      mimeType,
+    })
+  } catch (error) {
+    console.warn('[ChatInput] Failed to read image preview data URL:', error)
+  }
+
+  try {
+    return convertFileSrc(filePath)
+  } catch {
+    return undefined
+  }
 }
 
 function getNonStandardFilePath(file: File): string | null {
@@ -172,7 +205,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
           type: attachment.type,
           path: attachment.path,
           mimeType: attachment.mimeType,
-          previewUrl: attachment.type === 'image' ? attachment.data : undefined,
+          previewUrl: attachment.previewUrl || (attachment.type === 'image' ? attachment.data : undefined),
           data: attachment.data,
         })),
     )
@@ -449,6 +482,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
       name: attachment.name,
       path: attachment.path,
       data: attachment.data,
+      previewUrl: attachment.previewUrl,
       mimeType: attachment.mimeType,
     }))
 
@@ -594,17 +628,25 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     event.target.value = ''
   }
 
-  const addPathAttachments = useCallback((paths: string[]) => {
+  const addPathAttachments = useCallback(async (paths: string[]) => {
     if (paths.length === 0) return
+
+    const nextAttachments = await Promise.all(paths.map(async (filePath) => {
+      const isImage = isImageAttachmentPath(filePath)
+      const mimeType = isImage ? getImageMimeTypeFromPath(filePath) : undefined
+      return {
+        id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: getPathFileName(filePath),
+        type: isImage ? 'image' as const : 'file' as const,
+        path: filePath,
+        mimeType,
+        previewUrl: isImage ? await getPathPreviewUrl(filePath, mimeType) : undefined,
+      }
+    }))
 
     setAttachments((prev) => [
       ...prev,
-      ...paths.map((filePath) => ({
-        id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        name: getPathFileName(filePath),
-        type: 'file' as const,
-        path: filePath,
-      })),
+      ...nextAttachments,
     ])
   }, [])
 
@@ -624,7 +666,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
         title: addFilesLabel,
       })
       const paths = Array.isArray(selected) ? selected : selected ? [selected] : []
-      addPathAttachments(paths)
+      void addPathAttachments(paths)
     } catch (error) {
       console.error('[ChatInput] Failed to choose attachment files:', error)
       fileInputRef.current?.click()
@@ -635,7 +677,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     Array.from(files).forEach((file) => {
       const filePath = getNonStandardFilePath(file)
       if (filePath) {
-        addPathAttachments([filePath])
+        void addPathAttachments([filePath])
         return
       }
 
@@ -723,7 +765,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     if (isMemberSession) return
     const droppedPaths = getDroppedPaths(event.dataTransfer)
     if (droppedPaths.length > 0) {
-      addPathAttachments(droppedPaths)
+      void addPathAttachments(droppedPaths)
       return
     }
 

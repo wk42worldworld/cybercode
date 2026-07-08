@@ -10,9 +10,15 @@ import { useTeamStore } from '../../stores/teamStore'
 import { useUIStore } from '../../stores/uiStore'
 import { OFFICIAL_MODELS } from '../../constants/modelCatalog'
 import { open } from '@tauri-apps/plugin-dialog'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: vi.fn(),
+}))
+
+vi.mock('@tauri-apps/api/core', () => ({
+  convertFileSrc: vi.fn((filePath: string) => `asset://localhost/${encodeURIComponent(filePath)}`),
+  invoke: vi.fn(async () => 'data:image/png;base64,desktop-preview'),
 }))
 
 function makeChatSession(overrides: Partial<PerSessionState> = {}): PerSessionState {
@@ -48,6 +54,9 @@ function makeChatSession(overrides: Partial<PerSessionState> = {}): PerSessionSt
 describe('ChatInput composer controls', () => {
   beforeEach(() => {
     vi.mocked(open).mockReset()
+    vi.mocked(convertFileSrc).mockClear()
+    vi.mocked(invoke).mockReset()
+    vi.mocked(invoke).mockResolvedValue('data:image/png;base64,desktop-preview')
     delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
     delete (window as Window & { __TAURI__?: unknown }).__TAURI__
 
@@ -241,6 +250,63 @@ describe('ChatInput composer controls', () => {
         path: '/Users/wang/Documents/report.pdf',
       }),
     ])
+  })
+
+  it('shows desktop-selected image paths as image thumbnails without browser file reads', async () => {
+    const readSpy = vi.spyOn(FileReader.prototype, 'readAsDataURL')
+    vi.mocked(open).mockResolvedValue('/Users/wang/Pictures/mockup.png')
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
+      configurable: true,
+    })
+
+    const onSubmit = vi.fn()
+    render(<ChatInput onSubmit={onSubmit} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add files or photos' }))
+
+    const preview = await screen.findByRole('img', { name: 'mockup.png' })
+    expect(preview).toHaveAttribute('src', 'data:image/png;base64,desktop-preview')
+    expect(invoke).toHaveBeenCalledWith('read_image_preview_data_url', {
+      path: '/Users/wang/Pictures/mockup.png',
+      mimeType: 'image/png',
+    })
+    expect(convertFileSrc).not.toHaveBeenCalled()
+    expect(readSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+
+    expect(onSubmit).toHaveBeenCalledWith('', [
+      expect.objectContaining({
+        type: 'image',
+        name: 'mockup.png',
+        path: '/Users/wang/Pictures/mockup.png',
+        previewUrl: 'data:image/png;base64,desktop-preview',
+        mimeType: 'image/png',
+      }),
+    ])
+  })
+
+  it('falls back to a Tauri asset URL when desktop image preview reading fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.mocked(open).mockResolvedValue('/Users/wang/Pictures/mockup.png')
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('preview read failed'))
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
+      configurable: true,
+    })
+
+    render(<ChatInput onSubmit={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add files or photos' }))
+
+    const preview = await screen.findByRole('img', { name: 'mockup.png' })
+    expect(preview).toHaveAttribute('src', 'asset://localhost/%2FUsers%2Fwang%2FPictures%2Fmockup.png')
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[ChatInput] Failed to read image preview data URL:',
+      expect.any(Error),
+    )
+    expect(convertFileSrc).toHaveBeenCalledWith('/Users/wang/Pictures/mockup.png')
   })
 
   it('queues extra input while the assistant is active', () => {

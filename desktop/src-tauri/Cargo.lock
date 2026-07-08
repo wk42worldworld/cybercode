@@ -483,6 +483,7 @@ name = "cybercode-desktop"
 version = "1.0.19"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "portable-pty",
  "serde",
  "serde_json",

@@ -307,6 +307,43 @@ describe('chatStore history mapping', () => {
     expect(updateTabTitleMock).toHaveBeenCalledWith(TEST_SESSION_ID, expectedTitle)
   })
 
+  it('keeps local image previews on the user message shown in the transcript', () => {
+    useChatStore.getState().sendMessage(TEST_SESSION_ID, '看下这张图', [
+      {
+        type: 'image',
+        name: 'mockup.png',
+        path: '/Users/wang/Pictures/mockup.png',
+        previewUrl: 'asset://localhost/%2FUsers%2Fwang%2FPictures%2Fmockup.png',
+        mimeType: 'image/png',
+      },
+    ])
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      {
+        type: 'user_text',
+        content: '看下这张图',
+        attachments: [
+          {
+            type: 'image',
+            name: 'mockup.png',
+            path: '/Users/wang/Pictures/mockup.png',
+            previewUrl: 'asset://localhost/%2FUsers%2Fwang%2FPictures%2Fmockup.png',
+            mimeType: 'image/png',
+          },
+        ],
+      },
+    ])
+
+    const payload = sendMock.mock.calls[sendMock.mock.calls.length - 1]?.[1]
+    expect(payload.attachments?.[0]).toMatchObject({
+      type: 'image',
+      name: 'mockup.png',
+      path: '/Users/wang/Pictures/mockup.png',
+      mimeType: 'image/png',
+    })
+    expect(payload.attachments?.[0]).not.toHaveProperty('previewUrl')
+  })
+
   it('keeps title updates tied to the first local user message', () => {
     tabStoreSnapshot.tabs = [{
       sessionId: TEST_SESSION_ID,

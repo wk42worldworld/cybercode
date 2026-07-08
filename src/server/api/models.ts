@@ -175,8 +175,16 @@ async function handleCurrentModel(req: Request): Promise<Response> {
       // Clear context tier when switching to a non-composite model
       updates.modelContext = undefined
     }
-    const { activeId } = await providerService.listProviders()
-    if (activeId) {
+    const { providers, activeId } = await providerService.listProviders()
+    const activeProvider = activeId ? providers.find((p) => p.id === activeId) : null
+    if (activeProvider) {
+      const availableModels = buildProviderModelList(activeProvider)
+      const availableIds = new Set(availableModels.map((model) => model.id))
+      if (!availableIds.has(baseId)) {
+        throw ApiError.badRequest(
+          `Model "${baseId}" is not configured for provider "${activeProvider.name}". Choose one of: ${[...availableIds].join(', ')}`,
+        )
+      }
       await providerService.updateManagedSettings(updates)
     } else {
       await settingsService.updateUserSettings(updates)

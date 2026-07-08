@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 import { ProviderSettings, Settings } from '../pages/Settings'
@@ -335,6 +335,77 @@ describe('Settings > Providers tab', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /DeepSeek V4 Flash/i }))
 
     expect(within(dialog).getByDisplayValue('deepseek-v4-flash')).toBeInTheDocument()
+  })
+
+  it('uses the selected provider model in advanced JSON instead of stale managed model', async () => {
+    MOCK_GET_SETTINGS.mockResolvedValue({
+      model: 'kimi-k2.6',
+      modelContext: '1m',
+      skipWebFetchPreflight: true,
+      env: {
+        ANTHROPIC_BASE_URL: 'https://api.moonshot.cn/anthropic',
+        ANTHROPIC_AUTH_TOKEN: 'old-kimi-key',
+        ANTHROPIC_MODEL: 'kimi-k2.6',
+      },
+    })
+    providerStoreState.providers = []
+    providerStoreState.presets = [
+      {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com/anthropic',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: 'deepseek-v4-pro[1m]',
+          haiku: 'deepseek-v4-flash',
+          sonnet: 'deepseek-v4-pro[1m]',
+          opus: 'deepseek-v4-pro[1m]',
+        },
+        modelOptions: [
+          {
+            id: 'deepseek-v4-pro[1m]',
+            label: 'DeepSeek V4 Pro 1M',
+            contextWindow: 1_000_000,
+          },
+        ],
+        needsApiKey: true,
+        websiteUrl: 'https://platform.deepseek.com',
+      },
+      {
+        id: 'custom',
+        name: 'Custom',
+        baseUrl: '',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: '',
+          haiku: '',
+          sonnet: '',
+          opus: '',
+        },
+        needsApiKey: true,
+        websiteUrl: '',
+      },
+    ]
+
+    render(<ProviderSettings />)
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Configure/i })[0]!)
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Advanced settings/i }))
+
+    await waitFor(() => {
+      const jsonTextarea = within(dialog)
+        .getAllByRole('textbox')
+        .find((element) => element.tagName === 'TEXTAREA') as HTMLTextAreaElement | undefined
+
+      expect(jsonTextarea).toBeDefined()
+      expect(jsonTextarea?.value).toContain('"model": "deepseek-v4-pro[1m]"')
+      expect(jsonTextarea?.value).toContain('"ANTHROPIC_API_KEY": "(your API key)"')
+      expect(jsonTextarea?.value).toContain('"ANTHROPIC_MODEL": "deepseek-v4-pro[1m]"')
+      expect(jsonTextarea?.value).not.toContain('"ANTHROPIC_AUTH_TOKEN"')
+      expect(jsonTextarea?.value).not.toContain('"model": "kimi-k2.6"')
+      expect(jsonTextarea?.value).not.toContain('"modelContext"')
+    })
   })
 
   it('shows separate Kimi Code and Kimi API presets with different default models', () => {

@@ -27,7 +27,12 @@ const CACHE_TTL = 30_000
 
 export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | 'embedded' }) {
   const t = useTranslation()
-  const { availableProjects, selectedProjects, setSelectedProjects } = useSessionStore()
+  const {
+    availableProjects,
+    selectedProjects,
+    selectedSessionScope,
+    setSessionFilterScope,
+  } = useSessionStore()
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<RecentProject[]>([])
   const [loading, _setLoading] = useState(false)
@@ -113,7 +118,9 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
       .catch(() => {})
   }, [open, projects.length])
 
-  const isAllSelected = selectedProjects.length === 0
+  const selectedProjectPath = selectedSessionScope === 'project' ? selectedProjects[0] : undefined
+  const isTemporarySelected = selectedSessionScope === 'temporary'
+  const isAllSelected = !isTemporarySelected && !selectedProjectPath
 
   const options = useMemo(() => {
     const availableSet = new Set(availableProjects)
@@ -152,25 +159,26 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
 
   const label = isAllSelected
     ? t('sidebar.allProjects')
-    : selectedProjects.length === 1
-      ? optionByPath.get(selectedProjects[0]!)?.title || fallbackProjectTitle(selectedProjects[0]!, t('sidebar.other'))
-      : `${selectedProjects.length} projects`
+    : isTemporarySelected
+      ? t('sidebar.temporarySessions')
+      : selectedProjectPath
+        ? optionByPath.get(selectedProjectPath)?.title || fallbackProjectTitle(selectedProjectPath, t('sidebar.other'))
+        : t('sidebar.allProjects')
   const triggerLabel = isAllSelected ? t('sidebar.allProjects') : label
 
-  const toggleProject = (projectPath: string) => {
-    if (isAllSelected) {
-      setSelectedProjects([projectPath])
-      return
-    }
+  const selectAllProjects = () => {
+    setSessionFilterScope('all')
+    setOpen(false)
+  }
 
-    if (selectedProjects.includes(projectPath)) {
-      const next = selectedProjects.filter((path) => path !== projectPath)
-      setSelectedProjects(next.length === 0 ? [] : next)
-      return
-    }
+  const selectTemporarySessions = () => {
+    setSessionFilterScope('temporary')
+    setOpen(false)
+  }
 
-    const next = [...selectedProjects, projectPath]
-    setSelectedProjects(next.length >= availableProjects.length ? [] : next)
+  const selectProject = (projectPath: string) => {
+    setSessionFilterScope('project', projectPath)
+    setOpen(false)
   }
 
   return (
@@ -184,7 +192,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
         title={triggerLabel}
         className={
           variant === 'embedded'
-            ? `inline-flex h-[24px] w-[24px] items-center justify-center rounded-full transition-colors ${
+            ? `inline-flex h-[28px] w-[28px] items-center justify-center rounded-full transition-colors duration-100 ${
               isAllSelected
                 ? 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
                 : 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
@@ -230,48 +238,92 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
           }}
         >
           <div className="max-h-[380px] overflow-y-auto py-2 px-1.5">
+            <button
+              type="button"
+              onClick={selectAllProjects}
+              title={t('sidebar.allProjects')}
+              aria-label={t('sidebar.allProjects')}
+              className={`group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
+                isAllSelected ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'
+              }`}
+            >
+              <Icon name="workspaces" size={14} className="opacity-50" />
+              <div className="min-w-0 flex-1">
+                <div className={`truncate text-[13px] ${isAllSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                  {t('sidebar.allProjects')}
+                </div>
+              </div>
+              {isAllSelected && (
+                <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-tertiary)]" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={selectTemporarySessions}
+              title={t('sidebar.temporarySessions')}
+              aria-label={t('sidebar.temporarySessions')}
+              className={`group mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors ${
+                isTemporarySelected ? 'bg-[var(--color-surface-selected)]' : 'hover:bg-[var(--color-surface-hover)]'
+              }`}
+            >
+              <Icon name="bolt" size={14} className="opacity-50" />
+              <div className="min-w-0 flex-1">
+                <div className={`truncate text-[13px] ${isTemporarySelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                  {t('sidebar.temporarySessions')}
+                </div>
+              </div>
+              {isTemporarySelected && (
+                <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-tertiary)]" />
+              )}
+            </button>
+
             {loading && projects.length === 0 ? (
-              <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
+              <div className="px-4 py-5 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('common.loading')}</div>
             ) : options.length === 0 ? (
-              <div className="px-4 py-6 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
+              <div className="px-4 py-5 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
             ) : (
-              options.map((option) => {
-                const checked = !isAllSelected && selectedProjects.includes(option.projectPath)
-                return (
-                  <button
-                    key={option.projectPath}
-                    type="button"
-                    onClick={() => toggleProject(option.projectPath)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group ${
-                      checked
-                        ? 'bg-[var(--color-surface-selected)]'
-                        : 'hover:bg-[var(--color-surface-hover)]'
-                    }`}
-                  >
-                    <Icon name={option.isGit ? 'account_tree' : 'folder'} size={14} className="opacity-50" />
-                    <div className="min-w-0 flex-1">
-                      <div className={`truncate text-[13px] ${checked ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
-                        {option.title}
-                      </div>
-                      {option.subtitle && (
-                        <div className="truncate mt-px text-[10px] text-[var(--color-text-tertiary)] font-mono">
-                          {option.subtitle}
+              <>
+                <div className="my-1 h-px bg-[var(--color-border-separator)]" />
+                <div className="flex flex-col gap-1">
+                  {options.map((option) => {
+                    const checked = selectedProjectPath === option.projectPath
+                    return (
+                      <button
+                        key={option.projectPath}
+                        type="button"
+                        onClick={() => selectProject(option.projectPath)}
+                        className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group ${
+                          checked
+                            ? 'bg-[var(--color-surface-selected)]'
+                            : 'hover:bg-[var(--color-surface-hover)]'
+                        }`}
+                      >
+                        <Icon name={option.isGit ? 'account_tree' : 'folder'} size={14} className="opacity-50" />
+                        <div className="min-w-0 flex-1">
+                          <div className={`truncate text-[13px] ${checked ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                            {option.title}
+                          </div>
+                          {option.subtitle && (
+                            <div className="truncate mt-px text-[10px] text-[var(--color-text-tertiary)] font-mono">
+                              {option.subtitle}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-shrink-0 items-center gap-1.5">
-                      {option.branch && (
-                        <span className="max-w-[80px] truncate text-[9px] text-[var(--color-text-tertiary)]">
-                          {option.branch}
-                        </span>
-                      )}
-                      {checked && (
-                        <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-tertiary)]" />
-                      )}
-                    </div>
-                  </button>
-                )
-              })
+                        <div className="flex flex-shrink-0 items-center gap-1.5">
+                          {option.branch && (
+                            <span className="max-w-[80px] truncate text-[9px] text-[var(--color-text-tertiary)]">
+                              {option.branch}
+                            </span>
+                          )}
+                          {checked && (
+                            <Icon name="check" size={14} className="shrink-0 text-[var(--color-text-tertiary)]" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>,

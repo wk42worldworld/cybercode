@@ -38,6 +38,7 @@ export type AttachmentRef = {
   name?: string
   path?: string
   data?: string
+  previewUrl?: string
   mimeType?: string
 }
 
@@ -46,6 +47,7 @@ export type UIAttachment = {
   name: string
   path?: string
   data?: string
+  previewUrl?: string
   mimeType?: string
 }
 

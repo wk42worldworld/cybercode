@@ -38,6 +38,7 @@ import type {
 import { resolveProviderImageSupport } from './modelImageSupport.js'
 import { IMAGE_INPUT_CAPABILITY } from '../../utils/model/imageSupport.js'
 import { isKimiBaseUrl, isKimiProviderTarget } from '../../utils/model/kimi.js'
+import { requiresEnabledThinkingParamForModel } from '../../utils/model/thinkingPolicy.js'
 
 const MANAGED_ENV_KEYS = [
   'ANTHROPIC_BASE_URL',
@@ -273,6 +274,32 @@ function normalizeProviderRuntimeModel(provider: SavedProvider, modelId: string)
   return modelId
 }
 
+function getProviderRuntimeModelSet(provider: SavedProvider): Set<string> {
+  return new Set(
+    MODEL_ROLES
+      .map((role) => normalizeProviderRuntimeModel(provider, provider.models[role]).trim())
+      .filter(Boolean),
+  )
+}
+
+function resolveProviderManagedModel(
+  settings: Record<string, unknown>,
+  provider: SavedProvider,
+  env: Record<string, string>,
+): string {
+  const allowedModels = getProviderRuntimeModelSet(provider)
+  const currentModel =
+    typeof settings.model === 'string'
+      ? normalizeProviderRuntimeModel(provider, settings.model).trim()
+      : ''
+  if (currentModel && allowedModels.has(currentModel)) return currentModel
+
+  const envModel = normalizeProviderRuntimeModel(provider, env.ANTHROPIC_MODEL ?? '').trim()
+  if (envModel && allowedModels.has(envModel)) return envModel
+
+  return normalizeProviderRuntimeModel(provider, provider.models.main).trim()
+}
+
 export class ProviderService {
   private static serverPort = 3456
 
@@ -367,12 +394,36 @@ export class ProviderService {
   }
 
   async getManagedSettings(): Promise<Record<string, unknown>> {
-    return this.readSettings()
+    const settings = await this.readSettings()
+    const index = await this.readIndex()
+    const activeProvider = index.activeId
+      ? index.providers.find((provider) => provider.id === index.activeId)
+      : undefined
+
+    if (activeProvider && activeProvider.presetId !== 'official') {
+      const before = JSON.stringify(settings)
+      this.applyProviderManagedRuntimeSettings(settings, activeProvider)
+      if (JSON.stringify(settings) !== before) {
+        await this.writeSettings(settings)
+      }
+    }
+
+    return settings
   }
 
   async updateManagedSettings(settings: Record<string, unknown>): Promise<void> {
     const current = await this.readSettings()
-    await this.writeSettings(Object.assign({}, current, settings))
+    const next = Object.assign({}, current, settings)
+    const index = await this.readIndex()
+    const activeProvider = index.activeId
+      ? index.providers.find((provider) => provider.id === index.activeId)
+      : undefined
+
+    if (activeProvider && activeProvider.presetId !== 'official') {
+      this.applyProviderManagedRuntimeSettings(next, activeProvider)
+    }
+
+    await this.writeSettings(next)
   }
 
   // --- CRUD ---
@@ -573,8 +624,18 @@ export class ProviderService {
 
   private async syncToSettings(provider: SavedProvider): Promise<void> {
     const settings = await this.readSettings()
+    this.applyProviderManagedRuntimeSettings(settings, provider)
+    await this.writeSettings(settings)
+  }
+
+  private applyProviderManagedRuntimeSettings(
+    settings: Record<string, unknown>,
+    provider: SavedProvider,
+  ): void {
     const existingEnv = (settings.env as Record<string, string>) || {}
     const cleanedEnv = { ...existingEnv }
+    const runtimeModel = resolveProviderManagedModel(settings, provider, existingEnv)
+    const managedEnv = this.buildManagedEnv(provider, { modelId: runtimeModel })
 
     for (const key of getManagedEnvKeys()) {
       delete cleanedEnv[key]
@@ -582,10 +643,10 @@ export class ProviderService {
 
     settings.env = {
       ...cleanedEnv,
-      ...this.buildManagedEnv(provider),
+      ...managedEnv,
     }
-
-    await this.writeSettings(settings)
+    settings.model = managedEnv.ANTHROPIC_MODEL
+    delete settings.modelContext
   }
 
   private async clearProviderFromSettings(): Promise<void> {
@@ -889,6 +950,16 @@ function withProviderSpecificTestDefaults(
   body: Record<string, unknown>,
 ): Record<string, unknown> {
   if (format === 'openai_responses' || !isKimiProviderTarget(modelId, base)) {
+    if (
+      format === 'anthropic' &&
+      requiresEnabledThinkingParamForModel(modelId)
+    ) {
+      return {
+        ...body,
+        thinking: { type: 'enabled' },
+      }
+    }
+
     return body
   }
 
