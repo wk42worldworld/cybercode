@@ -8,7 +8,14 @@ export type ImageSupportResolution = {
   supportsImages: boolean
   modelId?: string
   providerName?: string
-  source: 'official' | 'provider' | 'preset-model' | 'model-id' | 'preset' | 'default'
+  source:
+    | 'official'
+    | 'provider-forced'
+    | 'provider-legacy'
+    | 'preset-model'
+    | 'model-id'
+    | 'preset'
+    | 'default'
 }
 
 export function normalizeModelId(modelId: string | undefined): string {
@@ -30,12 +37,21 @@ export function resolveProviderImageSupport(
     }
   }
 
-  if (typeof provider.supportsImages === 'boolean') {
+  if (provider.imageSupportMode === 'enabled' || provider.imageSupportMode === 'disabled') {
+    return {
+      supportsImages: provider.imageSupportMode === 'enabled',
+      modelId: resolvedModelId,
+      providerName: provider.name,
+      source: 'provider-forced',
+    }
+  }
+
+  if (provider.imageSupportMode === undefined && typeof provider.supportsImages === 'boolean') {
     return {
       supportsImages: provider.supportsImages,
       modelId: resolvedModelId,
       providerName: provider.name,
-      source: 'provider',
+      source: 'provider-legacy',
     }
   }
 
@@ -72,7 +88,7 @@ export function resolveProviderImageSupport(
   }
 
   return {
-    supportsImages: false,
+    supportsImages: true,
     modelId: resolvedModelId,
     providerName: provider.name,
     source: 'default',

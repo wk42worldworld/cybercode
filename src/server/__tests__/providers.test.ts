@@ -105,6 +105,144 @@ describe('ProviderService', () => {
       expect(providers[1].name).toBe('Provider B')
       expect(activeId).toBeNull()
     })
+
+    test('should migrate saved Kimi Code providers to the dedicated preset id', async () => {
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
+        activeId: 'saved-kimi-code',
+        providers: [{
+          id: 'saved-kimi-code',
+          presetId: 'kimi',
+          name: 'Kimi Code',
+          apiKey: 'sk-kimi-code',
+          baseUrl: 'https://api.kimi.com/coding/',
+          apiFormat: 'anthropic',
+          models: {
+            main: 'kimi-k2.7-code',
+            haiku: 'kimi-k2.7-code',
+            sonnet: 'kimi-k2.7-code',
+            opus: 'kimi-k2.7-code',
+          },
+        }],
+      }), 'utf-8')
+
+      const svc = new ProviderService()
+      const { providers, activeId } = await svc.listProviders()
+
+      expect(activeId).toBe('saved-kimi-code')
+      expect(providers[0].presetId).toBe('kimi-code')
+      expect(providers[0].baseUrl).toBe('https://api.kimi.com/coding/')
+      expect(providers[0].models.main).toBe('kimi-k2.7-code')
+    })
+
+    test('should move saved Kimi API providers off misplaced code models', async () => {
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
+        activeId: 'saved-kimi-api',
+        providers: [{
+          id: 'saved-kimi-api',
+          presetId: 'kimi',
+          name: 'Kimi API',
+          apiKey: 'sk-moonshot',
+          baseUrl: 'https://api.moonshot.cn/anthropic',
+          apiFormat: 'anthropic',
+          models: {
+            main: 'kimi-k2.7-code',
+            haiku: 'kimi-k2.7-code',
+            sonnet: 'kimi-k2.7-code',
+            opus: 'kimi-k2.7-code',
+          },
+          supportsImages: false,
+        }],
+      }), 'utf-8')
+
+      const svc = new ProviderService()
+      const { providers, activeId } = await svc.listProviders()
+
+      expect(activeId).toBe('saved-kimi-api')
+      expect(providers[0].presetId).toBe('kimi')
+      expect(providers[0].baseUrl).toBe('https://api.moonshot.cn/anthropic')
+      expect(providers[0].models.main).toBe('kimi-k2.6')
+      expect(providers[0].models.haiku).toBe('kimi-k2.6')
+      expect(providers[0].models.sonnet).toBe('kimi-k2.6')
+      expect(providers[0].models.opus).toBe('kimi-k2.6')
+      expect(providers[0].imageSupportMode).toBe('auto')
+      expect(providers[0].supportsImages).toBeUndefined()
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(env.ANTHROPIC_MODEL).toBe('kimi-k2.6')
+      expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+    })
+
+    test('should migrate unsupported saved Xiaomi MiMo V2.5 Flash model ids', async () => {
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
+        activeId: 'saved-mimo',
+        providers: [{
+          id: 'saved-mimo',
+          presetId: 'xiaomimimo',
+          name: '小米 MiMo',
+          apiKey: 'sk-mimo',
+          baseUrl: 'https://api.xiaomimimo.com',
+          apiFormat: 'anthropic',
+          models: {
+            main: 'mimo-v2.5-pro',
+            haiku: 'mimo-v2.5-flash',
+            sonnet: 'mimo-v2.5-pro',
+            opus: 'mimo-v2.5-pro',
+          },
+        }],
+      }), 'utf-8')
+
+      const svc = new ProviderService()
+      const { providers, activeId } = await svc.listProviders()
+
+      expect(activeId).toBe('saved-mimo')
+      expect(providers[0].models.main).toBe('mimo-v2.5-pro')
+      expect(providers[0].models.haiku).toBe('mimo-v2.5')
+      expect(providers[0].models.sonnet).toBe('mimo-v2.5-pro')
+      expect(providers[0].models.opus).toBe('mimo-v2.5-pro')
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('mimo-v2.5')
+    })
+
+    test('should migrate unsupported saved Zhipu GLM 4.5 Air model ids', async () => {
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
+        activeId: 'saved-zhipu',
+        providers: [{
+          id: 'saved-zhipu',
+          presetId: 'zhipuglm',
+          name: 'Zhipu GLM',
+          apiKey: 'sk-zhipu',
+          baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+          apiFormat: 'anthropic',
+          models: {
+            main: 'glm-5.2',
+            haiku: 'glm-4.5-air',
+            sonnet: 'glm-5.2',
+            opus: 'glm-5.2',
+          },
+        }],
+      }), 'utf-8')
+
+      const svc = new ProviderService()
+      const { providers, activeId } = await svc.listProviders()
+
+      expect(activeId).toBe('saved-zhipu')
+      expect(providers[0].models.main).toBe('glm-5.2')
+      expect(providers[0].models.haiku).toBe('glm-4.7')
+      expect(providers[0].models.sonnet).toBe('glm-5.2')
+      expect(providers[0].models.opus).toBe('glm-5.2')
+
+      const settings = await readSettings()
+      const env = settings.env as Record<string, string>
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('glm-4.7')
+    })
+
   })
 
   // ─── addProvider ─────────────────────────────────────────────────────────
@@ -112,14 +250,14 @@ describe('ProviderService', () => {
   describe('addProvider', () => {
     test('should add a provider and return it with generated fields', async () => {
       const svc = new ProviderService()
-      const provider = await svc.addProvider(sampleInput({ supportsImages: true }))
+      const provider = await svc.addProvider(sampleInput({ imageSupportMode: 'enabled' }))
 
       expect(provider.id).toBeDefined()
       expect(provider.name).toBe('Test Provider')
       expect(provider.baseUrl).toBe('https://api.example.com')
       expect(provider.apiKey).toBe('sk-test-key-123')
       expect(provider.models.main).toBe('model-main')
-      expect(provider.supportsImages).toBe(true)
+      expect(provider.imageSupportMode).toBe('enabled')
     })
 
     test('new providers should not be auto-activated', async () => {
@@ -206,14 +344,26 @@ describe('ProviderService', () => {
       const updated = await svc.updateProvider(added.id, {
         name: 'Updated Name',
         baseUrl: 'https://new-api.example.com',
-        supportsImages: false,
+        imageSupportMode: 'disabled',
       })
 
       expect(updated.name).toBe('Updated Name')
       expect(updated.baseUrl).toBe('https://new-api.example.com')
-      expect(updated.supportsImages).toBe(false)
+      expect(updated.imageSupportMode).toBe('disabled')
       // unchanged fields preserved
       expect(updated.apiKey).toBe('sk-test-key-123')
+    })
+
+    test('updating image support mode clears legacy image settings', async () => {
+      const svc = new ProviderService()
+      const added = await svc.addProvider(sampleInput({ supportsImages: false }))
+
+      const updated = await svc.updateProvider(added.id, {
+        imageSupportMode: 'auto',
+      })
+
+      expect(updated.imageSupportMode).toBe('auto')
+      expect(updated.supportsImages).toBeUndefined()
     })
 
     test('should throw 404 for non-existent provider', async () => {
@@ -333,15 +483,15 @@ describe('ProviderService', () => {
       expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('model-haiku')
       expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('model-sonnet')
       expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('model-opus')
-      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toBe('')
-      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toBe('')
-      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toBe('')
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
     })
 
     test('should write image input capabilities on activation and runtime env', async () => {
       const svc = new ProviderService()
       const provider = await svc.addProvider(sampleInput({
-        supportsImages: true,
+        imageSupportMode: 'enabled',
       }))
 
       await svc.activateProvider(provider.id)
@@ -509,16 +659,111 @@ describe('ProviderService', () => {
       expect(active!.apiKey).toBe(provider.apiKey)
       expect(active!.apiFormat).toBe('anthropic')
     })
+
+    test('should normalize unsupported session-scoped Xiaomi runtime model ids', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'xiaomimimo',
+        name: '小米 MiMo',
+        baseUrl: 'https://api.xiaomimimo.com',
+        models: {
+          main: 'mimo-v2.5-pro',
+          haiku: 'mimo-v2.5',
+          sonnet: 'mimo-v2.5-pro',
+          opus: 'mimo-v2.5-pro',
+        },
+      }))
+
+      const runtimeEnv = await svc.getProviderRuntimeEnv(provider.id, 'mimo-v2.5-flash')
+
+      expect(runtimeEnv.ANTHROPIC_MODEL).toBe('mimo-v2.5')
+    })
+
+    test('should normalize unsupported session-scoped Zhipu runtime model ids', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'zhipuglm',
+        name: 'Zhipu GLM',
+        baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+        models: {
+          main: 'glm-5.2',
+          haiku: 'glm-4.7',
+          sonnet: 'glm-5.2',
+          opus: 'glm-5.2',
+        },
+      }))
+
+      const runtimeEnv = await svc.getProviderRuntimeEnv(provider.id, 'glm-4.5-air')
+
+      expect(runtimeEnv.ANTHROPIC_MODEL).toBe('glm-4.7')
+    })
   })
 
   describe('testProviderConfig', () => {
+    test('should apply Kimi thinking defaults during connectivity checks', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const bodies: Array<Record<string, unknown>> = []
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>)
+        return Response.json({
+          type: 'message',
+          model: 'kimi-for-coding',
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://api.kimi.com/coding/',
+          apiKey: 'test-key',
+          modelId: 'kimi-for-coding',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(bodies[0].thinking).toEqual({ type: 'enabled' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should explain Kimi Code API key mismatches', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+
+      globalThis.fetch = (async () => Response.json({
+        error: {
+          message: 'The API Key appears to be invalid or may have expired. Please verify your credentials and try again.',
+        },
+      }, { status: 401 })) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://api.kimi.com/coding/',
+          apiKey: 'wrong-key',
+          modelId: 'kimi-for-coding',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(false)
+        expect(result.connectivity.error).toContain('Kimi For Coding')
+        expect(result.connectivity.error).toContain('https://api.moonshot.cn/anthropic')
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
     test('should not duplicate /v1 for Gemini OpenAI-compatible endpoints', async () => {
       const svc = new ProviderService()
       const originalFetch = globalThis.fetch
       const urls: string[] = []
+      const bodies: Array<Record<string, unknown>> = []
 
-      globalThis.fetch = (async (input: RequestInfo | URL) => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         urls.push(String(input))
+        bodies.push(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>)
         return Response.json({
           model: 'gemini-3.5-flash',
           choices: [{
@@ -543,6 +788,7 @@ describe('ProviderService', () => {
           'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
           'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
         ])
+        expect(bodies.every((body) => body.thinking === undefined)).toBe(true)
       } finally {
         globalThis.fetch = originalFetch
       }

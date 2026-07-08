@@ -78,6 +78,7 @@ const prewarmIdleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const DEFAULT_PREWARM_IDLE_TIMEOUT_MS = 5 * 60_000
 const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID = 'prompt_memory_auto_review'
 const IMAGE_ATTACHMENT_EXT_RE = /\.(?:png|jpe?g|webp|gif|bmp|heic|heif|tiff?)(?:"|\s|$)/i
+type ImageAttachmentMode = 'vision' | 'file-reference'
 
 export function getSlashCommands(sessionId: string): Array<{ name: string; description: string }> {
   return sessionSlashCommands.get(sessionId) || []
@@ -297,9 +298,7 @@ async function handleUserMessage(
     }
   }
 
-  if (!(await ensureImageAttachmentsSupported(ws, message.attachments))) {
-    return
-  }
+  const imageAttachmentMode = await resolveImageAttachmentMode(ws, message.attachments)
 
   // Send thinking status
   sendMessage(ws, { type: 'status', state: 'thinking', verb: 'Thinking' })
@@ -352,7 +351,8 @@ async function handleUserMessage(
   const sent = conversationService.sendMessage(
     sessionId,
     contentForModel,
-    message.attachments
+    message.attachments,
+    { imageAttachmentMode },
   )
   if (!sent) {
     sendMessage(ws, {
@@ -478,9 +478,7 @@ async function handleUserSteer(
     }
   }
 
-  if (!(await ensureSteerImageAttachmentsSupported(ws, steerId, message.attachments))) {
-    return
-  }
+  const imageAttachmentMode = await resolveImageAttachmentMode(ws, message.attachments)
 
   try {
     await ensureCliSessionStarted(ws, sessionId, 'user_message')
@@ -499,7 +497,7 @@ async function handleUserSteer(
     sessionId,
     content,
     message.attachments,
-    { uuid: steerId, priority },
+    { uuid: steerId, priority, imageAttachmentMode },
   )
 
   sendMessage(ws, {
@@ -662,75 +660,22 @@ async function resolveCurrentImageSupport(sessionId: string) {
   return resolveProviderImageSupport(provider)
 }
 
-function buildImageUnsupportedMessage(support: Awaited<ReturnType<typeof resolveCurrentImageSupport>>): string {
-  const model = support.modelId ? ` (${support.modelId})` : ''
-  const provider = support.providerName ? ` from ${support.providerName}` : ''
-  return `The current model${model}${provider} cannot read images. Switch to a vision-capable model, enable image input in provider settings, or remove the image and send text only.`
-}
-
-async function ensureImageAttachmentsSupported(
+async function resolveImageAttachmentMode(
   ws: ServerWebSocket<WebSocketData>,
   attachments: AttachmentRef[] | undefined,
-): Promise<boolean> {
-  if (!hasImageAttachments(attachments)) return true
+): Promise<ImageAttachmentMode> {
+  if (!hasImageAttachments(attachments)) return 'vision'
 
-  let support: Awaited<ReturnType<typeof resolveCurrentImageSupport>>
   try {
-    support = await resolveCurrentImageSupport(ws.data.sessionId)
+    const support = await resolveCurrentImageSupport(ws.data.sessionId)
+    return support.supportsImages ? 'vision' : 'file-reference'
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    sendMessage(ws, {
-      type: 'error',
-      message: `Failed to inspect the selected model image support: ${message}`,
-      code: 'MODEL_IMAGE_SUPPORT_CHECK_FAILED',
-      retryable: false,
-    })
-    sendMessage(ws, { type: 'status', state: 'idle' })
-    return false
+    console.warn(
+      `[WS] Failed to inspect image support for ${ws.data.sessionId}; falling back to file references: ${message}`,
+    )
+    return 'file-reference'
   }
-
-  if (support.supportsImages) return true
-
-  sendMessage(ws, {
-    type: 'error',
-    message: buildImageUnsupportedMessage(support),
-    code: 'MODEL_IMAGE_UNSUPPORTED',
-    retryable: false,
-  })
-  sendMessage(ws, { type: 'status', state: 'idle' })
-  return false
-}
-
-async function ensureSteerImageAttachmentsSupported(
-  ws: ServerWebSocket<WebSocketData>,
-  steerId: string,
-  attachments: AttachmentRef[] | undefined,
-): Promise<boolean> {
-  if (!hasImageAttachments(attachments)) return true
-
-  let support: Awaited<ReturnType<typeof resolveCurrentImageSupport>>
-  try {
-    support = await resolveCurrentImageSupport(ws.data.sessionId)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    sendMessage(ws, {
-      type: 'steer_status',
-      steerId,
-      status: 'failed',
-      message: `Failed to inspect the selected model image support: ${message}`,
-    })
-    return false
-  }
-
-  if (support.supportsImages) return true
-
-  sendMessage(ws, {
-    type: 'steer_status',
-    steerId,
-    status: 'failed',
-    message: buildImageUnsupportedMessage(support),
-  })
-  return false
 }
 
 function handleSetPermissionMode(
@@ -1105,8 +1050,7 @@ async function ensureCliSessionStarted(
 function isMediaRequestError(message: string): boolean {
   return (
     /request too large|payload too large|body too large|413|max\s*\d+\s*mb/i.test(message) ||
-    /image (?:was )?too large|image.*exceeds|unable to resize image/i.test(message) ||
-    /image.*not supported|does not support.*image|image input.*not supported|unsupported.*image|vision.*not supported/i.test(message)
+    /image (?:was )?too large|image.*exceeds|unable to resize image/i.test(message)
   )
 }
 

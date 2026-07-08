@@ -37,6 +37,87 @@ describe('ConversationService', () => {
     expect(result).toBe(false)
   })
 
+  it('should send non-vision image attachments as plain tool file references', () => {
+    const svc = new ConversationService()
+    const sent: any[] = []
+
+    ;(svc as any).sessions.set('session-image-tool-file', {
+      proc: null,
+      outputCallbacks: [],
+      workDir: process.cwd(),
+      permissionMode: 'default',
+      sdkToken: 'token',
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    const result = svc.sendMessage(
+      'session-image-tool-file',
+      'Please OCR this.',
+      [{
+        type: 'image',
+        name: 'photo.png',
+        path: '/tmp/photo.png',
+        mimeType: 'image/png',
+      }],
+      { imageAttachmentMode: 'file-reference' },
+    )
+
+    expect(result).toBe(true)
+    const text = sent[0]?.message?.content?.[0]?.text
+    expect(text).toContain('current model cannot read images directly')
+    expect(text).toContain('call an available image/OCR/MCP tool')
+    expect(text).toContain('"/tmp/photo.png"')
+    expect(text).not.toContain('@"/tmp/photo.png"')
+  })
+
+  it('should keep vision image attachments in direct attachment form', () => {
+    const svc = new ConversationService()
+    const sent: any[] = []
+
+    ;(svc as any).sessions.set('session-image-vision', {
+      proc: null,
+      outputCallbacks: [],
+      workDir: process.cwd(),
+      permissionMode: 'default',
+      sdkToken: 'token',
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    const result = svc.sendMessage(
+      'session-image-vision',
+      'Please inspect this image.',
+      [{
+        type: 'image',
+        name: 'photo.png',
+        path: '/tmp/photo.png',
+        mimeType: 'image/png',
+      }],
+    )
+
+    expect(result).toBe(true)
+    const text = sent[0]?.message?.content?.[0]?.text
+    expect(text).toContain('@"/tmp/photo.png"')
+    expect(text).not.toContain('current model cannot read images directly')
+  })
+
   it('should return false when responding to permission for non-existent session', () => {
     const svc = new ConversationService()
     const result = svc.respondToPermission('no-such-session', 'req-1', true)
@@ -671,7 +752,7 @@ describe('WebSocket Chat Integration', () => {
     expect(statusMsgs[0].state).toBe('thinking')
   })
 
-  it('should reject image attachments before starting a text-only provider session', async () => {
+  it('should send image attachments to text-only providers as tool file references', async () => {
     const providerService = new ProviderService()
     const provider = await providerService.addProvider({
       presetId: 'deepseek',
@@ -690,15 +771,6 @@ describe('WebSocket Chat Integration', () => {
 
     const sessionId = `chat-image-unsupported-${crypto.randomUUID()}`
     const messages: any[] = []
-    const originalStartSession = conversationService.startSession.bind(conversationService)
-    let startCallCount = 0
-
-    conversationService.startSession = (async function patchedStartSession(
-      ...args: Parameters<typeof conversationService.startSession>
-    ) {
-      startCallCount++
-      return originalStartSession(...args)
-    }) as typeof conversationService.startSession
 
     const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
 
@@ -706,10 +778,9 @@ describe('WebSocket Chat Integration', () => {
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           ws.close()
-          reject(new Error(`Timed out waiting for image unsupported error for ${sessionId}`))
+          reject(new Error(`Timed out waiting for text-only image send for ${sessionId}`))
         }, 5000)
 
-        let sawUnsupportedError = false
         ws.onmessage = (e) => {
           const msg = JSON.parse(e.data as string)
           messages.push(msg)
@@ -725,10 +796,7 @@ describe('WebSocket Chat Integration', () => {
               }],
             }))
           }
-          if (msg.type === 'error' && msg.code === 'MODEL_IMAGE_UNSUPPORTED') {
-            sawUnsupportedError = true
-          }
-          if (sawUnsupportedError && msg.type === 'status' && msg.state === 'idle') {
+          if (msg.type === 'message_complete') {
             clearTimeout(timeout)
             ws.close()
             resolve()
@@ -742,13 +810,17 @@ describe('WebSocket Chat Integration', () => {
         }
       })
 
-      expect(messages.some((msg) => msg.type === 'error' && msg.code === 'MODEL_IMAGE_UNSUPPORTED')).toBe(true)
-      expect(messages.some((msg) => msg.type === 'status' && msg.state === 'thinking')).toBe(false)
-      expect(startCallCount).toBe(0)
-      expect(conversationService.hasSession(sessionId)).toBe(false)
+      const inbound = await readMockSdkInbound(sessionId)
+      const userMessage = inbound.find((entry) => entry.type === 'user')
+      const text = extractSdkUserText(userMessage)
+      expect(messages.some((msg) => msg.type === 'error' && msg.code === 'MODEL_IMAGE_UNSUPPORTED')).toBe(false)
+      expect(messages.some((msg) => msg.type === 'status' && msg.state === 'thinking')).toBe(true)
+      expect(text).toContain('current model cannot read images directly')
+      expect(text).toContain('call an available image/OCR/MCP tool')
+      expect(text).toContain('"/tmp/photo.png"')
+      expect(text).not.toContain('@"/tmp/photo.png"')
     } finally {
       ws.close()
-      conversationService.startSession = originalStartSession
       await providerService.activateOfficial()
       conversationService.stopSession(sessionId)
     }

@@ -37,6 +37,7 @@ import type {
 } from '../types/provider.js'
 import { resolveProviderImageSupport } from './modelImageSupport.js'
 import { IMAGE_INPUT_CAPABILITY } from '../../utils/model/imageSupport.js'
+import { isKimiBaseUrl, isKimiProviderTarget } from '../../utils/model/kimi.js'
 
 const MANAGED_ENV_KEYS = [
   'ANTHROPIC_BASE_URL',
@@ -55,7 +56,15 @@ const MANAGED_ENV_KEYS = [
 
 const DEFAULT_INDEX: ProvidersIndex = { activeId: null, providers: [] }
 const MODEL_ROLES = ['main', 'haiku', 'sonnet', 'opus'] as const
-
+const KIMI_CODE_PRESET_ID = 'kimi-code'
+const KIMI_API_PRESET_ID = 'kimi'
+const KIMI_API_FALLBACK_MODEL = 'kimi-k2.6'
+const XIAOMI_MIMO_PRESET_ID = 'xiaomimimo'
+const XIAOMI_MIMO_UNSUPPORTED_V25_FLASH = 'mimo-v2.5-flash'
+const XIAOMI_MIMO_V25_MODEL = 'mimo-v2.5'
+const ZHIPU_GLM_PRESET_ID = 'zhipuglm'
+const ZHIPU_GLM_UNSUPPORTED_45_AIR = 'glm-4.5-air'
+const ZHIPU_GLM_SMALL_MODEL = 'glm-4.7'
 function getPresetDefaultEnv(presetId: string): Record<string, string> {
   return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultEnv ?? {}
 }
@@ -105,6 +114,165 @@ function mergeCapabilityList(raw: string | undefined, capability: string, enable
   return [...capabilities].sort().join(',')
 }
 
+function migrateProviderIndex(index: ProvidersIndex): { index: ProvidersIndex; changed: boolean } {
+  let changed = false
+  const providers = index.providers.map((provider) => {
+    let migrated = provider
+
+    if (isSavedKimiCodeProvider(migrated)) {
+      changed = true
+      migrated = {
+        ...migrated,
+        presetId: KIMI_CODE_PRESET_ID,
+      }
+    }
+
+    if (isSavedKimiApiProviderWithMisplacedCodeModel(migrated)) {
+      changed = true
+      migrated = {
+        ...migrated,
+        models: replaceKimiCodeModelsWithApiFallback(migrated.models),
+      }
+    }
+
+    if (isSavedKimiApiProviderWithLegacyImageSupport(migrated)) {
+      changed = true
+      const rest = { ...migrated }
+      delete rest.supportsImages
+      migrated = {
+        ...rest,
+        imageSupportMode: 'auto',
+      }
+    }
+
+    if (isSavedXiaomiMiMoProviderWithUnsupportedModels(migrated)) {
+      changed = true
+      migrated = {
+        ...migrated,
+        models: replaceUnsupportedXiaomiMiMoModels(migrated.models),
+      }
+    }
+
+    if (isSavedZhipuGlmProviderWithUnsupportedModels(migrated)) {
+      changed = true
+      migrated = {
+        ...migrated,
+        models: replaceUnsupportedZhipuGlmModels(migrated.models),
+      }
+    }
+
+    return migrated
+  })
+
+  return {
+    index: changed ? { ...index, providers } : index,
+    changed,
+  }
+}
+
+function isSavedKimiCodeProvider(provider: SavedProvider): boolean {
+  return provider.presetId === KIMI_API_PRESET_ID &&
+    isKimiCodeBaseUrl(provider.baseUrl)
+}
+
+function isSavedKimiApiProviderWithLegacyImageSupport(provider: SavedProvider): boolean {
+  return provider.presetId === KIMI_API_PRESET_ID &&
+    isKimiBaseUrl(provider.baseUrl) &&
+    !isKimiCodeBaseUrl(provider.baseUrl) &&
+    provider.imageSupportMode === undefined &&
+    provider.supportsImages === false
+}
+
+function isSavedKimiApiProviderWithMisplacedCodeModel(provider: SavedProvider): boolean {
+  return provider.presetId === KIMI_API_PRESET_ID &&
+    isKimiBaseUrl(provider.baseUrl) &&
+    !isKimiCodeBaseUrl(provider.baseUrl) &&
+    MODEL_ROLES.some((role) => isKimiK27CodeModel(provider.models[role]))
+}
+
+function replaceKimiCodeModelsWithApiFallback(models: ModelMapping): ModelMapping {
+  const next: ModelMapping = { ...models }
+  for (const role of MODEL_ROLES) {
+    if (isKimiK27CodeModel(next[role])) {
+      next[role] = KIMI_API_FALLBACK_MODEL
+    }
+  }
+  return next
+}
+
+function isKimiK27CodeModel(model: string | undefined): boolean {
+  const normalized = (model ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/:(?:\d+(?:k|m)?|[a-z]+)$/i, '')
+
+  return normalized.includes('kimi-k2.7-code')
+}
+
+function isSavedXiaomiMiMoProviderWithUnsupportedModels(provider: SavedProvider): boolean {
+  return provider.presetId === XIAOMI_MIMO_PRESET_ID &&
+    MODEL_ROLES.some((role) => normalizeSavedModel(provider.models[role]) === XIAOMI_MIMO_UNSUPPORTED_V25_FLASH)
+}
+
+function replaceUnsupportedXiaomiMiMoModels(models: ModelMapping): ModelMapping {
+  const next: ModelMapping = { ...models }
+  for (const role of MODEL_ROLES) {
+    if (normalizeSavedModel(next[role]) === XIAOMI_MIMO_UNSUPPORTED_V25_FLASH) {
+      next[role] = XIAOMI_MIMO_V25_MODEL
+    }
+  }
+  return next
+}
+
+function isSavedZhipuGlmProviderWithUnsupportedModels(provider: SavedProvider): boolean {
+  return provider.presetId === ZHIPU_GLM_PRESET_ID &&
+    MODEL_ROLES.some((role) => normalizeSavedModel(provider.models[role]) === ZHIPU_GLM_UNSUPPORTED_45_AIR)
+}
+
+function replaceUnsupportedZhipuGlmModels(models: ModelMapping): ModelMapping {
+  const next: ModelMapping = { ...models }
+  for (const role of MODEL_ROLES) {
+    if (normalizeSavedModel(next[role]) === ZHIPU_GLM_UNSUPPORTED_45_AIR) {
+      next[role] = ZHIPU_GLM_SMALL_MODEL
+    }
+  }
+  return next
+}
+
+function normalizeSavedModel(model: string | undefined): string {
+  return (model ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/:(?:\d+(?:k|m)?|[a-z]+)$/i, '')
+}
+
+function normalizeProviderRuntimeModel(provider: SavedProvider, modelId: string): string {
+  if (
+    provider.presetId === KIMI_API_PRESET_ID &&
+    isKimiBaseUrl(provider.baseUrl) &&
+    !isKimiCodeBaseUrl(provider.baseUrl) &&
+    isKimiK27CodeModel(modelId)
+  ) {
+    return KIMI_API_FALLBACK_MODEL
+  }
+
+  if (
+    provider.presetId === XIAOMI_MIMO_PRESET_ID &&
+    normalizeSavedModel(modelId) === XIAOMI_MIMO_UNSUPPORTED_V25_FLASH
+  ) {
+    return XIAOMI_MIMO_V25_MODEL
+  }
+
+  if (
+    provider.presetId === ZHIPU_GLM_PRESET_ID &&
+    normalizeSavedModel(modelId) === ZHIPU_GLM_UNSUPPORTED_45_AIR
+  ) {
+    return ZHIPU_GLM_SMALL_MODEL
+  }
+
+  return modelId
+}
+
 export class ProviderService {
   private static serverPort = 3456
 
@@ -134,7 +302,22 @@ export class ProviderService {
   private async readIndex(): Promise<ProvidersIndex> {
     try {
       const raw = await fs.readFile(this.getIndexPath(), 'utf-8')
-      return JSON.parse(raw) as ProvidersIndex
+      const index = JSON.parse(raw) as ProvidersIndex
+      const migrated = migrateProviderIndex(index)
+      if (migrated.changed) {
+        await this.writeIndex(migrated.index)
+        const activeProvider = migrated.index.activeId
+          ? migrated.index.providers.find((provider) => provider.id === migrated.index.activeId)
+          : undefined
+        if (activeProvider) {
+          if (activeProvider.presetId === 'official') {
+            await this.clearProviderFromSettings()
+          } else {
+            await this.syncToSettings(activeProvider)
+          }
+        }
+      }
+      return migrated.index
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         return { ...DEFAULT_INDEX, providers: [] }
@@ -220,7 +403,9 @@ export class ProviderService {
       ...(compactModelContextWindows(input.modelContextWindows) && {
         modelContextWindows: compactModelContextWindows(input.modelContextWindows),
       }),
-      ...(input.supportsImages !== undefined && { supportsImages: input.supportsImages }),
+      ...(input.imageSupportMode !== undefined && { imageSupportMode: input.imageSupportMode }),
+      ...(input.imageSupportMode === undefined &&
+        input.supportsImages !== undefined && { supportsImages: input.supportsImages }),
       ...(input.notes !== undefined && { notes: input.notes }),
     }
 
@@ -245,8 +430,13 @@ export class ProviderService {
       ...(input.modelContextWindows !== undefined && {
         modelContextWindows: compactModelContextWindows(input.modelContextWindows),
       }),
-      ...(input.supportsImages !== undefined && { supportsImages: input.supportsImages }),
+      ...(input.imageSupportMode !== undefined && { imageSupportMode: input.imageSupportMode }),
+      ...(input.imageSupportMode === undefined &&
+        input.supportsImages !== undefined && { supportsImages: input.supportsImages }),
       ...(input.notes !== undefined && { notes: input.notes }),
+    }
+    if (input.imageSupportMode !== undefined) {
+      delete updated.supportsImages
     }
 
     index.providers[idx] = updated
@@ -307,7 +497,8 @@ export class ProviderService {
     const baseUrl = needsProxy
       ? `http://127.0.0.1:${ProviderService.serverPort}${proxyPath}`
       : provider.baseUrl
-    const mainModel = options?.modelId?.trim() || provider.models.main
+    const requestedModel = options?.modelId?.trim() || provider.models.main
+    const mainModel = normalizeProviderRuntimeModel(provider, requestedModel)
     const modelContextWindowMap = this.getProviderModelContextWindowMap(provider)
     const presetEnv = getPresetDefaultEnv(provider.presetId)
     const supportsImages = resolveProviderImageSupport(provider, mainModel).supportsImages
@@ -564,6 +755,7 @@ export class ProviderService {
         if (resBody?.error && typeof resBody.error === 'object') {
           error = ((resBody.error as Record<string, unknown>).message as string) || error
         }
+        error = explainProviderTestError(base, modelId, error)
         return { success: false, latencyMs, error, modelUsed: modelId, httpStatus: response.status }
       }
 
@@ -664,7 +856,11 @@ function buildDirectTestRequest(
     return {
       url: buildOpenAICompatibleUrl(base, 'chat/completions'),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: { model: modelId, max_tokens: 16, messages: [{ role: 'user', content: prompt }] },
+      body: withProviderSpecificTestDefaults(base, modelId, format, {
+        model: modelId,
+        max_tokens: 16,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     }
   }
   if (format === 'openai_responses') {
@@ -678,8 +874,65 @@ function buildDirectTestRequest(
   return {
     url: `${base}/v1/messages`,
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: { model: modelId, max_tokens: 16, messages: [{ role: 'user', content: prompt }] },
+    body: withProviderSpecificTestDefaults(base, modelId, format, {
+      model: modelId,
+      max_tokens: 16,
+      messages: [{ role: 'user', content: prompt }],
+    }),
   }
+}
+
+function withProviderSpecificTestDefaults(
+  base: string,
+  modelId: string,
+  format: ApiFormat,
+  body: Record<string, unknown>,
+): Record<string, unknown> {
+  if (format === 'openai_responses' || !isKimiProviderTarget(modelId, base)) {
+    return body
+  }
+
+  return {
+    ...body,
+    thinking: { type: 'enabled' },
+  }
+}
+
+function explainProviderTestError(base: string, modelId: string, error: string): string {
+  if (!isKimiProviderTarget(modelId, base) || !looksLikeInvalidApiKeyError(error)) {
+    return error
+  }
+
+  if (isKimiCodeBaseUrl(base)) {
+    return [
+      'Kimi Code API Key 无效或已过期。',
+      '这个接口需要 Kimi For Coding 会员页面生成的 API Key；',
+      'Moonshot/Kimi 开放平台的 API Key 不能用于 https://api.kimi.com/coding/。',
+      '如果你使用的是开放平台 API Key，请把 API 地址改为 https://api.moonshot.cn/anthropic，并使用 kimi-k2.6。',
+    ].join(' ')
+  }
+
+  if (isKimiBaseUrl(base)) {
+    return [
+      'Kimi/Moonshot API Key 无效或已过期。',
+      '请确认这个 Key 属于当前 API 地址；Kimi For Coding 会员 Key 应使用 https://api.kimi.com/coding/，开放平台 Key 应使用 https://api.moonshot.cn/anthropic。',
+    ].join(' ')
+  }
+
+  return error
+}
+
+function isKimiCodeBaseUrl(base: string): boolean {
+  try {
+    const host = new URL(base).host.toLowerCase()
+    return host === 'api.kimi.com'
+  } catch {
+    return false
+  }
+}
+
+function looksLikeInvalidApiKeyError(error: string): boolean {
+  return /api\s*key/i.test(error) && /(invalid|expired|无效|过期)/i.test(error)
 }
 
 function validateResponseBody(

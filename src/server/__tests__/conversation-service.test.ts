@@ -389,6 +389,53 @@ describe('ConversationService', () => {
     expect(Number.isNaN(Date.parse(sent[0].timestamp))).toBe(false)
   })
 
+  test('sendMessage materializes inline non-vision images as tool file references', async () => {
+    const service = new ConversationService() as any
+    const sent: any[] = []
+
+    service.sessions.set('inline-image-session', {
+      proc: null,
+      outputCallbacks: [],
+      workDir: process.cwd(),
+      permissionMode: 'default',
+      sdkToken: 'token',
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    const ok = service.sendMessage(
+      'inline-image-session',
+      'Run OCR if possible.',
+      [{
+        type: 'image',
+        name: 'clipboard.png',
+        data: 'data:image/png;base64,aGVsbG8=',
+        mimeType: 'image/png',
+      }],
+      { imageAttachmentMode: 'file-reference' },
+    )
+
+    expect(ok).toBe(true)
+    const text = sent[0]?.message?.content?.[0]?.text
+    expect(text).toContain('current model cannot read images directly')
+    expect(text).toContain('clipboard.png')
+    expect(text).not.toContain('@')
+
+    const match = text.match(/"([^"]*clipboard\.png)"/)
+    expect(typeof match?.[1]).toBe('string')
+    const savedPath = match![1]
+    const savedContent = await fs.readFile(savedPath, 'utf-8')
+    expect(savedContent).toBe('hello')
+  })
+
   test('buildChildEnv asks desktop SDK sessions to wait briefly for MCP tools', async () => {
     const service = new ConversationService() as any
     const env = (await service.buildChildEnv(

@@ -1,6 +1,7 @@
 // desktop/src/types/provider.ts
 
 export type ApiFormat = 'anthropic' | 'openai_chat' | 'openai_responses'
+export type ImageSupportMode = 'auto' | 'enabled' | 'disabled'
 
 export type ModelMapping = {
   main: string
@@ -20,6 +21,8 @@ export type SavedProvider = {
   apiFormat: ApiFormat
   models: ModelMapping
   modelContextWindows?: ModelContextWindows
+  imageSupportMode?: ImageSupportMode
+  // Legacy boolean kept for older saved provider records.
   supportsImages?: boolean
   notes?: string
 }
@@ -32,6 +35,7 @@ export type CreateProviderInput = {
   apiFormat?: ApiFormat
   models: ModelMapping
   modelContextWindows?: ModelContextWindows
+  imageSupportMode?: ImageSupportMode
   supportsImages?: boolean
   notes?: string
 }
@@ -43,6 +47,7 @@ export type UpdateProviderInput = {
   apiFormat?: ApiFormat
   models?: ModelMapping
   modelContextWindows?: ModelContextWindows
+  imageSupportMode?: ImageSupportMode
   supportsImages?: boolean
   notes?: string
 }

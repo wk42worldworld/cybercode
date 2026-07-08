@@ -337,6 +337,72 @@ describe('Settings > Providers tab', () => {
     expect(within(dialog).getByDisplayValue('deepseek-v4-flash')).toBeInTheDocument()
   })
 
+  it('shows separate Kimi Code and Kimi API presets with different default models', () => {
+    providerStoreState.providers = []
+    providerStoreState.presets = [
+      {
+        id: 'kimi-code',
+        name: 'Kimi Code',
+        baseUrl: 'https://api.kimi.com/coding/',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: 'kimi-for-coding',
+          haiku: 'kimi-for-coding',
+          sonnet: 'kimi-for-coding',
+          opus: 'kimi-for-coding',
+        },
+        modelOptions: [
+          { id: 'kimi-for-coding', label: 'Kimi for Coding', contextWindow: 256_000, supportsImages: false },
+          { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', contextWindow: 256_000, supportsImages: false },
+          { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code Highspeed', contextWindow: 256_000, supportsImages: false },
+        ],
+        needsApiKey: true,
+        websiteUrl: 'https://www.kimi.com/coding/docs/',
+        apiKeyUrl: 'https://www.kimi.com/coding',
+      },
+      {
+        id: 'kimi',
+        name: 'Kimi API',
+        baseUrl: 'https://api.moonshot.cn/anthropic',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: 'kimi-k2.6',
+          haiku: 'kimi-k2.6',
+          sonnet: 'kimi-k2.6',
+          opus: 'kimi-k2.6',
+        },
+        modelOptions: [
+          { id: 'kimi-k2.6', label: 'Kimi K2.6', contextWindow: 256_000 },
+        ],
+        supportsImages: true,
+        needsApiKey: true,
+        websiteUrl: 'https://platform.kimi.com',
+        apiKeyUrl: 'https://platform.kimi.com/console/api-keys',
+      },
+      {
+        id: 'custom',
+        name: 'Custom',
+        baseUrl: '',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: '',
+          haiku: '',
+          sonnet: '',
+          opus: '',
+        },
+        needsApiKey: true,
+        websiteUrl: '',
+      },
+    ]
+
+    render(<ProviderSettings />)
+
+    expect(screen.getByText('Kimi Code')).toBeInTheDocument()
+    expect(screen.getByText('https://api.kimi.com/coding/ · kimi-for-coding')).toBeInTheDocument()
+    expect(screen.getByText('Kimi API')).toBeInTheDocument()
+    expect(screen.getByText('https://api.moonshot.cn/anthropic · kimi-k2.6')).toBeInTheDocument()
+  })
+
   it('hides the API key by default and reveals it from the eye button', () => {
     providerStoreState.presets = [
       {

@@ -118,15 +118,15 @@
     "apiKeyUrl": "https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys"
   },
   {
-    "id": "kimi",
-    "name": "Kimi",
-    "baseUrl": "https://api.moonshot.cn/anthropic",
+    "id": "kimi-code",
+    "name": "Kimi Code",
+    "baseUrl": "https://api.kimi.com/coding/",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "kimi-k2.7-code",
-      "haiku": "kimi-k2.7-code",
-      "sonnet": "kimi-k2.7-code",
-      "opus": "kimi-k2.7-code"
+      "main": "kimi-for-coding",
+      "haiku": "kimi-for-coding",
+      "sonnet": "kimi-for-coding",
+      "opus": "kimi-for-coding"
     },
     "defaultModelContextWindows": {
       "main": 256000,
@@ -136,10 +136,48 @@
     },
     "modelOptions": [
       {
+        "id": "kimi-for-coding",
+        "label": "Kimi for Coding",
+        "contextWindow": 256000,
+        "supportsImages": false
+      },
+      {
         "id": "kimi-k2.7-code",
         "label": "Kimi K2.7 Code",
-        "contextWindow": 256000
+        "contextWindow": 256000,
+        "supportsImages": false
       },
+      {
+        "id": "kimi-k2.7-code-highspeed",
+        "label": "Kimi K2.7 Code Highspeed",
+        "contextWindow": 256000,
+        "supportsImages": false
+      }
+    ],
+    "supportsImages": false,
+    "needsApiKey": true,
+    "websiteUrl": "https://www.kimi.com/coding/docs/",
+    "apiKeyUrl": "https://www.kimi.com/coding",
+    "promoText": "Recommended for CyberCode coding agents. Use the Kimi For Coding API key from your membership page."
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi API",
+    "baseUrl": "https://api.moonshot.cn/anthropic",
+    "apiFormat": "anthropic",
+    "defaultModels": {
+      "main": "kimi-k2.6",
+      "haiku": "kimi-k2.6",
+      "sonnet": "kimi-k2.6",
+      "opus": "kimi-k2.6"
+    },
+    "defaultModelContextWindows": {
+      "main": 256000,
+      "haiku": 256000,
+      "sonnet": 256000,
+      "opus": 256000
+    },
+    "modelOptions": [
       {
         "id": "kimi-k2.6",
         "label": "Kimi K2.6",
@@ -171,10 +209,11 @@
         "contextWindow": 256000
       }
     ],
-    "supportsImages": false,
+    "supportsImages": true,
     "needsApiKey": true,
-    "websiteUrl": "https://platform.moonshot.cn",
-    "apiKeyUrl": "https://platform.kimi.com/console/api-keys"
+    "websiteUrl": "https://platform.kimi.com",
+    "apiKeyUrl": "https://platform.kimi.com/console/api-keys",
+    "promoText": "Uses the Kimi/Moonshot open platform API key. For Kimi For Coding membership keys, choose Kimi Code instead."
   },
   {
     "id": "minimax",
@@ -407,7 +446,6 @@
         "contextWindow": 200000
       }
     ],
-    "supportsImages": false,
     "needsApiKey": false,
     "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
     "promoText": "LM Studio 使用 Anthropic 兼容协议，Base URL 填 http://localhost:1234，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
@@ -439,7 +477,6 @@
         "contextWindow": 256000
       }
     ],
-    "supportsImages": false,
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
     "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",
@@ -458,7 +495,6 @@
       "sonnet": "",
       "opus": ""
     },
-    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": ""
   }

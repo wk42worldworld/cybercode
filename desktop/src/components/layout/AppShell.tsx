@@ -39,7 +39,20 @@ export function AppShell() {
     const bootstrap = async () => {
       try {
         await initializeDesktopServerUrl()
+      } catch (error) {
+        if (!cancelled) {
+          setStartupError(error instanceof Error ? error.message : String(error))
+        }
+        return
+      }
+
+      try {
         await fetchSettings()
+      } catch (error) {
+        console.warn('[desktop] Failed to load startup settings:', error)
+      }
+
+      try {
         await useTabStore.getState().restoreTabs()
 
         const { activeTabId: activeId, tabs } = useTabStore.getState()
@@ -51,13 +64,11 @@ export function AppShell() {
           // burst that would crash the WKWebView GPU compositor.
           await useChatStore.getState().ensureSessionReady(activeTab.sessionId, activeTab.projectPath)
         }
-
-        if (!cancelled) setReady(true)
       } catch (error) {
-        if (!cancelled) {
-          setStartupError(error instanceof Error ? error.message : String(error))
-        }
+        console.warn('[desktop] Failed to restore startup tabs/history:', error)
       }
+
+      if (!cancelled) setReady(true)
     }
 
     void bootstrap()

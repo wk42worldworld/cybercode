@@ -16,6 +16,7 @@ import { getAPIMetadata } from '../services/api/claude.js'
 import { getAnthropicClient } from '../services/api/client.js'
 import { getModelBetas, modelSupportsStructuredOutputs } from './betas.js'
 import { computeFingerprint } from './fingerprint.js'
+import { shouldOmitDisabledThinkingForModel } from './model/kimi.js'
 import { normalizeModelStringForAPI } from './model/model.js'
 
 type MessageParam = Anthropic.MessageParam
@@ -168,7 +169,9 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
 
   let thinkingConfig: BetaThinkingConfigParam | undefined
   if (thinking === false) {
-    thinkingConfig = { type: 'disabled' }
+    thinkingConfig = shouldOmitDisabledThinkingForModel(model)
+      ? undefined
+      : { type: 'disabled' }
   } else if (thinking !== undefined) {
     thinkingConfig = {
       type: 'enabled',
@@ -178,24 +181,37 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
 
   const normalizedModel = normalizeModelStringForAPI(model)
   const start = Date.now()
+  const requestBody = {
+    model: normalizedModel,
+    max_tokens,
+    system: systemBlocks,
+    messages,
+    ...(tools && { tools }),
+    ...(tool_choice && { tool_choice }),
+    ...(output_format && { output_config: { format: output_format } }),
+    ...(temperature !== undefined && { temperature }),
+    ...(stop_sequences && { stop_sequences }),
+    ...(thinkingConfig && { thinking: thinkingConfig }),
+    ...(betas.length > 0 && { betas }),
+    metadata: getAPIMetadata(),
+  }
+  let response: BetaMessage
   // biome-ignore lint/plugin: this IS the wrapper that handles OAuth attribution
-  const response = await client.beta.messages.create(
-    {
-      model: normalizedModel,
-      max_tokens,
-      system: systemBlocks,
-      messages,
-      ...(tools && { tools }),
-      ...(tool_choice && { tool_choice }),
-      ...(output_format && { output_config: { format: output_format } }),
-      ...(temperature !== undefined && { temperature }),
-      ...(stop_sequences && { stop_sequences }),
-      ...(thinkingConfig && { thinking: thinkingConfig }),
-      ...(betas.length > 0 && { betas }),
-      metadata: getAPIMetadata(),
-    },
-    { signal },
-  )
+  try {
+    response = await client.beta.messages.create(requestBody, { signal })
+  } catch (error) {
+    if (
+      thinkingConfig?.type === 'disabled' &&
+      isDisabledThinkingRejectedError(error)
+    ) {
+      const { thinking: _thinking, ...retryBody } = requestBody
+      // Some Anthropic-compatible providers reject an explicit disabled
+      // thinking block but accept the same request when the field is omitted.
+      response = await client.beta.messages.create(retryBody, { signal })
+    } else {
+      throw error
+    }
+  }
 
   const requestId =
     (response as { _request_id?: string | null })._request_id ?? undefined
@@ -219,4 +235,27 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
   setLastApiCompletionTimestamp(now)
 
   return response
+}
+
+function isDisabledThinkingRejectedError(error: unknown): boolean {
+  const text = getErrorText(error).toLowerCase()
+  return text.includes('invalid thinking') && text.includes('only type=enabled')
+}
+
+function getErrorText(error: unknown): string {
+  const parts: string[] = []
+  if (error instanceof Error) parts.push(error.message)
+  else parts.push(String(error))
+
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    if (typeof record.message === 'string') parts.push(record.message)
+    const nestedError = record.error
+    if (nestedError && typeof nestedError === 'object') {
+      const nested = nestedError as Record<string, unknown>
+      if (typeof nested.message === 'string') parts.push(nested.message)
+    }
+  }
+
+  return parts.join('\n')
 }

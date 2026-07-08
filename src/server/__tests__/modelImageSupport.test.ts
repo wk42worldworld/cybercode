@@ -34,6 +34,22 @@ describe('model image support', () => {
     expect(resolveProviderImageSupport(provider({ supportsImages: false })).supportsImages).toBe(false)
   })
 
+  test('uses image support mode overrides before legacy settings', () => {
+    const forcedOn = resolveProviderImageSupport(provider({
+      imageSupportMode: 'enabled',
+      supportsImages: false,
+    }))
+    expect(forcedOn.supportsImages).toBe(true)
+    expect(forcedOn.source).toBe('provider-forced')
+
+    const forcedOff = resolveProviderImageSupport(provider({
+      imageSupportMode: 'disabled',
+      supportsImages: true,
+    }))
+    expect(forcedOff.supportsImages).toBe(false)
+    expect(forcedOff.source).toBe('provider-forced')
+  })
+
   test('uses preset defaults for known text-only and vision providers', () => {
     expect(resolveProviderImageSupport(provider({
       presetId: 'deepseek',
@@ -57,21 +73,37 @@ describe('model image support', () => {
         opus: 'gemini-3.1-pro-preview',
       },
     })).supportsImages).toBe(true)
+
+    expect(resolveProviderImageSupport(provider({
+      presetId: 'kimi',
+      name: 'Kimi API',
+      baseUrl: 'https://api.moonshot.cn/anthropic',
+      models: {
+        main: 'kimi-k2.6',
+        haiku: 'kimi-k2.6',
+        sonnet: 'kimi-k2.6',
+        opus: 'kimi-k2.6',
+      },
+    })).supportsImages).toBe(true)
   })
 
   test('infers common vision and text-only model ids', () => {
     expect(inferModelSupportsImages('gpt-4o')).toBe(true)
     expect(inferModelSupportsImages('qwen-vl-plus')).toBe(true)
+    expect(inferModelSupportsImages('kimi-k2.6')).toBe(true)
+    expect(inferModelSupportsImages('kimi-k2.7-code')).toBe(true)
     expect(inferModelSupportsImages('openai/gpt-oss-20b')).toBe(false)
     expect(inferModelSupportsImages('deepseek-v4-pro[1m]')).toBe(false)
   })
 
-  test('defaults unknown custom providers to text-only', () => {
-    expect(resolveProviderImageSupport(provider({ models: {
+  test('tries image input for unknown custom providers by default', () => {
+    const resolved = resolveProviderImageSupport(provider({ models: {
       main: 'my-private-model',
       haiku: 'my-private-model',
       sonnet: 'my-private-model',
       opus: 'my-private-model',
-    } })).supportsImages).toBe(false)
+    } }))
+    expect(resolved.supportsImages).toBe(true)
+    expect(resolved.source).toBe('default')
   })
 })

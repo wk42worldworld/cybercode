@@ -15,6 +15,9 @@ export const ApiFormatSchema = z.enum([
 ])
 export type ApiFormat = z.infer<typeof ApiFormatSchema>
 
+export const ImageSupportModeSchema = z.enum(['auto', 'enabled', 'disabled'])
+export type ImageSupportMode = z.infer<typeof ImageSupportModeSchema>
+
 export const ModelMappingSchema = z.object({
   main: z.string(),
   haiku: z.string(),
@@ -46,6 +49,8 @@ export const SavedProviderSchema = z.object({
   apiFormat: ApiFormatSchema.default('anthropic'),
   models: ModelMappingSchema,
   modelContextWindows: ModelContextWindowsSchema.optional(),
+  imageSupportMode: ImageSupportModeSchema.optional(),
+  // Legacy boolean from older desktop builds. New writes should use imageSupportMode.
   supportsImages: z.boolean().optional(),
   notes: z.string().optional(),
 })
@@ -63,6 +68,7 @@ export const CreateProviderSchema = z.object({
   apiFormat: ApiFormatSchema.default('anthropic'),
   models: ModelMappingSchema,
   modelContextWindows: ModelContextWindowsSchema.optional(),
+  imageSupportMode: ImageSupportModeSchema.optional(),
   supportsImages: z.boolean().optional(),
   notes: z.string().optional(),
 })
@@ -74,6 +80,7 @@ export const UpdateProviderSchema = z.object({
   apiFormat: ApiFormatSchema.optional(),
   models: ModelMappingSchema.optional(),
   modelContextWindows: ModelContextWindowsSchema.optional(),
+  imageSupportMode: ImageSupportModeSchema.optional(),
   supportsImages: z.boolean().optional(),
   notes: z.string().optional(),
 })

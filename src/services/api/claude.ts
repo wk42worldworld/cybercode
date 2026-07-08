@@ -88,6 +88,7 @@ import {
   getSmallFastModel,
   isNonCustomOpusModel,
 } from '../../utils/model/model.js'
+import { shouldOmitThinkingParamForModel } from '../../utils/model/kimi.js'
 import { modelSupportsImages } from '../../utils/model/imageSupport.js'
 import {
   asSystemPrompt,
@@ -1661,7 +1662,9 @@ async function* queryModel(
       options.maxOutputTokensOverride ||
       getMaxOutputTokensForModel(options.model)
 
+    const omitThinkingParam = shouldOmitThinkingParamForModel(options.model)
     const hasThinking =
+      !omitThinkingParam &&
       thinkingConfig.type !== 'disabled' &&
       !isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_THINKING)
     let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined
@@ -1758,7 +1761,7 @@ async function* queryModel(
 
     // Only send temperature when thinking is disabled — the API requires
     // temperature: 1 when thinking is enabled, which is already the default.
-    const temperature = !hasThinking
+    const temperature = !hasThinking && !omitThinkingParam
       ? (options.temperatureOverride ?? 1)
       : undefined
 

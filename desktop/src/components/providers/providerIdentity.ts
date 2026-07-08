@@ -68,7 +68,7 @@ const KNOWN_PROVIDER_IDENTITIES: ProviderIdentityDefinition[] = [
     motif: 'asset',
     assetSrc: '/provider-icons/styled/cybercode-kimi.png',
     assetScale: 0.9,
-    matchers: ['kimi', 'moonshot'],
+    matchers: ['kimi', 'kimi-code', 'moonshot'],
   },
   {
     id: 'minimax',

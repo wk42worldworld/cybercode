@@ -26,10 +26,12 @@ type AttachmentRef = {
 }
 
 type MessagePriority = 'now' | 'next' | 'later'
+type ImageAttachmentMode = 'vision' | 'file-reference'
 
 type SendMessageOptions = {
   uuid?: string
   priority?: MessagePriority
+  imageAttachmentMode?: ImageAttachmentMode
 }
 
 type SessionProcess = {
@@ -274,7 +276,9 @@ export class ConversationService {
       type: 'user',
       message: {
         role: 'user',
-        content: this.buildUserContent(content, sessionId, attachments),
+        content: this.buildUserContent(content, sessionId, attachments, {
+          imageAttachmentMode: options?.imageAttachmentMode ?? 'vision',
+        }),
       },
       parent_tool_use_id: null,
       session_id: '',
@@ -945,8 +949,11 @@ export class ConversationService {
     content: string,
     sessionId: string,
     attachments?: AttachmentRef[],
+    options?: { imageAttachmentMode?: ImageAttachmentMode },
   ): Array<Record<string, unknown>> {
-    const prefix = this.materializeAttachments(sessionId, attachments)
+    const prefix = this.materializeAttachments(sessionId, attachments, {
+      imageAttachmentMode: options?.imageAttachmentMode ?? 'vision',
+    })
     const trimmed = content.trim()
     const text = prefix
       ? `${prefix}${trimmed || 'Please analyze the attached files.'}`.trim()
@@ -958,6 +965,7 @@ export class ConversationService {
   private materializeAttachments(
     sessionId: string,
     attachments?: AttachmentRef[],
+    options?: { imageAttachmentMode?: ImageAttachmentMode },
   ): string {
     if (!attachments || attachments.length === 0) {
       return ''
@@ -970,30 +978,55 @@ export class ConversationService {
     )
     fs.mkdirSync(uploadDir, { recursive: true })
 
-    const savedPaths: string[] = []
+    const imageAttachmentMode = options?.imageAttachmentMode ?? 'vision'
+    const directAttachmentPaths: string[] = []
+    const imageFileReferenceLines: string[] = []
     for (const attachment of attachments) {
+      let filePath: string | null = null
       if (attachment.path) {
-        savedPaths.push(attachment.path)
+        filePath = attachment.path
+      } else if (attachment.data) {
+        const payload = this.parseAttachmentData(attachment.data)
+        if (!payload) continue
+
+        const ext = this.getAttachmentExtension(attachment)
+        const fileName = this.sanitizeAttachmentName(attachment.name, attachment.type, ext)
+        const outPath = path.join(uploadDir, `${crypto.randomUUID()}-${fileName}`)
+        fs.writeFileSync(outPath, payload)
+        filePath = outPath
+      }
+
+      if (!filePath) continue
+
+      if (attachment.type === 'image' && imageAttachmentMode === 'file-reference') {
+        const label = attachment.name ? ` (${attachment.name})` : ''
+        const mime = attachment.mimeType ? `, ${attachment.mimeType}` : ''
+        imageFileReferenceLines.push(`- "${filePath}"${label}${mime}`)
         continue
       }
 
-      if (!attachment.data) continue
-
-      const payload = this.parseAttachmentData(attachment.data)
-      if (!payload) continue
-
-      const ext = this.getAttachmentExtension(attachment)
-      const fileName = this.sanitizeAttachmentName(attachment.name, attachment.type, ext)
-      const outPath = path.join(uploadDir, `${crypto.randomUUID()}-${fileName}`)
-      fs.writeFileSync(outPath, payload)
-      savedPaths.push(outPath)
+      directAttachmentPaths.push(filePath)
     }
 
-    if (savedPaths.length === 0) {
+    if (directAttachmentPaths.length === 0 && imageFileReferenceLines.length === 0) {
       return ''
     }
 
-    return savedPaths.map((filePath) => `@"${filePath}"`).join(' ') + ' '
+    const parts: string[] = []
+    if (directAttachmentPaths.length > 0) {
+      parts.push(directAttachmentPaths.map((filePath) => `@"${filePath}"`).join(' '))
+    }
+    if (imageFileReferenceLines.length > 0) {
+      parts.push([
+        'Attached image files are available as local files for tool use.',
+        'The current model cannot read images directly. If image understanding is needed, call an available image/OCR/MCP tool with one of these file paths. If no suitable tool is available, explain that limitation and continue from the available context.',
+        '',
+        'Image files:',
+        ...imageFileReferenceLines,
+      ].join('\n'))
+    }
+
+    return parts.join('\n\n') + '\n\n'
   }
 
   private parseAttachmentData(data: string): Buffer | null {

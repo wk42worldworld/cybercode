@@ -54,6 +54,14 @@ describe('provider presets API', () => {
     expect(PROVIDER_PRESETS.some((preset) => preset.id === 'custom')).toBe(true)
   })
 
+  test('configured presets expose separate Kimi Code and Kimi API entries', () => {
+    const ids = PROVIDER_PRESETS.map((preset) => preset.id)
+
+    expect(ids).toContain('kimi-code')
+    expect(ids).toContain('kimi')
+    expect(ids.indexOf('kimi-code')).toBeLessThan(ids.indexOf('kimi'))
+  })
+
   test('local Anthropic-compatible presets appear immediately before custom', () => {
     expect(PROVIDER_PRESETS.at(-3)?.id).toBe('lmstudio')
     expect(PROVIDER_PRESETS.at(-2)?.id).toBe('ollama')
@@ -65,6 +73,7 @@ describe('provider presets API', () => {
     const ollama = PROVIDER_PRESETS.find((preset) => preset.id === 'ollama')
     const deepseek = PROVIDER_PRESETS.find((preset) => preset.id === 'deepseek')
     const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
+    const kimiCode = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi-code')
     const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
     const minimax = PROVIDER_PRESETS.find((preset) => preset.id === 'minimax')
     const xiaomi = PROVIDER_PRESETS.find((preset) => preset.id === 'xiaomimimo')
@@ -88,8 +97,11 @@ describe('provider presets API', () => {
     expect(zhipu?.defaultModels.sonnet).toBe('glm-5.2[1m]')
     expect(zhipu?.defaultModels.opus).toBe('glm-5.2[1m]')
     expect(zhipu?.defaultModelContextWindows?.main).toBe(1_000_000)
+    expect(kimiCode?.baseUrl).toBe('https://api.kimi.com/coding/')
+    expect(kimiCode?.defaultModels.main).toBe('kimi-for-coding')
+    expect(kimiCode?.defaultModelContextWindows?.main).toBe(256_000)
     expect(kimi?.baseUrl).toBe('https://api.moonshot.cn/anthropic')
-    expect(kimi?.defaultModels.main).toBe('kimi-k2.7-code')
+    expect(kimi?.defaultModels.main).toBe('kimi-k2.6')
     expect(kimi?.defaultModelContextWindows?.main).toBe(256_000)
     expect(minimax?.defaultModels.main).toBe('MiniMax-M3[1m]')
     expect(minimax?.defaultModelContextWindows?.main).toBe(1_000_000)
@@ -121,15 +133,17 @@ describe('provider presets API', () => {
     expect(byId.get('openai')?.supportsImages).toBe(true)
     expect(byId.get('google')?.supportsImages).toBe(true)
     expect(byId.get('deepseek')?.supportsImages).toBe(false)
-    expect(byId.get('kimi')?.supportsImages).toBe(false)
-    expect(byId.get('lmstudio')?.supportsImages).toBe(false)
-    expect(byId.get('ollama')?.supportsImages).toBe(false)
-    expect(byId.get('custom')?.supportsImages).toBe(false)
+    expect(byId.get('kimi-code')?.supportsImages).toBe(false)
+    expect(byId.get('kimi')?.supportsImages).toBe(true)
+    expect(byId.get('lmstudio')?.supportsImages).toBeUndefined()
+    expect(byId.get('ollama')?.supportsImages).toBeUndefined()
+    expect(byId.get('custom')?.supportsImages).toBeUndefined()
   })
 
   test('configured presets expose newest-first model options without requiring them for custom providers', () => {
     const deepseek = PROVIDER_PRESETS.find((preset) => preset.id === 'deepseek')
     const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
+    const kimiCode = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi-code')
     const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
     const openai = PROVIDER_PRESETS.find((preset) => preset.id === 'openai')
     const google = PROVIDER_PRESETS.find((preset) => preset.id === 'google')
@@ -144,7 +158,21 @@ describe('provider presets API', () => {
       label: 'GLM-5.2 1M',
       contextWindow: 1_000_000,
     })
-    expect(kimi?.modelOptions?.[0]?.id).toBe('kimi-k2.7-code')
+    expect(kimiCode?.modelOptions?.[0]?.id).toBe('kimi-for-coding')
+    expect(kimiCode?.modelOptions?.[1]).toEqual({
+      id: 'kimi-k2.7-code',
+      label: 'Kimi K2.7 Code',
+      contextWindow: 256_000,
+      supportsImages: false,
+    })
+    expect(kimiCode?.modelOptions?.[2]).toEqual({
+      id: 'kimi-k2.7-code-highspeed',
+      label: 'Kimi K2.7 Code Highspeed',
+      contextWindow: 256_000,
+      supportsImages: false,
+    })
+    expect(kimi?.modelOptions?.[0]?.id).toBe('kimi-k2.6')
+    expect(kimi?.modelOptions?.some((option) => option.id.includes('kimi-k2.7-code'))).toBe(false)
     expect(openai?.modelOptions?.map((option) => option.id).slice(0, 3)).toEqual([
       'gpt-5.5',
       'gpt-5.5-pro',
@@ -163,6 +191,7 @@ describe('provider presets API', () => {
     const ollama = PROVIDER_PRESETS.find((preset) => preset.id === 'ollama')
     const deepseek = PROVIDER_PRESETS.find((preset) => preset.id === 'deepseek')
     const zhipu = PROVIDER_PRESETS.find((preset) => preset.id === 'zhipuglm')
+    const kimiCode = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi-code')
     const kimi = PROVIDER_PRESETS.find((preset) => preset.id === 'kimi')
     const minimax = PROVIDER_PRESETS.find((preset) => preset.id === 'minimax')
     const openai = PROVIDER_PRESETS.find((preset) => preset.id === 'openai')
@@ -181,7 +210,10 @@ describe('provider presets API', () => {
     expect(ollama?.defaultEnv).toEqual({ ANTHROPIC_AUTH_TOKEN: 'ollama' })
     expect(deepseek?.apiKeyUrl).toBe('https://platform.deepseek.com/api_keys')
     expect(zhipu?.apiKeyUrl).toBe('https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys')
+    expect(kimiCode?.apiKeyUrl).toBe('https://www.kimi.com/coding')
+    expect(kimiCode?.promoText).toContain('Kimi For Coding')
     expect(kimi?.apiKeyUrl).toBe('https://platform.kimi.com/console/api-keys')
+    expect(kimi?.promoText).toContain('open platform')
     expect(minimax?.apiKeyUrl).toBe('https://platform.minimaxi.com/user-center/basic-information/interface-key')
     expect(openai?.apiKeyUrl).toBe('https://platform.openai.com/api-keys')
     expect(google?.apiKeyUrl).toBe('https://aistudio.google.com/apikey')

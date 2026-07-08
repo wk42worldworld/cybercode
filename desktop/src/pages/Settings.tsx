@@ -9,7 +9,7 @@ import { Textarea } from '../components/shared/Textarea'
 import { Button } from '../components/shared/Button'
 import { Dropdown } from '../components/shared/Dropdown'
 import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
-import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat, ModelContextWindows } from '../types/provider'
+import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat, ModelContextWindows, ImageSupportMode } from '../types/provider'
 import type { ProviderPreset, ProviderModelOption } from '../types/providerPreset'
 import {
   MODEL_ROLES,
@@ -583,6 +583,7 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
     normalized.includes('gpt-4o') ||
     normalized.includes('gpt-4.1') ||
     normalized.includes('gpt-5') ||
+    normalized.includes('kimi-k2') ||
     normalized.includes('claude-3') ||
     normalized.includes('claude-4') ||
     normalized.includes('claude-sonnet') ||
@@ -592,7 +593,6 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
   }
   if (
     normalized.includes('deepseek') ||
-    normalized.includes('kimi-k') ||
     normalized.includes('minimax-m3') ||
     normalized.includes('mimo-') ||
     normalized.includes('gpt-oss') ||
@@ -611,7 +611,7 @@ function inferProviderSupportsImages(
   const presetModel = preset.modelOptions?.find((option) =>
     normalizeModelId(option.id).toLowerCase() === normalized.toLowerCase()
   )
-  return presetModel?.supportsImages ?? inferModelSupportsImages(normalized) ?? preset.supportsImages ?? false
+  return presetModel?.supportsImages ?? inferModelSupportsImages(normalized) ?? preset.supportsImages ?? true
 }
 
 function ModelIdInput({
@@ -790,10 +790,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const [showApiKey, setShowApiKey] = useState(false)
   const [notes, setNotes] = useState(provider?.notes ?? '')
   const [models, setModels] = useState<ModelMapping>(provider?.models ?? { ...initialPreset.defaultModels })
-  const [supportsImages, setSupportsImages] = useState(
-    provider?.supportsImages ?? inferProviderSupportsImages(initialPreset, provider?.models.main ?? initialPreset.defaultModels.main),
+  const [imageSupportMode, setImageSupportMode] = useState<ImageSupportMode>(
+    provider?.imageSupportMode ?? 'auto',
   )
-  const [supportsImagesTouched, setSupportsImagesTouched] = useState(provider?.supportsImages !== undefined)
   const [contextWindowInputs, setContextWindowInputs] = useState<Record<ModelRole, string>>(() =>
     createContextWindowInputs(provider?.models ?? { ...initialPreset.defaultModels }, provider, initialPreset),
   )
@@ -817,9 +816,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
 
   const updateModel = (role: ModelRole, value: string) => {
     setModels((prev) => ({ ...prev, [role]: value }))
-    if (role === 'main' && !supportsImagesTouched) {
-      setSupportsImages(inferProviderSupportsImages(selectedPreset, value))
-    }
     if (contextWindowTouched[role]) return
     const inferred =
       getPresetModelContextWindow(selectedPreset, value) ??
@@ -834,11 +830,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const updateContextWindowInput = (role: ModelRole, value: string) => {
     setContextWindowTouched((prev) => ({ ...prev, [role]: true }))
     setContextWindowInputs((prev) => ({ ...prev, [role]: value }))
-  }
-
-  const updateSupportsImages = (next: boolean) => {
-    setSupportsImagesTouched(true)
-    setSupportsImages(next)
   }
 
   // Load current settings.json and merge provider env vars
@@ -926,6 +917,19 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     },
   ]
   const selectedApiFormatLabel = apiFormatItems.find((item) => item.value === apiFormat)?.label ?? t('settings.providers.apiFormatAnthropic')
+  const automaticImageSupport = inferProviderSupportsImages(selectedPreset, models.main)
+  const imageSupportItems: Array<{ value: ImageSupportMode; label: string }> = [
+    { value: 'auto', label: t('settings.providers.imageSupportAuto') },
+    { value: 'enabled', label: t('settings.providers.imageSupportEnabled') },
+    { value: 'disabled', label: t('settings.providers.imageSupportDisabled') },
+  ]
+  const imageSupportHint = imageSupportMode === 'auto'
+    ? t('settings.providers.imageSupportAutoHint', {
+        state: automaticImageSupport
+          ? t('settings.providers.imageSupportAutoOn')
+          : t('settings.providers.imageSupportAutoOff'),
+      })
+    : t('settings.providers.supportsImagesHint')
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -952,7 +956,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           apiFormat,
           models,
           modelContextWindows: parsedContextWindows,
-          supportsImages,
+          imageSupportMode,
           notes: notes.trim() || undefined,
         })
       } else if (provider) {
@@ -962,7 +966,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           apiFormat,
           models,
           modelContextWindows: parsedContextWindows,
-          supportsImages,
+          imageSupportMode,
           notes: notes.trim() || undefined,
         }
         if (apiKey.trim()) input.apiKey = apiKey.trim()
@@ -1201,14 +1205,10 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                     {t('settings.providers.supportsImages')}
                   </div>
                   <p className="mt-1 text-[11px] leading-[17px] text-[var(--color-text-tertiary)]">
-                    {t('settings.providers.supportsImagesHint')}
+                    {imageSupportHint}
                   </p>
                 </div>
-                <Switch
-                  checked={supportsImages}
-                  onChange={updateSupportsImages}
-                  ariaLabel={t('settings.providers.supportsImages')}
-                />
+                <SegmentedControl items={imageSupportItems} value={imageSupportMode} onChange={setImageSupportMode} />
               </div>
 
               {/* Model Mapping */}

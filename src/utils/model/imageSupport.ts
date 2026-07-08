@@ -18,6 +18,7 @@ export function inferModelSupportsImages(modelId: string | undefined): boolean |
     normalized.includes('gpt-4o') ||
     normalized.includes('gpt-4.1') ||
     normalized.includes('gpt-5') ||
+    normalized.includes('kimi-k2') ||
     normalized.includes('claude-3') ||
     normalized.includes('claude-4') ||
     normalized.includes('claude-sonnet') ||
@@ -28,7 +29,6 @@ export function inferModelSupportsImages(modelId: string | undefined): boolean |
 
   if (
     normalized.includes('deepseek') ||
-    normalized.includes('kimi-k') ||
     normalized.includes('minimax-m3') ||
     normalized.includes('mimo-') ||
     normalized.includes('gpt-oss') ||
