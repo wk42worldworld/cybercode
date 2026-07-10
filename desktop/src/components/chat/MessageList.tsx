@@ -21,6 +21,7 @@ import type { AgentTaskNotification, UIMessage } from '../../types/chat'
 import { Modal } from '../shared/Modal'
 import { Button } from '../shared/Button'
 import { Icon } from '../shared/Icon'
+import { getPendingToolUseIdsForLatestTurn } from '../../utils/toolCallState'
 
 type ToolCall = Extract<UIMessage, { type: 'tool_use' }>
 type ToolResult = Extract<UIMessage, { type: 'tool_result' }>
@@ -46,6 +47,21 @@ function appendChildToolCall(
   } else {
     childToolCallsByParent.set(parentToolUseId, [toolCall])
   }
+}
+
+function toolCallTreeHasPendingResult(
+  toolCall: ToolCall,
+  pendingToolUseIds: Set<string>,
+  childToolCallsByParent: Map<string, ToolCall[]>,
+): boolean {
+  if (pendingToolUseIds.has(toolCall.toolUseId)) return true
+  return (childToolCallsByParent.get(toolCall.toolUseId) ?? []).some((child) =>
+    toolCallTreeHasPendingResult(
+      child,
+      pendingToolUseIds,
+      childToolCallsByParent,
+    ),
+  )
 }
 
 export function buildRenderModel(messages: UIMessage[]): RenderModel {
@@ -273,6 +289,22 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     [messages],
   )
   const { toolResultMap, childToolCallsByParent } = renderModel
+  const pendingToolUseIds = useMemo(
+    () => getPendingToolUseIdsForLatestTurn(messages),
+    [messages],
+  )
+  const isToolExecutionActiveFor = useCallback(
+    (toolCalls: ToolCall[]) =>
+      chatState === 'tool_executing' &&
+      toolCalls.some((toolCall) =>
+        toolCallTreeHasPendingResult(
+          toolCall,
+          pendingToolUseIds,
+          childToolCallsByParent,
+        ),
+      ),
+    [chatState, childToolCallsByParent, pendingToolUseIds],
+  )
   const renderItems = useMemo(
     () => renderModel.renderItems.filter(
       (item) => !(item.kind === 'message' && item.message.type === 'thinking'),
@@ -786,7 +818,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
                 resultMap={toolResultMap}
                 childToolCallsByParent={childToolCallsByParent}
                 agentTaskNotifications={agentTaskNotifications}
-                isStreaming={chatState === 'tool_executing'}
+                isStreaming={isToolExecutionActiveFor(item.toolCalls)}
               />
             </div>
           </div>
@@ -809,6 +841,9 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
             toolResultMap={toolResultMap}
             childToolCallsByParent={childToolCallsByParent}
             agentTaskNotifications={agentTaskNotifications}
+            isToolExecutionActive={isToolExecutionActiveFor(
+              item.toolCalls ?? (msg.type === 'tool_use' ? [msg] : []),
+            )}
             toolResult={
               msg.type === 'tool_use'
                 ? (() => {
@@ -843,6 +878,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       chatState,
       activeThinkingId,
       isMemberSession,
+      isToolExecutionActiveFor,
     ],
   )
 
@@ -1088,6 +1124,7 @@ export const MessageBlock = memo(function MessageBlock({
   childToolCallsByParent,
   agentTaskNotifications,
   toolResult,
+  isToolExecutionActive,
   rewindableUserIndex,
   onRequestRewind,
 }: {
@@ -1097,6 +1134,7 @@ export const MessageBlock = memo(function MessageBlock({
   childToolCallsByParent: Map<string, ToolCall[]>
   agentTaskNotifications: Record<string, AgentTaskNotification>
   toolResult?: { content: unknown; isError: boolean } | null
+  isToolExecutionActive?: boolean
   rewindableUserIndex?: number | null
   onRequestRewind?: (
     message: Extract<UIMessage, { type: 'user_text' }>,
@@ -1140,6 +1178,7 @@ export const MessageBlock = memo(function MessageBlock({
           toolCalls={toolCalls}
           resultMap={toolResultMap}
           childToolCallsByParent={childToolCallsByParent}
+          isToolExecutionActive={isToolExecutionActive}
         />
       )
     case 'thinking':
@@ -1161,6 +1200,7 @@ export const MessageBlock = memo(function MessageBlock({
           toolName={message.toolName}
           input={message.input}
           result={toolResult}
+          running={Boolean(isToolExecutionActive) && !toolResult}
           agentTaskNotification={
             message.toolName === 'Agent'
               ? agentTaskNotifications[message.toolUseId]

@@ -15,6 +15,7 @@ type Props = {
   toolCalls?: ToolCall[]
   resultMap?: Map<string, ToolResult>
   childToolCallsByParent?: Map<string, ToolCall[]>
+  isToolExecutionActive?: boolean
 }
 
 function isDocumentLike(content: string): boolean {
@@ -29,7 +30,14 @@ function isDocumentLike(content: string): boolean {
   return false
 }
 
-export function AssistantMessage({ content, isStreaming, toolCalls, resultMap, childToolCallsByParent }: Props) {
+export function AssistantMessage({
+  content,
+  isStreaming,
+  toolCalls,
+  resultMap,
+  childToolCallsByParent,
+  isToolExecutionActive = true,
+}: Props) {
   const layout = !isStreaming && isDocumentLike(content) ? 'document' : 'bubble'
 
   return (
@@ -69,6 +77,7 @@ export function AssistantMessage({ content, isStreaming, toolCalls, resultMap, c
             toolCalls={toolCalls}
             resultMap={resultMap}
             childToolCallsByParent={childToolCallsByParent}
+            isActive={isToolExecutionActive}
           />
         )}
 

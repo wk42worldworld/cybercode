@@ -959,10 +959,10 @@ function isToolResult(
 }
 
 const IMAGE_INPUT_UNSUPPORTED_MODEL_CONTEXT =
-  'The current model does not support image input. Do not attach or upload screenshots/images to the model. If an image is needed, explain that this model cannot read images and ask the user to switch to a vision-capable model or provide a text description.'
+  'The current model cannot consume raw image blocks directly. User image uploads are still valid local files. When the prompt provides an image file path, use an available image/OCR/MCP tool or configured local vision model that returns text. If no suitable tool exists, explain that no image-processing tool is available and continue from the text context. Do not claim that image upload itself is unsupported.'
 
 const IMAGE_BLOCK_OMITTED_TEXT =
-  '[Image omitted because the current model does not support image input. Ask the user to switch to a vision-capable model or provide a text description.]'
+  '[Raw image block withheld from this text-only model. Use the original local image path with an image/OCR/MCP tool that returns text. If no path or suitable tool is available, explain that limitation without ending the session.]'
 
 function replaceImageBlockForTextOnlyModel(block: BetaContentBlockParam): BetaContentBlockParam {
   if (isImageBlock(block)) {

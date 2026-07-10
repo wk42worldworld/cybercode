@@ -200,7 +200,7 @@ function buildProviderModelList(activeProvider: SavedProvider) {
   const contextFor = (modelId: string) => formatContextWindowLabel(contextWindowMap[modelId])
   const seen = new Set<string>()
 
-  return PROVIDER_MODEL_ENTRIES.flatMap(([role, description]) => {
+  const roleModels = PROVIDER_MODEL_ENTRIES.flatMap(([role, description]) => {
     const modelId = activeProvider.models[role].trim()
     if (!modelId || seen.has(modelId)) return []
     seen.add(modelId)
@@ -213,6 +213,22 @@ function buildProviderModelList(activeProvider: SavedProvider) {
       contextWindow: contextWindowMap[modelId],
     }]
   })
+
+  const catalogModels = (activeProvider.modelCatalog ?? []).flatMap((model) => {
+    const modelId = model.id.trim()
+    if (!modelId || seen.has(modelId)) return []
+    seen.add(modelId)
+    const contextWindow = model.contextWindow ?? contextWindowMap[modelId]
+    return [{
+      id: modelId,
+      name: model.label || modelId,
+      description: 'Discovered from provider',
+      context: formatContextWindowLabel(contextWindow),
+      contextWindow,
+    }]
+  })
+
+  return [...roleModels, ...catalogModels]
 }
 
 async function handleEffort(req: Request): Promise<Response> {

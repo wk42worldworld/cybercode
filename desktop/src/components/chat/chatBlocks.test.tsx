@@ -101,6 +101,31 @@ describe('chat blocks', () => {
     expect(container.querySelector('.tool-running-text')).toBeNull()
   })
 
+  it('marks a resultless historical tool as interrupted instead of running', () => {
+    const webFetch = {
+      id: 'fetch-call',
+      type: 'tool_use' as const,
+      toolName: 'WebFetch',
+      toolUseId: 'fetch-tool',
+      input: { url: 'https://github.com/trending' },
+      timestamp: Date.now(),
+    }
+
+    const { container } = render(
+      <ToolCallGroup
+        toolCalls={[webFetch]}
+        resultMap={new Map()}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
+      />,
+    )
+
+    expect(container.querySelector('[data-running="true"]')).toBeNull()
+    expect(container.querySelector('[data-interrupted="true"]')).toBeTruthy()
+    expect(container.querySelector('.tool-running-text')).toBeNull()
+  })
+
   it('keeps parent tool calls in running text sweep while a child tool is executing', () => {
     const parent = {
       id: 'parent',
@@ -163,6 +188,29 @@ describe('chat blocks', () => {
     expect(container.textContent).toContain('cd /tmp/whisper_job')
     expect(container.querySelector('[data-running="true"]')).toBeTruthy()
     expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('stops an orphaned execution-log row after the session becomes idle', () => {
+    const webFetch = {
+      id: 'fetch-log-call',
+      type: 'tool_use' as const,
+      toolName: 'WebFetch',
+      toolUseId: 'fetch-log-tool',
+      input: { url: 'https://github.com/trending' },
+      timestamp: Date.now(),
+    }
+
+    const { container } = render(
+      <MessageExecutionLog
+        toolCalls={[webFetch]}
+        resultMap={new Map()}
+        isActive={false}
+      />,
+    )
+
+    expect(container.querySelector('[data-running="true"]')).toBeNull()
+    expect(container.querySelector('[data-interrupted="true"]')).toBeTruthy()
+    expect(container.querySelector('.tool-running-text')).toBeNull()
   })
 
   it('keeps collapsed execution log parent rows running while a child tool is executing', () => {

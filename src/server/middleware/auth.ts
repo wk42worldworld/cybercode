@@ -1,30 +1,30 @@
 /**
  * Authentication middleware
  *
- * 本地桌面应用场景下，使用 Anthropic API Key 做简单鉴权。
- * 验证请求头中的 Authorization: Bearer <key> 与 .env 中的 ANTHROPIC_API_KEY 是否匹配。
+ * Desktop sidecars use an ephemeral SERVER_AUTH_TOKEN. Remote/legacy launches
+ * can still fall back to ANTHROPIC_API_KEY.
  */
 
 export function validateAuth(req: Request): { valid: boolean; error?: string } {
   const authHeader = req.headers.get('Authorization')
-
-  if (!authHeader) {
-    return { valid: false, error: 'Missing Authorization header' }
+  const bearer = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]
+  const token =
+    bearer ||
+    req.headers.get('x-api-key') ||
+    new URL(req.url).searchParams.get('token')
+  if (!token) {
+    return { valid: false, error: 'Missing server authorization token' }
   }
 
-  const [scheme, token] = authHeader.split(' ')
-
-  if (scheme !== 'Bearer' || !token) {
-    return { valid: false, error: 'Invalid Authorization format. Use: Bearer <token>' }
+  const expectedToken =
+    process.env.SERVER_AUTH_TOKEN ||
+    process.env.ANTHROPIC_API_KEY
+  if (!expectedToken) {
+    return { valid: false, error: 'Server authorization token is not configured' }
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return { valid: false, error: 'Server ANTHROPIC_API_KEY not configured' }
-  }
-
-  if (token !== apiKey) {
-    return { valid: false, error: 'Invalid API key' }
+  if (token !== expectedToken) {
+    return { valid: false, error: 'Invalid server authorization token' }
   }
 
   return { valid: true }

@@ -73,7 +73,10 @@ export function buildModelContextWindowMap(
     const contextWindow = contextWindows[role]
     if (!modelId || !contextWindow) continue
     const existing = result[modelId]
-    result[modelId] = existing ? Math.max(existing, contextWindow) : contextWindow
+    // A model shared by multiple roles has one real context limit. When role
+    // overrides disagree, keep the conservative value instead of advertising
+    // a window that may only belong to another role or stale preset default.
+    result[modelId] = existing ? Math.min(existing, contextWindow) : contextWindow
   }
   return result
 }

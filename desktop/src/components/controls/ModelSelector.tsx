@@ -72,14 +72,19 @@ function buildProviderModels(
   presets: ProviderPreset[],
   labels: Record<'main' | 'haiku' | 'sonnet' | 'opus', string>,
 ): ModelInfo[] {
-  const entries: Array<{ id: string; label: string }> = [
+  const entries: Array<{ id: string; label: string; contextWindow?: number }> = [
     { id: provider.models.main.trim(), label: labels.main },
     { id: provider.models.haiku.trim(), label: labels.haiku },
     { id: provider.models.sonnet.trim(), label: labels.sonnet },
     { id: provider.models.opus.trim(), label: labels.opus },
+    ...(provider.modelCatalog ?? []).map((model) => ({
+      id: model.id.trim(),
+      label: model.label || model.id,
+      contextWindow: model.contextWindow,
+    })),
   ]
 
-  const byId = new Map<string, { id: string; labels: string[] }>()
+  const byId = new Map<string, { id: string; labels: string[]; contextWindow?: number }>()
   for (const entry of entries) {
     if (!entry.id) continue
     const existing = byId.get(entry.id)
@@ -87,9 +92,18 @@ function buildProviderModels(
       if (!existing.labels.includes(entry.label)) {
         existing.labels.push(entry.label)
       }
+      if (entry.contextWindow) {
+        existing.contextWindow = existing.contextWindow
+          ? Math.min(existing.contextWindow, entry.contextWindow)
+          : entry.contextWindow
+      }
       continue
     }
-    byId.set(entry.id, { id: entry.id, labels: [entry.label] })
+    byId.set(entry.id, {
+      id: entry.id,
+      labels: [entry.label],
+      contextWindow: entry.contextWindow,
+    })
   }
 
   const preset = presets.find((item) => item.id === provider.presetId)
@@ -97,11 +111,17 @@ function buildProviderModels(
     provider.models,
     provider.modelContextWindows,
     preset?.defaultModelContextWindows,
+    preset?.defaultModels,
+    Object.fromEntries(
+      (preset?.modelOptions ?? [])
+        .filter((option) => option.contextWindow)
+        .map((option) => [option.id, option.contextWindow]),
+    ),
   )
   const contextWindowMap = buildModelContextWindowMap(provider.models, roleContextWindows)
 
   return [...byId.values()].map((entry) => {
-    const contextWindow = contextWindowMap[entry.id]
+    const contextWindow = entry.contextWindow ?? contextWindowMap[entry.id]
     return {
       id: entry.id,
       name: entry.id,

@@ -32,7 +32,12 @@ import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
 import { buildPastSessionPromptContext } from '../../sessionSearch/promptContext.js'
 import { buildProjectMemoryPromptContext } from '../../sessionSearch/projectMemory.js'
 import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
-import { resolveProviderImageSupport } from '../services/modelImageSupport.js'
+import {
+  isImageInputUnsupportedError,
+  resolveProviderImageSupportDynamically,
+} from '../services/modelImageCapabilityProbe.js'
+import { recordLearnedImageSupport } from '../../utils/model/imageCapabilityRegistry.js'
+import type { SavedProvider } from '../types/provider.js'
 
 const settingsService = new SettingsService()
 const providerService = new ProviderService()
@@ -72,6 +77,8 @@ const runtimeOverrides = new Map<string, {
 const runtimeTransitionPromises = new Map<string, Promise<void>>()
 const sessionStartupPromises = new Map<string, Promise<void>>()
 const mediaRecoveryPromises = new Map<string, Promise<void>>()
+const pendingImageTurns = new Map<string, PendingImageTurn[]>()
+const imageFallbackSessions = new Set<string>()
 const prewarmPendingSessions = new Set<string>()
 const prewarmedSessions = new Set<string>()
 const prewarmIdleTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -79,6 +86,17 @@ const DEFAULT_PREWARM_IDLE_TIMEOUT_MS = 5 * 60_000
 const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID = 'prompt_memory_auto_review'
 const IMAGE_ATTACHMENT_EXT_RE = /\.(?:png|jpe?g|webp|gif|bmp|heic|heif|tiff?)(?:"|\s|$)/i
 type ImageAttachmentMode = 'vision' | 'file-reference'
+type ImageAttachmentRoute = {
+  mode: ImageAttachmentMode
+  provider: SavedProvider | null
+  modelId?: string
+}
+type PendingImageTurn = {
+  content: string
+  attachments: AttachmentRef[]
+  route: ImageAttachmentRoute
+  retryCount: number
+}
 
 export function getSlashCommands(sessionId: string): Array<{ name: string; description: string }> {
   return sessionSlashCommands.get(sessionId) || []
@@ -298,7 +316,7 @@ async function handleUserMessage(
     }
   }
 
-  const imageAttachmentMode = await resolveImageAttachmentMode(ws, message.attachments)
+  const imageAttachmentRoute = await resolveImageAttachmentRoute(ws, message.attachments)
 
   // Send thinking status
   sendMessage(ws, { type: 'status', state: 'thinking', verb: 'Thinking' })
@@ -348,13 +366,20 @@ async function handleUserMessage(
     message.attachments,
   )
 
+  registerPendingImageTurn(
+    sessionId,
+    contentForModel,
+    message.attachments,
+    imageAttachmentRoute,
+  )
   const sent = conversationService.sendMessage(
     sessionId,
     contentForModel,
     message.attachments,
-    { imageAttachmentMode },
+    { imageAttachmentMode: imageAttachmentRoute.mode },
   )
   if (!sent) {
+    unregisterLastPendingImageTurn(sessionId)
     sendMessage(ws, {
       type: 'error',
       message: 'CLI process is not running. The session may have ended or the process crashed.',
@@ -478,7 +503,7 @@ async function handleUserSteer(
     }
   }
 
-  const imageAttachmentMode = await resolveImageAttachmentMode(ws, message.attachments)
+  const imageAttachmentRoute = await resolveImageAttachmentRoute(ws, message.attachments)
 
   try {
     await ensureCliSessionStarted(ws, sessionId, 'user_message')
@@ -493,12 +518,20 @@ async function handleUserSteer(
     return
   }
 
+  registerPendingImageTurn(
+    sessionId,
+    content,
+    message.attachments,
+    imageAttachmentRoute,
+  )
   const sent = conversationService.sendMessage(
     sessionId,
     content,
     message.attachments,
-    { uuid: steerId, priority, imageAttachmentMode },
+    { uuid: steerId, priority, imageAttachmentMode: imageAttachmentRoute.mode },
   )
+
+  if (!sent) unregisterLastPendingImageTurn(sessionId)
 
   sendMessage(ws, {
     type: 'steer_status',
@@ -645,11 +678,17 @@ async function resolveCurrentImageSupport(sessionId: string) {
   const runtimeOverride = runtimeOverrides.get(sessionId)
   if (runtimeOverride?.providerId) {
     const provider = await providerService.getProvider(runtimeOverride.providerId)
-    return resolveProviderImageSupport(provider, runtimeOverride.modelId)
+    return {
+      provider,
+      support: await resolveProviderImageSupportDynamically(provider, runtimeOverride.modelId),
+    }
   }
 
   if (runtimeOverride && runtimeOverride.providerId === null) {
-    return resolveProviderImageSupport(null, runtimeOverride.modelId)
+    return {
+      provider: null,
+      support: await resolveProviderImageSupportDynamically(null, runtimeOverride.modelId),
+    }
   }
 
   const { activeId, providers } = await providerService.listProviders()
@@ -657,25 +696,58 @@ async function resolveCurrentImageSupport(sessionId: string) {
     ? providers.find((item) => item.id === activeId) ?? null
     : null
 
-  return resolveProviderImageSupport(provider)
+  return {
+    provider,
+    support: await resolveProviderImageSupportDynamically(provider),
+  }
 }
 
-async function resolveImageAttachmentMode(
+async function resolveImageAttachmentRoute(
   ws: ServerWebSocket<WebSocketData>,
   attachments: AttachmentRef[] | undefined,
-): Promise<ImageAttachmentMode> {
-  if (!hasImageAttachments(attachments)) return 'vision'
+): Promise<ImageAttachmentRoute> {
+  if (!hasImageAttachments(attachments)) {
+    return { mode: 'vision', provider: null }
+  }
 
   try {
-    const support = await resolveCurrentImageSupport(ws.data.sessionId)
-    return support.supportsImages ? 'vision' : 'file-reference'
+    const { provider, support } = await resolveCurrentImageSupport(ws.data.sessionId)
+    return {
+      mode: support.status === 'supported' ? 'vision' : 'file-reference',
+      provider,
+      modelId: support.modelId,
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.warn(
       `[WS] Failed to inspect image support for ${ws.data.sessionId}; falling back to file references: ${message}`,
     )
-    return 'file-reference'
+    return { mode: 'file-reference', provider: null }
   }
+}
+
+function registerPendingImageTurn(
+  sessionId: string,
+  content: string,
+  attachments: AttachmentRef[] | undefined,
+  route: ImageAttachmentRoute,
+): void {
+  if (!hasImageAttachments(attachments)) return
+  const turns = pendingImageTurns.get(sessionId) ?? []
+  turns.push({
+    content,
+    attachments: attachments ?? [],
+    route,
+    retryCount: 0,
+  })
+  pendingImageTurns.set(sessionId, turns)
+}
+
+function unregisterLastPendingImageTurn(sessionId: string): void {
+  const turns = pendingImageTurns.get(sessionId)
+  if (!turns?.length) return
+  turns.pop()
+  if (turns.length === 0) pendingImageTurns.delete(sessionId)
 }
 
 function handleSetPermissionMode(
@@ -739,6 +811,9 @@ async function handleSetRuntimeConfig(
   ) {
     return
   }
+
+  pendingImageTurns.delete(sessionId)
+  imageFallbackSessions.delete(sessionId)
 
   if (!conversationService.hasSession(sessionId)) {
     const pendingStartup = sessionStartupPromises.get(sessionId)
@@ -932,6 +1007,8 @@ function cleanupSessionRuntimeState(sessionId: string) {
   runtimeTransitionPromises.delete(sessionId)
   sessionStartupPromises.delete(sessionId)
   mediaRecoveryPromises.delete(sessionId)
+  pendingImageTurns.delete(sessionId)
+  imageFallbackSessions.delete(sessionId)
   clearPrewarmState(sessionId)
 }
 
@@ -1081,7 +1158,14 @@ function contentHasMediaAttachment(content: unknown, sessionId: string): boolean
 }
 
 async function trimLatestMediaUserMessage(sessionId: string): Promise<void> {
-  const { messages } = await sessionService.getSessionMessages(sessionId, { limit: 200 })
+  let messages: Awaited<ReturnType<typeof sessionService.getSessionMessages>>['messages']
+  try {
+    const result = await sessionService.getSessionMessages(sessionId, { limit: 200 })
+    messages = result.messages
+  } catch (error) {
+    if ((error as { statusCode?: number })?.statusCode === 404) return
+    throw error
+  }
   const mediaUserMessage = [...messages]
     .reverse()
     .find((message) =>
@@ -1132,6 +1216,196 @@ function recoverSessionAfterMediaRequestError(sessionId: string, message: string
       mediaRecoveryPromises.delete(sessionId)
     }
   })
+}
+
+function extractCliErrorMessage(cliMsg: any): string | undefined {
+  if (cliMsg?.type === 'assistant' && cliMsg.error) {
+    return cliMsg.message?.content?.[0]?.text || String(cliMsg.error)
+  }
+  if (cliMsg?.type !== 'result' || !cliMsg.is_error) return undefined
+  if (typeof cliMsg.result === 'string' && cliMsg.result.trim()) return cliMsg.result
+  if (Array.isArray(cliMsg.errors) && cliMsg.errors.length > 0) {
+    return cliMsg.errors.join('\n')
+  }
+  return 'Unknown image request error'
+}
+
+function recordImageCapabilityForTurns(
+  turns: PendingImageTurn[],
+  status: 'supported' | 'unsupported',
+  source: 'runtime-success' | 'runtime-rejection',
+): void {
+  for (const turn of turns) {
+    const provider = turn.route.provider
+    const modelId = turn.route.modelId
+    if (!provider?.baseUrl || !modelId) continue
+    recordLearnedImageSupport({
+      baseUrl: provider.baseUrl,
+      modelId,
+      status,
+      source,
+    })
+  }
+}
+
+function combinePendingImageTurns(turns: PendingImageTurn[]): PendingImageTurn {
+  const last = turns[turns.length - 1]!
+  return {
+    content: turns
+      .map((turn) => turn.content.trim())
+      .filter(Boolean)
+      .join('\n\n'),
+    attachments: turns.flatMap((turn) => turn.attachments),
+    route: { ...last.route, mode: 'file-reference' },
+    retryCount: Math.max(...turns.map((turn) => turn.retryCount), 0) + 1,
+  }
+}
+
+function imageFallbackUnavailableText(turns: PendingImageTurn[]): string {
+  const content = turns.map((turn) => turn.content).join('\n')
+  if (/\p{Script=Han}/u.test(content)) {
+    return '图片已经成功保留为本地附件，但当前模型不能直接读取图片，而且现有图片处理工具没有返回可用的文字结果。你仍然可以继续当前会话；请配置一个能接收文件路径并返回文字描述的图片/OCR MCP 工具，或切换到本地视觉模型后再次发送。'
+  }
+  return 'The image remains available as a local attachment, but the current model cannot read it directly and no image-processing tool returned usable text. This conversation is still active. Configure an image/OCR MCP tool that accepts a file path and returns text, or select a local vision model and send again.'
+}
+
+function completeImageRecoveryWithoutError(
+  ws: ServerWebSocket<WebSocketData>,
+  sessionId: string,
+  turns: PendingImageTurn[],
+): void {
+  pendingImageTurns.delete(sessionId)
+  cleanupStreamState(sessionId)
+  sendMessage(ws, { type: 'content_start', blockType: 'text' })
+  sendMessage(ws, { type: 'content_delta', text: imageFallbackUnavailableText(turns) })
+  sendMessage(ws, {
+    type: 'message_complete',
+    usage: { input_tokens: 0, output_tokens: 0 },
+  })
+  sendMessage(ws, { type: 'status', state: 'idle' })
+}
+
+async function startImageFallbackSession(
+  ws: ServerWebSocket<WebSocketData>,
+  sessionId: string,
+): Promise<void> {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await ensureCliSessionStarted(ws, sessionId, 'user_message')
+      return
+    } catch (error) {
+      lastError = error
+      conversationService.stopSession(sessionId)
+      sessionStartupPromises.delete(sessionId)
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 150))
+      }
+    }
+  }
+  throw lastError
+}
+
+async function retryImageTurnsAsFileReferences(
+  ws: ServerWebSocket<WebSocketData>,
+  sessionId: string,
+  turns: PendingImageTurn[],
+): Promise<void> {
+  conversationService.stopSession(sessionId)
+  cleanupStreamState(sessionId)
+  sessionStartupPromises.delete(sessionId)
+  clearPrewarmState(sessionId)
+  imageFallbackSessions.add(sessionId)
+
+  await trimLatestMediaUserMessage(sessionId).catch((error) => {
+    console.warn(`[WS] Failed to trim the rejected image turn for ${sessionId}:`, error)
+  })
+
+  const fallbackTurn = combinePendingImageTurns(turns)
+  pendingImageTurns.set(sessionId, [fallbackTurn])
+  await startImageFallbackSession(ws, sessionId)
+  rebindSessionOutput(sessionId, ws)
+
+  const sent = conversationService.sendMessage(
+    sessionId,
+    fallbackTurn.content,
+    fallbackTurn.attachments,
+    { imageAttachmentMode: 'file-reference' },
+  )
+  if (!sent) throw new Error('CLI process was unavailable after image fallback restart')
+}
+
+function scheduleImageRecovery(
+  ws: ServerWebSocket<WebSocketData>,
+  sessionId: string,
+  turns: PendingImageTurn[],
+  shouldRetry: boolean,
+): void {
+  if (mediaRecoveryPromises.has(sessionId)) return
+
+  const recovery = (async () => {
+    if (shouldRetry) {
+      try {
+        await retryImageTurnsAsFileReferences(ws, sessionId, turns)
+        return
+      } catch (error) {
+        console.warn(`[WS] Automatic image-tool fallback failed for ${sessionId}:`, error)
+      }
+    } else {
+      conversationService.stopSession(sessionId)
+      cleanupStreamState(sessionId)
+      sessionStartupPromises.delete(sessionId)
+      clearPrewarmState(sessionId)
+      imageFallbackSessions.add(sessionId)
+      await trimLatestMediaUserMessage(sessionId).catch((error) => {
+        console.warn(`[WS] Failed to trim the unusable image turn for ${sessionId}:`, error)
+      })
+    }
+
+    completeImageRecoveryWithoutError(ws, sessionId, turns)
+  })()
+
+  mediaRecoveryPromises.set(sessionId, recovery)
+  recovery.finally(() => {
+    if (mediaRecoveryPromises.get(sessionId) === recovery) {
+      mediaRecoveryPromises.delete(sessionId)
+    }
+  })
+}
+
+function handleRecoverableImageFailure(
+  ws: ServerWebSocket<WebSocketData>,
+  sessionId: string,
+  cliMsg: any,
+): boolean {
+  const errorMessage = extractCliErrorMessage(cliMsg)
+  if (!errorMessage) return false
+
+  const turns = pendingImageTurns.get(sessionId) ?? []
+  const unsupported = isImageInputUnsupportedError(errorMessage)
+  const mediaFailure = turns.length > 0 && isMediaRequestError(errorMessage)
+  if (!unsupported && !mediaFailure) return false
+
+  if (turns.length > 0) {
+    recordImageCapabilityForTurns(turns, 'unsupported', 'runtime-rejection')
+  }
+  const shouldRetry = turns.some((turn) =>
+    turn.route.mode === 'vision' && turn.retryCount === 0,
+  )
+  scheduleImageRecovery(ws, sessionId, turns, shouldRetry)
+  return true
+}
+
+function finalizeSuccessfulImageTurns(sessionId: string): void {
+  const turns = pendingImageTurns.get(sessionId)
+  if (!turns?.length) return
+
+  const visionTurns = turns.filter((turn) => turn.route.mode === 'vision')
+  if (visionTurns.length > 0) {
+    recordImageCapabilityForTurns(visionTurns, 'supported', 'runtime-success')
+    imageFallbackSessions.delete(sessionId)
+  }
+  pendingImageTurns.delete(sessionId)
 }
 
 function translateCliMessage(cliMsg: any, sessionId: string): ServerMessage[] {
@@ -1585,12 +1859,21 @@ function rebindSessionOutput(
       return
     }
 
+    if (handleRecoverableImageFailure(ws, sessionId, cliMsg)) {
+      return
+    }
+
     const serverMsgs = translateCliMessage(cliMsg, sessionId)
     for (const msg of serverMsgs) {
       sendMessage(ws, msg)
     }
 
     if (cliMsg.type === 'result') {
+      if (cliMsg.is_error) {
+        pendingImageTurns.delete(sessionId)
+      } else {
+        finalizeSuccessfulImageTurns(sessionId)
+      }
       triggerTitleGeneration(ws, sessionId)
     }
   })
@@ -1602,6 +1885,7 @@ async function getRuntimeSettings(sessionId?: string): Promise<{
   effort?: string
   providerId?: string | null
   contextWindow?: number
+  imageSupportOverride?: boolean
 }> {
   const runtimeOverride = sessionId ? runtimeOverrides.get(sessionId) : undefined
   if (runtimeOverride) {
@@ -1617,6 +1901,9 @@ async function getRuntimeSettings(sessionId?: string): Promise<{
       effort,
       providerId: runtimeOverride.providerId,
       contextWindow: runtimeOverride.contextWindow,
+      ...(sessionId && imageFallbackSessions.has(sessionId)
+        ? { imageSupportOverride: false }
+        : {}),
     }
   }
 
@@ -1662,6 +1949,9 @@ async function getRuntimeSettings(sessionId?: string): Promise<{
     model,
     effort,
     providerId: activeId,
+    ...(sessionId && imageFallbackSessions.has(sessionId)
+      ? { imageSupportOverride: false }
+      : {}),
   }
 }
 

@@ -78,12 +78,21 @@ export function resolveRoleContextWindows(
   models: ModelMapping,
   userWindows: ModelContextWindows | undefined,
   presetWindows: ModelContextWindows | undefined,
+  presetModels?: ModelMapping,
+  presetModelWindows?: Record<string, number | undefined>,
 ): ModelContextWindows {
   const resolved: ModelContextWindows = {}
   for (const role of MODEL_ROLES) {
+    const modelId = models[role]?.trim()
+    const exactPresetValue = modelId ? presetModelWindows?.[modelId] : undefined
+    const rolePresetValue =
+      !presetModels || presetModels[role]?.trim() === modelId
+        ? presetWindows?.[role]
+        : undefined
     const value =
       userWindows?.[role] ??
-      presetWindows?.[role] ??
+      exactPresetValue ??
+      rolePresetValue ??
       inferContextWindowFromModelId(models[role])
     if (value) resolved[role] = value
   }
@@ -102,7 +111,7 @@ export function buildModelContextWindowMap(
     const contextWindow = contextWindows[role]
     if (!modelId || !contextWindow) continue
     const existing = result[modelId]
-    result[modelId] = existing ? Math.max(existing, contextWindow) : contextWindow
+    result[modelId] = existing ? Math.min(existing, contextWindow) : contextWindow
   }
 
   return result

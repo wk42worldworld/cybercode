@@ -36,7 +36,12 @@ import type {
   ModelMapping,
 } from '../types/provider.js'
 import { resolveProviderImageSupport } from './modelImageSupport.js'
+import { resolveProviderImageSupportDynamically } from './modelImageCapabilityProbe.js'
 import { IMAGE_INPUT_CAPABILITY } from '../../utils/model/imageSupport.js'
+import {
+  CYBERCODE_PROVIDER_BASE_URL_ENV,
+  CYBERCODE_PROVIDER_ID_ENV,
+} from '../../utils/model/imageCapabilityRegistry.js'
 import { isKimiBaseUrl, isKimiProviderTarget } from '../../utils/model/kimi.js'
 import { requiresEnabledThinkingParamForModel } from '../../utils/model/thinkingPolicy.js'
 
@@ -52,6 +57,8 @@ const MANAGED_ENV_KEYS = [
   'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
   'ANTHROPIC_DEFAULT_OPUS_MODEL',
   'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+  CYBERCODE_PROVIDER_BASE_URL_ENV,
+  CYBERCODE_PROVIDER_ID_ENV,
   CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
 ] as const
 
@@ -66,12 +73,81 @@ const XIAOMI_MIMO_V25_MODEL = 'mimo-v2.5'
 const ZHIPU_GLM_PRESET_ID = 'zhipuglm'
 const ZHIPU_GLM_UNSUPPORTED_45_AIR = 'glm-4.5-air'
 const ZHIPU_GLM_SMALL_MODEL = 'glm-4.7'
+const MASKED_API_KEYS = new Set(['***', '••••••••'])
+const LEGACY_PRESET_MODEL_IDS: Record<string, Record<string, string>> = {
+  deepseek: {
+    'deepseek-v4-pro[1m]': 'deepseek-v4-pro',
+  },
+  zhipuglm: {
+    'glm-5.2[1m]': 'glm-5.2',
+  },
+  minimax: {
+    'minimax-m3[1m]': 'MiniMax-M3',
+  },
+  openai: {
+    'gpt-5.5': 'gpt-5.2',
+    'gpt-5.5-pro': 'gpt-5-pro',
+    'gpt-5.4': 'gpt-5.2',
+    'gpt-5.4-pro': 'gpt-5-pro',
+    'gpt-5.4-mini': 'gpt-5-mini',
+    'gpt-5.4-nano': 'gpt-5-nano',
+  },
+}
+
 function getPresetDefaultEnv(presetId: string): Record<string, string> {
   return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultEnv ?? {}
 }
 
 function getPresetDefaultContextWindows(presetId: string): ModelContextWindows {
   return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultModelContextWindows ?? {}
+}
+
+function getPresetModelContextWindow(
+  presetId: string,
+  modelId: string | undefined,
+): number | undefined {
+  const normalized = modelId?.trim()
+  if (!normalized) return undefined
+  return PROVIDER_PRESETS
+    .find((preset) => preset.id === presetId)
+    ?.modelOptions?.find((option) => option.id === normalized)
+    ?.contextWindow
+}
+
+function getPresetDefaultModels(presetId: string): ModelMapping | undefined {
+  return PROVIDER_PRESETS.find((preset) => preset.id === presetId)?.defaultModels
+}
+
+function normalizeProviderModels(models: ModelMapping): ModelMapping {
+  const main = (
+    models.main ||
+    models.sonnet ||
+    models.opus ||
+    models.haiku
+  ).trim()
+  return {
+    main,
+    haiku: models.haiku.trim() || main,
+    sonnet: models.sonnet.trim() || main,
+    opus: models.opus.trim() || main,
+  }
+}
+
+function migrateLegacyPresetModelIds(provider: SavedProvider): ModelMapping {
+  const aliases = LEGACY_PRESET_MODEL_IDS[provider.presetId]
+  const models = normalizeProviderModels(provider.models)
+  if (!aliases) return models
+
+  const migrated = { ...models }
+  for (const role of MODEL_ROLES) {
+    const replacement = aliases[migrated[role].toLowerCase()]
+    if (replacement) migrated[role] = replacement
+  }
+  return migrated
+}
+
+function isMaskedApiKey(value: string | undefined): boolean {
+  return value !== undefined && MASKED_API_KEYS.has(value.trim())
 }
 
 function getManagedEnvKeys(): string[] {
@@ -98,7 +174,13 @@ function compactModelContextWindows(
   return Object.keys(compacted).length > 0 ? compacted : undefined
 }
 
-function mergeCapabilityList(raw: string | undefined, capability: string, enabled: boolean): string {
+function mergeCapabilityList(
+  raw: string | undefined,
+  capability: string,
+  enabled: boolean | undefined,
+): string | undefined {
+  if (enabled === undefined) return raw
+
   const capabilities = new Set(
     (raw ?? '')
       .split(',')
@@ -115,10 +197,45 @@ function mergeCapabilityList(raw: string | undefined, capability: string, enable
   return [...capabilities].sort().join(',')
 }
 
+function explicitImageSupportOverride(
+  provider: SavedProvider,
+  modelId: string,
+): boolean | undefined {
+  const resolution = resolveProviderImageSupport(provider, modelId)
+  return [
+    'provider-forced',
+    'provider-legacy',
+    'learned',
+    'provider-catalog',
+    'preset-model',
+  ].includes(resolution.source)
+    ? resolution.supportsImages
+    : undefined
+}
+
+function addCapabilityEnv(
+  target: Record<string, string>,
+  key: string,
+  raw: string | undefined,
+  enabled: boolean | undefined,
+): void {
+  const value = mergeCapabilityList(raw, IMAGE_INPUT_CAPABILITY, enabled)
+  if (value !== undefined) target[key] = value
+}
+
 function migrateProviderIndex(index: ProvidersIndex): { index: ProvidersIndex; changed: boolean } {
   let changed = false
   const providers = index.providers.map((provider) => {
     let migrated = provider
+
+    const normalizedModels = migrateLegacyPresetModelIds(migrated)
+    if (JSON.stringify(normalizedModels) !== JSON.stringify(migrated.models)) {
+      changed = true
+      migrated = {
+        ...migrated,
+        models: normalizedModels,
+      }
+    }
 
     if (isSavedKimiCodeProvider(migrated)) {
       changed = true
@@ -136,7 +253,10 @@ function migrateProviderIndex(index: ProvidersIndex): { index: ProvidersIndex; c
       }
     }
 
-    if (isSavedKimiApiProviderWithLegacyImageSupport(migrated)) {
+    if (
+      isSavedKimiApiProviderWithLegacyImageSupport(migrated) ||
+      isSavedProviderWithStaleLegacyImageSupport(migrated)
+    ) {
       changed = true
       const rest = { ...migrated }
       delete rest.supportsImages
@@ -182,6 +302,15 @@ function isSavedKimiApiProviderWithLegacyImageSupport(provider: SavedProvider): 
     !isKimiCodeBaseUrl(provider.baseUrl) &&
     provider.imageSupportMode === undefined &&
     provider.supportsImages === false
+}
+
+function isSavedProviderWithStaleLegacyImageSupport(provider: SavedProvider): boolean {
+  return (
+    provider.presetId === KIMI_CODE_PRESET_ID ||
+    provider.presetId === XIAOMI_MIMO_PRESET_ID
+  ) &&
+    provider.imageSupportMode === undefined &&
+    typeof provider.supportsImages === 'boolean'
 }
 
 function isSavedKimiApiProviderWithMisplacedCodeModel(provider: SavedProvider): boolean {
@@ -276,9 +405,14 @@ function normalizeProviderRuntimeModel(provider: SavedProvider, modelId: string)
 
 function getProviderRuntimeModelSet(provider: SavedProvider): Set<string> {
   return new Set(
-    MODEL_ROLES
-      .map((role) => normalizeProviderRuntimeModel(provider, provider.models[role]).trim())
-      .filter(Boolean),
+    [
+      ...MODEL_ROLES.map((role) =>
+        normalizeProviderRuntimeModel(provider, provider.models[role]).trim()
+      ),
+      ...(provider.modelCatalog ?? []).map((model) =>
+        normalizeProviderRuntimeModel(provider, model.id).trim()
+      ),
+    ].filter(Boolean),
   )
 }
 
@@ -329,6 +463,8 @@ export class ProviderService {
   private async readIndex(): Promise<ProvidersIndex> {
     try {
       const raw = await fs.readFile(this.getIndexPath(), 'utf-8')
+      await this.securePath(this.getIndexPath(), 0o600)
+      await this.securePath(this.getCybercodeDir(), 0o700)
       const index = JSON.parse(raw) as ProvidersIndex
       const migrated = migrateProviderIndex(index)
       if (migrated.changed) {
@@ -356,12 +492,17 @@ export class ProviderService {
   private async writeIndex(index: ProvidersIndex): Promise<void> {
     const filePath = this.getIndexPath()
     const dir = path.dirname(filePath)
-    await fs.mkdir(dir, { recursive: true })
+    await fs.mkdir(dir, { recursive: true, mode: 0o700 })
+    await this.securePath(dir, 0o700)
 
     const tmpFile = `${filePath}.tmp.${Date.now()}`
     try {
-      await fs.writeFile(tmpFile, JSON.stringify(index, null, 2) + '\n', 'utf-8')
+      await fs.writeFile(tmpFile, JSON.stringify(index, null, 2) + '\n', {
+        encoding: 'utf-8',
+        mode: 0o600,
+      })
       await fs.rename(tmpFile, filePath)
+      await this.securePath(filePath, 0o600)
     } catch (err) {
       await fs.unlink(tmpFile).catch(() => {})
       throw ApiError.internal(`Failed to write providers index: ${err}`)
@@ -371,6 +512,8 @@ export class ProviderService {
   private async readSettings(): Promise<Record<string, unknown>> {
     try {
       const raw = await fs.readFile(this.getSettingsPath(), 'utf-8')
+      await this.securePath(this.getSettingsPath(), 0o600)
+      await this.securePath(this.getCybercodeDir(), 0o700)
       return JSON.parse(raw) as Record<string, unknown>
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {}
@@ -381,16 +524,27 @@ export class ProviderService {
   private async writeSettings(settings: Record<string, unknown>): Promise<void> {
     const filePath = this.getSettingsPath()
     const dir = path.dirname(filePath)
-    await fs.mkdir(dir, { recursive: true })
+    await fs.mkdir(dir, { recursive: true, mode: 0o700 })
+    await this.securePath(dir, 0o700)
 
     const tmpFile = `${filePath}.tmp.${Date.now()}`
     try {
-      await fs.writeFile(tmpFile, JSON.stringify(settings, null, 2) + '\n', 'utf-8')
+      await fs.writeFile(tmpFile, JSON.stringify(settings, null, 2) + '\n', {
+        encoding: 'utf-8',
+        mode: 0o600,
+      })
       await fs.rename(tmpFile, filePath)
+      await this.securePath(filePath, 0o600)
     } catch (err) {
       await fs.unlink(tmpFile).catch(() => {})
       throw ApiError.internal(`Failed to write settings.json: ${err}`)
     }
+  }
+
+  private async securePath(targetPath: string, mode: number): Promise<void> {
+    // Windows does not implement POSIX modes fully. Treat chmod as best-effort
+    // there while enforcing it on Unix-like desktop builds.
+    await fs.chmod(targetPath, mode).catch(() => {})
   }
 
   async getManagedSettings(): Promise<Record<string, unknown>> {
@@ -413,7 +567,25 @@ export class ProviderService {
 
   async updateManagedSettings(settings: Record<string, unknown>): Promise<void> {
     const current = await this.readSettings()
-    const next = Object.assign({}, current, settings)
+    const incoming = { ...settings }
+    if (incoming.env && typeof incoming.env === 'object' && !Array.isArray(incoming.env)) {
+      const incomingEnv = { ...(incoming.env as Record<string, unknown>) }
+      const currentEnv =
+        current.env && typeof current.env === 'object' && !Array.isArray(current.env)
+          ? current.env as Record<string, unknown>
+          : {}
+      for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN']) {
+        if (
+          typeof incomingEnv[key] === 'string' &&
+          isMaskedApiKey(incomingEnv[key] as string)
+        ) {
+          if (currentEnv[key] !== undefined) incomingEnv[key] = currentEnv[key]
+          else delete incomingEnv[key]
+        }
+      }
+      incoming.env = incomingEnv
+    }
+    const next = Object.assign({}, current, incoming)
     const index = await this.readIndex()
     const activeProvider = index.activeId
       ? index.providers.find((provider) => provider.id === index.activeId)
@@ -450,7 +622,8 @@ export class ProviderService {
       apiKey: input.apiKey,
       baseUrl: input.baseUrl,
       apiFormat: input.apiFormat ?? 'anthropic',
-      models: input.models,
+      models: normalizeProviderModels(input.models),
+      ...(input.modelCatalog !== undefined && { modelCatalog: input.modelCatalog }),
       ...(compactModelContextWindows(input.modelContextWindows) && {
         modelContextWindows: compactModelContextWindows(input.modelContextWindows),
       }),
@@ -474,10 +647,12 @@ export class ProviderService {
     const updated: SavedProvider = {
       ...existing,
       ...(input.name !== undefined && { name: input.name }),
-      ...(input.apiKey !== undefined && { apiKey: input.apiKey }),
+      ...(input.apiKey !== undefined &&
+        !isMaskedApiKey(input.apiKey) && { apiKey: input.apiKey }),
       ...(input.baseUrl !== undefined && { baseUrl: input.baseUrl }),
       ...(input.apiFormat !== undefined && { apiFormat: input.apiFormat }),
-      ...(input.models !== undefined && { models: input.models }),
+      ...(input.models !== undefined && { models: normalizeProviderModels(input.models) }),
+      ...(input.modelCatalog !== undefined && { modelCatalog: input.modelCatalog }),
       ...(input.modelContextWindows !== undefined && {
         modelContextWindows: compactModelContextWindows(input.modelContextWindows),
       }),
@@ -552,38 +727,44 @@ export class ProviderService {
     const mainModel = normalizeProviderRuntimeModel(provider, requestedModel)
     const modelContextWindowMap = this.getProviderModelContextWindowMap(provider)
     const presetEnv = getPresetDefaultEnv(provider.presetId)
-    const supportsImages = resolveProviderImageSupport(provider, mainModel).supportsImages
-    const roleCapabilities = {
-      ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
-        presetEnv.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES,
-        IMAGE_INPUT_CAPABILITY,
-        supportsImages,
-      ),
-      ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
-        presetEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES,
-        IMAGE_INPUT_CAPABILITY,
-        supportsImages,
-      ),
-      ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
-        presetEnv.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES,
-        IMAGE_INPUT_CAPABILITY,
-        supportsImages,
-      ),
-      ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES: mergeCapabilityList(
-        presetEnv.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES,
-        IMAGE_INPUT_CAPABILITY,
-        supportsImages,
-      ),
-    }
+    const roleCapabilities: Record<string, string> = {}
+    addCapabilityEnv(
+      roleCapabilities,
+      'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
+      presetEnv.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES,
+      explicitImageSupportOverride(provider, mainModel),
+    )
+    addCapabilityEnv(
+      roleCapabilities,
+      'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
+      presetEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES,
+      explicitImageSupportOverride(provider, provider.models.haiku),
+    )
+    addCapabilityEnv(
+      roleCapabilities,
+      'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
+      presetEnv.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES,
+      explicitImageSupportOverride(provider, provider.models.sonnet),
+    )
+    addCapabilityEnv(
+      roleCapabilities,
+      'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+      presetEnv.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES,
+      explicitImageSupportOverride(provider, provider.models.opus),
+    )
 
     return {
       ...presetEnv,
       ANTHROPIC_BASE_URL: baseUrl,
-      ANTHROPIC_API_KEY: needsProxy ? 'proxy-managed' : provider.apiKey,
+      ANTHROPIC_API_KEY: needsProxy
+        ? process.env.SERVER_AUTH_TOKEN || 'proxy-managed'
+        : provider.apiKey,
       ANTHROPIC_MODEL: mainModel,
-      ANTHROPIC_DEFAULT_HAIKU_MODEL: provider.models.haiku,
-      ANTHROPIC_DEFAULT_SONNET_MODEL: provider.models.sonnet,
-      ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus,
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: provider.models.haiku || mainModel,
+      ANTHROPIC_DEFAULT_SONNET_MODEL: provider.models.sonnet || mainModel,
+      ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus || mainModel,
+      [CYBERCODE_PROVIDER_BASE_URL_ENV]: provider.baseUrl,
+      [CYBERCODE_PROVIDER_ID_ENV]: provider.id,
       ...roleCapabilities,
       ...(Object.keys(modelContextWindowMap).length > 0
         ? { [CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(modelContextWindowMap) }
@@ -593,14 +774,25 @@ export class ProviderService {
 
   getProviderRoleContextWindows(provider: SavedProvider): ModelContextWindows {
     const presetWindows = getPresetDefaultContextWindows(provider.presetId)
+    const presetModels = getPresetDefaultModels(provider.presetId)
     const userWindows = provider.modelContextWindows ?? {}
     const resolved: ModelContextWindows = {}
 
     for (const role of MODEL_ROLES) {
       const userValue = parseContextWindowTokenValue(userWindows[role])
-      const presetValue = parseContextWindowTokenValue(presetWindows[role])
+      const exactPresetValue = parseContextWindowTokenValue(
+        getPresetModelContextWindow(provider.presetId, provider.models[role]),
+      )
+      const rolePresetValue =
+        !presetModels || presetModels[role]?.trim() === provider.models[role]?.trim()
+          ? parseContextWindowTokenValue(presetWindows[role])
+          : undefined
       const inferredValue = inferContextWindowFromModelName(provider.models[role])
-      const contextWindow = userValue ?? presetValue ?? inferredValue
+      const contextWindow =
+        userValue ??
+        exactPresetValue ??
+        rolePresetValue ??
+        inferredValue
       if (contextWindow) resolved[role] = contextWindow
     }
 
@@ -608,10 +800,17 @@ export class ProviderService {
   }
 
   getProviderModelContextWindowMap(provider: SavedProvider): Record<string, number> {
-    return buildModelContextWindowMap(
+    const roleMap = buildModelContextWindowMap(
       provider.models as ModelMapping,
       this.getProviderRoleContextWindows(provider),
     )
+    for (const model of provider.modelCatalog ?? []) {
+      const contextWindow = parseContextWindowTokenValue(model.contextWindow)
+      if (!contextWindow) continue
+      const existing = roleMap[model.id]
+      roleMap[model.id] = existing ? Math.min(existing, contextWindow) : contextWindow
+    }
+    return roleMap
   }
 
   async getProviderRuntimeEnv(id: string, modelId?: string): Promise<Record<string, string>> {
@@ -748,20 +947,40 @@ export class ProviderService {
 
   async testProvider(
     id: string,
-    overrides?: { baseUrl?: string; modelId?: string; apiFormat?: ApiFormat },
+    overrides?: {
+      baseUrl?: string
+      modelId?: string
+      models?: ModelMapping
+      apiFormat?: ApiFormat
+    },
   ): Promise<ProviderTestResult> {
     const provider = await this.getProvider(id)
     const baseUrl = overrides?.baseUrl || provider.baseUrl
-    const modelId = overrides?.modelId || provider.models.main
+    const models = normalizeProviderModels(
+      overrides?.models ?? {
+        ...provider.models,
+        main: overrides?.modelId || provider.models.main,
+      },
+    )
+    const modelId = models.main
     const apiFormat = overrides?.apiFormat ?? provider.apiFormat ?? 'anthropic'
+    const preset = PROVIDER_PRESETS.find((item) => item.id === provider.presetId)
+    const apiKey =
+      provider.apiKey ||
+      preset?.defaultEnv?.ANTHROPIC_API_KEY ||
+      preset?.defaultEnv?.ANTHROPIC_AUTH_TOKEN ||
+      (preset?.needsApiKey === false ? 'local-provider' : '')
 
-    if (!baseUrl || !provider.apiKey) {
+    if (!baseUrl || !apiKey) {
       return { connectivity: { success: false, latencyMs: 0, error: 'Missing baseUrl or apiKey' } }
     }
     return this.testProviderConfig({
       baseUrl,
-      apiKey: provider.apiKey,
+      apiKey,
       modelId,
+      models,
+      presetId: provider.presetId,
+      probeImages: true,
       apiFormat,
     })
   }
@@ -769,26 +988,104 @@ export class ProviderService {
   async testProviderConfig(input: TestProviderInput): Promise<ProviderTestResult> {
     const format: ApiFormat = input.apiFormat ?? 'anthropic'
     const base = input.baseUrl.replace(/\/+$/, '')
+    const apiKey = input.apiKey.trim() || 'local-provider'
+    const models = normalizeProviderModels(
+      input.models ?? {
+        main: input.modelId,
+        haiku: input.modelId,
+        sonnet: input.modelId,
+        opus: input.modelId,
+      },
+    )
+    const groupedModels = new Map<
+      string,
+      { requestedModel: string; roles: Array<(typeof MODEL_ROLES)[number]> }
+    >()
+    for (const role of MODEL_ROLES) {
+      const requestedModel = normalizeProviderRuntimeModel({
+        id: 'provider-test',
+        presetId: input.presetId ?? 'custom',
+        name: 'Provider test',
+        apiKey,
+        baseUrl: base,
+        apiFormat: format,
+        models,
+      }, models[role])
+      const key = requestedModel.toLowerCase()
+      const existing = groupedModels.get(key)
+      if (existing) existing.roles.push(role)
+      else groupedModels.set(key, { requestedModel, roles: [role] })
+    }
+    const checks = [...groupedModels.values()]
+    const mainCheck = checks.find((check) => check.roles.includes('main')) ?? checks[0]!
 
     // ── Step 1: Basic connectivity ───────────────────────────
     // Directly call the upstream API to verify URL, key, and model.
-    const step1 = await this.testConnectivity(base, input.apiKey, input.modelId, format)
+    const step1 = await this.testConnectivity(
+      base,
+      apiKey,
+      mainCheck.requestedModel,
+      format,
+    )
+    const modelChecks = [{
+      roles: mainCheck.roles,
+      requestedModel: mainCheck.requestedModel,
+      result: step1,
+    }]
 
     // If connectivity failed, no point running step 2
     if (!step1.success) {
-      return { connectivity: step1 }
+      return { connectivity: step1, modelChecks, allModelsPassed: false }
+    }
+
+    const secondaryChecks = await Promise.all(
+      checks
+        .filter((check) => check !== mainCheck)
+        .map(async (check) => ({
+          roles: check.roles,
+          requestedModel: check.requestedModel,
+          result: await this.testConnectivity(base, apiKey, check.requestedModel, format),
+        })),
+    )
+    modelChecks.push(...secondaryChecks)
+
+    const result: ProviderTestResult = {
+      connectivity: step1,
+      modelChecks,
+      allModelsPassed: modelChecks.every((check) => check.result.success),
     }
 
     // For native Anthropic format, no proxy pipeline to test
-    if (format === 'anthropic') {
-      return { connectivity: step1 }
+    if (format !== 'anthropic') {
+      // ── Step 2: Full proxy pipeline ──────────────────────────
+      // Anthropic request → transform → upstream → transform back → validate
+      result.proxy = await this.testProxyPipeline(
+        base,
+        apiKey,
+        mainCheck.requestedModel,
+        format,
+      )
     }
 
-    // ── Step 2: Full proxy pipeline ──────────────────────────
-    // Anthropic request → transform → upstream → transform back → validate
-    const step2 = await this.testProxyPipeline(base, input.apiKey, input.modelId, format)
+    if (input.probeImages) {
+      const imageResolution = await resolveProviderImageSupportDynamically({
+        id: 'provider-test',
+        presetId: input.presetId ?? 'custom',
+        name: 'Provider test',
+        apiKey,
+        baseUrl: base,
+        apiFormat: format,
+        models,
+        imageSupportMode: 'auto',
+      }, mainCheck.requestedModel, { timeoutMs: 8_000 })
+      result.imageCapability = {
+        modelId: imageResolution.modelId ?? mainCheck.requestedModel,
+        status: imageResolution.status,
+        source: imageResolution.source,
+      }
+    }
 
-    return { connectivity: step1, proxy: step2 }
+    return result
   }
 
   /** Step 1: Direct upstream call to verify connectivity, auth, and model. */
@@ -801,15 +1098,31 @@ export class ProviderService {
     const start = Date.now()
     try {
       const { url, headers, body } = buildDirectTestRequest(base, apiKey, modelId, format)
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(30000),
       })
 
+      let resBody = await response.json().catch(() => null) as Record<string, unknown> | null
+      if (
+        !response.ok &&
+        !('thinking' in body) &&
+        isOnlyEnabledThinkingAllowedResponse(resBody)
+      ) {
+        response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            ...body,
+            thinking: { type: 'enabled' },
+          }),
+          signal: AbortSignal.timeout(30000),
+        })
+        resBody = await response.json().catch(() => null) as Record<string, unknown> | null
+      }
       const latencyMs = Date.now() - start
-      const resBody = await response.json().catch(() => null) as Record<string, unknown> | null
 
       if (!response.ok) {
         let error = `HTTP ${response.status}`
@@ -826,7 +1139,14 @@ export class ProviderService {
         return { success: false, latencyMs, error: valid.error, modelUsed: modelId, httpStatus: response.status }
       }
 
-      return { success: true, latencyMs, modelUsed: valid.model || modelId, httpStatus: response.status }
+      const modelUsed = valid.model || modelId
+      return {
+        success: true,
+        latencyMs,
+        modelUsed,
+        modelMatched: modelUsed.trim().toLowerCase() === modelId.trim().toLowerCase(),
+        httpStatus: response.status,
+      }
     } catch (err: unknown) {
       const latencyMs = Date.now() - start
       if (err instanceof DOMException && err.name === 'TimeoutError') {
@@ -949,24 +1269,17 @@ function withProviderSpecificTestDefaults(
   format: ApiFormat,
   body: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (format === 'openai_responses' || !isKimiProviderTarget(modelId, base)) {
-    if (
-      format === 'anthropic' &&
-      requiresEnabledThinkingParamForModel(modelId)
-    ) {
-      return {
-        ...body,
-        thinking: { type: 'enabled' },
-      }
+  if (
+    format !== 'openai_responses' &&
+    requiresEnabledThinkingParamForModel(modelId, base)
+  ) {
+    return {
+      ...body,
+      thinking: { type: 'enabled' },
     }
-
-    return body
   }
 
-  return {
-    ...body,
-    thinking: { type: 'enabled' },
-  }
+  return body
 }
 
 function explainProviderTestError(base: string, modelId: string, error: string): string {
@@ -1004,6 +1317,14 @@ function isKimiCodeBaseUrl(base: string): boolean {
 
 function looksLikeInvalidApiKeyError(error: string): boolean {
   return /api\s*key/i.test(error) && /(invalid|expired|无效|过期)/i.test(error)
+}
+
+function isOnlyEnabledThinkingAllowedResponse(
+  body: Record<string, unknown> | null,
+): boolean {
+  if (!body) return false
+  const text = JSON.stringify(body).toLowerCase()
+  return text.includes('invalid thinking') && text.includes('only type=enabled')
 }
 
 function validateResponseBody(

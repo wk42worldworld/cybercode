@@ -59,7 +59,7 @@ export function ToolCallGroup({
   resultMap,
   childToolCallsByParent,
   agentTaskNotifications,
-  isStreaming,
+  isStreaming = true,
 }: Props) {
   const allAgents = toolCalls.every((toolCall) => toolCall.toolName === 'Agent')
 
@@ -83,6 +83,7 @@ export function ToolCallGroup({
         toolCall={tc}
         resultMap={resultMap}
         childToolCallsByParent={childToolCallsByParent}
+        isActive={isStreaming}
       />
     )
   }
@@ -213,7 +214,7 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
   }, [hasNestedToolCalls, isStreaming])
 
   const isExecuting =
-    Boolean(isStreaming) ||
+    Boolean(isStreaming) &&
     toolCalls.some((toolCall) => isToolCallRunning(toolCall, resultMap, childToolCallsByParent))
 
   return (
@@ -243,7 +244,13 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
             <Icon name="error" size={14} className="text-[var(--color-error)]" />
           )}
           {!isExecuting && !allComplete && !errorPresent && (
-            <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
+            <span className="flex" title={t('agentStatus.stopped')}>
+              <Icon
+                name="stop_circle"
+                size={14}
+                className="text-[var(--color-outline)]"
+              />
+            </span>
           )}
           {isExecuting && (
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
@@ -264,6 +271,7 @@ function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isSt
                   toolCall={tc}
                   resultMap={resultMap}
                   childToolCallsByParent={childToolCallsByParent}
+                  isActive={Boolean(isStreaming)}
                   compact
                 />
               </div>
@@ -353,7 +361,7 @@ function AgentCallCard({
                   key={recentToolCall.id}
                   className={`truncate text-[11px] text-[var(--color-text-tertiary)] ${isRunning ? 'tool-running-text' : ''}`}
                 >
-                  {formatRecentToolUseSummary(recentToolCall, resultMap)}
+                  {formatRecentToolUseSummary(recentToolCall, resultMap, isRunning)}
                 </div>
               ))}
             </div>
@@ -407,6 +415,7 @@ function AgentCallCard({
                   toolCall={childToolCall}
                   resultMap={resultMap}
                   childToolCallsByParent={childToolCallsByParent}
+                  isActive={isRunning}
                   compact
                 />
               ))}
@@ -440,16 +449,20 @@ function ToolCallTree({
   toolCall,
   resultMap,
   childToolCallsByParent,
+  isActive = true,
   compact = false,
 }: {
   toolCall: ToolCall
   resultMap: Map<string, ToolResult>
   childToolCallsByParent: Map<string, ToolCall[]>
+  isActive?: boolean
   compact?: boolean
 }) {
   const result = resultMap.get(toolCall.toolUseId)
   const childToolCalls = childToolCallsByParent.get(toolCall.toolUseId) ?? []
-  const isRunning = isToolCallRunning(toolCall, resultMap, childToolCallsByParent)
+  const isRunning =
+    isActive &&
+    isToolCallRunning(toolCall, resultMap, childToolCallsByParent)
 
   return (
     <div className={compact ? 'space-y-1' : ''}>
@@ -469,6 +482,7 @@ function ToolCallTree({
                 toolCall={childToolCall}
                 resultMap={resultMap}
                 childToolCallsByParent={childToolCallsByParent}
+                isActive={isActive}
                 compact
               />
             ))}
@@ -515,7 +529,9 @@ function getAgentStatus({
   if (taskStatus === 'completed') return 'done'
   if (hasResult && isError && !isLaunchResult) return 'failed'
   if (hasResult && !isLaunchResult) return 'done'
-  if (isStreaming || childCount > 0 || isLaunchResult) return 'running'
+  if (isLaunchResult) return 'running'
+  if (!isStreaming) return 'stopped'
+  if (childCount > 0 || isStreaming) return 'running'
   return 'starting'
 }
 
@@ -557,12 +573,19 @@ function getAgentStatusClassName(status: AgentStatus): string {
 function formatRecentToolUseSummary(
   toolCall: ToolCall,
   resultMap: Map<string, ToolResult>,
+  isActive: boolean,
 ): string {
   const input = toolCall.input && typeof toolCall.input === 'object'
     ? toolCall.input as Record<string, unknown>
     : {}
   const result = resultMap.get(toolCall.toolUseId)
-  const suffix = result?.isError ? ' * failed' : result ? ' * done' : ' * running'
+  const suffix = result?.isError
+    ? ' * failed'
+    : result
+      ? ' * done'
+      : isActive
+        ? ' * running'
+        : ' * stopped'
 
   switch (toolCall.toolName) {
     case 'Bash':

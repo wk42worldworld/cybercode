@@ -16,6 +16,11 @@ import {
   resolveClaudeCliLauncher,
 } from '../../utils/desktopBundledCli.js'
 import { CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV } from '../../utils/modelContextWindows.js'
+import {
+  CYBERCODE_IMAGE_INPUT_OVERRIDE_ENV,
+  CYBERCODE_PROVIDER_BASE_URL_ENV,
+  CYBERCODE_PROVIDER_ID_ENV,
+} from '../../utils/model/imageCapabilityRegistry.js'
 
 type AttachmentRef = {
   type: 'file' | 'image'
@@ -61,6 +66,7 @@ export type SessionStartOptions = {
   effort?: string
   providerId?: string | null
   contextWindow?: number
+  imageSupportOverride?: boolean
 }
 
 export class ConversationStartupError extends Error {
@@ -648,6 +654,9 @@ export class ConversationService {
       'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
       'ANTHROPIC_DEFAULT_OPUS_MODEL',
       'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
+      CYBERCODE_IMAGE_INPUT_OVERRIDE_ENV,
+      CYBERCODE_PROVIDER_BASE_URL_ENV,
+      CYBERCODE_PROVIDER_ID_ENV,
       CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
     ] as const
 
@@ -714,6 +723,13 @@ export class ConversationService {
       // 否则 CLI 会忽略 provider 的 AUTH_TOKEN、错误地走 OAuth 打到第三方
       // endpoint。详见 src/utils/auth.ts isManagedOAuthContext()。
       ...(explicitProviderEnv ?? {}),
+      ...(options?.imageSupportOverride !== undefined
+        ? {
+            [CYBERCODE_IMAGE_INPUT_OVERRIDE_ENV]: options.imageSupportOverride
+              ? 'enabled'
+              : 'disabled',
+          }
+        : {}),
       ...(this.shouldMarkManagedOAuth(options?.providerId)
         ? await this.buildOfficialOAuthEnv()
         : {}),
@@ -1019,7 +1035,8 @@ export class ConversationService {
     if (imageFileReferenceLines.length > 0) {
       parts.push([
         'Attached image files are available as local files for tool use.',
-        'The current model cannot read images directly. If image understanding is needed, call an available image/OCR/MCP tool with one of these file paths. If no suitable tool is available, explain that limitation and continue from the available context.',
+        'The current model cannot consume image blocks directly, but the upload succeeded and the files below remain available.',
+        'If image understanding is needed, call an available image/OCR/MCP tool or a configured local vision model with one of these exact file paths. Prefer a tool that returns a textual description instead of another raw image block. If no suitable tool exists, say that no image-processing tool is available and continue from the text context. Do not claim that the user cannot upload images.',
         '',
         'Image files:',
         ...imageFileReferenceLines,

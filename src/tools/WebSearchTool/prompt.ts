@@ -5,11 +5,11 @@ export const WEB_SEARCH_TOOL_NAME = 'WebSearch'
 export function getWebSearchPrompt(): string {
   const currentMonthYear = getLocalMonthYear()
   return `
-- Allows Claude to search the web and use the results to inform responses
+- Allows the assistant to search the web and use the results to inform responses
 - Provides up-to-date information for current events and recent data
 - Returns search result information formatted as search result blocks, including links as markdown hyperlinks
-- Use this tool for accessing information beyond Claude's knowledge cutoff
-- Searches are performed automatically within a single API call
+- Use this tool for accessing information beyond the model's knowledge cutoff
+- Cybercode selects an available native or local search backend automatically
 
 CRITICAL REQUIREMENT - You MUST follow this:
   - After answering the user's question, you MUST include a "Sources:" section at the end of your response
@@ -25,7 +25,10 @@ CRITICAL REQUIREMENT - You MUST follow this:
 
 Usage notes:
   - Domain filtering is supported to include or block specific websites
-  - Web search is only available in the US
+  - Search availability does not depend on the selected model provider
+  - If you already have the exact page URL and need its contents, call WebFetch instead of repeatedly searching for that URL
+  - Never claim that a page redirected, blocked access, or triggered anti-bot protection unless a tool result explicitly reported that failure
+  - For requests tied to today or another exact date, do not silently substitute older results. Clearly say when exact-date data is unavailable
 
 IMPORTANT - Use the correct year in search queries:
   - The current month is ${currentMonthYear}. You MUST use this year when searching for recent information, documentation, or current events.

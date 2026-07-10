@@ -149,7 +149,9 @@ export class WsBridge {
   // ------- internal -------
 
   private connect(chatId: string, sessionId: string): void {
-    const url = `${this.serverUrl}/ws/${sessionId}`
+    const token = process.env.SERVER_AUTH_TOKEN
+    const authQuery = token ? `?token=${encodeURIComponent(token)}` : ''
+    const url = `${this.serverUrl}/ws/${sessionId}${authQuery}`
     const ws = new WebSocket(url)
 
     // Cancel any pending reconnect timer for this chatId

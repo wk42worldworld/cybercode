@@ -1,6 +1,15 @@
 import type { TranslationKey } from './en'
 
 export const ja = {
+  'settings.providers.discoverModels': 'モデルを検出',
+  'settings.providers.modelsDiscovered': '{count} 個のモデルを検出しました',
+  'settings.providers.modelDiscoveryFailed': '検出に失敗しました: {error}',
+  'settings.providers.modelCheckOk': '{roles}: {requested} -> {actual} ({latency}ms)',
+  'settings.providers.modelCheckFailed': '{roles}: {requested} に失敗 - {error}',
+  'settings.providers.imageCapabilityResult': '画像入力 · {model}: {state}',
+  'settings.providers.imageCapability.supported': '対応',
+  'settings.providers.imageCapability.unsupported': '非対応',
+  'settings.providers.imageCapability.unknown': '不明',
   'common.cancel': 'キャンセル',
   'common.save': '保存',
   'common.delete': '削除',

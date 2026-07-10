@@ -1,4 +1,4 @@
-export type OpenAICompatibleEndpoint = 'chat/completions' | 'responses'
+export type OpenAICompatibleEndpoint = 'chat/completions' | 'responses' | 'models'
 
 export function buildOpenAICompatibleUrl(baseUrl: string, endpoint: OpenAICompatibleEndpoint): string {
   const base = baseUrl.replace(/\/+$/, '')

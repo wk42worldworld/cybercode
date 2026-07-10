@@ -1,5 +1,5 @@
 import type { ClientMessage, ServerMessage } from '../types/chat'
-import { getBaseUrl } from './client'
+import { getAuthToken, getBaseUrl } from './client'
 
 type MessageHandler = (msg: ServerMessage) => void
 export type WsState = 'connecting' | 'open' | 'closed'
@@ -43,7 +43,9 @@ class WebSocketManager {
     }
 
     const wsUrl = getBaseUrl().replace(/^http/, 'ws')
-    const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+    const authToken = getAuthToken()
+    const authQuery = authToken ? `?token=${encodeURIComponent(authToken)}` : ''
+    const ws = new WebSocket(`${wsUrl}/ws/${sessionId}${authQuery}`)
 
     const conn: Connection = {
       ws,

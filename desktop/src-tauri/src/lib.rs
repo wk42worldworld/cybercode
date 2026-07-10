@@ -38,7 +38,15 @@ struct ServerState(Mutex<ServerStatus>);
 
 struct ServerRuntime {
     url: String,
+    auth_token: String,
     child: CommandChild,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ServerConnection {
+    url: String,
+    auth_token: String,
 }
 
 #[derive(Default)]
@@ -102,6 +110,26 @@ fn get_server_url(state: State<'_, ServerState>) -> Result<String, String> {
 
     if let Some(runtime) = guard.runtime.as_ref() {
         return Ok(runtime.url.clone());
+    }
+
+    Err(guard
+        .startup_error
+        .clone()
+        .unwrap_or_else(|| "desktop server did not start".to_string()))
+}
+
+#[tauri::command]
+fn get_server_connection(state: State<'_, ServerState>) -> Result<ServerConnection, String> {
+    let guard = state
+        .0
+        .lock()
+        .map_err(|_| "desktop server state is unavailable".to_string())?;
+
+    if let Some(runtime) = guard.runtime.as_ref() {
+        return Ok(ServerConnection {
+            url: runtime.url.clone(),
+            auth_token: runtime.auth_token.clone(),
+        });
     }
 
     Err(guard
@@ -776,6 +804,10 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     let host = "127.0.0.1";
     let port = reserve_local_port()?;
     let url = format!("http://{host}:{port}");
+    let mut token_bytes = [0_u8; 32];
+    getrandom::fill(&mut token_bytes)
+        .map_err(|err| format!("generate local server token: {err}"))?;
+    let auth_token = general_purpose::URL_SAFE_NO_PAD.encode(token_bytes);
     let app_root = resolve_app_root(app)?;
     let app_root_arg = app_root.to_string_lossy().to_string();
 
@@ -787,8 +819,9 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     for (key, value) in terminal_environment(&default_shell()) {
         sidecar = sidecar.env(key, value);
     }
-    let sidecar = sidecar.args([
+    let sidecar = sidecar.env("SERVER_AUTH_TOKEN", &auth_token).args([
         "server",
+        "--auth-required",
         "--app-root",
         &app_root_arg,
         "--host",
@@ -837,7 +870,11 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
         return Err(format_server_startup_error(&err, &startup_logs));
     }
 
-    Ok(ServerRuntime { url, child })
+    Ok(ServerRuntime {
+        url,
+        auth_token,
+        child,
+    })
 }
 
 fn stop_server_sidecar(app: &AppHandle) {
@@ -867,16 +904,18 @@ fn start_adapters_sidecar(app: &AppHandle) -> Result<CommandChild, String> {
     //
     // 如果 server 还没起来 / 没拿到 URL，回退到 3456 作为最后兜底（adapter
     // 自己有重连逻辑，等 server 上线就能连上）。
-    let server_http_url = app
+    let server_connection = app
         .try_state::<ServerState>()
         .and_then(|state| {
-            state
-                .0
-                .lock()
-                .ok()
-                .and_then(|guard| guard.runtime.as_ref().map(|r| r.url.clone()))
+            state.0.lock().ok().and_then(|guard| {
+                guard
+                    .runtime
+                    .as_ref()
+                    .map(|runtime| (runtime.url.clone(), runtime.auth_token.clone()))
+            })
         })
-        .unwrap_or_else(|| "http://127.0.0.1:3456".to_string());
+        .unwrap_or_else(|| ("http://127.0.0.1:3456".to_string(), String::new()));
+    let (server_http_url, server_auth_token) = server_connection;
     // WsBridge 直接 `new WebSocket('${serverUrl}/ws/...')`，必须传 ws://；
     // 不会自动从 http 转。
     let server_ws_url = if let Some(rest) = server_http_url.strip_prefix("http://") {
@@ -894,7 +933,11 @@ fn start_adapters_sidecar(app: &AppHandle) -> Result<CommandChild, String> {
     for (key, value) in terminal_environment(&default_shell()) {
         sidecar = sidecar.env(key, value);
     }
-    let sidecar = sidecar.env("ADAPTER_SERVER_URL", &server_ws_url).args([
+    let mut sidecar = sidecar.env("ADAPTER_SERVER_URL", &server_ws_url);
+    if !server_auth_token.is_empty() {
+        sidecar = sidecar.env("SERVER_AUTH_TOKEN", &server_auth_token);
+    }
+    let sidecar = sidecar.args([
         "adapters",
         "--app-root",
         &app_root_arg,
@@ -1076,6 +1119,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_server_url,
+            get_server_connection,
             restart_adapters_sidecar,
             prepare_for_update_install,
             open_skills_config_dir,

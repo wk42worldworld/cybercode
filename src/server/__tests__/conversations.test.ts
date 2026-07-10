@@ -73,7 +73,7 @@ describe('ConversationService', () => {
 
     expect(result).toBe(true)
     const text = sent[0]?.message?.content?.[0]?.text
-    expect(text).toContain('current model cannot read images directly')
+    expect(text).toContain('upload succeeded')
     expect(text).toContain('call an available image/OCR/MCP tool')
     expect(text).toContain('"/tmp/photo.png"')
     expect(text).not.toContain('@"/tmp/photo.png"')
@@ -115,7 +115,7 @@ describe('ConversationService', () => {
     expect(result).toBe(true)
     const text = sent[0]?.message?.content?.[0]?.text
     expect(text).toContain('@"/tmp/photo.png"')
-    expect(text).not.toContain('current model cannot read images directly')
+    expect(text).not.toContain('upload succeeded')
   })
 
   it('should return false when responding to permission for non-existent session', () => {
@@ -497,6 +497,20 @@ describe('WebSocket Chat Integration', () => {
     }
   }
 
+  async function withMockDirectImageRejection<T>(callback: () => Promise<T>): Promise<T> {
+    const previous = process.env.MOCK_SDK_REJECT_DIRECT_IMAGE
+    process.env.MOCK_SDK_REJECT_DIRECT_IMAGE = '1'
+    try {
+      return await callback()
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MOCK_SDK_REJECT_DIRECT_IMAGE
+      } else {
+        process.env.MOCK_SDK_REJECT_DIRECT_IMAGE = previous
+      }
+    }
+  }
+
   async function runTurn(sessionId: string, content: string, allowError = false): Promise<any[]> {
     const messages: any[] = []
     const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
@@ -760,6 +774,7 @@ describe('WebSocket Chat Integration', () => {
       apiKey: 'key-text-only',
       baseUrl: 'https://api.deepseek.com/anthropic',
       apiFormat: 'anthropic',
+      imageSupportMode: 'disabled',
       models: {
         main: 'deepseek-chat',
         haiku: 'deepseek-chat',
@@ -815,7 +830,7 @@ describe('WebSocket Chat Integration', () => {
       const text = extractSdkUserText(userMessage)
       expect(messages.some((msg) => msg.type === 'error' && msg.code === 'MODEL_IMAGE_UNSUPPORTED')).toBe(false)
       expect(messages.some((msg) => msg.type === 'status' && msg.state === 'thinking')).toBe(true)
-      expect(text).toContain('current model cannot read images directly')
+      expect(text).toContain('upload succeeded')
       expect(text).toContain('call an available image/OCR/MCP tool')
       expect(text).toContain('"/tmp/photo.png"')
       expect(text).not.toContain('@"/tmp/photo.png"')
@@ -825,6 +840,98 @@ describe('WebSocket Chat Integration', () => {
       conversationService.stopSession(sessionId)
     }
   })
+
+  it('should silently retry rejected vision input as a tool file reference and keep chatting', async () => {
+    await withMockDirectImageRejection(async () => {
+      const providerService = new ProviderService()
+      const provider = await providerService.addProvider({
+        presetId: 'custom',
+        name: 'Adaptive image provider',
+        apiKey: 'key-adaptive-image',
+        baseUrl: 'http://127.0.0.1:1/anthropic',
+        apiFormat: 'anthropic',
+        imageSupportMode: 'enabled',
+        models: {
+          main: 'custom-vision-model',
+          haiku: 'custom-vision-model',
+          sonnet: 'custom-vision-model',
+          opus: 'custom-vision-model',
+        },
+      })
+      await providerService.activateProvider(provider.id)
+
+      const sessionId = `chat-image-auto-fallback-${crypto.randomUUID()}`
+      const messages: any[] = []
+      const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+      let completionCount = 0
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            ws.close()
+            reject(new Error(`Timed out waiting for image fallback flow for ${sessionId}`))
+          }, 20_000)
+
+          ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data as string)
+            messages.push(msg)
+            if (msg.type === 'connected') {
+              ws.send(JSON.stringify({
+                type: 'user_message',
+                content: 'Inspect this image with a tool if native vision fails.',
+                attachments: [{
+                  type: 'image',
+                  name: 'adaptive.png',
+                  path: '/tmp/adaptive.png',
+                  mimeType: 'image/png',
+                }],
+              }))
+            }
+            if (msg.type === 'error') {
+              clearTimeout(timeout)
+              ws.close()
+              reject(new Error(`Image fallback leaked an error: ${msg.message}`))
+            }
+            if (msg.type === 'message_complete') {
+              completionCount++
+              if (completionCount === 1) {
+                ws.send(JSON.stringify({
+                  type: 'user_message',
+                  content: 'Continue after the recovered image turn.',
+                }))
+              } else {
+                clearTimeout(timeout)
+                ws.close()
+                resolve()
+              }
+            }
+          }
+
+          ws.onerror = () => {
+            clearTimeout(timeout)
+            reject(new Error(`WebSocket error for image fallback session ${sessionId}`))
+          }
+        })
+
+        const inbound = await readMockSdkInbound(sessionId)
+        const texts = inbound
+          .filter((entry) => entry.type === 'user')
+          .map(extractSdkUserText)
+        expect(texts.some((text) => text.includes('@"/tmp/adaptive.png"'))).toBe(true)
+        expect(texts.some((text) =>
+          text.includes('call an available image/OCR/MCP tool') &&
+          text.includes('"/tmp/adaptive.png"') &&
+          !text.includes('@"/tmp/adaptive.png"'),
+        )).toBe(true)
+        expect(texts).toContain('Continue after the recovered image turn.')
+        expect(messages.some((msg) => msg.type === 'error')).toBe(false)
+      } finally {
+        ws.close()
+        await providerService.activateOfficial()
+        conversationService.stopSession(sessionId)
+      }
+    })
+  }, 25_000)
 
   it('should queue user_steer messages through the SDK input stream', async () => {
     const messages: any[] = []

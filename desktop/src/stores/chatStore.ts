@@ -10,6 +10,7 @@ import { useTabStore } from './tabStore'
 import { t } from '../i18n'
 import { randomSpinnerVerb } from '../config/spinnerVerbs'
 import { getDefaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitle'
+import { getPendingToolUseIdsForLatestTurn } from '../utils/toolCallState'
 import type { MessageEntry } from '../types/session'
 import {
   mapHistoryMessages as mapHistoryMessagesImpl,
@@ -1414,14 +1415,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       case 'tool_result':
-        update((s) => ({
-          ...markModelActivity(),
-          messages: [...s.messages, {
+        update((s) => {
+          const messages: UIMessage[] = [...s.messages, {
             id: nextId(), type: 'tool_result', toolUseId: msg.toolUseId,
             content: msg.content, isError: msg.isError, timestamp: Date.now(), parentToolUseId: msg.parentToolUseId,
-          }],
-          chatState: 'thinking', activeThinkingId: null,
-        }))
+          }]
+          return {
+            ...markModelActivity(),
+            messages,
+            chatState:
+              getPendingToolUseIdsForLatestTurn(messages).size > 0
+                ? 'tool_executing'
+                : 'thinking',
+            activeThinkingId: null,
+          }
+        })
         if (pendingTaskToolUseIds.has(msg.toolUseId)) {
           pendingTaskToolUseIds.delete(msg.toolUseId)
           useCLITaskStore.getState().refreshTasks()

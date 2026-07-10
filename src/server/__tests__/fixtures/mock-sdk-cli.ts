@@ -26,12 +26,13 @@ function extractUserText(message: any): string {
 }
 
 const sdkUrl = getArg('--sdk-url')
-const sessionId = getArg('--session-id') || crypto.randomUUID()
+const sessionId = getArg('--session-id') || getArg('--resume') || crypto.randomUUID()
 const initMode = process.env.MOCK_SDK_INIT_MODE || 'on_open'
 const streamDelayMs = Number(process.env.MOCK_SDK_STREAM_DELAY_MS || '0')
 const exitAfterOpenMs = Number(process.env.MOCK_SDK_EXIT_AFTER_OPEN_MS || '0')
 const exitAfterFirstUserMs = Number(process.env.MOCK_SDK_EXIT_AFTER_FIRST_USER_MS || '0')
 const inboundLogDir = process.env.MOCK_SDK_INBOUND_LOG_DIR
+const rejectDirectImage = process.env.MOCK_SDK_REJECT_DIRECT_IMAGE === '1'
 let initSent = false
 let firstUserExitScheduled = false
 
@@ -94,6 +95,18 @@ ws.addEventListener('message', (event) => {
           continue
         }
         const text = extractUserText(parsed)
+        if (rejectDirectImage && /@"[^"]+\.(?:png|jpe?g|webp|gif)"/i.test(text)) {
+          emit(ws, {
+            type: 'result',
+            subtype: 'error',
+            is_error: true,
+            result: 'This model does not support image input.',
+            errors: ['This model does not support image input.'],
+            usage: { input_tokens: 0, output_tokens: 0 },
+            session_id: sessionId,
+          })
+          continue
+        }
         const slashCommand = text.trim()
         if (slashCommand === '/cost') {
           emit(ws, {

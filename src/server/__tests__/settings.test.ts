@@ -231,6 +231,53 @@ describe('Settings API', () => {
     expect(body).toEqual({})
   })
 
+  it('GET settings endpoints should mask credentials before returning them', async () => {
+    const settingsPath = path.join(tmpDir, 'settings.json')
+    await fs.writeFile(settingsPath, JSON.stringify({
+      theme: 'dark',
+      env: {
+        ANTHROPIC_API_KEY: 'secret-key',
+        ANTHROPIC_AUTH_TOKEN: 'secret-token',
+        SAFE_VALUE: 'visible',
+      },
+    }))
+
+    const { req, url, segments } = makeRequest('GET', '/api/settings/user')
+    const res = await handleSettingsApi(req, url, segments)
+    const body = await res.json()
+
+    expect(body.env).toEqual({
+      ANTHROPIC_API_KEY: '••••••••',
+      ANTHROPIC_AUTH_TOKEN: '••••••••',
+      SAFE_VALUE: 'visible',
+    })
+    expect(await fs.readFile(settingsPath, 'utf8')).toContain('secret-key')
+  })
+
+  it('PUT user settings should preserve round-tripped masked credentials', async () => {
+    const settingsPath = path.join(tmpDir, 'settings.json')
+    await fs.writeFile(settingsPath, JSON.stringify({
+      env: {
+        ANTHROPIC_API_KEY: 'secret-key',
+        SAFE_VALUE: 'before',
+      },
+    }))
+
+    const { req, url, segments } = makeRequest('PUT', '/api/settings/user', {
+      env: {
+        ANTHROPIC_API_KEY: '••••••••',
+        SAFE_VALUE: 'after',
+      },
+    })
+    expect((await handleSettingsApi(req, url, segments)).status).toBe(200)
+
+    const stored = JSON.parse(await fs.readFile(settingsPath, 'utf8'))
+    expect(stored.env).toEqual({
+      ANTHROPIC_API_KEY: 'secret-key',
+      SAFE_VALUE: 'after',
+    })
+  })
+
   it('PUT /api/settings/user should update user settings', async () => {
     const { req, url, segments } = makeRequest('PUT', '/api/settings/user', {
       model: 'claude-opus-4-7',

@@ -92,18 +92,23 @@ describe('model image support', () => {
     expect(inferModelSupportsImages('qwen-vl-plus')).toBe(true)
     expect(inferModelSupportsImages('kimi-k2.6')).toBe(true)
     expect(inferModelSupportsImages('kimi-k2.7-code')).toBe(true)
+    expect(inferModelSupportsImages('kimi-for-coding')).toBe(true)
+    expect(inferModelSupportsImages('qwen3.5:0.8b')).toBe(true)
+    expect(inferModelSupportsImages('mimo-v2.5')).toBe(true)
+    expect(inferModelSupportsImages('mimo-v2.5-pro')).toBe(false)
     expect(inferModelSupportsImages('openai/gpt-oss-20b')).toBe(false)
     expect(inferModelSupportsImages('deepseek-v4-pro[1m]')).toBe(false)
   })
 
-  test('tries image input for unknown custom providers by default', () => {
+  test('keeps unknown custom providers safe until dynamic detection completes', () => {
     const resolved = resolveProviderImageSupport(provider({ models: {
       main: 'my-private-model',
       haiku: 'my-private-model',
       sonnet: 'my-private-model',
       opus: 'my-private-model',
     } }))
-    expect(resolved.supportsImages).toBe(true)
+    expect(resolved.supportsImages).toBe(false)
+    expect(resolved.status).toBe('unknown')
     expect(resolved.source).toBe('default')
   })
 })

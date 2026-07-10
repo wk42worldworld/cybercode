@@ -9,16 +9,14 @@ import { Textarea } from '../components/shared/Textarea'
 import { Button } from '../components/shared/Button'
 import { Dropdown } from '../components/shared/Dropdown'
 import type { PermissionMode, EffortLevel, ThemeMode } from '../types/settings'
-import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat, ModelContextWindows, ImageSupportMode } from '../types/provider'
+import type { SavedProvider, UpdateProviderInput, ProviderTestResult, ModelMapping, ApiFormat, ModelContextWindows, ImageSupportMode, ProviderModelInfo } from '../types/provider'
 import type { ProviderPreset, ProviderModelOption } from '../types/providerPreset'
 import {
   MODEL_ROLES,
-  buildModelContextWindowMap,
   compactModelContextWindows,
   formatContextWindowInput,
   inferContextWindowFromModelId,
   parseContextWindowInput,
-  parseContextWindowValue,
   type ModelRole,
 } from '../utils/modelContextWindows'
 import { useAgentStore } from '../stores/agentStore'
@@ -389,6 +387,9 @@ function ProviderCatalogItem({
   children?: ReactNode
 }) {
   const t = useTranslation()
+  const testPassed =
+    test?.result?.connectivity.success === true &&
+    test.result.allModelsPassed !== false
   return (
     <div
       className={`relative overflow-hidden rounded-[12px] border transition-all ${
@@ -423,10 +424,14 @@ function ProviderCatalogItem({
             {detail}
           </p>
           {test && !test.loading && test.result && (
-            <p className={`mt-1 text-[11px] ${test.result.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-              {test.result.connectivity.success
-                ? t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })
-                : t('settings.providers.connectivityFailed', { error: test.result.connectivity.error || '' })}
+            <p className={`mt-1 text-[11px] ${testPassed ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+              {testPassed
+                ? `${t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })} · ${test.result.connectivity.modelUsed ?? ''}`
+                : t('settings.providers.connectivityFailed', {
+                    error: test.result.connectivity.error ||
+                      test.result.modelChecks?.find((check) => !check.result.success)?.result.error ||
+                      '',
+                  })}
             </p>
           )}
         </div>
@@ -523,23 +528,7 @@ function openExternalUrl(url: string) {
     .catch(() => window.open(url, '_blank', 'noopener,noreferrer'))
 }
 
-const API_KEY_JSON_PLACEHOLDER = '••••••••'
-const API_KEY_JSON_KEYS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'] as const
-const MODEL_CONTEXT_WINDOWS_ENV = 'CYBERCODE_MODEL_CONTEXT_WINDOWS'
-const MANAGED_PROVIDER_JSON_ENV_KEYS = new Set<string>([
-  'ANTHROPIC_BASE_URL',
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'ANTHROPIC_MODEL',
-  'ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-  'ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL',
-  'ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL',
-  'ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES',
-  MODEL_CONTEXT_WINDOWS_ENV,
-])
+const MASKED_API_KEYS = new Set(['***', '••••••••'])
 
 function createContextWindowInputs(
   models: ModelMapping,
@@ -550,9 +539,12 @@ function createContextWindowInputs(
     MODEL_ROLES.map((role) => {
       const value =
         provider?.modelContextWindows?.[role] ??
+        provider?.modelCatalog?.find((model) => model.id === models[role])?.contextWindow ??
         getPresetModelContextWindow(preset, models[role]) ??
         inferContextWindowFromModelId(models[role]) ??
-        preset.defaultModelContextWindows?.[role]
+        (preset.defaultModels[role]?.trim() === models[role]?.trim()
+          ? preset.defaultModelContextWindows?.[role]
+          : undefined)
       return [role, formatContextWindowInput(value)]
     }),
   ) as Record<ModelRole, string>
@@ -585,12 +577,14 @@ function getPresetModelContextWindow(
 }
 
 function normalizeModelId(modelId: string | undefined): string {
-  return (modelId ?? '').trim().replace(/:(?:\d+(?:k|m)?|[a-z]+)$/i, '')
+  return (modelId ?? '').trim().replace(/\[(?:1|2)m\]$/i, '')
 }
 
 function inferModelSupportsImages(modelId: string | undefined): boolean | undefined {
   const normalized = normalizeModelId(modelId).toLowerCase()
   if (!normalized) return undefined
+  if (/\bmimo-v2\.5-pro\b/.test(normalized)) return false
+  if (/\bmimo-v2\.5(?:[:\-]|$)/.test(normalized)) return true
   if (
     /\b(?:vision|vl|v[\.-]?l|image|img|omni|multimodal)\b/.test(normalized) ||
     normalized.includes('gemini') ||
@@ -598,6 +592,8 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
     normalized.includes('gpt-4.1') ||
     normalized.includes('gpt-5') ||
     normalized.includes('kimi-k2') ||
+    normalized.includes('kimi-for-coding') ||
+    /\bqwen3\.5(?:[:\-]|$)/.test(normalized) ||
     normalized.includes('claude-3') ||
     normalized.includes('claude-4') ||
     normalized.includes('claude-sonnet') ||
@@ -608,9 +604,7 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
   if (
     normalized.includes('deepseek') ||
     normalized.includes('minimax-m3') ||
-    normalized.includes('mimo-') ||
-    normalized.includes('gpt-oss') ||
-    /\bqwen3(?:[.\-]|$)/.test(normalized)
+    normalized.includes('gpt-oss')
   ) {
     return false
   }
@@ -620,12 +614,12 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
 function inferProviderSupportsImages(
   preset: ProviderPreset,
   modelId: string | undefined,
-): boolean {
+): boolean | undefined {
   const normalized = normalizeModelId(modelId)
   const presetModel = preset.modelOptions?.find((option) =>
     normalizeModelId(option.id).toLowerCase() === normalized.toLowerCase()
   )
-  return presetModel?.supportsImages ?? inferModelSupportsImages(normalized) ?? preset.supportsImages ?? true
+  return presetModel?.supportsImages ?? inferModelSupportsImages(normalized) ?? preset.supportsImages
 }
 
 function ModelIdInput({
@@ -749,34 +743,14 @@ function ModelIdInput({
   )
 }
 
-function maskSettingsJsonSecrets(raw: string, apiKey: string): string {
-  if (!apiKey.trim()) return raw
-  try {
-    const parsed = JSON.parse(raw) as { env?: Record<string, unknown> }
-    if (!parsed.env || typeof parsed.env !== 'object') return raw
-    let changed = false
-    for (const key of API_KEY_JSON_KEYS) {
-      if (parsed.env[key] === apiKey) {
-        parsed.env[key] = API_KEY_JSON_PLACEHOLDER
-        changed = true
-      }
-    }
-    return changed ? JSON.stringify(parsed, null, 2) : raw
-  } catch {
-    return raw
+function normalizedProviderModels(models: ModelMapping): ModelMapping {
+  const main = models.main.trim()
+  return {
+    main,
+    haiku: models.haiku.trim() || main,
+    sonnet: models.sonnet.trim() || main,
+    opus: models.opus.trim() || main,
   }
-}
-
-function restoreSettingsJsonSecrets<T>(settings: T, apiKey: string): T {
-  if (!apiKey.trim() || !settings || typeof settings !== 'object') return settings
-  const parsed = settings as { env?: Record<string, unknown> }
-  if (!parsed.env || typeof parsed.env !== 'object') return settings
-  for (const key of API_KEY_JSON_KEYS) {
-    if (parsed.env[key] === API_KEY_JSON_PLACEHOLDER) {
-      parsed.env[key] = apiKey
-    }
-  }
-  return settings
 }
 
 function ProviderFormModal({ open, onClose, mode, provider, presets, initialPresetId }: ProviderFormProps) {
@@ -785,10 +759,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const t = useTranslation()
 
   const availablePresets = presets.filter((p) => p.id !== 'official')
-  const presetDefaultEnvKeys = useMemo(
-    () => new Set(presets.flatMap((preset) => Object.keys(preset.defaultEnv ?? {}))),
-    [presets],
-  )
   const fallbackPreset = provider
     ? buildFallbackPreset(provider)
     : availablePresets.find((p) => p.id === 'custom') ?? buildFallbackPreset()
@@ -800,10 +770,13 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const [name, setName] = useState(provider?.name ?? initialPreset.name)
   const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? initialPreset.baseUrl)
   const [apiFormat, setApiFormat] = useState<ApiFormat>(provider?.apiFormat ?? initialPreset.apiFormat ?? 'anthropic')
-  const [apiKey, setApiKey] = useState(provider?.apiKey ?? '')
+  const [apiKey, setApiKey] = useState(
+    provider?.apiKey && !MASKED_API_KEYS.has(provider.apiKey) ? provider.apiKey : '',
+  )
   const [showApiKey, setShowApiKey] = useState(false)
   const [notes, setNotes] = useState(provider?.notes ?? '')
   const [models, setModels] = useState<ModelMapping>(provider?.models ?? { ...initialPreset.defaultModels })
+  const [modelCatalog, setModelCatalog] = useState<ProviderModelInfo[]>(provider?.modelCatalog ?? [])
   const [imageSupportMode, setImageSupportMode] = useState<ImageSupportMode>(
     provider?.imageSupportMode ?? 'auto',
   )
@@ -816,25 +789,34 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [testResult, setTestResult] = useState<ProviderTestResult | null>(null)
   const [isTesting, setIsTesting] = useState(false)
-  const [settingsJson, setSettingsJson] = useState('')
-  const [settingsJsonError, setSettingsJsonError] = useState<string | null>(null)
+  const [isDiscoveringModels, setIsDiscoveringModels] = useState(false)
+  const [modelDiscoveryMessage, setModelDiscoveryMessage] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(initialPreset.id === 'custom')
   const parsedContextWindows = useMemo(
     () => parseContextWindowInputs(contextWindowInputs),
     [contextWindowInputs],
   )
-  const contextWindowMap = useMemo(
-    () => buildModelContextWindowMap(models, parsedContextWindows),
-    [models, parsedContextWindows],
-  )
+  const availableModelOptions = useMemo(() => {
+    const options = new Map<string, ProviderModelInfo>()
+    for (const option of selectedPreset.modelOptions ?? []) {
+      options.set(option.id.toLowerCase(), option)
+    }
+    for (const model of modelCatalog) {
+      const key = model.id.toLowerCase()
+      options.set(key, { ...options.get(key), ...model })
+    }
+    return [...options.values()]
+  }, [modelCatalog, selectedPreset.modelOptions])
 
   const updateModel = (role: ModelRole, value: string) => {
     setModels((prev) => ({ ...prev, [role]: value }))
     if (contextWindowTouched[role]) return
     const inferred =
-      getPresetModelContextWindow(selectedPreset, value) ??
+      availableModelOptions.find((option) => option.id === value)?.contextWindow ??
       inferContextWindowFromModelId(value) ??
-      selectedPreset.defaultModelContextWindows?.[role]
+      (selectedPreset.defaultModels[role]?.trim() === value.trim()
+        ? selectedPreset.defaultModelContextWindows?.[role]
+        : undefined)
     setContextWindowInputs((prev) => ({
       ...prev,
       [role]: formatContextWindowInput(inferred),
@@ -846,78 +828,14 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     setContextWindowInputs((prev) => ({ ...prev, [role]: value }))
   }
 
-  // Load current settings.json and merge provider env vars
-  useEffect(() => {
-    let cancelled = false
-    import('../api/providers').then(({ providersApi }) => {
-      providersApi.getSettings().then((settings) => {
-        if (cancelled) return
-        const needsProxy = apiFormat !== 'anthropic'
-        const existingEnv = (settings.env as Record<string, string>) || {}
-        const cleanedEnv = Object.fromEntries(
-          Object.entries(existingEnv).filter(([key]) =>
-            !presetDefaultEnvKeys.has(key) && !MANAGED_PROVIDER_JSON_ENV_KEYS.has(key),
-          ),
-        )
-        const previewApiKey =
-          apiKey ||
-          selectedPreset.defaultEnv?.ANTHROPIC_API_KEY ||
-          selectedPreset.defaultEnv?.ANTHROPIC_AUTH_TOKEN ||
-          (selectedPreset.needsApiKey ? '(your API key)' : 'local')
-        const merged = {
-          ...settings,
-          model: models.main || undefined,
-          modelContext: undefined,
-          skipWebFetchPreflight: settings.skipWebFetchPreflight ?? true,
-          env: {
-            ...cleanedEnv,
-            ...(selectedPreset.defaultEnv ?? {}),
-            ANTHROPIC_BASE_URL: needsProxy ? 'http://127.0.0.1:3456/proxy' : baseUrl,
-            ANTHROPIC_API_KEY: needsProxy ? 'proxy-managed' : previewApiKey,
-            ANTHROPIC_MODEL: models.main,
-            ANTHROPIC_DEFAULT_HAIKU_MODEL: models.haiku,
-            ANTHROPIC_DEFAULT_SONNET_MODEL: models.sonnet,
-            ANTHROPIC_DEFAULT_OPUS_MODEL: models.opus,
-            ...(Object.keys(contextWindowMap).length > 0
-              ? { [MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(contextWindowMap) }
-              : {}),
-          },
-        }
-        setSettingsJson(JSON.stringify(merged, null, 2))
-      }).catch(() => {
-        if (cancelled) return
-        setSettingsJson(JSON.stringify({}, null, 2))
-      })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [
-    apiFormat,
-    apiKey,
-    baseUrl,
-    contextWindowMap,
-    models.haiku,
-    models.main,
-    models.opus,
-    models.sonnet,
-    presetDefaultEnvKeys,
-    selectedPreset.defaultEnv,
-    selectedPreset.id,
-    selectedPreset.needsApiKey,
-  ])
-
   const isCustom = selectedPreset.id === 'custom'
   const requiresApiKey = selectedPreset.needsApiKey !== false
   const hasContextWindowError = MODEL_ROLES.some((role) =>
     contextWindowInputs[role].trim() && !parseContextWindowInput(contextWindowInputs[role]),
   )
-  const canSubmit = name.trim() && baseUrl.trim() && (mode === 'edit' || !requiresApiKey || apiKey.trim()) && models.main.trim() && !settingsJsonError && !hasContextWindowError
+  const canSubmit = name.trim() && baseUrl.trim() && (mode === 'edit' || !requiresApiKey || apiKey.trim()) && models.main.trim() && !hasContextWindowError
   const apiKeyUrl = selectedPreset.apiKeyUrl?.trim()
   const promoText = selectedPreset.promoText?.trim()
-  const displayedSettingsJson = showApiKey
-    ? settingsJson
-    : maskSettingsJsonSecrets(settingsJson, apiKey)
   const apiFormatItems = [
     {
       value: 'anthropic' as const,
@@ -943,28 +861,31 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     { value: 'disabled', label: t('settings.providers.imageSupportDisabled') },
   ]
   const imageSupportHint = imageSupportMode === 'auto'
-    ? t('settings.providers.imageSupportAutoHint', {
-        state: automaticImageSupport
-          ? t('settings.providers.imageSupportAutoOn')
-          : t('settings.providers.imageSupportAutoOff'),
-      })
+    ? automaticImageSupport === undefined
+      ? t('settings.providers.imageSupportAutoDetectHint')
+      : t('settings.providers.imageSupportAutoHint', {
+          state: automaticImageSupport
+            ? t('settings.providers.imageSupportAutoOn')
+            : t('settings.providers.imageSupportAutoOff'),
+        })
     : t('settings.providers.supportsImagesHint')
+  const testRoleLabels: Record<ModelRole, string> = {
+    main: t('settings.providers.mainModel'),
+    haiku: t('settings.providers.haikuModel'),
+    sonnet: t('settings.providers.sonnetModel'),
+    opus: t('settings.providers.opusModel'),
+  }
+  const imageCapabilityLabels = {
+    supported: t('settings.providers.imageCapability.supported'),
+    unsupported: t('settings.providers.imageCapability.unsupported'),
+    unknown: t('settings.providers.imageCapability.unknown'),
+  }
 
   const handleSubmit = async () => {
     if (!canSubmit) return
     setIsSubmitting(true)
     try {
-      // Write the edited cybercode settings.json first so provider-specific model
-      // settings never conflict with the user's global ~/.cyber/settings.json.
-      if (settingsJson.trim()) {
-        try {
-          const parsed = restoreSettingsJsonSecrets(JSON.parse(settingsJson), apiKey)
-          const { providersApi } = await import('../api/providers')
-          await providersApi.updateSettings(parsed)
-        } catch {
-          // JSON validation already prevents this
-        }
-      }
+      const resolvedModels = normalizedProviderModels(models)
 
       if (mode === 'create') {
         await createProvider({
@@ -973,7 +894,8 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           apiKey: apiKey.trim(),
           baseUrl: baseUrl.trim(),
           apiFormat,
-          models,
+          models: resolvedModels,
+          modelCatalog,
           modelContextWindows: parsedContextWindows,
           imageSupportMode,
           notes: notes.trim() || undefined,
@@ -983,8 +905,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           name: name.trim(),
           baseUrl: baseUrl.trim(),
           apiFormat,
-          models,
-          modelContextWindows: parsedContextWindows,
+          models: resolvedModels,
+          modelCatalog,
+          modelContextWindows: parsedContextWindows ?? {},
           imageSupportMode,
           notes: notes.trim() || undefined,
         }
@@ -1000,8 +923,38 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     }
   }
 
+  const handleDiscoverModels = async () => {
+    if (!baseUrl.trim() || (requiresApiKey && mode === 'create' && !apiKey.trim())) return
+    setIsDiscoveringModels(true)
+    setModelDiscoveryMessage(null)
+    try {
+      const { providersApi } = await import('../api/providers')
+      const { result } = await providersApi.discoverModels({
+        ...(mode === 'edit' && provider ? { providerId: provider.id } : {}),
+        presetId: selectedPreset.id,
+        baseUrl: baseUrl.trim(),
+        apiKey: apiKey.trim() || undefined,
+        apiFormat,
+        force: true,
+      })
+      setModelCatalog(result.models)
+      setModelDiscoveryMessage(
+        t('settings.providers.modelsDiscovered', { count: result.models.length }),
+      )
+    } catch (error) {
+      setModelDiscoveryMessage(
+        t('settings.providers.modelDiscoveryFailed', {
+          error: error instanceof Error ? error.message : t('settings.providers.requestFailed'),
+        }),
+      )
+    } finally {
+      setIsDiscoveringModels(false)
+    }
+  }
+
   const handleTest = async () => {
     if (!baseUrl.trim() || !models.main.trim()) return
+    const resolvedModels = normalizedProviderModels(models)
     setIsTesting(true)
     setTestResult(null)
     try {
@@ -1009,7 +962,8 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
       if (mode === 'edit' && provider && !apiKey.trim()) {
         result = await useProviderStore.getState().testProvider(provider.id, {
           baseUrl: baseUrl.trim(),
-          modelId: models.main.trim(),
+          modelId: resolvedModels.main,
+          models: resolvedModels,
           apiFormat,
         })
       } else {
@@ -1017,7 +971,10 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
         result = await testConfig({
           baseUrl: baseUrl.trim(),
           apiKey: apiKey.trim() || selectedPreset.defaultEnv?.ANTHROPIC_AUTH_TOKEN || 'local',
-          modelId: models.main.trim(),
+          modelId: resolvedModels.main,
+          models: resolvedModels,
+          presetId: selectedPreset.id,
+          probeImages: true,
           apiFormat,
         })
       }
@@ -1082,7 +1039,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             value={models.main}
             onChange={(value) => updateModel('main', value)}
             placeholder="Model ID"
-            options={selectedPreset.modelOptions}
+            options={availableModelOptions}
             selectLabel={t('model.selectModel')}
           />
           <Input
@@ -1092,6 +1049,23 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             placeholder="200k"
             error={contextWindowInputs.main.trim() && !parseContextWindowInput(contextWindowInputs.main) ? t('settings.providers.contextWindowError') : undefined}
           />
+        </div>
+
+        <div className="flex min-h-[32px] items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={handleDiscoverModels}
+            disabled={isDiscoveringModels || !baseUrl.trim()}
+            className="inline-flex h-[32px] items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:shadow-[var(--shadow-focus-ring)] disabled:opacity-40"
+          >
+            <Icon name="refresh" size={15} className={isDiscoveringModels ? 'animate-spin' : ''} />
+            {t('settings.providers.discoverModels')}
+          </button>
+          {modelDiscoveryMessage && (
+            <span className="min-w-0 truncate text-[11px] text-[var(--color-text-tertiary)]">
+              {modelDiscoveryMessage}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">
@@ -1138,16 +1112,46 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           </div>
           {testResult && (
             <div className="flex flex-col gap-0.5 mt-1">
-              <span className={`text-[12px] ${testResult.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-                {testResult.connectivity.success
-                  ? t('settings.providers.connectivityOk', { latency: String(testResult.connectivity.latencyMs) })
-                  : t('settings.providers.connectivityFailed', { error: testResult.connectivity.error || '' })}
-              </span>
+              {(testResult.modelChecks ?? []).length > 0 ? (
+                testResult.modelChecks?.map((check) => (
+                  <span
+                    key={check.requestedModel}
+                    className={`text-[12px] ${check.result.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}
+                  >
+                    {check.result.success
+                      ? t('settings.providers.modelCheckOk', {
+                          roles: check.roles.map((role) => testRoleLabels[role]).join(' / '),
+                          requested: check.requestedModel,
+                          actual: check.result.modelUsed ?? check.requestedModel,
+                          latency: check.result.latencyMs,
+                        })
+                      : t('settings.providers.modelCheckFailed', {
+                          roles: check.roles.map((role) => testRoleLabels[role]).join(' / '),
+                          requested: check.requestedModel,
+                          error: check.result.error ?? '',
+                        })}
+                  </span>
+                ))
+              ) : (
+                <span className={`text-[12px] ${testResult.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+                  {testResult.connectivity.success
+                    ? t('settings.providers.connectivityOk', { latency: String(testResult.connectivity.latencyMs) })
+                    : t('settings.providers.connectivityFailed', { error: testResult.connectivity.error || '' })}
+                </span>
+              )}
               {testResult.proxy && (
                 <span className={`text-[12px] ${testResult.proxy.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                   {testResult.proxy.success
                     ? t('settings.providers.proxyOk', { latency: String(testResult.proxy.latencyMs) })
                     : t('settings.providers.proxyFailed', { error: testResult.proxy.error || '' })}
+                </span>
+              )}
+              {testResult.imageCapability && (
+                <span className="text-[12px] text-[var(--color-text-secondary)]">
+                  {t('settings.providers.imageCapabilityResult', {
+                    model: testResult.imageCapability.modelId,
+                    state: imageCapabilityLabels[testResult.imageCapability.status],
+                  })}
                 </span>
               )}
             </div>
@@ -1245,7 +1249,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                         value={models[role]}
                         onChange={(value) => updateModel(role, value)}
                         placeholder={t('settings.providers.sameAsMain')}
-                        options={selectedPreset.modelOptions}
+                        options={availableModelOptions}
                         selectLabel={t('model.selectModel')}
                       />
                       <Input
@@ -1260,76 +1264,6 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                 </div>
               </div>
 
-              {/* Settings JSON — editable, shown for all presets including official */}
-              <div>
-                <label className="text-[14px] font-medium text-[var(--color-text-primary)] mb-2 block">{t('settings.providers.settingsJson')}</label>
-                <textarea
-                  value={displayedSettingsJson}
-                  onChange={(e) => {
-                    const raw = e.target.value
-                    try {
-                      const parsed = restoreSettingsJsonSecrets(JSON.parse(raw), apiKey)
-                      setSettingsJson(JSON.stringify(parsed, null, 2))
-                      setSettingsJsonError(null)
-                      // Auto-fill form fields from parsed JSON env
-                      const env = parsed.env as Record<string, string> | undefined
-                      if (env) {
-                        if (env.ANTHROPIC_BASE_URL) {
-                          setBaseUrl(env.ANTHROPIC_BASE_URL)
-                        }
-                        const nextApiKey = env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN
-                        if (nextApiKey && nextApiKey !== '(your API key)' && nextApiKey !== API_KEY_JSON_PLACEHOLDER) {
-                          setApiKey(nextApiKey)
-                        }
-                        const newModels: Partial<ModelMapping> = {}
-                        if (env.ANTHROPIC_MODEL) newModels.main = env.ANTHROPIC_MODEL
-                        if (env.ANTHROPIC_DEFAULT_HAIKU_MODEL) newModels.haiku = env.ANTHROPIC_DEFAULT_HAIKU_MODEL
-                        if (env.ANTHROPIC_DEFAULT_SONNET_MODEL) newModels.sonnet = env.ANTHROPIC_DEFAULT_SONNET_MODEL
-                        if (env.ANTHROPIC_DEFAULT_OPUS_MODEL) newModels.opus = env.ANTHROPIC_DEFAULT_OPUS_MODEL
-                        if (Object.keys(newModels).length > 0) {
-                          setModels((prev) => ({ ...prev, ...newModels }))
-                        }
-                        const contextRaw = env[MODEL_CONTEXT_WINDOWS_ENV]
-                        if (typeof contextRaw === 'string' && contextRaw.trim()) {
-                          try {
-                            const contextMap = JSON.parse(contextRaw) as Record<string, unknown>
-                            const nextContextInputs: Partial<Record<ModelRole, string>> = {}
-                            for (const role of MODEL_ROLES) {
-                              const modelId = (newModels[role] ?? models[role])?.trim()
-                              if (!modelId) continue
-                              const value = parseContextWindowValue(contextMap[modelId])
-                              if (value) nextContextInputs[role] = formatContextWindowInput(value)
-                            }
-                            if (Object.keys(nextContextInputs).length > 0) {
-                              setContextWindowInputs((prev) => ({ ...prev, ...nextContextInputs }))
-                              setContextWindowTouched((prev) => ({
-                                ...prev,
-                                ...Object.fromEntries(Object.keys(nextContextInputs).map((role) => [role, true])),
-                              }))
-                            }
-                          } catch {
-                            // Keep JSON validation focused on syntax; malformed optional context maps are ignored here.
-                          }
-                        }
-                      }
-                    } catch (err) {
-                      setSettingsJson(raw)
-                      setSettingsJsonError(err instanceof Error ? err.message : 'Invalid JSON')
-                    }
-                  }}
-                  rows={16}
-                  spellCheck={false}
-                  className={`w-full text-[12px] px-3 py-3 rounded-[10px] bg-[var(--color-surface-container-low)] border font-mono leading-relaxed resize-y text-[var(--color-text-secondary)] outline-none ${
-                    settingsJsonError
-                      ? 'border-[var(--color-error)] focus:border-[var(--color-error)]'
-                      : 'border-[var(--color-border)] focus:border-[var(--color-border-focus)]'
-                  }`}
-                />
-                {settingsJsonError && (
-                  <p className="text-[11px] text-[var(--color-error)] mt-1">{t('settings.providers.jsonError', { error: settingsJsonError })}</p>
-                )}
-                <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1">{t('settings.providers.settingsJsonDesc')}</p>
-              </div>
             </div>
           )}
         </div>

@@ -45,10 +45,45 @@ describe('MessageList nested tool calls', () => {
     useChatStore.setState({ sessions: { [ACTIVE_TAB]: makeSessionState() } })
   })
 
+  it('renders an orphaned WebFetch as interrupted after reconnecting idle', () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          chatState: 'idle',
+          messages: [
+            {
+              id: 'user-trending',
+              type: 'user_text',
+              content: 'github 上今天的趋势榜',
+              timestamp: 1,
+            },
+            {
+              id: 'fetch-trending',
+              type: 'tool_use',
+              toolName: 'WebFetch',
+              toolUseId: 'fetch-trending-tool',
+              input: { url: 'https://github.com/trending' },
+              timestamp: 2,
+            },
+          ],
+        }),
+      },
+    })
+
+    const { container } = render(
+      <MessageList __testInitialItemCount={100} />,
+    )
+
+    expect(container.querySelector('[data-running="true"]')).toBeNull()
+    expect(container.querySelector('[data-interrupted="true"]')).toBeTruthy()
+    expect(container.querySelector('.tool-running-text')).toBeNull()
+  })
+
   it('renders sub-agent tool calls inline beneath the parent agent tool call', () => {
     useChatStore.setState({
       sessions: {
         [ACTIVE_TAB]: makeSessionState({
+          chatState: 'tool_executing',
           messages: [
             {
               id: 'tool-agent',
@@ -86,6 +121,30 @@ describe('MessageList nested tool calls', () => {
     expect(screen.getAllByText('Running').length).toBeGreaterThan(0)
     expect(screen.getByText(/Read .*example\.ts.*done/i)).toBeTruthy()
     expect(container.textContent).toContain('Agent')
+  })
+
+  it('marks a resultless historical agent as stopped after its turn is idle', () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'tool-agent',
+              type: 'tool_use',
+              toolName: 'Agent',
+              toolUseId: 'agent-orphan',
+              input: { description: 'Inspect an interrupted task' },
+              timestamp: 1,
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<MessageList __testInitialItemCount={100} />)
+
+    expect(screen.getByText('Stopped')).toBeTruthy()
+    expect(screen.queryByText('Running')).toBeNull()
   })
 
   it('keeps root tool runs split when nested child tool calls appear between them', () => {

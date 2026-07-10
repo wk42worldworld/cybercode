@@ -26,6 +26,32 @@ const VALID_PERMISSION_MODES = [
   'bypassPermissions',
   'dontAsk',
 ] as const
+const MASKED_SECRET = '••••••••'
+
+function restoreMaskedSettingsValues(
+  incoming: unknown,
+  current: unknown,
+): unknown {
+  if (incoming === MASKED_SECRET) return current
+  if (Array.isArray(incoming)) {
+    const currentItems = Array.isArray(current) ? current : []
+    return incoming.map((item, index) =>
+      restoreMaskedSettingsValues(item, currentItems[index])
+    )
+  }
+  if (!incoming || typeof incoming !== 'object') return incoming
+  const currentRecord =
+    current && typeof current === 'object' && !Array.isArray(current)
+      ? current as Record<string, unknown>
+      : {}
+  return Object.fromEntries(
+    Object.entries(incoming as Record<string, unknown>)
+      .map(([key, value]) => [
+        key,
+        restoreMaskedSettingsValues(value, currentRecord[key]),
+      ]),
+  )
+}
 
 export type PermissionMode = (typeof VALID_PERMISSION_MODES)[number]
 
@@ -71,6 +97,7 @@ export class SettingsService {
   private async readJsonFile(filePath: string): Promise<Record<string, unknown>> {
     try {
       const raw = await fs.readFile(filePath, 'utf-8')
+      await fs.chmod(filePath, 0o600).catch(() => {})
       return JSON.parse(raw) as Record<string, unknown>
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -138,9 +165,14 @@ export class SettingsService {
     for (let attempt = 0; attempt < 2; attempt++) {
       const tmpFile = `${filePath}.tmp.${process.pid}.${Date.now()}.${randomBytes(6).toString('hex')}`
       try {
-        await fs.mkdir(dir, { recursive: true })
-        await fs.writeFile(tmpFile, contents, 'utf-8')
+        await fs.mkdir(dir, { recursive: true, mode: 0o700 })
+        await fs.chmod(dir, 0o700).catch(() => {})
+        await fs.writeFile(tmpFile, contents, {
+          encoding: 'utf-8',
+          mode: 0o600,
+        })
         await fs.rename(tmpFile, filePath)
+        await fs.chmod(filePath, 0o600).catch(() => {})
         return
       } catch (err) {
         lastError = err
@@ -165,7 +197,8 @@ export class SettingsService {
     const filePath = this.getUserSettingsPath()
     await this.withWriteLock(filePath, async () => {
       const current = await this.readJsonFile(filePath)
-      const merged = Object.assign({}, current, settings)
+      const restored = restoreMaskedSettingsValues(settings, current) as Record<string, unknown>
+      const merged = Object.assign({}, current, restored)
       await this.writeJsonFile(filePath, merged)
     })
   }
@@ -180,7 +213,8 @@ export class SettingsService {
     })
     await this.withWriteLock(filePath, async () => {
       const current = await this.readJsonFile(filePath)
-      const merged = Object.assign({}, current, settings)
+      const restored = restoreMaskedSettingsValues(settings, current) as Record<string, unknown>
+      const merged = Object.assign({}, current, restored)
       await this.writeJsonFile(filePath, merged)
     })
   }

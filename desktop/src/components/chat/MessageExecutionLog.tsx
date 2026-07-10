@@ -10,9 +10,15 @@ type Props = {
   toolCalls: ToolCall[]
   resultMap: Map<string, ToolResult>
   childToolCallsByParent?: Map<string, ToolCall[]>
+  isActive?: boolean
 }
 
-export function MessageExecutionLog({ toolCalls, resultMap, childToolCallsByParent = new Map() }: Props) {
+export function MessageExecutionLog({
+  toolCalls,
+  resultMap,
+  childToolCallsByParent = new Map(),
+  isActive = true,
+}: Props) {
   if (toolCalls.length === 0) return null
 
   return (
@@ -25,6 +31,7 @@ export function MessageExecutionLog({ toolCalls, resultMap, childToolCallsByPare
           toolCall={tc}
           resultMap={resultMap}
           childToolCallsByParent={childToolCallsByParent}
+          isActive={isActive}
         />
       ))}
     </div>
@@ -35,22 +42,28 @@ function ExecutionLogItem({
   toolCall,
   resultMap,
   childToolCallsByParent,
+  isActive,
 }: {
   toolCall: ToolCall
   resultMap: Map<string, ToolResult>
   childToolCallsByParent: Map<string, ToolCall[]>
+  isActive: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const result = resultMap.get(toolCall.toolUseId)
   const isDone = !!result
   const isError = result?.isError ?? false
-  const isRunning = isExecutionLogToolRunning(toolCall, resultMap, childToolCallsByParent)
+  const isRunning =
+    isActive &&
+    isExecutionLogToolRunning(toolCall, resultMap, childToolCallsByParent)
+  const isInterrupted = !isDone && !isRunning
   const runningTextClass = isRunning ? ' tool-running-text' : ''
   const info = getToolInfo(toolCall)
 
   return (
     <div
       data-running={isRunning ? 'true' : undefined}
+      data-interrupted={isInterrupted ? 'true' : undefined}
       className="border-b border-[var(--color-border-separator)] last:border-0"
       style={{ animation: 'fadeInUp 250ms cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
@@ -62,7 +75,13 @@ function ExecutionLogItem({
         {/* Status indicator — tiny dot */}
         <span className="w-1.5 h-1.5 rounded-full shrink-0 transition-colors"
           style={{
-            backgroundColor: !isDone ? 'var(--color-brand)' : isError ? 'var(--color-error)' : '#28c840',
+            backgroundColor: isInterrupted
+              ? 'var(--color-outline)'
+              : !isDone
+                ? 'var(--color-brand)'
+                : isError
+                  ? 'var(--color-error)'
+                  : '#28c840',
             opacity: !isDone ? 1 : 0.7,
           }}
         />

@@ -484,6 +484,7 @@ version = "1.0.20"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "getrandom 0.3.4",
  "portable-pty",
  "serde",
  "serde_json",

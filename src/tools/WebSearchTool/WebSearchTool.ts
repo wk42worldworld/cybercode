@@ -2,12 +2,21 @@ import type {
   BetaContentBlock,
   BetaWebSearchTool20250305,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { getAPIProvider } from 'src/utils/model/providers.js'
+import {
+  getAPIProvider,
+  isFirstPartyAnthropicBaseUrl,
+} from 'src/utils/model/providers.js'
 import type { PermissionResult } from 'src/utils/permissions/PermissionResult.js'
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { queryModelWithStreaming } from '../../services/api/claude.js'
-import { buildTool, type ToolDef } from '../../Tool.js'
+import { searchLocalWeb } from '../../services/webSearch/localWebSearch.js'
+import {
+  buildTool,
+  type ToolCallProgress,
+  type ToolDef,
+} from '../../Tool.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
@@ -15,6 +24,7 @@ import { getMainLoopModel, getSmallFastModel } from '../../utils/model/model.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getWebSearchPrompt, WEB_SEARCH_TOOL_NAME } from './prompt.js'
+import { hasLinkedSearchResults } from './results.js'
 import {
   getToolUseSummary,
   renderToolResultMessage,
@@ -43,6 +53,16 @@ const searchResultSchema = lazySchema(() => {
   const searchHitSchema = z.object({
     title: z.string().describe('The title of the search result'),
     url: z.string().describe('The URL of the search result'),
+    description: z
+      .string()
+      .optional()
+      .describe('A short excerpt from the search result'),
+    source: z.string().optional().describe('The source site or hostname'),
+    engine: z.string().optional().describe('The search engine used'),
+    metadata: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+      .optional()
+      .describe('Structured source metadata such as rank and star counts'),
   })
 
   return z.object({
@@ -80,6 +100,86 @@ function makeToolSchema(input: Input): BetaWebSearchTool20250305 {
     allowed_domains: input.allowed_domains,
     blocked_domains: input.blocked_domains,
     max_uses: 8, // Hardcoded to 8 searches maximum
+  }
+}
+
+function shouldUseNativeWebSearch(): boolean {
+  const mode = process.env.CYBERCODE_WEB_SEARCH_MODE?.trim().toLowerCase()
+  if (mode === 'local') return false
+  if (mode === 'native') return true
+
+  const provider = getAPIProvider()
+  const model = getMainLoopModel()
+  if (provider === 'firstParty') return isFirstPartyAnthropicBaseUrl()
+  if (provider === 'foundry') return true
+  if (provider !== 'vertex') return false
+
+  return (
+    model.includes('claude-opus-4') ||
+    model.includes('claude-sonnet-4') ||
+    model.includes('claude-haiku-4')
+  )
+}
+
+async function runLocalWebSearch(
+  input: Input,
+  signal: AbortSignal,
+  onProgress: ToolCallProgress<WebSearchProgress> | undefined,
+  startTime: number,
+): Promise<Output> {
+  const progressId = `local-web-search-${Math.round(startTime)}`
+  onProgress?.({
+    toolUseID: progressId,
+    data: { type: 'query_update', query: input.query },
+  })
+
+  const response = await searchLocalWeb({
+    query: input.query,
+    maxResults: 10,
+    allowedDomains: input.allowed_domains,
+    blockedDomains: input.blocked_domains,
+    signal,
+  })
+
+  if (response.results.length === 0) {
+    const details = response.failures
+      .map(failure => `${failure.engine}: ${failure.message}`)
+      .join('; ')
+    throw new Error(
+      `Local web search returned no real network results after trying ${response.engines.join(', ')}${details ? `. ${details}` : ''}`,
+    )
+  }
+
+  onProgress?.({
+    toolUseID: progressId,
+    data: {
+      type: 'search_results_received',
+      resultCount: response.results.length,
+      query: input.query,
+    },
+  })
+
+  return {
+    query: input.query,
+    results: [
+      ...(response.liveSource
+        ? [
+            `LIVE DATA: Fetched directly from the official GitHub Trending ${response.liveSource.period} page (${response.liveSource.url}) at ${response.liveSource.fetchedAt}. This is the current snapshot for ${response.liveSource.date}, in official page order. Use these entries as the requested current ranking; do not replace them with older search-engine summaries. For each entry, metadata.trendingStars is the increase for metadata.trendingPeriod; metadata.forks is a separate value and must not be reported as the trending increase.`,
+          ]
+        : []),
+      {
+        tool_use_id: progressId,
+        content: response.results.map(result => ({
+          title: result.title,
+          url: result.url,
+          description: result.description,
+          source: result.source,
+          engine: result.engine,
+          metadata: result.metadata,
+        })),
+      },
+    ],
+    durationSeconds: (performance.now() - startTime) / 1000,
   }
 }
 
@@ -155,7 +255,7 @@ export const WebSearchTool = buildTool({
   maxResultSizeChars: 100_000,
   shouldDefer: true,
   async description(input) {
-    return `Claude wants to search the web for: ${input.query}`
+    return `The assistant wants to search the web for: ${input.query}`
   },
   userFacingName() {
     return 'Web Search'
@@ -166,30 +266,7 @@ export const WebSearchTool = buildTool({
     return summary ? `Searching for ${summary}` : 'Searching the web'
   },
   isEnabled() {
-    const provider = getAPIProvider()
-    const model = getMainLoopModel()
-
-    // Enable for firstParty
-    if (provider === 'firstParty') {
-      return true
-    }
-
-    // Enable for Vertex AI with supported models (Claude 4.0+)
-    if (provider === 'vertex') {
-      const supportsWebSearch =
-        model.includes('claude-opus-4') ||
-        model.includes('claude-sonnet-4') ||
-        model.includes('claude-haiku-4')
-
-      return supportsWebSearch
-    }
-
-    // Foundry only ships models that already support Web Search
-    if (provider === 'foundry') {
-      return true
-    }
-
-    return false
+    return true
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -254,6 +331,19 @@ export const WebSearchTool = buildTool({
   async call(input, context, _canUseTool, _parentMessage, onProgress) {
     const startTime = performance.now()
     const { query } = input
+
+    if (!shouldUseNativeWebSearch()) {
+      return {
+        data: await runLocalWebSearch(
+          input,
+          context.abortController.signal,
+          onProgress,
+          startTime,
+        ),
+      }
+    }
+
+    try {
     const userMessage = createUserMessage({
       content: 'Perform a web search for the query: ' + query,
     })
@@ -396,7 +486,31 @@ export const WebSearchTool = buildTool({
       query,
       durationSeconds,
     )
-    return { data }
+      if (hasLinkedSearchResults(data.results)) {
+        return { data }
+      }
+
+      logForDebugging(
+        '[WebSearch] Native backend returned no linked results; falling back to local search',
+        { level: 'warn' },
+      )
+    } catch (error) {
+      if (context.abortController.signal.aborted) throw error
+      const message = error instanceof Error ? error.message : String(error)
+      logForDebugging(
+        `[WebSearch] Native backend failed; falling back to local search: ${message}`,
+        { level: 'warn' },
+      )
+    }
+
+    return {
+      data: await runLocalWebSearch(
+        input,
+        context.abortController.signal,
+        onProgress,
+        startTime,
+      ),
+    }
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     const { query, results } = output

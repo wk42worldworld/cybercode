@@ -40,7 +40,7 @@ export async function handleSettingsApi(
       case undefined:
         // GET /api/settings
         if (method !== 'GET') throw methodNotAllowed(method)
-        return Response.json(await settingsService.getSettings())
+        return Response.json(maskSettingsSecrets(await settingsService.getSettings()))
 
       case 'user':
         return await handleUserSettings(req)
@@ -64,7 +64,7 @@ export async function handleSettingsApi(
 
 async function handleUserSettings(req: Request): Promise<Response> {
   if (req.method === 'GET') {
-    return Response.json(await settingsService.getUserSettings())
+    return Response.json(maskSettingsSecrets(await settingsService.getUserSettings()))
   }
 
   if (req.method === 'PUT') {
@@ -80,7 +80,7 @@ async function handleProjectSettings(req: Request, url: URL): Promise<Response> 
   const projectRoot = url.searchParams.get('projectRoot') || undefined
 
   if (req.method === 'GET') {
-    return Response.json(await settingsService.getProjectSettings(projectRoot))
+    return Response.json(maskSettingsSecrets(await settingsService.getProjectSettings(projectRoot)))
   }
 
   if (req.method === 'PUT') {
@@ -123,4 +123,24 @@ async function parseJsonBody(req: Request): Promise<Record<string, unknown>> {
 
 function methodNotAllowed(method: string): ApiError {
   return new ApiError(405, `Method ${method} not allowed`, 'METHOD_NOT_ALLOWED')
+}
+
+const SETTINGS_SECRET_KEY_RE =
+  /(?:api[_-]?key|auth[_-]?token|access[_-]?token|client[_-]?secret|password)$/i
+
+function maskSettingsSecrets(value: unknown, key = ''): unknown {
+  if (typeof value === 'string' && SETTINGS_SECRET_KEY_RE.test(key)) {
+    return value ? '••••••••' : value
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => maskSettingsSecrets(item))
+  }
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([childKey, childValue]) => [
+        childKey,
+        maskSettingsSecrets(childValue, childKey),
+      ]),
+  )
 }

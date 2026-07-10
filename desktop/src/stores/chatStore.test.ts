@@ -441,6 +441,55 @@ describe('chatStore history mapping', () => {
     ])
   })
 
+  it('keeps a parallel tool batch active until every result arrives', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'tool_executing',
+          messages: [
+            {
+              id: 'user-1',
+              type: 'user_text',
+              content: 'github 上今天的趋势榜',
+              timestamp: Date.now(),
+            },
+          ],
+        }),
+      },
+    })
+
+    for (const toolUseId of ['fetch-1', 'fetch-2']) {
+      useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+        type: 'tool_use_complete',
+        toolName: 'WebFetch',
+        toolUseId,
+        input: { url: `https://example.com/${toolUseId}` },
+      })
+    }
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'tool_result',
+      toolUseId: 'fetch-1',
+      content: 'first result',
+      isError: false,
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe(
+      'tool_executing',
+    )
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'tool_result',
+      toolUseId: 'fetch-2',
+      content: 'second result',
+      isError: false,
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe(
+      'thinking',
+    )
+  })
+
   it('replays saved runtime selection when reconnecting a session', () => {
     useSessionRuntimeStore.getState().setSelection(TEST_SESSION_ID, {
       providerId: 'provider-1',

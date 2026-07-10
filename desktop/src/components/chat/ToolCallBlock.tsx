@@ -39,6 +39,7 @@ export function ToolCallBlock({ toolName, input, result, compact = false, runnin
   const icon = TOOL_ICONS[toolName] || 'build'
   const filePath = typeof obj.file_path === 'string' ? obj.file_path : ''
   const isRunning = running ?? !result
+  const isInterrupted = !result && !isRunning
   const runningTextClass = isRunning ? ' tool-running-text' : ''
   const summary = getToolSummary(toolName, obj, t)
   const outputSummary = getToolResultSummary(
@@ -58,6 +59,7 @@ export function ToolCallBlock({ toolName, input, result, compact = false, runnin
   return (
     <div
       data-running={isRunning ? 'true' : undefined}
+      data-interrupted={isInterrupted ? 'true' : undefined}
       className={`overflow-hidden rounded-[10px] bg-[var(--color-surface-container-low)] ${
         isRunning ? 'tool-running-sweep' : ''
       } ${
@@ -102,6 +104,18 @@ export function ToolCallBlock({ toolName, input, result, compact = false, runnin
           )}
           {result?.isError && (
             <Icon name="error" size={18} className="shrink-0 text-[14px] text-[var(--color-error)]" />
+          )}
+          {isInterrupted && (
+            <span
+              className="flex shrink-0"
+              title={t('agentStatus.stopped')}
+            >
+              <Icon
+                name="stop_circle"
+                size={14}
+                className="text-[var(--color-outline)]"
+              />
+            </span>
           )}
           {expandable && (
             <Icon

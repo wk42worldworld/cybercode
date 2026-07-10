@@ -12,6 +12,13 @@ export type ModelMapping = {
 
 export type ModelContextWindows = Partial<Record<keyof ModelMapping, number>>
 
+export type ProviderModelInfo = {
+  id: string
+  label?: string
+  contextWindow?: number
+  supportsImages?: boolean
+}
+
 export type SavedProvider = {
   id: string
   presetId: string
@@ -20,6 +27,7 @@ export type SavedProvider = {
   baseUrl: string
   apiFormat: ApiFormat
   models: ModelMapping
+  modelCatalog?: ProviderModelInfo[]
   modelContextWindows?: ModelContextWindows
   imageSupportMode?: ImageSupportMode
   // Legacy boolean kept for older saved provider records.
@@ -34,6 +42,7 @@ export type CreateProviderInput = {
   baseUrl: string
   apiFormat?: ApiFormat
   models: ModelMapping
+  modelCatalog?: ProviderModelInfo[]
   modelContextWindows?: ModelContextWindows
   imageSupportMode?: ImageSupportMode
   supportsImages?: boolean
@@ -46,6 +55,7 @@ export type UpdateProviderInput = {
   baseUrl?: string
   apiFormat?: ApiFormat
   models?: ModelMapping
+  modelCatalog?: ProviderModelInfo[]
   modelContextWindows?: ModelContextWindows
   imageSupportMode?: ImageSupportMode
   supportsImages?: boolean
@@ -56,6 +66,9 @@ export type TestProviderConfigInput = {
   baseUrl: string
   apiKey: string
   modelId: string
+  models?: ModelMapping
+  presetId?: string
+  probeImages?: boolean
   apiFormat?: ApiFormat
 }
 
@@ -64,7 +77,14 @@ export type ProviderTestStepResult = {
   latencyMs: number
   error?: string
   modelUsed?: string
+  modelMatched?: boolean
   httpStatus?: number
+}
+
+export type ProviderModelCheckResult = {
+  roles: Array<keyof ModelMapping>
+  requestedModel: string
+  result: ProviderTestStepResult
 }
 
 export type ProviderTestResult = {
@@ -72,4 +92,26 @@ export type ProviderTestResult = {
   connectivity: ProviderTestStepResult
   /** Step 2: Proxy pipeline (only for openai_* formats) */
   proxy?: ProviderTestStepResult
+  modelChecks?: ProviderModelCheckResult[]
+  imageCapability?: {
+    modelId: string
+    status: 'supported' | 'unsupported' | 'unknown'
+    source: string
+  }
+  allModelsPassed?: boolean
+}
+
+export type DiscoverProviderModelsInput = {
+  providerId?: string
+  presetId?: string
+  baseUrl?: string
+  apiKey?: string
+  apiFormat?: ApiFormat
+  force?: boolean
+}
+
+export type ProviderModelDiscoveryResult = {
+  models: ProviderModelInfo[]
+  endpoint: string
+  cached: boolean
 }

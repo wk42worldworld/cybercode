@@ -20,10 +20,10 @@
     "baseUrl": "https://api.deepseek.com/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "deepseek-v4-pro[1m]",
+      "main": "deepseek-v4-pro",
       "haiku": "deepseek-v4-flash",
-      "sonnet": "deepseek-v4-pro[1m]",
-      "opus": "deepseek-v4-pro[1m]"
+      "sonnet": "deepseek-v4-pro",
+      "opus": "deepseek-v4-pro"
     },
     "defaultModelContextWindows": {
       "main": 1000000,
@@ -33,18 +33,13 @@
     },
     "modelOptions": [
       {
-        "id": "deepseek-v4-pro[1m]",
+        "id": "deepseek-v4-pro",
         "label": "DeepSeek V4 Pro 1M",
         "contextWindow": 1000000
       },
       {
         "id": "deepseek-v4-flash",
         "label": "DeepSeek V4 Flash",
-        "contextWindow": 1000000
-      },
-      {
-        "id": "deepseek-v4-pro",
-        "label": "DeepSeek V4 Pro",
         "contextWindow": 1000000
       }
     ],
@@ -59,23 +54,18 @@
     "baseUrl": "https://open.bigmodel.cn/api/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "glm-5.2[1m]",
+      "main": "glm-5.2",
       "haiku": "glm-4.7",
-      "sonnet": "glm-5.2[1m]",
-      "opus": "glm-5.2[1m]"
+      "sonnet": "glm-5.2",
+      "opus": "glm-5.2"
     },
     "defaultModelContextWindows": {
-      "main": 1000000,
+      "main": 200000,
       "haiku": 200000,
-      "sonnet": 1000000,
-      "opus": 1000000
+      "sonnet": 200000,
+      "opus": 200000
     },
     "modelOptions": [
-      {
-        "id": "glm-5.2[1m]",
-        "label": "GLM-5.2 1M",
-        "contextWindow": 1000000
-      },
       {
         "id": "glm-5.2",
         "label": "GLM-5.2",
@@ -139,22 +129,22 @@
         "id": "kimi-for-coding",
         "label": "Kimi for Coding",
         "contextWindow": 256000,
-        "supportsImages": false
+        "supportsImages": true
       },
       {
         "id": "kimi-k2.7-code",
         "label": "Kimi K2.7 Code",
         "contextWindow": 256000,
-        "supportsImages": false
+        "supportsImages": true
       },
       {
         "id": "kimi-k2.7-code-highspeed",
         "label": "Kimi K2.7 Code Highspeed",
         "contextWindow": 256000,
-        "supportsImages": false
+        "supportsImages": true
       }
     ],
-    "supportsImages": false,
+    "supportsImages": true,
     "needsApiKey": true,
     "websiteUrl": "https://www.kimi.com/coding/docs/",
     "apiKeyUrl": "https://www.kimi.com/coding",
@@ -221,10 +211,10 @@
     "baseUrl": "https://api.minimaxi.com/anthropic",
     "apiFormat": "anthropic",
     "defaultModels": {
-      "main": "MiniMax-M3[1m]",
-      "haiku": "MiniMax-M3[1m]",
-      "sonnet": "MiniMax-M3[1m]",
-      "opus": "MiniMax-M3[1m]"
+      "main": "MiniMax-M3",
+      "haiku": "MiniMax-M3",
+      "sonnet": "MiniMax-M3",
+      "opus": "MiniMax-M3"
     },
     "defaultModelContextWindows": {
       "main": 1000000,
@@ -233,11 +223,6 @@
       "opus": 1000000
     },
     "modelOptions": [
-      {
-        "id": "MiniMax-M3[1m]",
-        "label": "MiniMax M3 1M",
-        "contextWindow": 1000000
-      },
       {
         "id": "MiniMax-M3",
         "label": "MiniMax M3",
@@ -270,25 +255,16 @@
       {
         "id": "mimo-v2.5-pro",
         "label": "MiMo V2.5 Pro",
-        "contextWindow": 1000000
+        "contextWindow": 1000000,
+        "supportsImages": false
       },
       {
         "id": "mimo-v2.5",
         "label": "MiMo V2.5",
-        "contextWindow": 1000000
-      },
-      {
-        "id": "mimo-v2-pro",
-        "label": "MiMo V2 Pro",
-        "contextWindow": 1000000
-      },
-      {
-        "id": "mimo-v2-flash",
-        "label": "MiMo V2 Flash",
-        "contextWindow": 1000000
+        "contextWindow": 1000000,
+        "supportsImages": true
       }
     ],
-    "supportsImages": false,
     "needsApiKey": true,
     "websiteUrl": "https://platform.xiaomimimo.com",
     "apiKeyUrl": "https://platform.xiaomimimo.com"
@@ -299,46 +275,31 @@
     "baseUrl": "https://api.openai.com",
     "apiFormat": "openai_responses",
     "defaultModels": {
-      "main": "gpt-5.5",
-      "haiku": "gpt-5.4-mini",
-      "sonnet": "gpt-5.4",
-      "opus": "gpt-5.5"
+      "main": "gpt-5.2",
+      "haiku": "gpt-5-mini",
+      "sonnet": "gpt-5.2",
+      "opus": "gpt-5.2"
     },
     "defaultModelContextWindows": {
-      "main": 1000000,
+      "main": 400000,
       "haiku": 400000,
-      "sonnet": 1000000,
-      "opus": 1000000
+      "sonnet": 400000,
+      "opus": 400000
     },
     "modelOptions": [
       {
-        "id": "gpt-5.5",
-        "label": "GPT-5.5",
-        "contextWindow": 1000000
-      },
-      {
-        "id": "gpt-5.5-pro",
-        "label": "GPT-5.5 Pro",
-        "contextWindow": 1050000
-      },
-      {
-        "id": "gpt-5.4",
-        "label": "GPT-5.4",
-        "contextWindow": 1000000
-      },
-      {
-        "id": "gpt-5.4-pro",
-        "label": "GPT-5.4 Pro",
-        "contextWindow": 1000000
-      },
-      {
-        "id": "gpt-5.4-mini",
-        "label": "GPT-5.4 mini",
+        "id": "gpt-5.2",
+        "label": "GPT-5.2",
         "contextWindow": 400000
       },
       {
-        "id": "gpt-5.4-nano",
-        "label": "GPT-5.4 nano",
+        "id": "gpt-5.1",
+        "label": "GPT-5.1",
+        "contextWindow": 400000
+      },
+      {
+        "id": "gpt-5-pro",
+        "label": "GPT-5 Pro",
         "contextWindow": 400000
       },
       {

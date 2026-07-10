@@ -8,6 +8,7 @@ const ENV_BASE_URL =
 const DEFAULT_BASE_URL = ENV_BASE_URL || 'http://127.0.0.1:3456'
 
 let baseUrl = DEFAULT_BASE_URL
+let authToken = ''
 
 function getErrorMessage(status: number, body: unknown) {
   if (body && typeof body === 'object' && 'message' in body && typeof body.message === 'string') {
@@ -33,6 +34,14 @@ export function getDefaultBaseUrl() {
   return DEFAULT_BASE_URL
 }
 
+export function setAuthToken(token: string) {
+  authToken = token
+}
+
+export function getAuthToken() {
+  return authToken
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -47,6 +56,7 @@ async function request<T>(method: string, path: string, body?: unknown, options?
   const url = `${baseUrl}${path}`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
   }
 
   const controller = new AbortController()

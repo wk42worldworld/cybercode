@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./client', () => ({
   getBaseUrl: () => 'http://127.0.0.1:3456',
+  getAuthToken: () => 'desktop token',
 }))
 
 import { wsManager } from './websocket'
@@ -69,6 +70,7 @@ describe('wsManager reconnect buffering', () => {
 
     const firstSocket = FakeWebSocket.instances[0]
     expect(firstSocket?.url).toContain('/ws/session-reconnect')
+    expect(firstSocket?.url).toContain('?token=desktop%20token')
 
     firstSocket!.open()
     wsManager.send('session-reconnect', { type: 'user_message', content: 'first' })

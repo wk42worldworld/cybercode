@@ -1,6 +1,15 @@
 import type { TranslationKey } from './en'
 
 export const ko = {
+  'settings.providers.discoverModels': '모델 찾기',
+  'settings.providers.modelsDiscovered': '{count}개 모델을 찾았습니다',
+  'settings.providers.modelDiscoveryFailed': '모델 찾기 실패: {error}',
+  'settings.providers.modelCheckOk': '{roles}: {requested} -> {actual} ({latency}ms)',
+  'settings.providers.modelCheckFailed': '{roles}: {requested} 실패 - {error}',
+  'settings.providers.imageCapabilityResult': '이미지 입력 · {model}: {state}',
+  'settings.providers.imageCapability.supported': '지원',
+  'settings.providers.imageCapability.unsupported': '미지원',
+  'settings.providers.imageCapability.unknown': '알 수 없음',
   'common.cancel': '취소',
   'common.save': '저장',
   'common.delete': '삭제',

@@ -62,7 +62,8 @@ describe('image support safeguards', () => {
     const result = replaceImagesForTextOnlyModel(messages)
     const raw = JSON.stringify(result)
     expect(raw).not.toContain('"type":"image"')
-    expect(raw).toContain('current model does not support image input')
+    expect(raw).toContain('Raw image block withheld')
+    expect(raw).toContain('image/OCR/MCP tool')
   })
 
   test('replaces tool_result image blocks before text-only model requests', () => {
@@ -82,6 +83,7 @@ describe('image support safeguards', () => {
     const result = replaceImagesForTextOnlyModel(messages)
     const raw = JSON.stringify(result)
     expect(raw).not.toContain('"type":"image"')
-    expect(raw).toContain('current model does not support image input')
+    expect(raw).toContain('Raw image block withheld')
+    expect(raw).toContain('image/OCR/MCP tool')
   })
 })

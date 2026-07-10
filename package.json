@@ -33,6 +33,7 @@
     "axios": "^1.14.0",
     "bidi-js": "^1.0.3",
     "chalk": "^5.6.2",
+    "cheerio": "^1.0.0",
     "chokidar": "^5.0.0",
     "cli-boxes": "^4.0.1",
     "code-excerpt": "^4.0.0",

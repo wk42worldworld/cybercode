@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { getContextWindowForModel } from './context.js'
 import {
   CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
+  buildModelContextWindowMap,
   inferContextWindowFromModelName,
   parseContextWindowTokenValue,
 } from './modelContextWindows.js'
@@ -36,5 +37,12 @@ describe('model context window helpers', () => {
     })
 
     expect(getContextWindowForModel('kimi-k2.6')).toBe(1_000_000)
+  })
+
+  test('keeps the conservative window when roles reuse one model', () => {
+    expect(buildModelContextWindowMap(
+      { main: 'shared-model', sonnet: 'shared-model' },
+      { main: 200_000, sonnet: 1_000_000 },
+    )).toEqual({ 'shared-model': 200_000 })
   })
 })

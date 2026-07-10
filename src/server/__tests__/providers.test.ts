@@ -123,6 +123,7 @@ describe('ProviderService', () => {
             sonnet: 'kimi-k2.7-code',
             opus: 'kimi-k2.7-code',
           },
+          supportsImages: false,
         }],
       }), 'utf-8')
 
@@ -133,6 +134,8 @@ describe('ProviderService', () => {
       expect(providers[0].presetId).toBe('kimi-code')
       expect(providers[0].baseUrl).toBe('https://api.kimi.com/coding/')
       expect(providers[0].models.main).toBe('kimi-k2.7-code')
+      expect(providers[0].imageSupportMode).toBe('auto')
+      expect(providers[0].supportsImages).toBeUndefined()
     })
 
     test('should move saved Kimi API providers off misplaced code models', async () => {
@@ -172,7 +175,8 @@ describe('ProviderService', () => {
       const settings = await readSettings()
       const env = settings.env as Record<string, string>
       expect(env.ANTHROPIC_MODEL).toBe('kimi-k2.6')
-      expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
+      expect(env.CYBERCODE_PROVIDER_BASE_URL).toBe('https://api.moonshot.cn/anthropic')
     })
 
     test('should migrate unsupported saved Xiaomi MiMo V2.5 Flash model ids', async () => {
@@ -243,6 +247,43 @@ describe('ProviderService', () => {
       expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('glm-4.7')
     })
 
+    test('should migrate legacy context aliases and blank role models', async () => {
+      const cybercodeDir = path.join(tmpDir, 'cybercode')
+      const providersPath = path.join(cybercodeDir, 'providers.json')
+      await fs.mkdir(cybercodeDir, { recursive: true, mode: 0o777 })
+      await fs.writeFile(providersPath, JSON.stringify({
+        activeId: null,
+        providers: [{
+          id: 'legacy-zhipu',
+          presetId: 'zhipuglm',
+          name: 'Legacy Zhipu',
+          apiKey: 'sk-zhipu',
+          baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+          apiFormat: 'anthropic',
+          models: {
+            main: 'glm-5.2[1m]',
+            haiku: '',
+            sonnet: '',
+            opus: '',
+          },
+        }],
+      }), { mode: 0o644 })
+
+      const svc = new ProviderService()
+      const { providers } = await svc.listProviders()
+
+      expect(providers[0].models).toEqual({
+        main: 'glm-5.2',
+        haiku: 'glm-5.2',
+        sonnet: 'glm-5.2',
+        opus: 'glm-5.2',
+      })
+      if (process.platform !== 'win32') {
+        expect((await fs.stat(cybercodeDir)).mode & 0o777).toBe(0o700)
+        expect((await fs.stat(providersPath)).mode & 0o777).toBe(0o600)
+      }
+    })
+
   })
 
   // ─── addProvider ─────────────────────────────────────────────────────────
@@ -307,6 +348,38 @@ describe('ProviderService', () => {
         sonnet: 200_000,
       })
     })
+
+    test('should make blank role models inherit the main model', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        models: {
+          main: 'only-model',
+          haiku: '',
+          sonnet: '',
+          opus: '',
+        },
+      }))
+
+      expect(provider.models).toEqual({
+        main: 'only-model',
+        haiku: 'only-model',
+        sonnet: 'only-model',
+        opus: 'only-model',
+      })
+    })
+
+    test('should store provider files with owner-only permissions', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput())
+      await svc.activateProvider(provider.id)
+
+      if (process.platform !== 'win32') {
+        const cybercodeDir = path.join(tmpDir, 'cybercode')
+        expect((await fs.stat(cybercodeDir)).mode & 0o777).toBe(0o700)
+        expect((await fs.stat(path.join(cybercodeDir, 'providers.json'))).mode & 0o777).toBe(0o600)
+        expect((await fs.stat(path.join(cybercodeDir, 'settings.json'))).mode & 0o777).toBe(0o600)
+      }
+    })
   })
 
   // ─── getProvider ─────────────────────────────────────────────────────────
@@ -364,6 +437,15 @@ describe('ProviderService', () => {
 
       expect(updated.imageSupportMode).toBe('auto')
       expect(updated.supportsImages).toBeUndefined()
+    })
+
+    test('updating with a masked API key preserves the stored credential', async () => {
+      const svc = new ProviderService()
+      const added = await svc.addProvider(sampleInput())
+
+      await svc.updateProvider(added.id, { apiKey: '••••••••', name: 'Renamed' })
+
+      expect((await svc.getProvider(added.id)).apiKey).toBe('sk-test-key-123')
     })
 
     test('should throw 404 for non-existent provider', async () => {
@@ -483,9 +565,12 @@ describe('ProviderService', () => {
       expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe('model-haiku')
       expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe('model-sonnet')
       expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe('model-opus')
-      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
-      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
-      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
+      expect(env.ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
+      expect(env.ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
+      expect(env.ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
+      expect(env.CYBERCODE_PROVIDER_BASE_URL).toBe('https://second-api.example.com')
+      expect(env.CYBERCODE_PROVIDER_ID).toBe(second.id)
       expect(settings.model).toBe('model-main')
       expect(settings.modelContext).toBeUndefined()
     })
@@ -621,9 +706,26 @@ describe('ProviderService', () => {
       const settings = await readSettings()
       const env = settings.env as Record<string, string>
       expect(JSON.parse(env.CYBERCODE_MODEL_CONTEXT_WINDOWS)).toEqual({
-        'model-large': 1_000_000,
+        'model-large': 200_000,
         'model-small': 64_000,
         'model-opus': 128_000,
+      })
+    })
+
+    test('should not apply a preset role window to a different custom model', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'deepseek',
+        models: {
+          main: 'custom-future-model',
+          haiku: 'deepseek-v4-flash',
+          sonnet: 'custom-future-model',
+          opus: 'custom-future-model',
+        },
+      }))
+
+      expect(svc.getProviderRoleContextWindows(provider)).toEqual({
+        haiku: 1_000_000,
       })
     })
 
@@ -788,9 +890,73 @@ describe('ProviderService', () => {
 
       expect(runtimeEnv.ANTHROPIC_MODEL).toBe('glm-4.7')
     })
+
+    test('should make discovered models and capabilities available to runtime sessions', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        modelCatalog: [{
+          id: 'future-vision-model',
+          contextWindow: 262_144,
+          supportsImages: true,
+        }],
+      }))
+
+      const runtimeEnv = await svc.getProviderRuntimeEnv(
+        provider.id,
+        'future-vision-model',
+      )
+
+      expect(runtimeEnv.ANTHROPIC_MODEL).toBe('future-vision-model')
+      expect(runtimeEnv.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+      expect(JSON.parse(runtimeEnv.CYBERCODE_MODEL_CONTEXT_WINDOWS)).toMatchObject({
+        'future-vision-model': 262_144,
+      })
+    })
   })
 
   describe('testProviderConfig', () => {
+    test('should test local providers without forcing the user to enter an API key', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput({
+        presetId: 'ollama',
+        name: 'Ollama',
+        baseUrl: 'http://localhost:11434',
+        apiKey: '',
+        models: {
+          main: 'qwen3.6',
+          haiku: 'qwen3.6',
+          sonnet: 'qwen3.6',
+          opus: 'qwen3.6',
+        },
+      }))
+      const originalFetch = globalThis.fetch
+      const urls: string[] = []
+
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        urls.push(url)
+        if (url.endsWith('/api/show')) {
+          expect(JSON.parse(String(init?.body))).toEqual({ model: 'qwen3.6' })
+          return Response.json({ capabilities: ['completion', 'tools'] })
+        }
+        return Response.json({
+          type: 'message',
+          model: 'qwen3.6',
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProvider(provider.id)
+        expect(result.connectivity.success).toBe(true)
+        expect(result.imageCapability?.status).toBe('unsupported')
+        expect(urls).toContain('http://localhost:11434/v1/messages')
+        expect(urls).toContain('http://localhost:11434/api/show')
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
     test('should apply Kimi thinking defaults during connectivity checks', async () => {
       const svc = new ProviderService()
       const originalFetch = globalThis.fetch
@@ -844,6 +1010,114 @@ describe('ProviderService', () => {
 
         expect(result.connectivity.success).toBe(true)
         expect(bodies[0].thinking).toEqual({ type: 'enabled' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should not apply Zhipu thinking rules to the same model name on another endpoint', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const bodies: Array<Record<string, unknown>> = []
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        bodies.push(body)
+        return Response.json({
+          type: 'message',
+          model: body.model,
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://ark.cn-beijing.volces.com/api/anthropic',
+          apiKey: 'test-key',
+          modelId: 'glm-5.2',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(bodies[0]?.thinking).toBeUndefined()
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should retry dynamically when an unknown endpoint requires enabled thinking', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const bodies: Array<Record<string, unknown>> = []
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        bodies.push(body)
+        if (!body.thinking) {
+          return Response.json({
+            error: {
+              type: 'invalid_request_error',
+              message: 'invalid thinking: only type=enabled is allowed for this model',
+            },
+          }, { status: 400 })
+        }
+        return Response.json({
+          type: 'message',
+          model: body.model,
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://custom.example.com/anthropic',
+          apiKey: 'test-key',
+          modelId: 'future-reasoning-model',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(bodies).toHaveLength(2)
+        expect(bodies[0]?.thinking).toBeUndefined()
+        expect(bodies[1]?.thinking).toEqual({ type: 'enabled' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should test every unique configured role model and report the actual model used', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { model: string }
+        return Response.json({
+          type: 'message',
+          model: body.model === 'role-opus' ? 'upstream-opus-alias' : body.model,
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://models.example.com/anthropic',
+          apiKey: 'test-key',
+          modelId: 'role-main',
+          models: {
+            main: 'role-main',
+            haiku: 'role-haiku',
+            sonnet: 'role-sonnet',
+            opus: 'role-opus',
+          },
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.allModelsPassed).toBe(true)
+        expect(result.modelChecks).toHaveLength(4)
+        const opus = result.modelChecks?.find((check) => check.roles.includes('opus'))
+        expect(opus?.requestedModel).toBe('role-opus')
+        expect(opus?.result.modelUsed).toBe('upstream-opus-alias')
+        expect(opus?.result.modelMatched).toBe(false)
       } finally {
         globalThis.fetch = originalFetch
       }
@@ -947,7 +1221,7 @@ describe('Providers API', () => {
     const body = (await res.json()) as { providers: { name: string; apiKey: string }[] }
     expect(body.providers).toHaveLength(1)
     expect(body.providers[0].name).toBe('Test Provider')
-    expect(body.providers[0].apiKey).toBe('sk-test-key-123')
+    expect(body.providers[0].apiKey).toBe('••••••••')
   })
 
   // ─── POST /api/providers ─────────────────────────────────────────────────
@@ -969,9 +1243,12 @@ describe('Providers API', () => {
     const res = await handleProvidersApi(req, url, segments)
 
     expect(res.status).toBe(201)
-    const body = (await res.json()) as { provider: { name: string; models: { main: string } } }
+    const body = (await res.json()) as {
+      provider: { name: string; apiKey: string; models: { main: string } }
+    }
     expect(body.provider.name).toBe('New Provider')
     expect(body.provider.models.main).toBe('gpt-4')
+    expect(body.provider.apiKey).toBe('••••••••')
   })
 
   test('POST /api/providers should normalize model context windows', async () => {
@@ -1000,6 +1277,42 @@ describe('Providers API', () => {
       main: 1_000_000,
       haiku: 128_000,
     })
+  })
+
+  test('POST /api/providers/models/discover should return upstream model IDs', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => Response.json({
+      data: [
+        { id: 'new-model', context_window: 128_000 },
+        { id: 'vision-model', capabilities: ['vision'] },
+      ],
+    })) as typeof fetch
+
+    try {
+      const { req, url, segments } = makeRequest(
+        'POST',
+        '/api/providers/models/discover',
+        {
+          presetId: 'custom',
+          baseUrl: 'https://discover.example.com',
+          apiKey: 'secret-key',
+          apiFormat: 'openai_chat',
+          force: true,
+        },
+      )
+      const res = await handleProvidersApi(req, url, segments)
+      const body = await res.json() as {
+        result: { models: Array<{ id: string; contextWindow?: number; supportsImages?: boolean }> }
+      }
+
+      expect(res.status).toBe(200)
+      expect(body.result.models).toEqual([
+        { id: 'new-model', contextWindow: 128_000 },
+        { id: 'vision-model', supportsImages: true },
+      ])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 
   test('POST /api/providers should return 400 for invalid input', async () => {

@@ -7,6 +7,8 @@ import type {
   UpdateProviderInput,
   TestProviderConfigInput,
   ProviderTestResult,
+  DiscoverProviderModelsInput,
+  ProviderModelDiscoveryResult,
 } from '../types/provider'
 import type { ProviderPreset } from '../types/providerPreset'
 
@@ -14,6 +16,7 @@ type ProvidersResponse = { providers: SavedProvider[]; activeId: string | null }
 type ProviderResponse = { provider: SavedProvider }
 type PresetsResponse = { presets: ProviderPreset[] }
 type TestResultResponse = { result: ProviderTestResult }
+type ModelDiscoveryResponse = { result: ProviderModelDiscoveryResult }
 type AuthStatusResponse = {
   hasAuth: boolean
   source: 'cybercode-provider' | 'original-settings' | 'env' | 'none'
@@ -61,11 +64,20 @@ export const providersApi = {
     return api.post<{ ok: true }>('/api/providers/official')
   },
 
-  test(id: string, overrides?: { baseUrl?: string; modelId?: string; apiFormat?: string }) {
+  test(id: string, overrides?: {
+    baseUrl?: string
+    modelId?: string
+    models?: import('../types/provider').ModelMapping
+    apiFormat?: import('../types/provider').ApiFormat
+  }) {
     return api.post<TestResultResponse>(`/api/providers/${id}/test`, overrides)
   },
 
   testConfig(input: TestProviderConfigInput) {
     return api.post<TestResultResponse>('/api/providers/test', input)
+  },
+
+  discoverModels(input: DiscoverProviderModelsInput) {
+    return api.post<ModelDiscoveryResponse>('/api/providers/models/discover', input)
   },
 }

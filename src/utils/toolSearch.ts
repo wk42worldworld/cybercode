@@ -286,25 +286,20 @@ export function isToolSearchEnabledOptimistic(): boolean {
   // they have their own endpoints and beta headers.
   // https://github.com/anthropics/claude-code/issues/30912
   //
-  // HOWEVER: some proxies DO support tool_reference (LiteLLM passthrough,
-  // Cloudflare AI Gateway, corp gateways that forward beta headers). The
-  // blanket disable breaks defer_loading for those users — all MCP tools
-  // loaded into main context instead of on-demand (gh-31936 / CC-457,
-  // likely the real cause of CC-330 "v2.1.70 defer_loading regression").
-  // This gate only applies when ENABLE_TOOL_SEARCH is unset/empty (default
-  // behavior). Setting any non-empty value — 'true', 'auto', 'auto:N' —
-  // means the user is explicitly configuring tool search and asserts their
-  // setup supports it. The falsy check (rather than === undefined) aligns
-  // with getToolSearchMode(), which also treats "" as unset.
+  // Some proxies do support tool_reference, but ENABLE_TOOL_SEARCH only
+  // selects the loading mode; it is commonly inherited from Claude Code
+  // settings and is not proof of protocol compatibility. Keep capability
+  // opt-in separate so an old ENABLE_TOOL_SEARCH=true cannot make Kimi, GLM,
+  // or another compatibility endpoint emit an unsupported content block.
   if (
-    !process.env.ENABLE_TOOL_SEARCH &&
     getAPIProvider() === 'firstParty' &&
-    !isFirstPartyAnthropicBaseUrl()
+    !isFirstPartyAnthropicBaseUrl() &&
+    !isEnvTruthy(process.env.CYBERCODE_ENABLE_TOOL_REFERENCE)
   ) {
     if (!loggedOptimistic) {
       loggedOptimistic = true
       logForDebugging(
-        `[ToolSearch:optimistic] disabled: ANTHROPIC_BASE_URL=${process.env.ANTHROPIC_BASE_URL} is not a first-party Anthropic host. Set ENABLE_TOOL_SEARCH=true (or auto / auto:N) if your proxy forwards tool_reference blocks.`,
+        `[ToolSearch:optimistic] disabled: ANTHROPIC_BASE_URL=${process.env.ANTHROPIC_BASE_URL} is not a first-party Anthropic host. Set CYBERCODE_ENABLE_TOOL_REFERENCE=true only if your proxy forwards tool_reference blocks.`,
       )
     }
     return false
@@ -415,6 +410,24 @@ export async function isToolSearchEnabled(
     })
   }
 
+  const mode = getToolSearchMode()
+  if (mode === 'standard') {
+    logModeDecision(false, mode, 'standard_mode')
+    return false
+  }
+
+  // Keep the definitive request-time decision aligned with message
+  // normalization. In particular, third-party Anthropic-compatible gateways
+  // usually reject the beta tool_reference content blocks even when the model
+  // itself is capable of ordinary tool use.
+  if (!isToolSearchEnabledOptimistic()) {
+    logForDebugging(
+      `Tool search disabled for model '${model}': the active API provider does not support tool_reference blocks.`,
+    )
+    logModeDecision(false, 'standard', 'provider_unsupported')
+    return false
+  }
+
   // Check if model supports tool_reference
   if (!modelSupportsToolReference(model)) {
     logForDebugging(
@@ -433,8 +446,6 @@ export async function isToolSearchEnabled(
     logModeDecision(false, 'standard', 'mcp_search_unavailable')
     return false
   }
-
-  const mode = getToolSearchMode()
 
   switch (mode) {
     case 'tst':
@@ -466,9 +477,6 @@ export async function isToolSearchEnabled(
       return false
     }
 
-    case 'standard':
-      logModeDecision(false, mode, 'standard_mode')
-      return false
   }
 }
 

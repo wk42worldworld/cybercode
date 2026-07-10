@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 import { ProviderSettings, Settings } from '../pages/Settings'
@@ -12,6 +12,7 @@ import type { ProviderPreset } from '../types/providerPreset'
 const MOCK_DELETE_PROVIDER = vi.fn()
 const MOCK_GET_SETTINGS = vi.fn()
 const MOCK_UPDATE_SETTINGS = vi.fn()
+const MOCK_DISCOVER_MODELS = vi.fn()
 const providerStoreState = {
   providers: [] as SavedProvider[],
   activeId: null as string | null,
@@ -44,6 +45,7 @@ vi.mock('../api/providers', () => ({
   providersApi: {
     getSettings: MOCK_GET_SETTINGS,
     updateSettings: MOCK_UPDATE_SETTINGS,
+    discoverModels: MOCK_DISCOVER_MODELS,
   },
 }))
 
@@ -89,6 +91,7 @@ describe('Settings > General tab', () => {
     MOCK_DELETE_PROVIDER.mockReset()
     MOCK_GET_SETTINGS.mockResolvedValue({})
     MOCK_UPDATE_SETTINGS.mockResolvedValue({})
+    MOCK_DISCOVER_MODELS.mockReset()
     providerStoreState.providers = []
     providerStoreState.activeId = null
     providerStoreState.hasLoadedProviders = true
@@ -178,6 +181,7 @@ describe('Settings > Providers tab', () => {
     MOCK_DELETE_PROVIDER.mockReset()
     MOCK_GET_SETTINGS.mockResolvedValue({})
     MOCK_UPDATE_SETTINGS.mockResolvedValue({})
+    MOCK_DISCOVER_MODELS.mockReset()
     useSettingsStore.setState({ locale: 'en' })
     providerStoreState.providers = [
       {
@@ -337,7 +341,7 @@ describe('Settings > Providers tab', () => {
     expect(within(dialog).getByDisplayValue('deepseek-v4-flash')).toBeInTheDocument()
   })
 
-  it('uses the selected provider model in advanced JSON instead of stale managed model', async () => {
+  it('does not expose or overwrite the global managed settings JSON in a provider form', async () => {
     MOCK_GET_SETTINGS.mockResolvedValue({
       model: 'kimi-k2.6',
       modelContext: '1m',
@@ -393,19 +397,47 @@ describe('Settings > Providers tab', () => {
     const dialog = screen.getByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: /Advanced settings/i }))
 
-    await waitFor(() => {
-      const jsonTextarea = within(dialog)
-        .getAllByRole('textbox')
-        .find((element) => element.tagName === 'TEXTAREA') as HTMLTextAreaElement | undefined
+    expect(within(dialog).queryByText('Settings JSON')).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('textbox', { name: /Settings JSON/i })).not.toBeInTheDocument()
+    expect(MOCK_GET_SETTINGS).not.toHaveBeenCalled()
+    expect(MOCK_UPDATE_SETTINGS).not.toHaveBeenCalled()
+  })
 
-      expect(jsonTextarea).toBeDefined()
-      expect(jsonTextarea?.value).toContain('"model": "deepseek-v4-pro[1m]"')
-      expect(jsonTextarea?.value).toContain('"ANTHROPIC_API_KEY": "(your API key)"')
-      expect(jsonTextarea?.value).toContain('"ANTHROPIC_MODEL": "deepseek-v4-pro[1m]"')
-      expect(jsonTextarea?.value).not.toContain('"ANTHROPIC_AUTH_TOKEN"')
-      expect(jsonTextarea?.value).not.toContain('"model": "kimi-k2.6"')
-      expect(jsonTextarea?.value).not.toContain('"modelContext"')
+  it('discovers provider models and adds them to the model picker', async () => {
+    MOCK_DISCOVER_MODELS.mockResolvedValue({
+      result: {
+        models: [
+          { id: 'dynamic-text', contextWindow: 128_000 },
+          { id: 'dynamic-vision', contextWindow: 256_000, supportsImages: true },
+        ],
+        endpoint: 'https://api.example.com/v1/models',
+        cached: false,
+      },
     })
+    providerStoreState.providers = []
+    providerStoreState.presets = [{
+      id: 'custom',
+      name: 'Custom',
+      baseUrl: 'https://api.example.com',
+      apiFormat: 'openai_chat',
+      defaultModels: {
+        main: 'custom-main',
+        haiku: '',
+        sonnet: '',
+        opus: '',
+      },
+      needsApiKey: false,
+      websiteUrl: '',
+    }]
+
+    render(<ProviderSettings />)
+    fireEvent.click(screen.getByRole('button', { name: /Configure/i }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Discover models' }))
+
+    expect(await within(dialog).findByText('Found 2 models')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: /Select model: Main Model/i }))
+    expect(within(dialog).getByText('dynamic-vision')).toBeInTheDocument()
   })
 
   it('shows separate Kimi Code and Kimi API presets with different default models', () => {
@@ -423,10 +455,11 @@ describe('Settings > Providers tab', () => {
           opus: 'kimi-for-coding',
         },
         modelOptions: [
-          { id: 'kimi-for-coding', label: 'Kimi for Coding', contextWindow: 256_000, supportsImages: false },
-          { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', contextWindow: 256_000, supportsImages: false },
-          { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code Highspeed', contextWindow: 256_000, supportsImages: false },
+          { id: 'kimi-for-coding', label: 'Kimi for Coding', contextWindow: 256_000, supportsImages: true },
+          { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', contextWindow: 256_000, supportsImages: true },
+          { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code Highspeed', contextWindow: 256_000, supportsImages: true },
         ],
+        supportsImages: true,
         needsApiKey: true,
         websiteUrl: 'https://www.kimi.com/coding/docs/',
         apiKeyUrl: 'https://www.kimi.com/coding',
@@ -505,6 +538,14 @@ describe('Settings > Providers tab', () => {
 
     expect(apiKeyInput).toHaveAttribute('type', 'text')
     expect(within(dialog).getByRole('button', { name: 'Hide API Key' })).toBeInTheDocument()
+  })
+
+  it('never places a masked saved API key into the editable key field', () => {
+    render(<ProviderSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByPlaceholderText('sk-...')).toHaveValue('')
   })
 })
 

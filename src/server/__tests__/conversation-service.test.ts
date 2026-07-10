@@ -193,7 +193,18 @@ describe('ConversationService', () => {
 
     expect(env.ANTHROPIC_BASE_URL).toBe(`http://127.0.0.1:3456/proxy/providers/${provider.id}`)
     expect(env.ANTHROPIC_MODEL).toBe('gpt-4o-mini')
-    expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toContain('images')
+    expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
+    expect(env.CYBERCODE_PROVIDER_BASE_URL).toBe('https://api.switchable.example')
+  })
+
+  test('buildChildEnv can force a recovered session into safe file-reference mode', async () => {
+    const service = new ConversationService() as any
+    const env = (await service.buildChildEnv('/tmp', undefined, {
+      providerId: null,
+      imageSupportOverride: false,
+    })) as Record<string, string>
+
+    expect(env.CYBERCODE_IMAGE_INPUT_OVERRIDE).toBe('disabled')
   })
 
   test('buildChildEnv forwards model context windows for session-scoped providers', async () => {
@@ -315,16 +326,24 @@ describe('ConversationService', () => {
   })
 
   test('uses bun entrypoint fallback on Windows dev mode', () => {
-    const service = new ConversationService() as any
-    const args = service.resolveCliArgs(['--print'])
+    const originalCliPath = process.env.CLAUDE_CLI_PATH
+    delete process.env.CLAUDE_CLI_PATH
 
-    if (process.platform === 'win32') {
-      expect(args[0]).toBe(process.execPath)
-      expect(args[1]).toBe('--preload')
-      expect(args[2]).toContain('preload.ts')
-      expect(args[3]).toContain(path.join('src', 'entrypoints', 'cli.tsx'))
-    } else {
-      expect(args[0]).toContain(path.join('bin', 'cybercode'))
+    try {
+      const service = new ConversationService() as any
+      const args = service.resolveCliArgs(['--print'])
+
+      if (process.platform === 'win32') {
+        expect(args[0]).toBe(process.execPath)
+        expect(args[1]).toBe('--preload')
+        expect(args[2]).toContain('preload.ts')
+        expect(args[3]).toContain(path.join('src', 'entrypoints', 'cli.tsx'))
+      } else {
+        expect(args[0]).toContain(path.join('bin', 'cybercode'))
+      }
+    } finally {
+      if (originalCliPath === undefined) delete process.env.CLAUDE_CLI_PATH
+      else process.env.CLAUDE_CLI_PATH = originalCliPath
     }
   })
 
@@ -425,7 +444,8 @@ describe('ConversationService', () => {
 
     expect(ok).toBe(true)
     const text = sent[0]?.message?.content?.[0]?.text
-    expect(text).toContain('current model cannot read images directly')
+    expect(text).toContain('upload succeeded')
+    expect(text).toContain('image/OCR/MCP tool')
     expect(text).toContain('clipboard.png')
     expect(text).not.toContain('@')
 

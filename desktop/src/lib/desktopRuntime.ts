@@ -1,4 +1,4 @@
-import { getDefaultBaseUrl, setBaseUrl } from '../api/client'
+import { getDefaultBaseUrl, setAuthToken, setBaseUrl } from '../api/client'
 
 export function isTauriRuntime() {
   if (typeof window === 'undefined') return false
@@ -21,10 +21,11 @@ export async function initializeDesktopServerUrl() {
 
   try {
     const { invoke } = await import(/* @vite-ignore */ '@tauri-apps/api/core')
-    const serverUrl = await invoke<string>('get_server_url')
-    setBaseUrl(serverUrl)
-    await waitForHealth(serverUrl)
-    return serverUrl
+    const connection = await invoke<{ url: string; authToken: string }>('get_server_connection')
+    setBaseUrl(connection.url)
+    setAuthToken(connection.authToken)
+    await waitForHealth(connection.url)
+    return connection.url
   } catch (error) {
     const message =
       error instanceof Error ? error.message : `desktop server startup failed: ${String(error)}`
