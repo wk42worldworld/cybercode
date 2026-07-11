@@ -1,6 +1,8 @@
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
+const docsBase = process.env.DOCS_BASE || '/'
+
 // GitHub-compatible slugify (matches github-slugger algorithm)
 // Makes heading anchor IDs consistent between VitePress and GitHub rendering
 function slugify(str: string): string {
@@ -202,7 +204,7 @@ export default withMermaid(defineConfig({
   title: 'CyberCode',
   description: '本地运行的智能编程客户端，支持 Anthropic 与 OpenAI 兼容 API，并内置多模型厂商配置',
   lastUpdated: true,
-  base: process.env.DOCS_BASE || '/',
+  base: docsBase,
 
   markdown: {
     anchor: {
@@ -210,7 +212,10 @@ export default withMermaid(defineConfig({
     },
   },
 
-  head: [],
+  head: [
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: `${docsBase}favicon-32x32.png` }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: `${docsBase}apple-touch-icon.png` }],
+  ],
 
   locales: {
     root: {
