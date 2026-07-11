@@ -8,6 +8,8 @@
 - Focused hero comparison: `/tmp/cybercode-design-comparison-hero-v2-focused.png`
 - Dark-theme before/after: `/tmp/cybercode-audit-before-after-dark.png`
 - Mobile before/after: `/tmp/cybercode-audit-before-after-mobile.png`
+- Search before/after: `/tmp/cybercode-search-comparison-v2.png`
+- Mobile search state: `/tmp/cybercode-search-v2-mobile.png`
 - Focused terminal comparison: not recaptured because this pass did not change the terminal component or its boundary
 
 ## Findings
@@ -20,6 +22,8 @@ No actionable P0, P1, or P2 differences remain.
 - Image quality: Navigation uses the supplied CyberCode wordmark. The hero now uses a 1254 x 1254 ImageGen-restored RGBA character asset instead of the previous 512 x 512 white-backed crop. It renders at no more than 780px wide, remains sharp, and has no visible white box or chroma fringe in light or dark mode.
 - Copy: The primary promise explicitly describes Hermes-style self-evolution and its persistent memory, skill, and reusable-workflow outcomes. Provider support remains a separate secondary line.
 - Icons and controls: The copy control uses VitePress's native clipboard icon token. Platform tabs, command copying, theme switching, navigation links, and locale routes are functional.
+- Motion and search: Search opens without changing the 1425px page content width or shifting the hero image and navigation. The modal, backdrop, buttons, tabs, copy action, and linked feature rows use short restrained transitions, with animations disabled for reduced-motion users.
+- Localization: Local search button text, input placeholder, detailed-view action, reset action, empty state, and keyboard hints are localized for Chinese, English, Japanese, and Korean.
 - Accessibility and responsiveness: Focus styles remain visible, the installer exposes tab and tabpanel semantics, imagery has localized alt text, and the 390 x 844 layout separates the portrait from the heading while preserving a visible terminal entry point.
 
 ## Comparison History
@@ -54,12 +58,21 @@ No actionable P0, P1, or P2 differences remain.
    - Fixes: Generated a higher-resolution character restoration with ImageGen, removed its flat chroma background into alpha, capped desktop display at 780px, and resized/re-spaced tablet and mobile layouts.
    - Post-fix evidence: `/tmp/cybercode-design-comparison-hero-v2-focused.png`, `/tmp/cybercode-audit-before-after-dark.png`, and `/tmp/cybercode-audit-before-after-mobile.png`.
 
+7. Search stability, localization, and motion polish
+   - P2: Opening local search locked body scrolling and expanded the content viewport from 1425px to 1440px, visibly shifting viewport-relative artwork and right-aligned UI.
+   - P2: The Chinese search surface still exposed English button, placeholder, empty-state, reset, detail, and keyboard-hint strings.
+   - P2: Search, hero controls, terminal controls, and feature links changed state abruptly with little visual continuity.
+   - Fixes: Reserved a stable scrollbar gutter, added four-locale local-search translations, introduced restrained 140-190ms interaction transitions and search entrance motion, and provided a reduced-motion fallback.
+   - Post-fix evidence: `/tmp/cybercode-search-comparison-v2.png` and `/tmp/cybercode-search-v2-mobile.png`; before/after measurements keep the viewport at 1425px and hero artwork at x=663px.
+
 ## Primary Interactions Tested
 
 - macOS/Linux and Windows installer tabs switch commands correctly.
 - Copy action writes the selected command and exposes the localized copied state.
 - Desktop download opens the latest GitHub Release; the mainland China mirror opens the same release through `ghfast.top`.
 - Light and dark theme switching works with no broken imagery or background rectangle.
+- Local search opens and closes without layout shift; Chinese search controls and no-result feedback are localized.
+- Search remains full-width with no horizontal overflow at 390 x 844.
 - Chinese, English, Japanese, and Korean home routes render localized Hermes copy without overflow.
 - Browser console errors and warnings checked: none.
 
@@ -76,6 +89,9 @@ No actionable P0, P1, or P2 differences remain.
 - [x] Match the selected hero and terminal composition.
 - [x] Replace the 512px white-backed portrait with a higher-resolution transparent character asset.
 - [x] Keep a visible mobile gap between the portrait and product name.
+- [x] Prevent scrollbar locking from shifting the page when search opens.
+- [x] Localize local-search UI across all four site languages.
+- [x] Add restrained interaction motion with a reduced-motion fallback.
 - [x] Verify desktop, mobile, dark theme, locales, and copy interaction.
 
 final result: passed

@@ -301,6 +301,100 @@ export default withMermaid(defineConfig({
     },
     search: {
       provider: 'local',
+      options: {
+        translations: {
+          button: {
+            buttonText: '搜索',
+            buttonAriaLabel: '搜索文档',
+          },
+          modal: {
+            displayDetails: '显示详细结果',
+            resetButtonTitle: '清除搜索',
+            backButtonTitle: '关闭搜索',
+            noResultsText: '未找到相关结果：',
+            footer: {
+              selectText: '选择',
+              selectKeyAriaLabel: '回车',
+              navigateText: '切换',
+              navigateUpKeyAriaLabel: '向上',
+              navigateDownKeyAriaLabel: '向下',
+              closeText: '关闭',
+              closeKeyAriaLabel: '退出',
+            },
+          },
+        },
+        locales: {
+          en: {
+            translations: {
+              button: {
+                buttonText: 'Search',
+                buttonAriaLabel: 'Search documentation',
+              },
+              modal: {
+                displayDetails: 'Display detailed results',
+                resetButtonTitle: 'Reset search',
+                backButtonTitle: 'Close search',
+                noResultsText: 'No results for:',
+                footer: {
+                  selectText: 'to select',
+                  selectKeyAriaLabel: 'enter',
+                  navigateText: 'to navigate',
+                  navigateUpKeyAriaLabel: 'up arrow',
+                  navigateDownKeyAriaLabel: 'down arrow',
+                  closeText: 'to close',
+                  closeKeyAriaLabel: 'escape',
+                },
+              },
+            },
+          },
+          ja: {
+            translations: {
+              button: {
+                buttonText: '検索',
+                buttonAriaLabel: 'ドキュメントを検索',
+              },
+              modal: {
+                displayDetails: '詳細結果を表示',
+                resetButtonTitle: '検索をリセット',
+                backButtonTitle: '検索を閉じる',
+                noResultsText: '検索結果がありません：',
+                footer: {
+                  selectText: '選択',
+                  selectKeyAriaLabel: 'Enter キー',
+                  navigateText: '移動',
+                  navigateUpKeyAriaLabel: '上矢印',
+                  navigateDownKeyAriaLabel: '下矢印',
+                  closeText: '閉じる',
+                  closeKeyAriaLabel: 'Escape キー',
+                },
+              },
+            },
+          },
+          ko: {
+            translations: {
+              button: {
+                buttonText: '검색',
+                buttonAriaLabel: '문서 검색',
+              },
+              modal: {
+                displayDetails: '상세 결과 표시',
+                resetButtonTitle: '검색 초기화',
+                backButtonTitle: '검색 닫기',
+                noResultsText: '검색 결과 없음:',
+                footer: {
+                  selectText: '선택',
+                  selectKeyAriaLabel: 'Enter 키',
+                  navigateText: '이동',
+                  navigateUpKeyAriaLabel: '위쪽 화살표',
+                  navigateDownKeyAriaLabel: '아래쪽 화살표',
+                  closeText: '닫기',
+                  closeKeyAriaLabel: 'Escape 키',
+                },
+              },
+            },
+          },
+        },
+      },
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/wk42worldworld/cybercode' },

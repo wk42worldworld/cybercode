@@ -22,6 +22,11 @@
   --vp-button-alt-hover-bg: rgba(10, 12, 16, 0.04);
 }
 
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
 .dark {
   --cyber-ink: #f7f9fc;
   --vp-c-brand-1: #62a1ff;
@@ -46,6 +51,9 @@
   border-bottom: 1px solid var(--vp-c-divider);
   background: color-mix(in srgb, var(--vp-c-bg) 94%, transparent);
   backdrop-filter: blur(14px);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
 }
 
 .VPNavBar .container {
@@ -68,6 +76,7 @@
   overflow: hidden;
   padding: calc(var(--vp-nav-height) + 58px) 80px 0;
   background: var(--vp-c-bg);
+  transition: background-color 180ms ease;
 }
 
 .VPHome .VPHero .container {
@@ -153,6 +162,23 @@
   line-height: 46px;
   font-size: 15px;
   letter-spacing: 0;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.VPHome .VPHero .VPButton.medium:hover,
+.VPHome .VPHero .VPButton.medium:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(8, 104, 247, 0.14);
+}
+
+.VPHome .VPHero .VPButton.medium:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .VPHome .VPHero .action:nth-child(3) .VPButton {
@@ -214,6 +240,7 @@
   margin: 0;
   border: 0;
   background: var(--vp-c-bg);
+  transition: background-color 180ms ease;
 }
 
 .home-cli-terminal-band {
@@ -262,11 +289,16 @@
   font-weight: 650;
   letter-spacing: 0;
   cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 .home-cli-platforms button:hover,
 .home-cli-platforms button:focus-visible {
   color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .home-cli-platforms button:focus-visible,
@@ -291,10 +323,16 @@
   background: transparent;
   color: #c8ced8;
   cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 .home-cli-copy:hover {
   background: #20252d;
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .home-cli-copy__glyph,
@@ -436,12 +474,131 @@
   border-bottom: 1px solid var(--vp-c-divider);
   border-radius: 0;
   background: transparent;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
 }
 
 .VPHomeFeatures .VPFeature.link:hover,
 .VPHomeFeatures .VPFeature.link:focus-visible {
   border-color: var(--vp-c-divider);
   background: var(--vp-c-bg-soft);
+  transform: translateY(-1px);
+}
+
+.DocSearch-Button {
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.DocSearch-Button:hover,
+.DocSearch-Button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(8, 104, 247, 0.1);
+}
+
+.VPLocalSearchBox > .backdrop {
+  backdrop-filter: blur(4px);
+  animation: cyber-search-backdrop-in 160ms ease-out both;
+}
+
+.VPLocalSearchBox .shell {
+  border: 1px solid var(--vp-c-divider);
+  box-shadow: 0 24px 64px rgba(5, 10, 20, 0.24);
+  animation: cyber-search-shell-in 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.VPLocalSearchBox .search-bar {
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.VPLocalSearchBox .search-bar:focus-within {
+  box-shadow: 0 0 0 3px var(--vp-c-brand-soft);
+}
+
+.VPLocalSearchBox .search-actions button {
+  border-radius: 5px;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease;
+}
+
+.VPLocalSearchBox .search-actions button:not([disabled]):hover,
+.VPLocalSearchBox .search-actions button:not([disabled]):focus-visible {
+  background: var(--vp-c-brand-soft);
+  transform: translateY(-1px);
+}
+
+.VPLocalSearchBox .result {
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.VPLocalSearchBox .result.selected {
+  transform: translateX(2px);
+}
+
+@keyframes cyber-search-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cyber-search-shell-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+  }
+}
+
+@keyframes cyber-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes cyber-image-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .VPHome .VPHero .main,
+  .home-cli-terminal {
+    animation: cyber-content-in 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .VPHome .VPHero .image-src {
+    animation: cyber-image-in 560ms ease-out both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .VPHome .VPHero .VPButton.medium,
+  .home-cli-platforms button,
+  .home-cli-copy,
+  .VPHomeFeatures .VPFeature,
+  .DocSearch-Button,
+  .VPLocalSearchBox > .backdrop,
+  .VPLocalSearchBox .shell,
+  .VPLocalSearchBox .search-bar,
+  .VPLocalSearchBox .search-actions button,
+  .VPLocalSearchBox .result {
+    animation: none;
+    transition-duration: 0.01ms;
+  }
 }
 
 .VPHomeFeatures .VPFeature .box {
