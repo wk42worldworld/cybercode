@@ -26,9 +26,9 @@ if ($Version -match '^\d+\.\d+\.\d+$') {
 }
 
 if ($Version -eq "main") {
-  $DefaultArchiveUrl = "https://github.com/$Repository/archive/refs/heads/main.zip"
+  $DefaultArchiveUrl = "https://github.com/$Repository/archive/refs/heads/main.tar.gz"
 } elseif ($Version -match '^v\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
-  $DefaultArchiveUrl = "https://github.com/$Repository/archive/refs/tags/$Version.zip"
+  $DefaultArchiveUrl = "https://github.com/$Repository/archive/refs/tags/$Version.tar.gz"
 } else {
   throw "Could not resolve a valid release version (received '$Version')."
 }
@@ -54,15 +54,37 @@ if ($BunCommand) {
 $InstallParent = Split-Path -Parent $InstallDir
 New-Item -ItemType Directory -Force -Path $InstallParent, $BinDir | Out-Null
 $StagingRoot = Join-Path $InstallParent ".cybercode-install-$([Guid]::NewGuid().ToString('N'))"
-$ArchivePath = Join-Path $StagingRoot "cybercode.zip"
+$ArchivePath = Join-Path $StagingRoot "cybercode.tar.gz"
 $UnpackDir = Join-Path $StagingRoot "unpacked"
 $NextDir = Join-Path $StagingRoot "next"
 
 try {
   New-Item -ItemType Directory -Force -Path $UnpackDir | Out-Null
   Write-Step "downloading $Version"
-  Invoke-WebRequest -Uri $ArchiveUrl -OutFile $ArchivePath -Headers $Headers
-  Expand-Archive -LiteralPath $ArchivePath -DestinationPath $UnpackDir
+  $CurlCommand = Get-Command curl.exe -CommandType Application -ErrorAction SilentlyContinue
+  if ($CurlCommand) {
+    & $CurlCommand.Source -fsSL --retry 3 -o $ArchivePath $ArchiveUrl
+    if ($LASTEXITCODE -ne 0) {
+      throw "Could not download CyberCode."
+    }
+  } else {
+    $PreviousProgressPreference = $ProgressPreference
+    $ProgressPreference = "SilentlyContinue"
+    try {
+      Invoke-WebRequest -Uri $ArchiveUrl -OutFile $ArchivePath -Headers $Headers
+    } finally {
+      $ProgressPreference = $PreviousProgressPreference
+    }
+  }
+
+  $TarCommand = Get-Command tar.exe -CommandType Application -ErrorAction SilentlyContinue
+  if (-not $TarCommand) {
+    throw "tar.exe is required. Install current Windows updates and run the installer again."
+  }
+  & $TarCommand.Source -xzf $ArchivePath -C $UnpackDir
+  if ($LASTEXITCODE -ne 0) {
+    throw "Could not extract the CyberCode archive."
+  }
 
   $ArchiveEntries = @(Get-ChildItem -LiteralPath $UnpackDir -Directory)
   if ($ArchiveEntries.Count -ne 1) {
