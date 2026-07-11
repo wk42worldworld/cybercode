@@ -22,7 +22,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/wk42worldworld/cybercode?style=social)](https://github.com/wk42worldworld/cybercode/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/pulls)
-[![Docs](https://img.shields.io/badge/Documentation-Visit-D97757)](https://github.com/wk42worldworld/cybercode)
+[![Docs](https://img.shields.io/badge/Documentation-Visit-D97757)](https://wk42worldworld.github.io/cybercode/ja/)
 
 </div>
 
@@ -85,7 +85,7 @@ cybercode
 | `cybercode plugin --help` | プラグインをインストール・管理 |
 | `cybercode doctor` / `cybercode --help` | 実行環境を診断、または全オプションを表示 |
 
-その他の例やオプションの組み合わせは [CLI クイックスタート](docs/ja/guide/quick-start.md)を参照してください。
+その他の例やオプションの組み合わせは [CLI クイックスタート](https://wk42worldworld.github.io/cybercode/ja/guide/quick-start)を参照してください。
 
 GUI は [macOS、Windows、Linux 向けデスクトップアプリ](https://github.com/wk42worldworld/cybercode/releases/latest)からダウンロードできます。
 

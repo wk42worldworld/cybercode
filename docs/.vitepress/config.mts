@@ -198,7 +198,7 @@ export default withMermaid(defineConfig({
   title: 'CyberCode',
   description: '高度借鉴 Claude Code 设计的本地可运行客户端，支持接入任意 Anthropic 兼容 API',
   lastUpdated: true,
-  base: '/',
+  base: process.env.DOCS_BASE || '/',
 
   markdown: {
     anchor: {

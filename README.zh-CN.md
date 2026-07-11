@@ -22,7 +22,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/wk42worldworld/cybercode?style=social)](https://github.com/wk42worldworld/cybercode/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/pulls)
-[![Docs](https://img.shields.io/badge/📖_文档站点-Visit-D97757)](https://github.com/wk42worldworld/cybercode)
+[![Docs](https://img.shields.io/badge/📖_文档站点-Visit-D97757)](https://wk42worldworld.github.io/cybercode/)
 
 </div>
 
@@ -85,7 +85,7 @@ cybercode
 | `cybercode plugin --help` | 安装和管理插件 |
 | `cybercode doctor` / `cybercode --help` | 诊断运行环境或查看全部选项 |
 
-更多示例和参数组合请查看 [CLI 快速开始](docs/guide/quick-start.md)。
+更多示例和参数组合请查看 [CLI 快速开始](https://wk42worldworld.github.io/cybercode/guide/quick-start)。
 
 需要图形界面？可以直接[下载 macOS、Windows 或 Linux 桌面端](https://github.com/wk42worldworld/cybercode/releases/latest)。
 

@@ -22,7 +22,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/wk42worldworld/cybercode?style=social)](https://github.com/wk42worldworld/cybercode/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/pulls)
-[![Docs](https://img.shields.io/badge/Documentation-Visit-D97757)](https://github.com/wk42worldworld/cybercode)
+[![Docs](https://img.shields.io/badge/Documentation-Visit-D97757)](https://wk42worldworld.github.io/cybercode/ko/)
 
 </div>
 
@@ -85,7 +85,7 @@ cybercode
 | `cybercode plugin --help` | 플러그인 설치 및 관리 |
 | `cybercode doctor` / `cybercode --help` | 실행 환경 진단 또는 모든 옵션 표시 |
 
-더 많은 예제와 옵션 조합은 [CLI 빠른 시작](docs/ko/guide/quick-start.md)을 참고하세요.
+더 많은 예제와 옵션 조합은 [CLI 빠른 시작](https://wk42worldworld.github.io/cybercode/ko/guide/quick-start)을 참고하세요.
 
 GUI가 필요하면 [macOS, Windows, Linux용 데스크톱 앱](https://github.com/wk42worldworld/cybercode/releases/latest)을 다운로드하세요.
 

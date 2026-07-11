@@ -22,7 +22,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/wk42worldworld/cybercode?style=social)](https://github.com/wk42worldworld/cybercode/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/wk42worldworld/cybercode)](https://github.com/wk42worldworld/cybercode/pulls)
-[![Docs](https://img.shields.io/badge/📖_Documentation-Visit-D97757)](https://github.com/wk42worldworld/cybercode)
+[![Docs](https://img.shields.io/badge/📖_Documentation-Visit-D97757)](https://wk42worldworld.github.io/cybercode/en/)
 
 </div>
 
@@ -85,7 +85,7 @@ The installer gets the latest stable release, installs Bun when needed, and adds
 | `cybercode plugin --help` | Install and manage plugins |
 | `cybercode doctor` / `cybercode --help` | Diagnose the environment or show every option |
 
-See the [CLI quick-start guide](docs/en/guide/quick-start.md) for more examples and option combinations.
+See the [CLI quick-start guide](https://wk42worldworld.github.io/cybercode/en/guide/quick-start) for more examples and option combinations.
 
 Looking for the GUI? [Download the desktop app for macOS, Windows, or Linux](https://github.com/wk42worldworld/cybercode/releases/latest).
 
