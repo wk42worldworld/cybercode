@@ -41,10 +41,15 @@ No actionable P0, P1, or P2 differences remain.
    - Revision: Replaced the functional local-client heading with the more personal "AI coding partner fighting by your side" positioning across Chinese, English, Japanese, and Korean.
    - Validation: Rechecked desktop and mobile wrapping for every locale with no clipping or horizontal overflow.
 
+5. Desktop download routing
+   - Revision: Routed the desktop CTA directly to the latest GitHub Release and replaced the redundant hero GitHub link with a localized mainland China mirror CTA using `ghfast.top`.
+   - Validation: Confirmed both routes resolve to the current release page, and rechecked all four locales at desktop and mobile widths with no clipped actions or horizontal overflow.
+
 ## Primary Interactions Tested
 
 - macOS/Linux and Windows installer tabs switch commands correctly.
 - Copy action writes the selected command and exposes the localized copied state.
+- Desktop download opens the latest GitHub Release; the mainland China mirror opens the same release through `ghfast.top`.
 - Light and dark theme switching works with no broken imagery.
 - Chinese, English, Japanese, and Korean home routes render localized Hermes copy without overflow.
 - Browser console errors and warnings checked: none.

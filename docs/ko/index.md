@@ -16,8 +16,8 @@ hero:
       text: 데스크톱 앱 다운로드
       link: https://github.com/wk42worldworld/cybercode/releases/latest
     - theme: alt
-      text: GitHub
-      link: https://github.com/wk42worldworld/cybercode
+      text: 중국 본토 미러
+      link: https://ghfast.top/https://github.com/wk42worldworld/cybercode/releases/latest
 
 features:
   - title: 완전한 TUI
