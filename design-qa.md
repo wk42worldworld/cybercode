@@ -32,6 +32,11 @@ No actionable P0, P1, or P2 differences remain.
    - Fixes: Increased final title, subtitle, promise, action spacing, and portrait scale while preserving the fixed hero-to-terminal boundary.
    - Post-fix evidence: `/tmp/cybercode-design-comparison-final.png`, `/tmp/cybercode-design-comparison-hero.png`, and `/tmp/cybercode-design-comparison-terminal.png`.
 
+3. Public deployment validation
+   - P1: A browser that had visited the pre-deployment URL retained the earlier cached 404 for the hero image, although the deployed file and checksum were correct.
+   - Fix: Published the supplied character asset under the versioned path `cybercode-hero-character-v1.png` and updated every locale to use it, bypassing stale negative caches.
+   - Post-fix evidence: public browser validation at `https://wk42worldworld.github.io/cybercode/` with the versioned image loaded and no broken images.
+
 ## Primary Interactions Tested
 
 - macOS/Linux and Windows installer tabs switch commands correctly.

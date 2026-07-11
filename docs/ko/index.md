@@ -6,7 +6,7 @@ hero:
   text: 로컬에서 실행되는 AI 코딩 클라이언트
   tagline: '<span class="hero-promise">Hermes 방식의 자기 진화로 대화에서 기억, 기술, 재사용 가능한 작업 방식을 지속적으로 축적합니다.</span><span class="hero-provider">모든 Anthropic 호환 API(MiniMax, OpenRouter 등)를 연결할 수 있습니다.</span>'
   image:
-    src: /images/cybercode-app-icon.png
+    src: /images/cybercode-hero-character-v1.png
     alt: CyberCode 여성 캐릭터
   actions:
     - theme: brand
