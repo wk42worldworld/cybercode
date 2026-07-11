@@ -42,7 +42,9 @@ if ($BunCommand) {
   $BunPath = $BunCommand.Source
 } else {
   Write-Step "installing Bun"
-  Invoke-RestMethod -Uri "https://bun.sh/install.ps1" | Invoke-Expression
+  $BunInstallerSource = Invoke-RestMethod -Uri "https://bun.sh/install.ps1"
+  $BunInstaller = [ScriptBlock]::Create([string]$BunInstallerSource)
+  & $BunInstaller
   $BunPath = Join-Path $HOME ".bun\bin\bun.exe"
   if (-not (Test-Path -LiteralPath $BunPath)) {
     throw "Bun was installed but its executable was not found."

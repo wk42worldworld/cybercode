@@ -111,8 +111,10 @@ rm -rf "$backup_dir"
 
 launcher="$BIN_DIR/cybercode"
 rm -f "$launcher"
+bun_bin_dir="$(dirname "$BUN_BIN")"
 {
   printf '#!/usr/bin/env bash\n'
+  printf 'export PATH=%q:"$PATH"\n' "$bun_bin_dir"
   printf 'exec %q "$@"\n' "$INSTALL_DIR/bin/cybercode"
 } > "$launcher"
 chmod +x "$launcher"
