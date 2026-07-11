@@ -200,7 +200,7 @@ const koSidebar = [
 
 export default withMermaid(defineConfig({
   title: 'CyberCode',
-  description: '高度借鉴 Claude Code 设计的本地可运行客户端，支持接入任意 Anthropic 兼容 API',
+  description: '本地运行的智能编程客户端，支持 Anthropic 与 OpenAI 兼容 API，并内置多模型厂商配置',
   lastUpdated: true,
   base: process.env.DOCS_BASE || '/',
 
@@ -233,7 +233,7 @@ export default withMermaid(defineConfig({
     en: {
       label: 'English',
       lang: 'en-US',
-      description: 'A locally runnable client heavily inspired by Claude Code, with support for any Anthropic-compatible API endpoint.',
+      description: 'A locally runnable coding agent with built-in provider setup for Anthropic- and OpenAI-compatible APIs.',
       themeConfig: {
         editLink: {
           pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',
@@ -249,7 +249,7 @@ export default withMermaid(defineConfig({
     ja: {
       label: '日本語',
       lang: 'ja-JP',
-      description: 'Claude Code に着想を得た、任意の Anthropic 互換 API に接続できるローカル実行型クライアント。',
+      description: 'Anthropic・OpenAI 互換 API のプロバイダー設定を内蔵した、ローカル実行型コーディング Agent。',
       themeConfig: {
         editLink: {
           pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',
@@ -271,7 +271,7 @@ export default withMermaid(defineConfig({
     ko: {
       label: '한국어',
       lang: 'ko-KR',
-      description: 'Claude Code에서 영감을 받아 모든 Anthropic 호환 API를 연결할 수 있는 로컬 실행 클라이언트입니다.',
+      description: 'Anthropic 및 OpenAI 호환 API 공급자 설정을 내장한 로컬 실행형 코딩 Agent입니다.',
       themeConfig: {
         editLink: {
           pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',

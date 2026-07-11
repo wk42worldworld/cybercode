@@ -27,7 +27,55 @@ cd /path/to/your-project
 cybercode
 ```
 
-The first launch opens the configuration flow. See [Environment Variables](./env-vars.md) and [Third-Party Models](./third-party-models.md) for the complete provider setup reference.
+## First Launch: Configure a Model in the Wizard
+
+You do not need to install LiteLLM, configure a proxy, or edit `.env` before the first run. Follow the terminal prompts:
+
+1. Choose a terminal theme.
+2. Choose a model provider. Providers already configured in the desktop app appear at the top.
+3. Choose the default model. Select "Enter another model ID" for a newly released model that is not listed yet.
+4. Enter the API key when prompted. Local services such as LM Studio and Ollama skip this step when no key is needed.
+5. Confirm that you trust the current project directory and enter the chat UI.
+
+| Provider type | Examples | Connection mode |
+|------|------|------|
+| Claude Official | Claude account, Anthropic Console key | Direct |
+| OpenAI-compatible | OpenAI, Google Gemini, Kimi API | Built-in protocol bridge |
+| Anthropic-compatible | DeepSeek, GLM, Kimi Code, MiniMax, Xiaomi MiMo | Direct |
+| Local models | LM Studio, Ollama | Direct to the local service |
+
+::: tip No extra proxy required
+CyberCode includes translation for OpenAI Chat Completions and OpenAI Responses. The bridge only listens on local `127.0.0.1`, chooses an available port automatically, and stops when the TUI exits.
+:::
+
+After the main UI opens, try:
+
+```text
+Introduce this project and tell me which model you are using.
+```
+
+The current model appears in the lower-right corner. If the model service is offline, the key is invalid, or the model ID is wrong, CyberCode reports that error directly; there is no separate proxy process to inspect.
+
+### Switch or add a provider later
+
+Run this inside the TUI:
+
+```text
+/provider
+```
+
+You can activate a saved provider or repeat the provider, model, and API-key flow. `/providers` is an alias for the same command, while `/model` switches models for the active provider.
+
+The desktop app and TUI share provider settings. For connection tests and advanced per-role model mappings, open Settings -> Providers in the desktop app; saved changes are available to the TUI automatically.
+
+### Local model note
+
+CyberCode includes protocol handling, but it does not replace the local inference application. Before selecting LM Studio or Ollama, install it, download a model, and start its local server:
+
+- LM Studio default: `http://localhost:1234`
+- Ollama default: `http://localhost:11434`
+
+See [Third-Party Models](./third-party-models.md) for custom Base URLs, API formats, and troubleshooting. [Environment Variables](./env-vars.md) are mainly for CI, containers, and headless scripts.
 
 ## Common CLI Commands
 
@@ -108,15 +156,15 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 
 > On minimal Linux images, if you see `unzip is required`, run `apt update && apt install -y unzip` first.
 
-### 2. Install Dependencies and Configure
+### 2. Install Dependencies
 
 ```bash
 git clone https://github.com/wk42worldworld/cybercode.git
 cd cybercode
 bun install
-cp .env.example .env
-# Edit .env with your API key
 ```
+
+You do not need to create `.env` first. Use the same provider wizard after launch; environment variables are only needed for advanced CI or headless setups.
 
 ### 3. Run the Source Checkout
 

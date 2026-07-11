@@ -11,7 +11,7 @@
 - OpenRouter：`ANTHROPIC_BASE_URL=https://openrouter.ai/api` ✅
 - OpenRouter 错误写法：`ANTHROPIC_BASE_URL=https://openrouter.ai/anthropic` ❌（返回 HTML）
 
-如果你的模型供应商只支持 OpenAI 协议，需要通过 LiteLLM 等代理做协议转换，详见 [第三方模型使用指南](./third-party-models.md)。
+如果模型厂商只支持 OpenAI 协议，请在 TUI 运行 `/provider` 或在桌面端“设置 -> 模型厂商”中选择对应配置。CyberCode 会自动启用内置协议转换，详见 [第三方模型使用指南](./third-party-models.md)。
 
 ## Q: `Cannot find package 'bundle'`
 
@@ -29,6 +29,6 @@ bun upgrade
 
 ## Q: 怎么接入 OpenAI / DeepSeek / Ollama 等非 Anthropic 模型？
 
-本项目只支持 Anthropic 协议。如果模型供应商不直接支持 Anthropic 协议，需要用 [LiteLLM](https://github.com/BerriAI/litellm) 等代理做协议转换（OpenAI → Anthropic）。
+CyberCode 直接支持 Anthropic Messages、OpenAI Chat Completions 和 OpenAI Responses。OpenAI 协议由客户端内置桥接，不需要额外安装代理。
 
 详细配置步骤请参考：[第三方模型使用指南](./third-party-models.md)

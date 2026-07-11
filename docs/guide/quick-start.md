@@ -27,7 +27,55 @@ cd /path/to/your-project
 cybercode
 ```
 
-首次启动会进入配置流程。环境变量和第三方模型的完整说明请参考 [环境变量配置](./env-vars.md) 与 [第三方模型](./third-party-models.md)。
+## 首次启动：跟着向导配置模型
+
+第一次运行 `cybercode` 时，不需要提前安装 LiteLLM、配置代理或手工修改 `.env`。按照终端中的提示完成：
+
+1. 选择终端主题。
+2. 选择模型厂商。已有桌面端厂商配置会直接显示在列表顶部。
+3. 选择默认模型。厂商发布了新模型但列表里还没有时，选择“输入其他模型 ID”。
+4. 按提示填写 API Key。LM Studio、Ollama 等无需 Key 的本地服务会自动跳过这一步。
+5. 确认当前项目目录可信，然后进入聊天界面。
+
+| 厂商类型 | 示例 | CyberCode 如何连接 |
+|------|------|------|
+| Claude 官方 | Claude 账号、Anthropic Console Key | 直接连接 |
+| OpenAI 兼容接口 | OpenAI、Google Gemini、Kimi API | 自动启动内置协议桥接 |
+| Anthropic 兼容接口 | DeepSeek、智谱 GLM、Kimi Code、MiniMax、小米 MiMo | 直接连接 |
+| 本地模型 | LM Studio、Ollama | 直接连接本地服务 |
+
+::: tip 不需要额外代理
+OpenAI Chat Completions 和 OpenAI Responses 的协议转换已经内置在 CyberCode 中。桥接服务只监听本机 `127.0.0.1`，自动选择空闲端口，并在 TUI 退出时关闭。
+:::
+
+进入主界面后可以先发送一句：
+
+```text
+介绍一下这个项目，并告诉我你当前使用的模型。
+```
+
+右下角会显示当前模型；模型服务未启动、Key 无效或模型 ID 错误时，界面会返回对应错误，不需要检查或启动额外代理进程。
+
+### 之后切换或新增厂商
+
+在 TUI 输入：
+
+```text
+/provider
+```
+
+可以启用已经保存的厂商，或重新进入“厂商 → 模型 → API Key”配置流程。`/providers` 是同一个命令的别名；`/model` 用于切换当前厂商下的模型。
+
+桌面端与 TUI 共用厂商配置。你也可以在桌面端打开“设置 → 模型厂商”进行高级配置、连接测试和不同角色的模型映射，保存后 TUI 会直接识别。
+
+### 本地模型说明
+
+CyberCode 已内置协议处理，但不会代替本地推理程序本身。使用 LM Studio 或 Ollama 前，仍需先安装对应程序、下载模型并启动本地模型服务：
+
+- LM Studio 默认地址：`http://localhost:1234`
+- Ollama 默认地址：`http://localhost:11434`
+
+更完整的自定义 Base URL、API 格式和故障排查说明，请看 [第三方模型](./third-party-models.md)。CI、容器和脚本场景才通常需要 [环境变量配置](./env-vars.md)。
 
 ## 常用 CLI 命令
 
@@ -108,15 +156,15 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 
 > 精简版 Linux 如提示 `unzip is required`，先运行 `apt update && apt install -y unzip`。
 
-### 2. 安装依赖并配置
+### 2. 安装依赖
 
 ```bash
 git clone https://github.com/wk42worldworld/cybercode.git
 cd cybercode
 bun install
-cp .env.example .env
-# 编辑 .env 填入你的 API Key
 ```
+
+无需先创建 `.env`。启动后使用同一套模型厂商向导即可；只有 CI 或无头脚本等高级场景才需要环境变量。
 
 ### 3. 运行源码
 

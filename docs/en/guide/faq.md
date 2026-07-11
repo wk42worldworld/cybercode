@@ -11,7 +11,7 @@ This project uses the **Anthropic Messages API protocol**. `ANTHROPIC_BASE_URL` 
 - OpenRouter: `ANTHROPIC_BASE_URL=https://openrouter.ai/api` ✅
 - OpenRouter (wrong): `ANTHROPIC_BASE_URL=https://openrouter.ai/anthropic` ❌ (returns HTML)
 
-If your model provider only supports the OpenAI protocol, you need a proxy like LiteLLM for protocol translation. See the [Third-Party Models Guide](./third-party-models.md).
+If your provider only supports the OpenAI protocol, run `/provider` in the TUI or use Settings -> Providers in the desktop app. CyberCode enables its built-in protocol bridge automatically. See the [Third-Party Models Guide](./third-party-models.md).
 
 ## Q: `Cannot find package 'bundle'`
 
@@ -29,6 +29,6 @@ bun upgrade
 
 ## Q: How to use OpenAI / DeepSeek / Ollama or other non-Anthropic models?
 
-This project only supports the Anthropic protocol. If your model provider doesn't natively support the Anthropic protocol, you need a proxy like [LiteLLM](https://github.com/BerriAI/litellm) for protocol translation (OpenAI → Anthropic).
+CyberCode supports Anthropic Messages, OpenAI Chat Completions, and OpenAI Responses directly. OpenAI formats use the built-in bridge and require no extra proxy installation.
 
 See the [Third-Party Models Guide](./third-party-models.md) for detailed setup instructions.
