@@ -8,30 +8,59 @@ const { lang } = useData()
 const activePlatform = ref<Platform>('unix')
 const copied = ref(false)
 
-const isEnglish = computed(() => lang.value.startsWith('en'))
-const copyLabel = computed(() => {
-  if (copied.value) return isEnglish.value ? 'Copied' : '已复制'
-  return isEnglish.value ? 'Copy command' : '复制命令'
+const localizedContent = {
+  en: {
+    eyebrow: 'CYBERCODE CLI',
+    title: 'Install from your terminal',
+    detail: 'Gets the latest stable release, installs Bun when needed, and adds the cybercode command to your user PATH.',
+    unix: 'macOS / Linux',
+    windows: 'Windows',
+    start: 'Then start an agent from any project:',
+    copy: 'Copy command',
+    copied: 'Copied',
+  },
+  zh: {
+    eyebrow: 'CYBERCODE CLI',
+    title: '在终端中一行安装',
+    detail: '自动获取最新稳定版，缺少 Bun 时自动安装，并将 cybercode 命令加入用户 PATH。',
+    unix: 'macOS / Linux',
+    windows: 'Windows',
+    start: '随后可在任意项目目录启动 Agent：',
+    copy: '复制命令',
+    copied: '已复制',
+  },
+  ja: {
+    eyebrow: 'CYBERCODE CLI',
+    title: 'ターミナルから 1 行でインストール',
+    detail: '最新の安定版を取得し、必要に応じて Bun をインストールして、cybercode コマンドをユーザー PATH に追加します。',
+    unix: 'macOS / Linux',
+    windows: 'Windows',
+    start: '任意のプロジェクトで Agent を起動できます：',
+    copy: 'コマンドをコピー',
+    copied: 'コピーしました',
+  },
+  ko: {
+    eyebrow: 'CYBERCODE CLI',
+    title: '터미널에서 한 줄로 설치',
+    detail: '최신 안정 버전을 가져오고, 필요한 경우 Bun을 설치한 뒤 cybercode 명령을 사용자 PATH에 추가합니다.',
+    unix: 'macOS / Linux',
+    windows: 'Windows',
+    start: '이제 어떤 프로젝트에서든 Agent를 시작할 수 있습니다:',
+    copy: '명령 복사',
+    copied: '복사됨',
+  },
+} as const
+
+const locale = computed<keyof typeof localizedContent>(() => {
+  if (lang.value.startsWith('zh')) return 'zh'
+  if (lang.value.startsWith('ja')) return 'ja'
+  if (lang.value.startsWith('ko')) return 'ko'
+  return 'en'
 })
-const content = computed(() =>
-  isEnglish.value
-    ? {
-        eyebrow: 'CYBERCODE CLI',
-        title: 'Install from your terminal',
-        detail: 'Gets the latest stable release, installs Bun when needed, and adds the cybercode command to your user PATH.',
-        unix: 'macOS / Linux',
-        windows: 'Windows',
-        start: 'Then start an agent from any project:',
-      }
-    : {
-        eyebrow: 'CYBERCODE CLI',
-        title: '在终端中一行安装',
-        detail: '自动获取最新稳定版，缺少 Bun 时自动安装，并将 cybercode 命令加入用户 PATH。',
-        unix: 'macOS / Linux',
-        windows: 'Windows',
-        start: '随后可在任意项目目录启动 Agent：',
-      }
-)
+const content = computed(() => localizedContent[locale.value])
+const copyLabel = computed(() => {
+  return copied.value ? content.value.copied : content.value.copy
+})
 
 const commands: Record<Platform, string> = {
   unix: 'curl -fsSL https://raw.githubusercontent.com/wk42worldworld/cybercode/main/scripts/install-cli.sh | bash',

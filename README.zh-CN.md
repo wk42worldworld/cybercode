@@ -68,6 +68,25 @@ cybercode
 
 安装器会自动获取最新稳定版；没有 Bun 时会自动安装，并把 `cybercode` 加入当前用户的 PATH。整个过程不需要管理员权限，更新时也会保留已有 CLI `.env`。执行前可以先查看 [macOS/Linux 安装脚本](scripts/install-cli.sh) 或 [Windows 安装脚本](scripts/install-cli.ps1)。
 
+### 常用 CLI 命令
+
+| 命令 | 用途 |
+|------|------|
+| `cybercode` | 在当前项目启动交互式 Agent |
+| `cybercode "解释这个仓库"` | 带一条初始任务启动 Agent |
+| `cybercode -p "修复失败的测试"` | 输出结果后退出，适合脚本和 CI |
+| `cybercode -c` | 继续当前项目最近一次会话 |
+| `cybercode -r` | 选择并恢复已保存的会话 |
+| `cybercode --model <model>` | 为当前会话指定模型 |
+| `cybercode --permission-mode plan` | 以规划模式启动 |
+| `cybercode -p --output-format json "..."` | 返回便于程序处理的 JSON |
+| `cybercode -w feature-name` | 为会话创建隔离的 Git worktree |
+| `cybercode mcp --help` | 配置和管理 MCP 服务器 |
+| `cybercode plugin --help` | 安装和管理插件 |
+| `cybercode doctor` / `cybercode --help` | 诊断运行环境或查看全部选项 |
+
+更多示例和参数组合请查看 [CLI 快速开始](docs/guide/quick-start.md)。
+
 需要图形界面？可以直接[下载 macOS、Windows 或 Linux 桌面端](https://github.com/wk42worldworld/cybercode/releases/latest)。
 
 ---

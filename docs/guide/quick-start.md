@@ -29,13 +29,51 @@ cybercode
 
 首次启动会进入配置流程。环境变量和第三方模型的完整说明请参考 [环境变量配置](./env-vars.md) 与 [第三方模型](./third-party-models.md)。
 
-常用命令：
+## 常用 CLI 命令
 
-```bash
-cybercode                          # 交互 TUI 模式
-cybercode -p "your prompt here"    # 无头模式
-cybercode --help                   # 查看所有选项
-```
+这些选项可以组合使用，例如指定模型后以 JSON 格式执行一次无头任务。
+
+### 会话与模型
+
+| 命令 | 用途 |
+|------|------|
+| `cybercode` | 在当前项目启动交互式 TUI |
+| `cybercode "解释这个仓库"` | 带一条初始任务启动交互会话 |
+| `cybercode -c` | 继续当前项目最近一次会话 |
+| `cybercode -r` | 打开会话选择器并恢复历史会话 |
+| `cybercode -r <session-id>` | 按会话 ID 恢复 |
+| `cybercode -n api-refactor` | 为新会话设置便于识别的名称 |
+| `cybercode --model <model>` | 为当前会话指定模型或模型别名 |
+| `cybercode --permission-mode plan` | 以规划模式启动 |
+| `cybercode --add-dir ../shared` | 允许 Agent 访问额外目录 |
+
+### 脚本、CI 与结构化输出
+
+| 命令 | 用途 |
+|------|------|
+| `cybercode -p "修复失败的测试"` | 输出最终结果后退出 |
+| `cybercode -p --output-format json "总结改动"` | 返回单个 JSON 结果 |
+| `cybercode -p --output-format stream-json "运行测试"` | 持续输出流式 JSON 事件 |
+| `cybercode -p --json-schema '{"type":"object"}' "分析项目"` | 按 JSON Schema 约束结构化结果 |
+| `cybercode -p --max-budget-usd 1.00 "检查代码"` | 为单次无头任务设置费用上限 |
+| `cybercode -w feature-name` | 创建隔离的 Git worktree 并开始会话 |
+
+### 工具、MCP 与插件
+
+| 命令 | 用途 |
+|------|------|
+| `cybercode --allowed-tools "Read,Glob,Grep"` | 只允许指定工具 |
+| `cybercode --disallowed-tools "Bash"` | 禁止指定工具 |
+| `cybercode mcp list` | 查看已配置的 MCP 服务器 |
+| `cybercode mcp --help` | 查看 MCP 添加、删除与检查命令 |
+| `cybercode plugin list` | 查看已安装插件 |
+| `cybercode plugin --help` | 查看插件安装、更新与市场命令 |
+| `cybercode agents` | 列出已配置的自定义 Agent |
+| `cybercode doctor` | 检查运行环境和更新器状态 |
+| `cybercode --version` | 显示当前版本 |
+| `cybercode --help` | 显示全部顶层选项和子命令 |
+
+完整参数始终以当前安装版本的 `cybercode --help` 输出为准。
 
 ## 从源码运行
 

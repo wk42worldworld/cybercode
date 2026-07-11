@@ -29,13 +29,51 @@ cybercode
 
 The first launch opens the configuration flow. See [Environment Variables](./env-vars.md) and [Third-Party Models](./third-party-models.md) for the complete provider setup reference.
 
-Common commands:
+## Common CLI Commands
 
-```bash
-cybercode                          # Interactive TUI mode
-cybercode -p "your prompt here"    # Headless mode
-cybercode --help                   # Show all options
-```
+Options can be combined. For example, you can select a model and run one headless task with JSON output.
+
+### Sessions and Models
+
+| Command | Purpose |
+|------|------|
+| `cybercode` | Start the interactive TUI in the current project |
+| `cybercode "explain this repository"` | Start an interactive session with an initial task |
+| `cybercode -c` | Continue the latest conversation in the current project |
+| `cybercode -r` | Open the session picker and resume a saved conversation |
+| `cybercode -r <session-id>` | Resume a conversation by session ID |
+| `cybercode -n api-refactor` | Give a new session a recognizable name |
+| `cybercode --model <model>` | Select a model or model alias for this session |
+| `cybercode --permission-mode plan` | Start in planning mode |
+| `cybercode --add-dir ../shared` | Allow the agent to access another directory |
+
+### Scripts, CI, and Structured Output
+
+| Command | Purpose |
+|------|------|
+| `cybercode -p "fix the failing tests"` | Print the final result and exit |
+| `cybercode -p --output-format json "summarize the changes"` | Return one JSON result |
+| `cybercode -p --output-format stream-json "run the tests"` | Stream JSON events as they arrive |
+| `cybercode -p --json-schema '{"type":"object"}' "analyze the project"` | Constrain structured output with JSON Schema |
+| `cybercode -p --max-budget-usd 1.00 "review the code"` | Set a spending limit for one headless task |
+| `cybercode -w feature-name` | Create an isolated Git worktree and start a session |
+
+### Tools, MCP, and Plugins
+
+| Command | Purpose |
+|------|------|
+| `cybercode --allowed-tools "Read,Glob,Grep"` | Allow only the named tools |
+| `cybercode --disallowed-tools "Bash"` | Deny the named tools |
+| `cybercode mcp list` | List configured MCP servers |
+| `cybercode mcp --help` | Show MCP add, remove, and inspection commands |
+| `cybercode plugin list` | List installed plugins |
+| `cybercode plugin --help` | Show plugin install, update, and marketplace commands |
+| `cybercode agents` | List configured custom agents |
+| `cybercode doctor` | Check the runtime and updater health |
+| `cybercode --version` | Print the installed version |
+| `cybercode --help` | Show every top-level option and subcommand |
+
+Use the `cybercode --help` output from your installed version as the complete option reference.
 
 ## Run From Source
 

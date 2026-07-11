@@ -68,6 +68,25 @@ cybercode
 
 The installer gets the latest stable release, installs Bun when needed, and adds `cybercode` to your user PATH. It runs without administrator access and preserves an existing CLI `.env` when updating. You can review the [macOS/Linux installer](scripts/install-cli.sh) or [Windows installer](scripts/install-cli.ps1) before running it.
 
+### Common CLI commands
+
+| Command | What it does |
+|------|------|
+| `cybercode` | Start an interactive agent in the current project |
+| `cybercode "explain this repository"` | Start with an initial task |
+| `cybercode -p "fix the failing tests"` | Print the result and exit, suitable for scripts and CI |
+| `cybercode -c` | Continue the latest conversation in the current project |
+| `cybercode -r` | Choose and resume a saved conversation |
+| `cybercode --model <model>` | Select a model for this session |
+| `cybercode --permission-mode plan` | Start in planning mode |
+| `cybercode -p --output-format json "..."` | Return machine-readable JSON |
+| `cybercode -w feature-name` | Create an isolated Git worktree for the session |
+| `cybercode mcp --help` | Configure and manage MCP servers |
+| `cybercode plugin --help` | Install and manage plugins |
+| `cybercode doctor` / `cybercode --help` | Diagnose the environment or show every option |
+
+See the [CLI quick-start guide](docs/en/guide/quick-start.md) for more examples and option combinations.
+
 Looking for the GUI? [Download the desktop app for macOS, Windows, or Linux](https://github.com/wk42worldworld/cybercode/releases/latest).
 
 ---

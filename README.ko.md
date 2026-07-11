@@ -68,6 +68,25 @@ cybercode
 
 설치 프로그램은 최신 안정 버전을 가져오고, 필요한 경우 Bun을 설치한 뒤 `cybercode`를 사용자 PATH에 추가합니다. 관리자 권한이 필요하지 않으며 업데이트할 때 기존 CLI `.env`를 보존합니다. 실행 전에 [macOS/Linux](scripts/install-cli.sh) 또는 [Windows](scripts/install-cli.ps1) 스크립트를 확인할 수 있습니다.
 
+### 자주 사용하는 CLI 명령
+
+| 명령 | 용도 |
+|------|------|
+| `cybercode` | 현재 프로젝트에서 대화형 Agent 시작 |
+| `cybercode "이 저장소를 설명해 줘"` | 첫 작업을 지정해 Agent 시작 |
+| `cybercode -p "실패한 테스트를 수정해 줘"` | 결과를 출력하고 종료. 스크립트와 CI에 적합 |
+| `cybercode -c` | 현재 프로젝트의 가장 최근 대화 계속하기 |
+| `cybercode -r` | 저장된 대화를 선택해 다시 시작 |
+| `cybercode --model <model>` | 현재 세션에서 사용할 모델 선택 |
+| `cybercode --permission-mode plan` | 계획 모드로 시작 |
+| `cybercode -p --output-format json "..."` | 프로그램에서 처리하기 쉬운 JSON 반환 |
+| `cybercode -w feature-name` | 세션용으로 격리된 Git worktree 생성 |
+| `cybercode mcp --help` | MCP 서버 구성 및 관리 |
+| `cybercode plugin --help` | 플러그인 설치 및 관리 |
+| `cybercode doctor` / `cybercode --help` | 실행 환경 진단 또는 모든 옵션 표시 |
+
+더 많은 예제와 옵션 조합은 [CLI 빠른 시작](docs/ko/guide/quick-start.md)을 참고하세요.
+
 GUI가 필요하면 [macOS, Windows, Linux용 데스크톱 앱](https://github.com/wk42worldworld/cybercode/releases/latest)을 다운로드하세요.
 
 ---

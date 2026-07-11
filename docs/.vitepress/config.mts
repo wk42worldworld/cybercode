@@ -176,6 +176,24 @@ const enSidebar = [
   },
 ]
 
+const jaSidebar = [
+  {
+    text: 'はじめに',
+    items: [
+      { text: 'インストールと CLI コマンド', link: '/ja/guide/quick-start' },
+    ],
+  },
+]
+
+const koSidebar = [
+  {
+    text: '시작하기',
+    items: [
+      { text: '설치 및 CLI 명령', link: '/ko/guide/quick-start' },
+    ],
+  },
+]
+
 export default withMermaid(defineConfig({
   title: 'CyberCode',
   description: '高度借鉴 Claude Code 设计的本地可运行客户端，支持接入任意 Anthropic 兼容 API',
@@ -222,6 +240,50 @@ export default withMermaid(defineConfig({
           { text: 'Quick Start', link: '/en/guide/quick-start' },
         ],
         sidebar: enSidebar,
+      },
+    },
+    ja: {
+      label: '日本語',
+      lang: 'ja-JP',
+      description: 'Claude Code に着想を得た、任意の Anthropic 互換 API に接続できるローカル実行型クライアント。',
+      themeConfig: {
+        editLink: {
+          pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',
+          text: 'GitHub でこのページを編集',
+        },
+        nav: [
+          { text: 'ホーム', link: '/ja/' },
+          { text: 'クイックスタート', link: '/ja/guide/quick-start' },
+        ],
+        sidebar: jaSidebar,
+        outline: { label: 'ページ内ナビゲーション' },
+        returnToTopLabel: 'ページ上部へ戻る',
+        sidebarMenuLabel: 'メニュー',
+        darkModeSwitchLabel: 'テーマ',
+        lastUpdated: { text: '最終更新' },
+        docFooter: { prev: '前のページ', next: '次のページ' },
+      },
+    },
+    ko: {
+      label: '한국어',
+      lang: 'ko-KR',
+      description: 'Claude Code에서 영감을 받아 모든 Anthropic 호환 API를 연결할 수 있는 로컬 실행 클라이언트입니다.',
+      themeConfig: {
+        editLink: {
+          pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',
+          text: 'GitHub에서 이 페이지 편집',
+        },
+        nav: [
+          { text: '홈', link: '/ko/' },
+          { text: '빠른 시작', link: '/ko/guide/quick-start' },
+        ],
+        sidebar: koSidebar,
+        outline: { label: '페이지 목차' },
+        returnToTopLabel: '맨 위로 돌아가기',
+        sidebarMenuLabel: '메뉴',
+        darkModeSwitchLabel: '테마',
+        lastUpdated: { text: '마지막 업데이트' },
+        docFooter: { prev: '이전 페이지', next: '다음 페이지' },
       },
     },
   },

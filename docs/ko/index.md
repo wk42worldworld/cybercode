@@ -1,0 +1,42 @@
+---
+layout: home
+
+hero:
+  name: CyberCode
+  text: 로컬에서 실행되는 AI 코딩 클라이언트
+  tagline: Claude Code에서 영감을 받은 설계로 모든 Anthropic 호환 API를 연결할 수 있습니다
+  image:
+    light: /images/cybercode-wordmark.png
+    dark: /images/cybercode-wordmark-dark.png
+    alt: CyberCode
+  actions:
+    - theme: brand
+      text: CLI 설치
+      link: /ko/guide/quick-start
+    - theme: alt
+      text: 데스크톱 앱 다운로드
+      link: https://github.com/wk42worldworld/cybercode/releases/latest
+    - theme: alt
+      text: GitHub
+      link: https://github.com/wk42worldworld/cybercode
+
+features:
+  - icon: "\U0001F5A5"
+    title: 완전한 TUI
+    details: 대화형 세션과 --print 헤드리스 모드를 지원하는 Ink 터미널 UI
+  - icon: "\U0001F9E0"
+    title: 영구 기억
+    details: 세션 간 기억, 자동 추출, 검색, AutoDream 통합
+  - icon: "\U0001F916"
+    title: Multi-Agent
+    details: Agent 오케스트레이션, 병렬 작업, Teams 협업, Worktree 격리
+  - icon: "\U0001F9E9"
+    title: Skills와 MCP
+    details: 확장 가능한 워크플로, 플러그인, 외부 도구 연결
+  - icon: "\U0001F310"
+    title: 서드파티 모델
+    details: Anthropic 호환 엔드포인트와 다양한 모델 공급자 지원
+  - icon: "\U0001F4BB"
+    title: 데스크톱 앱
+    details: macOS, Windows, Linux에서 사용할 수 있는 Tauri + React 클라이언트
+---

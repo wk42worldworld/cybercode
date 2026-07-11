@@ -68,6 +68,25 @@ cybercode
 
 インストーラーは最新の安定版を取得し、必要に応じて Bun をインストールして、`cybercode` をユーザー PATH に追加します。管理者権限は不要で、更新時には既存の CLI `.env` が保持されます。実行前に [macOS/Linux](scripts/install-cli.sh) または [Windows](scripts/install-cli.ps1) のスクリプトを確認できます。
 
+### よく使う CLI コマンド
+
+| コマンド | 用途 |
+|------|------|
+| `cybercode` | 現在のプロジェクトで対話型 Agent を起動 |
+| `cybercode "このリポジトリを説明して"` | 最初のタスクを指定して起動 |
+| `cybercode -p "失敗しているテストを修正して"` | 結果を出力して終了。スクリプトや CI に最適 |
+| `cybercode -c` | 現在のプロジェクトで直近の会話を継続 |
+| `cybercode -r` | 保存済みの会話を選択して再開 |
+| `cybercode --model <model>` | このセッションで使うモデルを指定 |
+| `cybercode --permission-mode plan` | プランモードで起動 |
+| `cybercode -p --output-format json "..."` | プログラムで扱いやすい JSON を返す |
+| `cybercode -w feature-name` | セッション用に独立した Git worktree を作成 |
+| `cybercode mcp --help` | MCP サーバーを設定・管理 |
+| `cybercode plugin --help` | プラグインをインストール・管理 |
+| `cybercode doctor` / `cybercode --help` | 実行環境を診断、または全オプションを表示 |
+
+その他の例やオプションの組み合わせは [CLI クイックスタート](docs/ja/guide/quick-start.md)を参照してください。
+
 GUI は [macOS、Windows、Linux 向けデスクトップアプリ](https://github.com/wk42worldworld/cybercode/releases/latest)からダウンロードできます。
 
 ---
