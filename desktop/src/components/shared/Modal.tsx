@@ -24,7 +24,7 @@ export function Modal({ open, onClose, title, children, width = 560, footer }: M
   if (!open) return null
 
   return createPortal(
-    <div className="settings-ui native-ui-text fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
+    <div className="settings-ui native-ui-text fixed inset-0 z-[200] flex items-center justify-center animate-fade-in">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-[var(--color-overlay-scrim)]"

@@ -36,6 +36,9 @@ export const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID =
 const EXPLICIT_MEMORY_SIGNAL =
   /(?:\bremember\b|\bforget\b|\bpreference\b|\bprefer\b|\bmy name is\b|\bcall me\b|\bcall you\b|\brespond in\b|\breply in\b|记住|记得|记忆|忘记|忘掉|以后|以后默认|默认|偏好|我喜欢|我不喜欢|我希望|每次|下次|不要再|别再|取名|新名字|名字叫|叫做|我叫|你叫|我的名字|你的名字|称呼|叫你|叫我|用中文|中文回复|中文回答|英文回复|英文回答|用英文|说中文|说英文|習慣|覚えて|忘れて|기억|잊어|선호)/i
 
+const WORKING_STYLE_SIGNAL =
+  /(?:\b(?:always|never|first discuss|plan first|before you|make sure|from now on|workflow|quality bar)\b|先讨论|先计划|先.+再|每次都|总是|不要|不能|应该|必须|起码|按这个方法|做事方式|验收标准|品質基準|まず相談|必ず|しないで|먼저 논의|항상|반드시|하지 마)/i
+
 type ReviewTrigger = 'explicit' | 'interval'
 
 export type PromptMemoryAutoReviewLogEntry = {
@@ -117,7 +120,10 @@ function getUserText(message: Message): string {
 }
 
 export function hasExplicitPromptMemorySignal(messages: Message[]): boolean {
-  return messages.some(message => EXPLICIT_MEMORY_SIGNAL.test(getUserText(message)))
+  return messages.some(message => {
+    const text = getUserText(message)
+    return EXPLICIT_MEMORY_SIGNAL.test(text) || WORKING_STYLE_SIGNAL.test(text)
+  })
 }
 
 function getPromptMemoryToolInput(block: unknown):
@@ -243,10 +249,17 @@ export function buildPromptMemoryAutoReviewPrompt(params: {
     '- Never write or modify SOUL.md from this automatic review.',
     '- BRIEF.md stores stable agent facts, environment facts, tool quirks, and cross-session working lessons.',
     '- USER.md stores user preferences, communication style, stable personal workflow preferences, and explicit remember/forget requests.',
+    '- Prefix every added or replaced entry with exactly one semantic category tag.',
+    '- USER.md tags: [identity], [communication], [collaboration], [workflow], [quality], [boundaries], [expertise].',
+    '- BRIEF.md tags: [meta-method], [environment], [lesson].',
+    '- [meta-method] captures a reusable way of working across tasks, such as planning order, verification sequence, escalation thresholds, or how to decide between alternatives. It is not a project recipe; project recipes belong in Skills or project memory.',
     '- Basic user relationship facts must go in USER.md, not project memory: the user\'s preferred language, communication style, the user\'s name/nickname, and any name/nickname the user gives CyberCode/the assistant/agent.',
     '- If the user names CyberCode/the assistant/agent or says how they want to call it, save that in USER.md so every project can answer identity/name questions consistently.',
     '- Prefer replace/remove when an existing entry is stale, wrong, or duplicated.',
     '- Keep each new entry concise, declarative, and under 220 characters.',
+    '- An explicit preference, correction, or remember request may be saved immediately. An implicit habit must be supported by at least two consistent examples in the reviewed messages; one isolated choice is not a durable preference.',
+    '- Treat a correction as evidence about future collaboration only when its wording or repetition clearly generalizes beyond the current task.',
+    '- Do not infer personality, motives, emotions, medical state, politics, religion, sexuality, finances, or other sensitive/private traits. Never label the user negatively.',
     '- Do not store secrets, credentials, API keys, private tokens, one-off tasks, transient plans, temporary prices, or details that are only useful inside the current conversation.',
     '- Do not store project-specific facts in BRIEF.md when the project memory directory is the better home.',
     '',
@@ -457,20 +470,17 @@ function summarizeLogEntries(entries: PromptMemoryAutoReviewLogEntry[]): string 
     .join(', ')
 }
 
-function formatPromptMemoryTargetLabel(target: PromptMemoryEntryTarget): string {
-  return target === 'brief' ? 'BRIEF' : 'USER'
-}
-
 export function formatPromptMemoryAutoReviewNotice(
   entries: PromptMemoryAutoReviewLogEntry[],
 ): string | null {
   if (entries.length === 0) return null
 
-  const targets = Array.from(
-    new Set(entries.map(entry => formatPromptMemoryTargetLabel(entry.target))),
-  ).sort((a, b) => (a === 'BRIEF' ? -1 : b === 'BRIEF' ? 1 : 0))
-  const countText = entries.length > 1 ? `（${entries.length} 条）` : ''
-  return `提示记忆已更新：${targets.join(' / ')}${countText}，将在新会话生效。`
+  const parts: string[] = []
+  const userCount = entries.filter(entry => entry.target === 'user').length
+  const methodCount = entries.filter(entry => entry.target === 'brief').length
+  if (userCount > 0) parts.push(`对你的了解${userCount > 1 ? `（${userCount} 条）` : ''}`)
+  if (methodCount > 0) parts.push(`做事方法${methodCount > 1 ? `（${methodCount} 条）` : ''}`)
+  return `自进化记忆已更新：${parts.join(' / ')}，将在新会话生效。可在「记忆」中查看和修改。`
 }
 
 async function runPromptMemoryAutoReview({

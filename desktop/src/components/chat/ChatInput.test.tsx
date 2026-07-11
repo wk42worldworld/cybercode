@@ -100,6 +100,29 @@ describe('ChatInput composer controls', () => {
     expect(screen.getByText('Auto accept edits')).toBeInTheDocument()
   })
 
+  it('keeps token usage in the same runtime control row as the model selector', () => {
+    useChatStore.setState({
+      sessions: {
+        'session-1': makeChatSession(),
+      },
+    })
+
+    render(
+      <ChatInput
+        sessionId="session-1"
+        projectPath="/tmp/project"
+        runtimeKey="session-1"
+      />,
+    )
+
+    const runtimeControls = screen.getByTestId('composer-runtime-controls')
+    const modelSelector = runtimeControls.querySelector('.model-selector-compact')
+    const tokenUsage = screen.getByTestId('token-usage-indicator')
+    expect(modelSelector).toBeInTheDocument()
+    expect(runtimeControls).toContainElement(tokenUsage)
+    expect(tokenUsage.compareDocumentPosition(modelSelector!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('submits the highlighted slash command when send is clicked with the menu open', async () => {
     const onSubmit = vi.fn()
     render(<ChatInput onSubmit={onSubmit} />)
@@ -287,6 +310,69 @@ describe('ChatInput composer controls', () => {
     ])
   })
 
+  it('shows a visible drag target while files are dragged over the composer', () => {
+    render(<ChatInput />)
+
+    const textarea = screen.getByRole('textbox')
+    const dataTransfer = {
+      types: ['Files'],
+      files: [],
+      getData: vi.fn(() => ''),
+      dropEffect: 'none',
+    }
+
+    fireEvent.dragEnter(textarea, { dataTransfer })
+
+    expect(screen.getByText('Drop to attach files or photos')).toBeInTheDocument()
+    expect(screen.getByText('CyberCode will add them to this message.')).toBeInTheDocument()
+
+    fireEvent.dragLeave(textarea, { dataTransfer })
+
+    expect(screen.queryByText('Drop to attach files or photos')).not.toBeInTheDocument()
+  })
+
+  it('attaches dropped desktop file paths without reading file contents', async () => {
+    const readSpy = vi.spyOn(FileReader.prototype, 'readAsDataURL')
+    const onSubmit = vi.fn()
+    render(<ChatInput onSubmit={onSubmit} />)
+
+    const textarea = screen.getByRole('textbox')
+    const dataTransfer = {
+      types: ['text/uri-list'],
+      files: [],
+      getData: vi.fn((type: string) =>
+        type === 'text/uri-list'
+          ? [
+              'file:///Users/wang/Desktop/meeting.wav',
+              'file:///Users/wang/Documents/report.pdf',
+            ].join('\n')
+          : '',
+      ),
+      dropEffect: 'none',
+    }
+
+    fireEvent.drop(textarea, { dataTransfer })
+
+    expect(await screen.findByText('meeting.wav')).toBeInTheDocument()
+    expect(await screen.findByText('report.pdf')).toBeInTheDocument()
+    expect(readSpy).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+
+    expect(onSubmit).toHaveBeenCalledWith('', [
+      expect.objectContaining({
+        type: 'file',
+        name: 'meeting.wav',
+        path: '/Users/wang/Desktop/meeting.wav',
+      }),
+      expect.objectContaining({
+        type: 'file',
+        name: 'report.pdf',
+        path: '/Users/wang/Documents/report.pdf',
+      }),
+    ])
+  })
+
   it('falls back to a Tauri asset URL when desktop image preview reading fails', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(open).mockResolvedValue('/Users/wang/Pictures/mockup.png')
@@ -318,6 +404,8 @@ describe('ChatInput composer controls', () => {
     })
 
     render(<ChatInput sessionId="running-session" onSubmit={onSubmit} />)
+
+    expect(screen.queryByTestId('streaming-indicator')).not.toBeInTheDocument()
 
     const textarea = screen.getByRole('textbox')
     act(() => {

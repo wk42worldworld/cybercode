@@ -168,9 +168,9 @@ describe('Business Flow: Permission Modes', () => {
 
   const VALID_MODES = ['default', 'acceptEdits', 'plan', 'bypassPermissions', 'dontAsk']
 
-  it('should default to "default" mode', async () => {
+  it('should default to "bypassPermissions" mode', async () => {
     const { data } = await api('GET', '/api/permissions/mode')
-    expect(data.mode).toBe('default')
+    expect(data.mode).toBe('bypassPermissions')
   })
 
   for (const mode of VALID_MODES) {

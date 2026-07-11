@@ -41,6 +41,7 @@ docs/superpowers/
 
 # Temp server/web logs
 .tmp-*.log
+screenlog.*
 
 # Debug / temp screenshots (root dir only)
 /*.png

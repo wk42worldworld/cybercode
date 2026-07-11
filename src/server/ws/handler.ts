@@ -1644,6 +1644,10 @@ function translateCliMessage(cliMsg: any, sessionId: string): ServerMessage[] {
       const usage = {
         input_tokens: cliMsg.usage?.input_tokens || 0,
         output_tokens: cliMsg.usage?.output_tokens || 0,
+        cache_read_input_tokens:
+          cliMsg.usage?.cache_read_input_tokens || cliMsg.usage?.cache_read_tokens || 0,
+        cache_creation_input_tokens:
+          cliMsg.usage?.cache_creation_input_tokens || cliMsg.usage?.cache_creation_tokens || 0,
       }
 
       if (cliMsg.is_error) {

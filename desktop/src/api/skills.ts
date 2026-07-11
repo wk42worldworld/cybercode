@@ -1,5 +1,12 @@
 import { api } from './client'
-import type { SkillMeta, SkillDetail } from '../types/skill'
+import type {
+  SkillMeta,
+  SkillDetail,
+  SkillLearningConfig,
+  SkillLearningMode,
+  SkillLearningOverview,
+  SkillCandidate,
+} from '../types/skill'
 
 export type SkillsConfig = {
   userSkillsDir: string
@@ -35,4 +42,35 @@ export const skillsApi = {
       { timeout: 120_000 },
     )
   },
+
+  learning: (cwd?: string) => {
+    const query = cwd ? `?cwd=${encodeURIComponent(cwd)}` : ''
+    return api.get<{ overview: SkillLearningOverview }>(
+      `/api/skills/learning${query}`,
+      { timeout: 120_000 },
+    )
+  },
+
+  updateLearningConfig: (update: {
+    mode?: SkillLearningMode
+    minToolUses?: number
+    minConfidence?: number
+    autoApproveConfidence?: number
+  }) =>
+    api.patch<{ ok: true; config: SkillLearningConfig }>(
+      '/api/skills/learning',
+      update,
+    ),
+
+  approveCandidate: (id: string) =>
+    api.post<{ ok: true; candidate: SkillCandidate }>(
+      `/api/skills/learning/${encodeURIComponent(id)}/approve`,
+      {},
+    ),
+
+  rejectCandidate: (id: string) =>
+    api.post<{ ok: true; candidate: SkillCandidate }>(
+      `/api/skills/learning/${encodeURIComponent(id)}/reject`,
+      {},
+    ),
 }

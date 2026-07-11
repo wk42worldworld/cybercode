@@ -44,8 +44,14 @@ export function isKimiAlwaysOnThinkingModel(
   const normalized = normalizeThinkingPolicyModel(model)
   if (!normalized) return false
 
-  return isKimiCodeEndpoint(baseUrl) &&
-    (normalized.includes('kimi-k2.7-code') || normalized === 'kimi-for-coding')
+  if (normalized === 'kimi-for-coding' || normalized === 'kimi-for-coding-highspeed') {
+    return isKimiCodeEndpoint(baseUrl)
+  }
+
+  return normalized.includes('kimi-k2.7-code') && matchesHost(
+    baseUrl,
+    /(?:^|\.)(?:kimi\.com|moonshot\.cn)$/,
+  )
 }
 
 function isMiMoThinkingModel(model: string | undefined, baseUrl?: string): boolean {

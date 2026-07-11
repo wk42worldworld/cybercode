@@ -177,7 +177,10 @@ export function buildSkillMemoryReviewPrompt(params: {
   ].join('\n')
 }
 
-async function runSkillMemoryReview(target: ReviewTarget): Promise<boolean> {
+async function runSkillMemoryReview(
+  target: ReviewTarget,
+  model: string,
+): Promise<boolean> {
   const key = getTargetKey(target)
   if (inFlightReviews.has(key)) return false
   inFlightReviews.add(key)
@@ -207,7 +210,7 @@ async function runSkillMemoryReview(target: ReviewTarget): Promise<boolean> {
       signal: createAbortController().signal,
       options: {
         getToolPermissionContext: async () => getEmptyToolPermissionContext(),
-        model: getSmallFastModel(),
+        model: model || getSmallFastModel(),
         toolChoice: undefined,
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,
@@ -270,7 +273,10 @@ export async function executeSkillMemoryLifecycleReview(
   )
 
   for (const target of uniqueTargets) {
-    const changed = await runSkillMemoryReview(target)
+    const changed = await runSkillMemoryReview(
+      target,
+      context.toolUseContext.options.mainLoopModel,
+    )
     if (changed) {
       context.toolUseContext.appendSystemMessage?.(
         createSystemMessage(

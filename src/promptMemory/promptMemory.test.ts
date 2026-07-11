@@ -40,6 +40,10 @@ import {
   getUserPromptMemoryPath,
 } from './paths.js'
 import {
+  buildPromptMemoryInsights,
+  parsePromptMemoryInsight,
+} from './insights.js'
+import {
   PROMPT_MEMORY_ENTRY_DELIMITER,
   PromptMemoryError,
   addPromptMemoryEntry,
@@ -115,6 +119,90 @@ describe('prompt memory', () => {
     )
     expect(getUserPromptMemoryPath()).toBe(
       join(tmpHome, '.cyber', 'prompt-memory', 'USER.md'),
+    )
+  })
+
+  test('classifies tagged and legacy memories into visible evolution dimensions', () => {
+    expect(
+      parsePromptMemoryInsight(
+        '[communication] User prefers concise Chinese replies.',
+        'user',
+      ),
+    ).toMatchObject({
+      category: 'communication',
+      content: 'User prefers concise Chinese replies.',
+    })
+    expect(
+      parsePromptMemoryInsight(
+        '用户给 CyberCode 取名为「零」。',
+        'user',
+      ).category,
+    ).toBe('identity')
+    expect(
+      parsePromptMemoryInsight(
+        'Always run focused tests before the production build.',
+        'brief',
+      ).category,
+    ).toBe('meta-method')
+  })
+
+  test('builds a profile overview with provenance and method statistics', () => {
+    const overview = buildPromptMemoryInsights({
+      files: {
+        user: {
+          entries: [
+            '[communication] User prefers concise Chinese replies.',
+            '[quality] User expects tests and a production build before delivery.',
+          ],
+        },
+        brief: {
+          entries: [
+            '[meta-method] Discuss ambiguous product behavior before implementation.',
+          ],
+        },
+      },
+      logs: [
+        {
+          timestamp: '2026-07-11T00:00:00.000Z',
+          trigger: 'explicit',
+          target: 'user',
+          changed: true,
+          content: '[communication] User prefers concise Chinese replies.',
+        },
+        {
+          timestamp: '2026-07-11T00:01:00.000Z',
+          trigger: 'interval',
+          target: 'brief',
+          changed: true,
+          content: '[meta-method] Discuss ambiguous product behavior before implementation.',
+        },
+      ],
+    })
+
+    expect(overview.stats).toEqual({
+      total: 3,
+      user: 2,
+      methods: 1,
+      dimensions: 3,
+      automaticUpdates: 2,
+    })
+    expect(overview.insights).toContainEqual(
+      expect.objectContaining({
+        category: 'communication',
+        source: 'explicit',
+      }),
+    )
+    expect(overview.insights).toContainEqual(
+      expect.objectContaining({
+        category: 'meta-method',
+        source: 'observed',
+      }),
+    )
+    expect(overview.insights).toContainEqual(
+      expect.objectContaining({
+        category: 'quality',
+        source: 'manual',
+      }),
     )
   })
 
@@ -286,6 +374,15 @@ describe('prompt memory', () => {
       hasExplicitPromptMemorySignal([
         {
           type: 'user',
+          uuid: 'u-working-style',
+          message: { content: '这种产品逻辑先讨论，不要直接修改。' },
+        } as any,
+      ]),
+    ).toBe(true)
+    expect(
+      hasExplicitPromptMemorySignal([
+        {
+          type: 'user',
           uuid: 'u-user-name',
           message: { content: '我叫王小明。' },
         } as any,
@@ -350,6 +447,38 @@ describe('prompt memory', () => {
     })
   })
 
+  test('reviews ordinary prompt memory every six user messages by default', () => {
+    const ordinaryUserMessage = {
+      type: 'user',
+      uuid: 'u-ordinary',
+      message: { content: '帮我解释这个函数。' },
+    } as any
+
+    expect(
+      shouldRunPromptMemoryAutoReview({
+        messages: [ordinaryUserMessage],
+        sinceUuid: undefined,
+        turnsSinceLastReview: 4,
+      }),
+    ).toEqual({
+      shouldRun: false,
+      trigger: null,
+      nextTurnCount: 5,
+    })
+
+    expect(
+      shouldRunPromptMemoryAutoReview({
+        messages: [ordinaryUserMessage],
+        sinceUuid: undefined,
+        turnsSinceLastReview: 5,
+      }),
+    ).toEqual({
+      shouldRun: true,
+      trigger: 'interval',
+      nextTurnCount: 0,
+    })
+  })
+
   test('builds an automatic review prompt that forbids SOUL writes', () => {
     const prompt = buildPromptMemoryAutoReviewPrompt({
       newMessageCount: 2,
@@ -363,6 +492,9 @@ describe('prompt memory', () => {
     expect(prompt).toContain('Never write or modify SOUL.md')
     expect(prompt).toContain('Basic user relationship facts')
     expect(prompt).toContain('save that in USER.md')
+    expect(prompt).toContain('[meta-method]')
+    expect(prompt).toContain('at least two consistent examples')
+    expect(prompt).toContain('Do not infer personality')
     expect(prompt).toContain('User prefers Chinese.')
   })
 
@@ -373,6 +505,8 @@ describe('prompt memory', () => {
     expect(PROMPT_MEMORY_TOOL_PROMPT).toContain(
       'Do not say "I wrote it to memory"',
     )
+    expect(PROMPT_MEMORY_TOOL_PROMPT).toContain('[meta-method]')
+    expect(PROMPT_MEMORY_TOOL_PROMPT).toContain('implicit preferences need repeated')
 
     const result = await PromptMemoryTool.call({
       action: 'add',
@@ -494,7 +628,9 @@ describe('prompt memory', () => {
       },
     ])
 
-    expect(notice).toBe('提示记忆已更新：BRIEF / USER（2 条），将在新会话生效。')
+    expect(notice).toBe(
+      '自进化记忆已更新：对你的了解 / 做事方法，将在新会话生效。可在「记忆」中查看和修改。',
+    )
     expect(formatPromptMemoryAutoReviewNotice([])).toBeNull()
   })
 })

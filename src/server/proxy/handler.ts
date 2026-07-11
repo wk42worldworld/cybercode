@@ -18,6 +18,8 @@ import { openaiChatStreamToAnthropic } from './streaming/openaiChatStreamToAnthr
 import { openaiResponsesStreamToAnthropic } from './streaming/openaiResponsesStreamToAnthropic.js'
 import { buildOpenAICompatibleUrl } from './openaiCompatUrl.js'
 import type { AnthropicRequest } from './transform/types.js'
+import { isKimiBaseUrl } from '../../utils/model/kimi.js'
+import { logForDebugging } from '../../utils/debug.js'
 
 const providerService = new ProviderService()
 
@@ -90,7 +92,10 @@ export async function handleProxyRequest(req: Request, url: URL): Promise<Respon
       return await handleOpenaiResponses(body, baseUrl, config.apiKey, isStream)
     }
   } catch (err) {
-    console.error('[Proxy] Upstream request failed:', err)
+    logForDebugging(
+      `[provider-proxy] upstream request failed: ${err instanceof Error ? err.message : String(err)}`,
+      { level: 'error' },
+    )
     return Response.json(
       {
         type: 'error',
@@ -110,7 +115,11 @@ async function handleOpenaiChat(
   apiKey: string,
   isStream: boolean,
 ): Promise<Response> {
-  const transformed = anthropicToOpenaiChat(body)
+  const isKimi = isKimiBaseUrl(baseUrl)
+  const transformed = anthropicToOpenaiChat(body, {
+    kimiThinking: isKimi,
+    preserveReasoningContent: isKimi,
+  })
   const url = buildOpenAICompatibleUrl(baseUrl, 'chat/completions')
 
   const upstream = await fetch(url, {

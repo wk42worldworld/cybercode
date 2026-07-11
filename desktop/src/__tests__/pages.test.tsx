@@ -46,6 +46,7 @@ vi.mock('../api/sessions', () => ({
     getGitInfo: vi.fn(async () => ({ branch: null, repoName: null, workDir: '', changedFiles: 0 })),
     getSlashCommands: vi.fn(async () => ({ commands: [] })),
     getInspection: vi.fn(async () => ({ active: false, status: { sessionId: '', workDir: '', permissionMode: 'default' } })),
+    getUsage: vi.fn(async () => ({ usage: null })),
     rewind: vi.fn(async () => ({
       target: { targetUserMessageId: '', userMessageIndex: 0, userMessageCount: 0 },
       conversation: { messagesRemoved: 0 },
@@ -197,7 +198,7 @@ describe('Content-only pages render without errors', () => {
     expect(screen.getByText('Recent projects')).toBeInTheDocument()
   })
 
-  it('ActiveSession renders with chat components', () => {
+  it('ActiveSession renders with chat components', async () => {
     const SESSION_ID = 'test-active-session'
     useTabStore.setState({ tabs: [{ sessionId: SESSION_ID, title: 'Test', type: 'session' as const, status: 'idle' }], activeTabId: SESSION_ID })
     useChatStore.setState({
@@ -228,6 +229,7 @@ describe('Content-only pages render without errors', () => {
     const textarea = screen.getByRole('textbox')
     expect(textarea).toBeInTheDocument()
     expect(textarea).toHaveAttribute('rows', '1')
+    expect(await screen.findByRole('button', { name: /Open token usage details/ })).toBeInTheDocument()
     expect(container.innerHTML).not.toContain('Preview')
     // Cleanup
     useTabStore.setState({ tabs: [], activeTabId: null })

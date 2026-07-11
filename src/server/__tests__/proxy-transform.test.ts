@@ -139,6 +139,28 @@ describe('anthropicToOpenaiChat', () => {
     expect(anthropicToOpenaiChat(highReq).reasoning_effort).toBe('high')
   })
 
+  test('uses Kimi thinking semantics without leaking them to other providers', () => {
+    const disabled: AnthropicRequest = {
+      model: 'kimi-k2.6',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'Hi' }],
+      thinking: { type: 'disabled' },
+    }
+    const kimiDisabled = anthropicToOpenaiChat(disabled, { kimiThinking: true })
+    expect(kimiDisabled.thinking).toEqual({ type: 'disabled' })
+    expect(kimiDisabled.reasoning_effort).toBeUndefined()
+
+    const alwaysThinking = anthropicToOpenaiChat({
+      ...disabled,
+      model: 'kimi-k2.7-code',
+    }, { kimiThinking: true })
+    expect(alwaysThinking.thinking).toEqual({ type: 'enabled' })
+
+    const generic = anthropicToOpenaiChat(disabled)
+    expect(generic.thinking).toBeUndefined()
+    expect(generic.reasoning_effort).toBeUndefined()
+  })
+
   test('assistant message with tool_use', () => {
     const req: AnthropicRequest = {
       model: 'gpt-4',
@@ -159,6 +181,26 @@ describe('anthropicToOpenaiChat', () => {
     expect(msg.tool_calls![0].id).toBe('tc_1')
     expect(msg.tool_calls![0].function.name).toBe('get_weather')
     expect(msg.tool_calls![0].function.arguments).toBe('{"city":"NYC"}')
+  })
+
+  test('preserves Kimi reasoning content across a tool-call round trip', () => {
+    const req: AnthropicRequest = {
+      model: 'kimi-k2.7-code',
+      max_tokens: 100,
+      messages: [{
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: 'I should inspect the repository first.' },
+          { type: 'tool_use', id: 'tc_1', name: 'read_file', input: { path: 'README.md' } },
+        ],
+      }],
+    }
+
+    const preserved = anthropicToOpenaiChat(req, { preserveReasoningContent: true })
+    expect(preserved.messages[0].reasoning_content).toBe('I should inspect the repository first.')
+
+    const generic = anthropicToOpenaiChat(req)
+    expect(generic.messages[0].reasoning_content).toBeUndefined()
   })
 
   test('user message with tool_result', () => {

@@ -19,6 +19,9 @@ hero:
 features:
   - title: Full TUI Experience
     details: Ink terminal UI matching the official Claude Code interface, with --print headless mode
+  - title: Slash Command Reference
+    details: Clear desktop composer, terminal TUI, and normal shell command differences with full purpose tables
+    link: /en/guide/slash-commands
   - title: Memory System
     details: Cross-session persistent memory with auto-extraction, smart retrieval, and AutoDream consolidation
   - title: Multi-Agent System

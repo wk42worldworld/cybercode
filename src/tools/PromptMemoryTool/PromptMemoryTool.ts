@@ -30,7 +30,7 @@ const inputSchema = lazySchema(() =>
     content: z
       .string()
       .optional()
-      .describe('New entry or full file content, required for add/replace/write.'),
+      .describe('New categorized entry or full file content, required for add/replace/write.'),
     oldText: z
       .string()
       .optional()

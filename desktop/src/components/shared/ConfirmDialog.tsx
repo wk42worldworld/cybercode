@@ -42,7 +42,7 @@ export function ConfirmDialog({
 
   return (
     createPortal(
-      <div className="settings-ui native-ui-text fixed inset-0 z-50 flex items-center justify-center p-6 animate-fade-in">
+      <div className="settings-ui native-ui-text fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in">
         <div
           className="absolute inset-0 bg-[var(--color-overlay-scrim)] opacity-70"
           onClick={handleClose}

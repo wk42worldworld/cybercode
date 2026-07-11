@@ -65,6 +65,22 @@ export type SessionUsageSnapshot = {
   }>
 }
 
+export type SessionUsageResponse = {
+  usage: SessionUsageSnapshot | null
+  context?: {
+    model: string
+    usedTokens: number
+    contextWindow: number
+    percentage: number
+    latestTurn?: {
+      inputTokens: number
+      outputTokens: number
+      cacheReadInputTokens: number
+      cacheCreationInputTokens: number
+    }
+  } | null
+}
+
 export type SessionContextSnapshot = {
   categories: Array<{
     name: string
@@ -207,6 +223,11 @@ export const sessionsApi = {
     return api.get<SessionInspectionResponse>(`/api/sessions/${sessionId}/inspection${qs ? `?${qs}` : ''}`, {
       timeout: options?.timeout ?? (options?.includeContext ? 45_000 : 25_000),
     })
+  },
+
+  getUsage(sessionId: string, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.get<SessionUsageResponse>(`/api/sessions/${sessionId}/usage${query}`)
   },
 
   rewind(sessionId: string, body: {

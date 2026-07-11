@@ -262,6 +262,7 @@ describe('Settings > Providers tab', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Configure/i })[0]!)
 
     const dialog = screen.getByRole('dialog')
+    expect(dialog.parentElement).toHaveClass('z-[200]')
     expect(within(dialog).getByText('Configure Custom')).toBeInTheDocument()
     expect(within(dialog).queryByRole('button', { name: 'Custom' })).not.toBeInTheDocument()
     expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument()
@@ -339,6 +340,70 @@ describe('Settings > Providers tab', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /DeepSeek V4 Flash/i }))
 
     expect(within(dialog).getByDisplayValue('deepseek-v4-flash')).toBeInTheDocument()
+  })
+
+  it('fills the official context window when selecting a different provider model', () => {
+    providerStoreState.providers = [
+      {
+        id: 'zhipu-provider',
+        name: 'Zhipu GLM',
+        presetId: 'zhipuglm',
+        apiKey: '***',
+        baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+        apiFormat: 'anthropic',
+        models: {
+          main: 'glm-5',
+          haiku: 'glm-5',
+          sonnet: 'glm-5',
+          opus: 'glm-5',
+        },
+        modelContextWindows: {
+          main: 200_000,
+          haiku: 200_000,
+          sonnet: 200_000,
+          opus: 200_000,
+        },
+        notes: '',
+      },
+    ]
+    providerStoreState.presets = [
+      {
+        id: 'zhipuglm',
+        name: 'Zhipu GLM',
+        baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: 'glm-5.2',
+          haiku: 'glm-4.7',
+          sonnet: 'glm-5.2',
+          opus: 'glm-5.2',
+        },
+        defaultModelContextWindows: {
+          main: 1_000_000,
+          haiku: 200_000,
+          sonnet: 1_000_000,
+          opus: 1_000_000,
+        },
+        modelOptions: [
+          { id: 'glm-5.2', label: 'GLM-5.2', contextWindow: 1_000_000 },
+          { id: 'glm-5', label: 'GLM-5', contextWindow: 200_000 },
+        ],
+        needsApiKey: true,
+        websiteUrl: 'https://open.bigmodel.cn',
+      },
+    ]
+
+    render(<ProviderSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByDisplayValue('200k')).toBeInTheDocument()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Select model: Main Model/i }))
+    fireEvent.click(within(dialog).getByRole('button', { name: /^GLM-5\.2\b/i }))
+
+    expect(within(dialog).getByDisplayValue('glm-5.2')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('1m')).toBeInTheDocument()
   })
 
   it('does not expose or overwrite the global managed settings JSON in a provider form', async () => {
@@ -455,9 +520,8 @@ describe('Settings > Providers tab', () => {
           opus: 'kimi-for-coding',
         },
         modelOptions: [
-          { id: 'kimi-for-coding', label: 'Kimi for Coding', contextWindow: 256_000, supportsImages: true },
-          { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', contextWindow: 256_000, supportsImages: true },
-          { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code Highspeed', contextWindow: 256_000, supportsImages: true },
+          { id: 'kimi-for-coding', label: 'Kimi for Coding', contextWindow: 262_144, supportsImages: true },
+          { id: 'kimi-for-coding-highspeed', label: 'Kimi for Coding HighSpeed', contextWindow: 262_144, supportsImages: true },
         ],
         supportsImages: true,
         needsApiKey: true,
@@ -467,16 +531,18 @@ describe('Settings > Providers tab', () => {
       {
         id: 'kimi',
         name: 'Kimi API',
-        baseUrl: 'https://api.moonshot.cn/anthropic',
-        apiFormat: 'anthropic',
+        baseUrl: 'https://api.moonshot.cn',
+        apiFormat: 'openai_chat',
         defaultModels: {
-          main: 'kimi-k2.6',
+          main: 'kimi-k2.7-code',
           haiku: 'kimi-k2.6',
-          sonnet: 'kimi-k2.6',
-          opus: 'kimi-k2.6',
+          sonnet: 'kimi-k2.7-code',
+          opus: 'kimi-k2.7-code',
         },
         modelOptions: [
-          { id: 'kimi-k2.6', label: 'Kimi K2.6', contextWindow: 256_000 },
+          { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', contextWindow: 262_144 },
+          { id: 'kimi-k2.7-code-highspeed', label: 'Kimi K2.7 Code Highspeed', contextWindow: 262_144 },
+          { id: 'kimi-k2.6', label: 'Kimi K2.6', contextWindow: 262_144 },
         ],
         supportsImages: true,
         needsApiKey: true,
@@ -504,7 +570,7 @@ describe('Settings > Providers tab', () => {
     expect(screen.getByText('Kimi Code')).toBeInTheDocument()
     expect(screen.getByText('https://api.kimi.com/coding/ · kimi-for-coding')).toBeInTheDocument()
     expect(screen.getByText('Kimi API')).toBeInTheDocument()
-    expect(screen.getByText('https://api.moonshot.cn/anthropic · kimi-k2.6')).toBeInTheDocument()
+    expect(screen.getByText('https://api.moonshot.cn · kimi-k2.7-code')).toBeInTheDocument()
   })
 
   it('hides the API key by default and reveals it from the eye button', () => {

@@ -19,6 +19,9 @@ hero:
 features:
   - title: 완전한 TUI
     details: 대화형 세션과 --print 헤드리스 모드를 지원하는 Ink 터미널 UI
+  - title: 슬래시 명령
+    details: 데스크톱 입력창, 터미널 TUI, 일반 shell 명령의 차이와 각 명령의 역할
+    link: /ko/guide/slash-commands
   - title: 영구 기억
     details: 세션 간 기억, 자동 추출, 검색, AutoDream 통합
   - title: Multi-Agent

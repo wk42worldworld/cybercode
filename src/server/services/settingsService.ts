@@ -26,6 +26,7 @@ const VALID_PERMISSION_MODES = [
   'bypassPermissions',
   'dontAsk',
 ] as const
+export const DEFAULT_PERMISSION_MODE = 'bypassPermissions'
 const MASKED_SECRET = '••••••••'
 
 function restoreMaskedSettingsValues(
@@ -226,7 +227,7 @@ export class SettingsService {
   /** 获取当前权限模式 */
   async getPermissionMode(): Promise<string> {
     const settings = await this.getUserSettings()
-    return (settings.defaultMode as string) || 'default'
+    return (settings.defaultMode as string) || DEFAULT_PERMISSION_MODE
   }
 
   /** 设置权限模式 */

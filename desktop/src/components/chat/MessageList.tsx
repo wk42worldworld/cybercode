@@ -10,6 +10,7 @@ import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n/locales/en'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
+import { StreamingIndicator } from './StreamingIndicator'
 
 import { ToolCallGroup } from './ToolCallGroup'
 import { ToolCallBlock } from './ToolCallBlock'
@@ -886,6 +887,14 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const showEmptyOverlay = messages.length === 0 && historyLoadState !== 'loaded'
   const showScrollJumpButton = !showEmptyOverlay && (renderItems.length > 1 || streamingText.length > 0)
   const scrollJumpLabel = isAtBottom ? t('chat.scrollToTop') : t('chat.scrollToBottom')
+  const footerComponent = useMemo(() => function StableListFooter() {
+    return (
+      <ListFooter
+        sessionId={resolvedSessionId}
+        bottomSpacerHeight={bottomSpacerHeight}
+      />
+    )
+  }, [bottomSpacerHeight, resolvedSessionId])
 
   return (
     <div className="wechat-chat-bg scrollbar-no-track relative flex flex-1 flex-col overflow-hidden">
@@ -947,13 +956,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
           components={{
             Scroller: MessageScroller,
             Header: () => <ListHeader isLoadingMoreHistory={isLoadingMoreHistory} />,
-            Footer: () => (
-              <ListFooter
-                streamingText={streamingText}
-                chatState={chatState}
-                bottomSpacerHeight={bottomSpacerHeight}
-              />
-            ),
+            Footer: footerComponent,
           }}
         />
       )}
@@ -1099,16 +1102,19 @@ function ListHeader({ isLoadingMoreHistory }: { isLoadingMoreHistory: boolean })
 
 /** Virtuoso Footer: streaming text and composer spacer. */
 function ListFooter({
-  streamingText,
-  chatState,
+  sessionId,
   bottomSpacerHeight,
 }: {
-  streamingText: string
-  chatState: string
+  sessionId?: string | null
   bottomSpacerHeight: number
 }) {
+  const sessionState = useChatStore((state) => sessionId ? state.sessions[sessionId] : undefined)
+  const streamingText = sessionState?.streamingText ?? ''
+  const chatState = sessionState?.chatState ?? 'idle'
+
   return (
     <div>
+      <StreamingIndicator sessionId={sessionId ?? undefined} />
       {streamingText && (
         <AssistantMessage content={streamingText} isStreaming={chatState === 'streaming'} />
       )}

@@ -24,6 +24,24 @@ import {
   type ToggleableSkillSource,
   updateSkillEnablement,
 } from '../../skills/skillEnablement.js'
+import { getGlobalSkillMemoryRoot } from '../../skillMemory/paths.js'
+import {
+  approveSkillCandidate,
+  rejectSkillCandidate,
+} from '../../skillLearning/approval.js'
+import {
+  isCandidateVisibleFromCwd,
+  isEventVisibleFromCwd,
+  listSkillMemoryOverview,
+  readSkillLearningConfig,
+  readSkillLearningState,
+  updateSkillLearningConfig,
+} from '../../skillLearning/store.js'
+import type {
+  SkillLearningConfig,
+  SkillLearningMode,
+  SkillLearningOverview,
+} from '../../skillLearning/types.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -445,6 +463,10 @@ export async function handleSkillsApi(
       return await setSkillEnabled(req)
     }
 
+    if (sub === 'learning') {
+      return await handleSkillLearningApi(req, url, segments)
+    }
+
     if (req.method !== 'GET') {
       throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
     }
@@ -483,6 +505,169 @@ async function listSkills(url: URL): Promise<Response> {
 async function openSkillConfigDir(): Promise<Response> {
   await openDirectory(getUserSkillsDir())
   return Response.json({ ok: true })
+}
+
+function parseSkillLearningNumber(
+  value: unknown,
+  field: string,
+  min: number,
+  max: number,
+): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw ApiError.badRequest(`${field} must be a number`)
+  }
+  if (value < min || value > max) {
+    throw ApiError.badRequest(`${field} must be between ${min} and ${max}`)
+  }
+  return value
+}
+
+async function updateSkillLearningConfigFromRequest(
+  req: Request,
+): Promise<Response> {
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    throw ApiError.badRequest('Invalid JSON body')
+  }
+  if (!body || typeof body !== 'object') {
+    throw ApiError.badRequest('Invalid Skill Learning configuration')
+  }
+
+  const input = body as Record<string, unknown>
+  const mode = input.mode
+  if (
+    mode !== undefined &&
+    mode !== 'off' &&
+    mode !== 'suggest' &&
+    mode !== 'auto'
+  ) {
+    throw ApiError.badRequest('mode must be off, suggest, or auto')
+  }
+
+  const update: Partial<Omit<SkillLearningConfig, 'version'>> = {
+    ...(mode !== undefined && { mode: mode as SkillLearningMode }),
+  }
+  const minToolUses = parseSkillLearningNumber(
+    input.minToolUses,
+    'minToolUses',
+    2,
+    50,
+  )
+  const minConfidence = parseSkillLearningNumber(
+    input.minConfidence,
+    'minConfidence',
+    0.5,
+    1,
+  )
+  const autoApproveConfidence = parseSkillLearningNumber(
+    input.autoApproveConfidence,
+    'autoApproveConfidence',
+    0.5,
+    1,
+  )
+  if (minToolUses !== undefined) update.minToolUses = Math.round(minToolUses)
+  if (minConfidence !== undefined) update.minConfidence = minConfidence
+  if (autoApproveConfidence !== undefined) {
+    update.autoApproveConfidence = autoApproveConfidence
+  }
+
+  const current = await readSkillLearningConfig()
+  const finalMinConfidence = update.minConfidence ?? current.minConfidence
+  const finalAutoConfidence =
+    update.autoApproveConfidence ?? current.autoApproveConfidence
+  if (finalAutoConfidence < finalMinConfidence) {
+    throw ApiError.badRequest(
+      'autoApproveConfidence cannot be lower than minConfidence',
+    )
+  }
+
+  const config = await updateSkillLearningConfig(update)
+  return Response.json({ ok: true, config })
+}
+
+async function getSkillLearningOverview(url: URL): Promise<Response> {
+  const cwd = getRequestedCwd(url)
+  const [config, state, memories] = await Promise.all([
+    readSkillLearningConfig(),
+    readSkillLearningState(),
+    listSkillMemoryOverview({
+      globalRoot: getGlobalSkillMemoryRoot(),
+      projectRoots: getProjectDirsUpToHome('skill-memory', cwd),
+    }),
+  ])
+  const visibleCandidates = state.candidates.filter(candidate =>
+    isCandidateVisibleFromCwd(candidate, cwd),
+  )
+  const overview: SkillLearningOverview = {
+    config,
+    pendingCandidates: visibleCandidates
+      .filter(candidate => candidate.status === 'pending')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    recentCandidates: visibleCandidates
+      .filter(candidate => candidate.status !== 'pending')
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 30),
+    events: state.events
+      .filter(event => isEventVisibleFromCwd(event, cwd))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 50),
+    memories,
+  }
+  return Response.json({ overview })
+}
+
+async function handleSkillCandidateAction(
+  req: Request,
+  candidateId: string,
+  action: string,
+): Promise<Response> {
+  if (req.method !== 'POST') {
+    throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
+  }
+  if (!/^[a-zA-Z0-9-]{8,80}$/.test(candidateId)) {
+    throw ApiError.badRequest('Invalid Skill candidate id')
+  }
+
+  try {
+    if (action === 'approve') {
+      const candidate = await approveSkillCandidate(candidateId)
+      await clearCommandCaches()
+      return Response.json({ ok: true, candidate })
+    }
+    if (action === 'reject') {
+      const candidate = await rejectSkillCandidate(candidateId)
+      return Response.json({ ok: true, candidate })
+    }
+  } catch (error) {
+    throw ApiError.badRequest(
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  throw ApiError.notFound(`Unknown Skill candidate action: ${action}`)
+}
+
+async function handleSkillLearningApi(
+  req: Request,
+  url: URL,
+  segments: string[],
+): Promise<Response> {
+  const candidateId = segments[3]
+  const action = segments[4]
+  if (candidateId && action) {
+    return handleSkillCandidateAction(req, candidateId, action)
+  }
+  if (candidateId || action) {
+    throw ApiError.notFound('Incomplete Skill Learning endpoint')
+  }
+  if (req.method === 'GET') return getSkillLearningOverview(url)
+  if (req.method === 'PATCH' || req.method === 'PUT') {
+    return updateSkillLearningConfigFromRequest(req)
+  }
+  throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
 }
 
 async function clearCommandCaches(): Promise<void> {

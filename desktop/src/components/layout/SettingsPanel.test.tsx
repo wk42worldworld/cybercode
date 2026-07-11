@@ -54,6 +54,7 @@ describe('SettingsPanel content routing', () => {
     render(<SettingsPanel visible />)
 
     expect(screen.getByTestId('settings-home')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-panel')).toHaveClass('z-[90]')
   })
 
   it('renders scheduled tasks inside the same floating panel shell', () => {

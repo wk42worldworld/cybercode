@@ -52,6 +52,7 @@ describe('updateStore', () => {
     const result = await useUpdateStore.getState().checkForUpdates()
 
     expect(result).toBe(update)
+    expect(check).toHaveBeenCalledWith({ timeout: 12_000 })
     expect(useUpdateStore.getState().status).toBe('downloaded')
     expect(useUpdateStore.getState().availableVersion).toBe('0.2.0')
     expect(useUpdateStore.getState().releaseNotes).toBe('Bug fixes and performance improvements')

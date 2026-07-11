@@ -119,9 +119,9 @@ describe('ProviderService', () => {
           apiFormat: 'anthropic',
           models: {
             main: 'kimi-k2.7-code',
-            haiku: 'kimi-k2.7-code',
+            haiku: 'kimi-k2.6',
             sonnet: 'kimi-k2.7-code',
-            opus: 'kimi-k2.7-code',
+            opus: 'kimi-k2.7-code-highspeed',
           },
           supportsImages: false,
         }],
@@ -133,12 +133,14 @@ describe('ProviderService', () => {
       expect(activeId).toBe('saved-kimi-code')
       expect(providers[0].presetId).toBe('kimi-code')
       expect(providers[0].baseUrl).toBe('https://api.kimi.com/coding/')
-      expect(providers[0].models.main).toBe('kimi-k2.7-code')
+      expect(providers[0].models.main).toBe('kimi-for-coding')
+      expect(providers[0].models.haiku).toBe('kimi-for-coding')
+      expect(providers[0].models.opus).toBe('kimi-for-coding-highspeed')
       expect(providers[0].imageSupportMode).toBe('auto')
       expect(providers[0].supportsImages).toBeUndefined()
     })
 
-    test('should move saved Kimi API providers off misplaced code models', async () => {
+    test('should preserve supported K2.7 Code models when migrating the Kimi API endpoint', async () => {
       await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
       await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
         activeId: 'saved-kimi-api',
@@ -164,22 +166,144 @@ describe('ProviderService', () => {
 
       expect(activeId).toBe('saved-kimi-api')
       expect(providers[0].presetId).toBe('kimi')
-      expect(providers[0].baseUrl).toBe('https://api.moonshot.cn/anthropic')
-      expect(providers[0].models.main).toBe('kimi-k2.6')
-      expect(providers[0].models.haiku).toBe('kimi-k2.6')
-      expect(providers[0].models.sonnet).toBe('kimi-k2.6')
-      expect(providers[0].models.opus).toBe('kimi-k2.6')
+      expect(providers[0].baseUrl).toBe('https://api.moonshot.cn')
+      expect(providers[0].apiFormat).toBe('openai_chat')
+      expect(providers[0].models.main).toBe('kimi-k2.7-code')
+      expect(providers[0].models.haiku).toBe('kimi-k2.7-code')
+      expect(providers[0].models.sonnet).toBe('kimi-k2.7-code')
+      expect(providers[0].models.opus).toBe('kimi-k2.7-code')
       expect(providers[0].imageSupportMode).toBe('auto')
       expect(providers[0].supportsImages).toBeUndefined()
 
       const settings = await readSettings()
       const env = settings.env as Record<string, string>
-      expect(env.ANTHROPIC_MODEL).toBe('kimi-k2.6')
+      expect(env.ANTHROPIC_MODEL).toBe('kimi-k2.7-code')
       expect(env.ANTHROPIC_MODEL_SUPPORTED_CAPABILITIES).toBeUndefined()
-      expect(env.CYBERCODE_PROVIDER_BASE_URL).toBe('https://api.moonshot.cn/anthropic')
+      expect(env.CYBERCODE_PROVIDER_BASE_URL).toBe('https://api.moonshot.cn')
     })
 
-    test('should migrate unsupported saved Xiaomi MiMo V2.5 Flash model ids', async () => {
+    test('should repair stale preset defaults without overwriting custom values', async () => {
+      await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
+      await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
+        activeId: null,
+        providers: [
+          {
+            id: 'openai-current',
+            presetId: 'openai',
+            name: 'OpenAI',
+            apiKey: 'sk-openai',
+            baseUrl: 'https://api.openai.com',
+            apiFormat: 'openai_responses',
+            models: { main: 'gpt-5.5', haiku: 'gpt-5.4-mini', sonnet: 'gpt-5.4', opus: 'gpt-5.5' },
+          },
+          {
+            id: 'deepseek-retiring-aliases',
+            presetId: 'deepseek',
+            name: 'DeepSeek',
+            apiKey: 'sk-deepseek',
+            baseUrl: 'https://api.deepseek.com/anthropic',
+            apiFormat: 'anthropic',
+            models: {
+              main: 'deepseek-reasoner',
+              haiku: 'deepseek-chat',
+              sonnet: 'deepseek-v4-pro',
+              opus: 'deepseek-v4-pro[1m]',
+            },
+          },
+          {
+            id: 'zhipu-stale',
+            presetId: 'zhipuglm',
+            name: 'Zhipu GLM',
+            apiKey: 'sk-zhipu',
+            baseUrl: 'https://open.bigmodel.cn/api/anthropic',
+            apiFormat: 'anthropic',
+            models: { main: 'glm-5.2', haiku: 'glm-4.7', sonnet: 'glm-5.2', opus: 'glm-5.2' },
+            modelContextWindows: { main: 200000, haiku: 200000, sonnet: 777777, opus: 200000 },
+          },
+          {
+            id: 'minimax-current',
+            presetId: 'minimax',
+            name: 'MiniMax',
+            apiKey: 'sk-minimax',
+            baseUrl: 'https://api.minimaxi.com/anthropic',
+            apiFormat: 'anthropic',
+            models: { main: 'MiniMax-M3', haiku: 'MiniMax-M3', sonnet: 'MiniMax-M3', opus: 'MiniMax-M3' },
+            modelContextWindows: { main: 1000000, haiku: 1000000, sonnet: 1000000, opus: 1000000 },
+          },
+          {
+            id: 'minimax-stale-context',
+            presetId: 'minimax',
+            name: 'MiniMax M2.7',
+            apiKey: 'sk-minimax',
+            baseUrl: 'https://api.minimaxi.com/anthropic',
+            apiFormat: 'anthropic',
+            models: { main: 'MiniMax-M2.7', haiku: 'MiniMax-M2.7', sonnet: 'MiniMax-M2.7', opus: 'MiniMax-M2.7' },
+            modelContextWindows: { main: 1000000, haiku: 1000000, sonnet: 1000000, opus: 1000000 },
+          },
+          {
+            id: 'kimi-stale',
+            presetId: 'kimi',
+            name: 'Kimi API',
+            apiKey: 'sk-kimi',
+            baseUrl: 'https://api.moonshot.cn/anthropic',
+            apiFormat: 'anthropic',
+            models: { main: 'kimi-k2.6', haiku: 'kimi-k2.6', sonnet: 'kimi-k2.6', opus: 'kimi-k2.6' },
+            modelContextWindows: { main: 256000, haiku: 256000, sonnet: 256000, opus: 256000 },
+          },
+          {
+            id: 'kimi-retired-models',
+            presetId: 'kimi',
+            name: 'Kimi API Old Models',
+            apiKey: 'sk-kimi',
+            baseUrl: 'https://api.moonshot.cn',
+            apiFormat: 'openai_chat',
+            models: {
+              main: 'kimi-k2-thinking-turbo',
+              haiku: 'kimi-k2-thinking',
+              sonnet: 'kimi-k2-turbo-preview',
+              opus: 'kimi-k2-0905-preview',
+            },
+          },
+        ],
+      }), 'utf-8')
+
+      const { providers } = await new ProviderService().listProviders()
+      const byId = new Map(providers.map((provider) => [provider.id, provider]))
+
+      expect(byId.get('openai-current')?.models).toEqual({
+        main: 'gpt-5.5',
+        haiku: 'gpt-5.4-mini',
+        sonnet: 'gpt-5.4',
+        opus: 'gpt-5.5',
+      })
+      expect(byId.get('deepseek-retiring-aliases')?.models).toEqual({
+        main: 'deepseek-v4-flash',
+        haiku: 'deepseek-v4-flash',
+        sonnet: 'deepseek-v4-pro',
+        opus: 'deepseek-v4-pro',
+      })
+      expect(byId.get('zhipu-stale')?.modelContextWindows).toEqual({
+        main: 1000000,
+        haiku: 200000,
+        sonnet: 777777,
+        opus: 1000000,
+      })
+      expect(byId.get('minimax-current')?.models.main).toBe('MiniMax-M3')
+      expect(byId.get('minimax-current')?.modelContextWindows?.main).toBe(1000000)
+      expect(byId.get('minimax-stale-context')?.models.main).toBe('MiniMax-M2.7')
+      expect(byId.get('minimax-stale-context')?.modelContextWindows?.main).toBe(204800)
+      expect(byId.get('kimi-stale')?.baseUrl).toBe('https://api.moonshot.cn')
+      expect(byId.get('kimi-stale')?.apiFormat).toBe('openai_chat')
+      expect(byId.get('kimi-stale')?.modelContextWindows?.main).toBe(262144)
+      expect(byId.get('kimi-retired-models')?.models).toEqual({
+        main: 'kimi-k2.6',
+        haiku: 'kimi-k2.6',
+        sonnet: 'kimi-k2.6',
+        opus: 'kimi-k2.6',
+      })
+    })
+
+    test('should migrate retired Xiaomi MiMo model ids', async () => {
       await fs.mkdir(path.join(tmpDir, 'cybercode'), { recursive: true })
       await fs.writeFile(path.join(tmpDir, 'cybercode', 'providers.json'), JSON.stringify({
         activeId: 'saved-mimo',
@@ -191,9 +315,9 @@ describe('ProviderService', () => {
           baseUrl: 'https://api.xiaomimimo.com',
           apiFormat: 'anthropic',
           models: {
-            main: 'mimo-v2.5-pro',
-            haiku: 'mimo-v2.5-flash',
-            sonnet: 'mimo-v2.5-pro',
+            main: 'mimo-v2-pro',
+            haiku: 'mimo-v2-flash',
+            sonnet: 'mimo-v2.5-flash',
             opus: 'mimo-v2.5-pro',
           },
         }],
@@ -205,7 +329,7 @@ describe('ProviderService', () => {
       expect(activeId).toBe('saved-mimo')
       expect(providers[0].models.main).toBe('mimo-v2.5-pro')
       expect(providers[0].models.haiku).toBe('mimo-v2.5')
-      expect(providers[0].models.sonnet).toBe('mimo-v2.5-pro')
+      expect(providers[0].models.sonnet).toBe('mimo-v2.5')
       expect(providers[0].models.opus).toBe('mimo-v2.5-pro')
 
       const settings = await readSettings()
@@ -986,6 +1110,42 @@ describe('ProviderService', () => {
       }
     })
 
+    test('should keep K2.7 thinking enabled on the Kimi open platform', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const bodies: Array<Record<string, unknown>> = []
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        bodies.push(body)
+        return Response.json({
+          id: 'chatcmpl-kimi',
+          object: 'chat.completion',
+          model: body.model,
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: 'ok' },
+            finish_reason: 'stop',
+          }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://api.moonshot.cn',
+          apiKey: 'test-key',
+          modelId: 'kimi-k2.7-code',
+          apiFormat: 'openai_chat',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(bodies[0].thinking).toEqual({ type: 'enabled' })
+        expect(bodies[0].reasoning_effort).toBeUndefined()
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
     test('should apply GLM enabled-thinking defaults during connectivity checks', async () => {
       const svc = new ProviderService()
       const originalFetch = globalThis.fetch
@@ -1143,7 +1303,7 @@ describe('ProviderService', () => {
 
         expect(result.connectivity.success).toBe(false)
         expect(result.connectivity.error).toContain('Kimi For Coding')
-        expect(result.connectivity.error).toContain('https://api.moonshot.cn/anthropic')
+        expect(result.connectivity.error).toContain('https://api.moonshot.cn')
       } finally {
         globalThis.fetch = originalFetch
       }

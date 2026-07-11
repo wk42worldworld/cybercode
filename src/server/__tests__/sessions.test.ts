@@ -1099,6 +1099,60 @@ describe('Sessions API', () => {
     expect(body.messages).toHaveLength(2)
   })
 
+  it('GET /api/sessions/:id/usage should return transcript token totals', async () => {
+    const sessionId = 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff'
+    const assistant = makeAssistantEntry('Usage response')
+    ;(assistant.message as Record<string, unknown>).usage = {
+      input_tokens: 1_200,
+      output_tokens: 300,
+      cache_read_input_tokens: 400,
+      cache_creation_input_tokens: 100,
+    }
+    await writeSessionFile('-tmp-api-usage', sessionId, [
+      makeSessionMetaEntry('/tmp/api-usage'),
+      makeUserEntry('Count this turn'),
+      assistant,
+    ])
+
+    const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/usage`)
+    expect(res.status).toBe(200)
+
+    const body = (await res.json()) as {
+      usage: {
+        totalInputTokens: number
+        totalOutputTokens: number
+        totalCacheReadInputTokens: number
+        totalCacheCreationInputTokens: number
+      }
+      context: {
+        usedTokens: number
+        contextWindow: number
+        percentage: number
+        latestTurn: {
+          inputTokens: number
+          outputTokens: number
+          cacheReadInputTokens: number
+          cacheCreationInputTokens: number
+        }
+      }
+    }
+    expect(body.usage).toMatchObject({
+      totalInputTokens: 1_200,
+      totalOutputTokens: 300,
+      totalCacheReadInputTokens: 400,
+      totalCacheCreationInputTokens: 100,
+    })
+    expect(body.context.usedTokens).toBe(1_700)
+    expect(body.context.contextWindow).toBeGreaterThan(0)
+    expect(body.context.percentage).toBeGreaterThanOrEqual(0)
+    expect(body.context.latestTurn).toEqual({
+      inputTokens: 1_200,
+      outputTokens: 300,
+      cacheReadInputTokens: 400,
+      cacheCreationInputTokens: 100,
+    })
+  })
+
   it('DELETE /api/sessions/:id should delete the session', async () => {
     const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
     await writeSessionFile('-tmp-api-test', sessionId, [makeSnapshotEntry()])

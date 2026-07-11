@@ -33,7 +33,7 @@
   <strong>그녀는 도구가 아니라, 파트너입니다.</strong>
 </p>
 
-A **Claude Code-style local coding agent** with **permanent memory** and **self-evolution** capabilities, plus support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
+A **Claude Code-style local coding agent** with **permanent memory** and **self-evolution** capabilities, plus support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu. Official website and full docs: [https://wk42worldworld.github.io/cybercode/](https://wk42worldworld.github.io/cybercode/).
 
 <p align="center">
   <strong>Open-source Claude Code-style desktop agent with permanent memory and self-evolution.</strong><br>
@@ -141,11 +141,11 @@ CyberCode's desktop GUI keeps the coding loop visible: pick a project, chat with
 
 ## Latest Highlights
 
-Latest stable desktop release: [CyberCode v1.0.21](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.21)
+Latest stable desktop release: [CyberCode v1.0.22](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.22)
 
 - **Running-turn input steering**: when an assistant response is still running, new user input is saved in a pending bar instead of disappearing or interrupting blindly. You can edit it, delete it, or add it to the current turn; otherwise queued input is sent automatically when the current turn finishes.
 - **Provider-aware model context windows**: model presets can now carry context-window metadata, and CyberCode forwards those limits into desktop sessions so third-party providers behave more predictably.
-- **Cross-platform desktop releases**: GitHub Actions now publishes macOS Apple Silicon, macOS Intel, Windows x64, and Linux x64 desktop builds together, with updater metadata included in `latest.json`.
+- **Cross-platform desktop releases**: GitHub Actions now publishes macOS Apple Silicon, macOS Intel, Windows x64, and Linux x64 desktop builds together, with a ZIP download for every platform and updater metadata for GitHub plus public mirror fallbacks.
 - **Notarized macOS installers**: macOS desktop packages are signed and Apple-notarized to avoid the previous Gatekeeper "malicious software" style warning on normal installs.
 - **Smarter Windows tool runtime**: CyberCode finds Git Bash when available, falls back to PowerShell when it is not, and only exposes executable tools that are actually available to the model.
 - **Flexible file attachments**: unsupported audio, binary, and other file types are handled as file paths instead of blocking the conversation request.
@@ -316,26 +316,16 @@ Expected result: you know whether you are installing the desktop app, running th
 
 ### Chapter 2. Prepare Your Model Provider
 
-CyberCode talks to Anthropic-compatible APIs. MiniMax and OpenRouter can be used directly if they expose a compatible endpoint. OpenAI-only providers usually need a proxy such as LiteLLM.
+CyberCode supports Anthropic-compatible and OpenAI-compatible APIs. Its protocol bridge is built in, so OpenAI, Google Gemini, Kimi API, and similar providers do not require a separate proxy.
 
-1. Create or copy an API key from your model provider.
-2. Copy the example environment file:
+1. Start CyberCode.
+2. Choose a provider in the first-run wizard.
+3. Choose a model and enter the provider API key.
+4. To change it later, run `/provider` in the TUI or open Settings -> Providers in the desktop app.
 
-```bash
-cp .env.example .env
-```
+Environment variables remain available for CI and advanced setups. For details, see [Environment Variables](docs/en/guide/env-vars.md) and [Third-Party Models](docs/en/guide/third-party-models.md).
 
-3. Edit `.env` and set at least these values:
-
-```env
-ANTHROPIC_AUTH_TOKEN=your_api_key_here
-ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
-ANTHROPIC_MODEL=MiniMax-M2.7
-```
-
-You can also use `ANTHROPIC_API_KEY` instead of `ANTHROPIC_AUTH_TOKEN` if your provider expects the `x-api-key` header. For provider-specific examples, see [Environment Variables](docs/en/guide/env-vars.md) and [Third-Party Models](docs/en/guide/third-party-models.md).
-
-Expected result: `.env` contains a valid key, endpoint, and model name.
+Expected result: CyberCode activates the provider and automatically chooses direct connection or its built-in local protocol bridge.
 
 ### Chapter 3. Run Your First CLI Task
 
@@ -468,11 +458,11 @@ Verify it: the app opens, the sidebar shows sessions, and the status bar shows t
 Notes:
 
 - macOS packages are notarized. If macOS still blocks the app, see [Installation](docs/desktop/04-installation.md).
-- The release also includes `latest.json` for desktop update metadata.
+- The release also includes `latest.json` plus mirror fallback manifests for desktop update metadata.
 
 ### Module 2. Model Providers, Models, and Context Windows
 
-Use this module when you want CyberCode to call MiniMax, OpenRouter, OpenAI through a proxy, Ollama, or another compatible provider.
+Use this module when you want CyberCode to call MiniMax, OpenAI, Gemini, Ollama, or another compatible provider.
 
 1. Open the desktop app.
 2. Go to Settings -> Providers.
@@ -493,7 +483,7 @@ Verify it: send a short message, then open `/context` or the context inspector a
 Notes:
 
 - For Anthropic-compatible endpoints, use the provider URL directly.
-- For OpenAI-only APIs, use LiteLLM or another Anthropic-to-OpenAI proxy. See [Third-Party Models](docs/en/guide/third-party-models.md).
+- For OpenAI-compatible APIs, select `OpenAI Chat` or `OpenAI Responses`; CyberCode starts its local protocol bridge automatically. See [Third-Party Models](docs/en/guide/third-party-models.md).
 - If a model name contains a recognizable value like `200k` or `1m`, CyberCode can infer a context window, but explicit provider settings are clearer.
 
 ### Module 3. CLI and Headless Mode
@@ -558,14 +548,14 @@ Notes:
 - Closing a running tab asks whether to keep running, stop and close, or cancel.
 - If a session points to a deleted directory, re-select an existing folder.
 
-### Module 5. Chat Composer, Attachments, Slash Commands, and Pending Input
+### Module 5. Desktop Chat Composer, Attachments, Slash Commands, and Pending Input
 
 Use this module to send richer messages and manage input while the assistant is busy.
 
 1. Type in the bottom composer.
 2. Press `Enter` to send, or `Shift + Enter` for a new line.
 3. Add files by pasting, dragging into the composer, or using the `+` file picker.
-4. Type `/` to open slash commands such as `/status`, `/context`, `/memory`, `/mcp`, and `/skills`.
+4. In the desktop app, type `/` to open composer slash commands such as `/status`, `/context`, `/memory`, `/mcp`, and `/skills`.
 5. Type `@` to search and reference project files.
 6. While the assistant is responding, send another message. It appears as a pending input row.
 7. Edit or remove a pending row before it is sent.
@@ -578,6 +568,7 @@ Notes:
 
 - Unsupported file types are passed as file paths so the agent can still inspect them with tools.
 - The pending input row is for actual queued content, not a reminder banner.
+- Desktop `/...` entries are composer shortcuts. In the terminal TUI, use its own `/` command palette. In a normal shell, use top-level commands such as `./bin/cybercode mcp list`, `./bin/cybercode plugin list`, `./bin/cybercode agents`, `./bin/cybercode doctor`, and `./bin/cybercode auth login`.
 
 ### Module 6. Permissions and Tool Safety
 
@@ -645,7 +636,7 @@ Notes:
 
 Use this module to turn repeatable workflows into reusable capabilities.
 
-1. Type `/` and browse available slash commands.
+1. In the terminal TUI or desktop composer, type `/` and browse available slash commands.
 2. Start with built-in skills such as `/verify`, `/debug`, `/simplify`, `/remember`, and `/batch`.
 3. In the desktop app, use `/skills` to inspect user-invocable skills for the current context.
 4. For a project skill, create `.claude/skills/<skill-name>/SKILL.md`.

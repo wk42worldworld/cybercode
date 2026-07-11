@@ -9,10 +9,14 @@ import {
 describe('Kimi model rules', () => {
   test('treats Kimi K2.7 Code variants as always-on thinking models', () => {
     const kimiCode = 'https://api.kimi.com/coding/'
+    const kimiApi = 'https://api.moonshot.cn'
+
     expect(isKimiAlwaysOnThinkingModel('kimi-k2.7-code', kimiCode)).toBe(true)
     expect(isKimiAlwaysOnThinkingModel('kimi-k2.7-code-highspeed', kimiCode)).toBe(true)
     expect(isKimiAlwaysOnThinkingModel('openrouter/kimi-k2.7-code', kimiCode)).toBe(true)
     expect(isKimiAlwaysOnThinkingModel('kimi-for-coding', kimiCode)).toBe(true)
+    expect(isKimiAlwaysOnThinkingModel('kimi-for-coding-highspeed', kimiCode)).toBe(true)
+    expect(isKimiAlwaysOnThinkingModel('kimi-k2.7-code', kimiApi)).toBe(true)
     expect(isKimiAlwaysOnThinkingModel('kimi-k2.7-code', 'https://openrouter.ai')).toBe(false)
   })
 

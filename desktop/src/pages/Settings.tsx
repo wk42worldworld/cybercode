@@ -27,6 +27,12 @@ import { useSkillStore } from '../stores/skillStore'
 import { skillsApi, type SkillsConfig } from '../api/skills'
 import { SkillList } from '../components/skills/SkillList'
 import { SkillDetail } from '../components/skills/SkillDetail'
+import {
+  SkillLearningModeControl,
+  SkillLearningPanel,
+  type SkillLearningView,
+} from '../components/skills/SkillLearningPanel'
+import { useSkillLearningStore } from '../stores/skillLearningStore'
 import { usePluginStore } from '../stores/pluginStore'
 import { PluginList } from '../components/plugins/PluginList'
 import { PluginDetail } from '../components/plugins/PluginDetail'
@@ -38,7 +44,15 @@ import { useUpdateStore } from '../stores/updateStore'
 import { formatBytes } from '../lib/formatBytes'
 import { isTauriRuntime } from '../lib/desktopRuntime'
 import { Icon } from '../components/shared/Icon'
-import { promptMemoryApi, type PromptMemoryAutoReviewLogEntry, type PromptMemoryStatus, type PromptMemoryTarget } from '../api/promptMemory'
+import {
+  promptMemoryApi,
+  type PromptMemoryAutoReviewLogEntry,
+  type PromptMemoryInsight,
+  type PromptMemoryInsights,
+  type PromptMemoryStatus,
+  type PromptMemoryTarget,
+} from '../api/promptMemory'
+import { EvolutionProfile } from '../components/memory/EvolutionProfile'
 
 const SETTINGS_TABS: SettingsTab[] = [
   'general',
@@ -593,7 +607,7 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
     normalized.includes('gpt-5') ||
     normalized.includes('kimi-k2') ||
     normalized.includes('kimi-for-coding') ||
-    /\bqwen3\.5(?:[:\-]|$)/.test(normalized) ||
+    /\bqwen3\.(?:5|6)(?:[:\-]|$)/.test(normalized) ||
     normalized.includes('claude-3') ||
     normalized.includes('claude-4') ||
     normalized.includes('claude-sonnet') ||
@@ -627,6 +641,7 @@ function ModelIdInput({
   required,
   value,
   onChange,
+  onSelectOption,
   placeholder,
   options = [],
   selectLabel,
@@ -635,6 +650,7 @@ function ModelIdInput({
   required?: boolean
   value: string
   onChange: (value: string) => void
+  onSelectOption?: (option: ProviderModelOption) => void
   placeholder?: string
   options?: ProviderModelOption[]
   selectLabel: string
@@ -708,7 +724,8 @@ function ModelIdInput({
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onChange(option.id)
+                    if (onSelectOption) onSelectOption(option)
+                    else onChange(option.id)
                     setOpen(false)
                   }}
                   className={`
@@ -821,6 +838,21 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
       ...prev,
       [role]: formatContextWindowInput(inferred),
     }))
+  }
+
+  const selectModelOption = (role: ModelRole, option: ProviderModelOption) => {
+    setModels((prev) => ({ ...prev, [role]: option.id }))
+    const contextWindow =
+      option.contextWindow ??
+      inferContextWindowFromModelId(option.id) ??
+      (selectedPreset.defaultModels[role]?.trim() === option.id.trim()
+        ? selectedPreset.defaultModelContextWindows?.[role]
+        : undefined)
+    setContextWindowInputs((prev) => ({
+      ...prev,
+      [role]: formatContextWindowInput(contextWindow),
+    }))
+    setContextWindowTouched((prev) => ({ ...prev, [role]: false }))
   }
 
   const updateContextWindowInput = (role: ModelRole, value: string) => {
@@ -1038,6 +1070,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             required
             value={models.main}
             onChange={(value) => updateModel('main', value)}
+            onSelectOption={(option) => selectModelOption('main', option)}
             placeholder="Model ID"
             options={availableModelOptions}
             selectLabel={t('model.selectModel')}
@@ -1248,6 +1281,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
                             : t('settings.providers.opusModel')}
                         value={models[role]}
                         onChange={(value) => updateModel(role, value)}
+                        onSelectOption={(option) => selectModelOption(role, option)}
                         placeholder={t('settings.providers.sameAsMain')}
                         options={availableModelOptions}
                         selectLabel={t('model.selectModel')}
@@ -1398,21 +1432,26 @@ export function MemorySettings() {
   const [target, setTarget] = useState<PromptMemoryTarget>('brief')
   const [status, setStatus] = useState<PromptMemoryStatus | null>(null)
   const [autoLogs, setAutoLogs] = useState<PromptMemoryAutoReviewLogEntry[]>([])
+  const [insights, setInsights] = useState<PromptMemoryInsights | null>(null)
   const [draft, setDraft] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [removingInsightId, setRemovingInsightId] = useState<string | null>(null)
+  const [pendingRemoveInsight, setPendingRemoveInsight] = useState<PromptMemoryInsight | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const loadMemory = useCallback(async (nextTarget: PromptMemoryTarget = target) => {
     setIsLoading(true)
     setError(null)
     try {
-      const [nextStatus, nextLogs] = await Promise.all([
+      const [nextStatus, nextLogs, nextInsights] = await Promise.all([
         promptMemoryApi.status(),
         promptMemoryApi.logs(20),
+        promptMemoryApi.insights(),
       ])
       setStatus(nextStatus)
       setAutoLogs(nextLogs)
+      setInsights(nextInsights)
       setDraft(nextStatus.files[nextTarget].content)
     } catch (loadError) {
       setError(getMemoryErrorMessage(loadError, t('settings.memory.loadFailed')))
@@ -1462,6 +1501,8 @@ export function MemorySettings() {
           }
         : current)
       setDraft(saved.content)
+      const nextInsights = await promptMemoryApi.insights()
+      setInsights(nextInsights)
       addToast({
         type: 'success',
         message: t('settings.memory.saved'),
@@ -1473,11 +1514,60 @@ export function MemorySettings() {
     }
   }
 
+  const handleEditInsight = (insight: PromptMemoryInsight) => {
+    setTarget(insight.target)
+    if (status) setDraft(status.files[insight.target].content)
+    window.requestAnimationFrame(() => {
+      document.getElementById('prompt-memory-editor')?.scrollIntoView?.({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+  }
+
+  const handleRemoveInsight = async () => {
+    const insight = pendingRemoveInsight
+    if (!insight) return
+    setRemovingInsightId(insight.id)
+    setError(null)
+    try {
+      await promptMemoryApi.removeEntry(insight.target, insight.raw)
+      await loadMemory(target)
+      addToast({
+        type: 'success',
+        message: t('settings.memory.insight.removed'),
+      })
+      setPendingRemoveInsight(null)
+    } catch (removeError) {
+      addToast({
+        type: 'error',
+        message: getMemoryErrorMessage(
+          removeError,
+          t('settings.memory.insight.removeFailed'),
+        ),
+      })
+    } finally {
+      setRemovingInsightId(null)
+    }
+  }
+
   return (
     <SettingsPage
       title={t('settings.memory.title')}
       description={t('settings.memory.description')}
     >
+      <SettingsSection
+        title={t('settings.memory.insight.title')}
+        description={t('settings.memory.insight.description')}
+      >
+        <EvolutionProfile
+          overview={insights}
+          removingId={removingInsightId}
+          onEdit={handleEditInsight}
+          onRemove={setPendingRemoveInsight}
+        />
+      </SettingsSection>
+
       <SettingsSection
         title={t('settings.memory.sectionTitle')}
         description={t('settings.memory.sectionDescription')}
@@ -1492,7 +1582,7 @@ export function MemorySettings() {
           </Button>
         )}
       >
-        <div className="flex flex-col gap-[14px] px-[20px] py-[16px]">
+        <div id="prompt-memory-editor" className="flex flex-col gap-[14px] px-[20px] py-[16px]">
           <div className="flex flex-wrap items-center justify-between gap-[12px]">
             <SegmentedControl items={targetItems} value={target} onChange={handleTargetChange} />
             <div className={`rounded-full border px-[10px] py-[5px] text-[11px] font-semibold ${
@@ -1593,7 +1683,9 @@ export function MemorySettings() {
                     {t(`settings.memory.autoLog.action.${entry.action}` as never)}
                   </span>
                   <span className="font-mono text-[11px] font-semibold text-[var(--color-text-primary)]">
-                    {entry.target.toUpperCase()}.md
+                    {t(entry.target === 'user'
+                      ? 'settings.memory.autoLog.target.user'
+                      : 'settings.memory.autoLog.target.brief')}
                   </span>
                   <span className="text-[11px] text-[var(--color-text-tertiary)]">
                     {t(`settings.memory.autoLog.trigger.${entry.trigger}` as never)}
@@ -1603,13 +1695,31 @@ export function MemorySettings() {
                   </span>
                 </div>
                 <div className="mt-[8px] break-words text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
-                  {entry.content || entry.oldText || entry.message}
+                  {formatMemoryLogContent(entry.content || entry.oldText || entry.message)}
                 </div>
               </div>
             ))
           )}
         </div>
       </SettingsSection>
+
+      <ConfirmDialog
+        open={pendingRemoveInsight !== null}
+        onClose={() => {
+          if (!removingInsightId) setPendingRemoveInsight(null)
+        }}
+        onConfirm={handleRemoveInsight}
+        title={t('settings.memory.insight.confirmTitle')}
+        body={pendingRemoveInsight
+          ? t('settings.memory.insight.confirmBody', {
+              content: pendingRemoveInsight.content,
+            })
+          : ''}
+        confirmLabel={t('common.delete')}
+        cancelLabel={t('common.cancel')}
+        confirmVariant="danger"
+        loading={removingInsightId !== null}
+      />
     </SettingsPage>
   )
 }
@@ -1618,6 +1728,10 @@ function formatMemoryLogTime(timestamp: string) {
   const date = new Date(timestamp)
   if (Number.isNaN(date.getTime())) return timestamp
   return date.toLocaleString()
+}
+
+function formatMemoryLogContent(content: string) {
+  return content.replace(/^\[[a-z][a-z-]{1,31}\]\s*/i, '').trim()
 }
 
 function getMemoryErrorMessage(error: unknown, fallback: string) {
@@ -1810,6 +1924,13 @@ export function SkillSettings() {
   const t = useTranslation()
   const [config, setConfig] = useState<SkillsConfig | null>(null)
   const [openingConfig, setOpeningConfig] = useState(false)
+  const [skillView, setSkillView] = useState<'installed' | SkillLearningView>('installed')
+  const sessions = useSessionStore((s) => s.sessions)
+  const activeSessionId = useSessionStore((s) => s.activeSessionId)
+  const overview = useSkillLearningStore((s) => s.overview)
+  const fetchLearningOverview = useSkillLearningStore((s) => s.fetchOverview)
+  const activeSession = sessions.find((session) => session.id === activeSessionId)
+  const currentWorkDir = activeSession?.workDir || undefined
 
   useEffect(() => {
     let cancelled = false
@@ -1822,6 +1943,14 @@ export function SkillSettings() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    void fetchLearningOverview(currentWorkDir)
+    const timer = window.setInterval(() => {
+      void fetchLearningOverview(currentWorkDir, true)
+    }, 12_000)
+    return () => window.clearInterval(timer)
+  }, [currentWorkDir, fetchLearningOverview])
 
   const openConfigDir = async () => {
     setOpeningConfig(true)
@@ -1870,29 +1999,62 @@ export function SkillSettings() {
   return (
     <div className="mx-auto flex w-full max-w-[896px] flex-col gap-[24px]">
       <header className="flex min-h-[76px] flex-col justify-center gap-[6px] pb-[4px]">
-        <h1 className="text-[22px] font-bold tracking-normal text-[var(--color-text-primary)]">
-          {t('settings.skills.title')}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[13px] leading-[20px] text-[var(--color-text-secondary)]">
-            {t('settings.skills.description')}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-[22px] font-bold tracking-normal text-[var(--color-text-primary)]">
+              {t('settings.skills.title')}
+            </h1>
+            <p className="mt-1 text-[13px] leading-[20px] text-[var(--color-text-secondary)]">
+              {t('settings.skills.description')}
+            </p>
+          </div>
+          <SkillLearningModeControl cwd={currentWorkDir} />
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={openConfigDir}
-            loading={openingConfig}
-            icon={<Icon name="folder_open" size={14} />}
-            className="h-[36px] max-w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-[12px] font-mono text-[11px] font-medium normal-case tracking-normal text-[var(--color-text-secondary)]"
-            aria-label={t('settings.skills.openConfigPath')}
-            title={t('settings.skills.openConfigPath')}
-          >
-            <span className="truncate">{config?.displayPath ?? '~/.cyber/skills'}</span>
-          </Button>
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={openConfigDir}
+              loading={openingConfig}
+              icon={<Icon name="folder_open" size={14} />}
+              className="h-[34px] max-w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-[10px] font-mono text-[11px] font-medium normal-case tracking-normal text-[var(--color-text-secondary)]"
+              aria-label={t('settings.skills.openConfigPath')}
+              title={t('settings.skills.openConfigPath')}
+            >
+              <span className="truncate">{config?.displayPath ?? '~/.cyber/skills'}</span>
+            </Button>
         </div>
       </header>
-      <SkillList />
+      <div className="inline-flex h-[38px] w-fit items-center gap-0.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-0.5">
+        {([
+          ['installed', t('settings.skills.learning.tab.installed'), undefined],
+          ['pending', t('settings.skills.learning.tab.pending'), overview?.pendingCandidates.length],
+          ['learning', t('settings.skills.learning.tab.learning'), overview?.memories.length],
+        ] as const).map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSkillView(key)}
+            className={`inline-flex h-[32px] items-center gap-1.5 rounded-md px-3 text-[12px] font-semibold transition-colors ${
+              skillView === key
+                ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]'
+            }`}
+            aria-pressed={skillView === key}
+          >
+            {label}
+            {typeof count === 'number' && count > 0 && (
+              <span className="min-w-[18px] rounded-md bg-[var(--color-surface-container-high)] px-1 text-center text-[10px] leading-[18px] text-[var(--color-text-secondary)]">
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {skillView === 'installed'
+        ? <SkillList />
+        : <SkillLearningPanel view={skillView} cwd={currentWorkDir} />}
     </div>
   )
 }

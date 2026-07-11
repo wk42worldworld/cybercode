@@ -4,6 +4,7 @@ import '@testing-library/jest-dom'
 
 import { SkillSettings } from '../pages/Settings'
 import { useSkillStore } from '../stores/skillStore'
+import { useSkillLearningStore } from '../stores/skillLearningStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTabStore } from '../stores/tabStore'
@@ -58,6 +59,10 @@ const MOCK_FETCH_SKILLS = vi.fn()
 const MOCK_FETCH_SKILL_DETAIL = vi.fn()
 const MOCK_SET_SKILL_ENABLED = vi.fn()
 const MOCK_CLEAR_SELECTION = vi.fn()
+const MOCK_FETCH_LEARNING = vi.fn()
+const MOCK_SET_LEARNING_MODE = vi.fn()
+const MOCK_APPROVE_CANDIDATE = vi.fn()
+const MOCK_REJECT_CANDIDATE = vi.fn()
 const MOCK_TAURI_INVOKE = vi.hoisted(() => vi.fn())
 const MOCK_TAURI_OPEN = vi.hoisted(() => vi.fn())
 
@@ -96,7 +101,29 @@ describe('Settings > Skills tab', () => {
       availableProjects: ['/workspace/project'],
     })
     useTabStore.setState({ tabs: [], activeTabId: null })
-    useUIStore.setState({ pendingSettingsTab: null })
+    useUIStore.setState({ pendingSettingsTab: null, toasts: [] })
+    useSkillLearningStore.setState({
+      overview: {
+        config: {
+          version: 1,
+          mode: 'suggest',
+          minToolUses: 6,
+          minConfidence: 0.78,
+          autoApproveConfidence: 0.92,
+        },
+        pendingCandidates: [],
+        recentCandidates: [],
+        events: [],
+        memories: [],
+      },
+      isLoading: false,
+      pendingCandidateId: null,
+      error: null,
+      fetchOverview: MOCK_FETCH_LEARNING,
+      setMode: MOCK_SET_LEARNING_MODE,
+      approveCandidate: MOCK_APPROVE_CANDIDATE,
+      rejectCandidate: MOCK_REJECT_CANDIDATE,
+    })
     useSkillStore.setState({
       skills: [],
       selectedSkill: null,
@@ -161,6 +188,70 @@ describe('Settings > Skills tab', () => {
     expect(screen.getByText('Second skill description')).toBeInTheDocument()
     expect(screen.getAllByText('Plugin').length).toBeGreaterThan(0)
     expect(screen.getByText('Telegram Access')).toBeInTheDocument()
+  })
+
+  it('shows learned Skill drafts and approves them into the installed list', async () => {
+    useSkillLearningStore.setState((state) => ({
+      ...state,
+      overview: {
+        ...state.overview!,
+        pendingCandidates: [
+          {
+            version: 1,
+            id: 'candidate-123',
+            status: 'pending',
+            action: 'create',
+            scope: 'project',
+            projectRoot: '/workspace/project',
+            name: 'project-verification',
+            description: 'Verify project changes consistently',
+            whenToUse: 'Use after changing this project.',
+            reason: 'The workflow was repeated and verified.',
+            evidence: ['Focused tests and build passed'],
+            confidence: 0.94,
+            markdown: '# Project Verification',
+            sourceSessionId: 'session-1',
+            sourceFingerprint: 'fingerprint-1',
+            sourceToolUses: 8,
+            createdAt: '2026-07-11T08:00:00.000Z',
+            updatedAt: '2026-07-11T08:00:00.000Z',
+          },
+        ],
+      },
+    }))
+
+    render(<SkillSettings />)
+    fireEvent.click(screen.getByRole('button', { name: /Pending/ }))
+
+    expect(screen.getByText('/project-verification')).toBeInTheDocument()
+    expect(screen.getByText('Verify project changes consistently')).toBeInTheDocument()
+    expect(screen.getByText('94% confidence')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+    await waitFor(() => {
+      expect(MOCK_APPROVE_CANDIDATE).toHaveBeenCalledWith(
+        'candidate-123',
+        '/workspace/project',
+      )
+      expect(MOCK_FETCH_SKILLS).toHaveBeenCalledWith('/workspace/project')
+    })
+    expect(useUIStore.getState().toasts).toContainEqual(
+      expect.objectContaining({ type: 'success', message: '/project-verification was saved' }),
+    )
+  })
+
+  it('switches Skill learning mode without affecting the selected project', async () => {
+    render(<SkillSettings />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Auto' }))
+
+    await waitFor(() => {
+      expect(MOCK_SET_LEARNING_MODE).toHaveBeenCalledWith(
+        'auto',
+        '/workspace/project',
+      )
+    })
   })
 
   it('uses the active session workDir when settings drawer is opened', () => {

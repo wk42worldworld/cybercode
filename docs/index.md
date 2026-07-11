@@ -19,6 +19,9 @@ hero:
 features:
   - title: 完整 TUI 交互
     details: 与官方 Claude Code 一致的 Ink 终端界面，支持 --print 无头模式
+  - title: 斜杠命令参考
+    details: 写清桌面端输入框、终端 TUI 和普通 shell 的命令差异与完整作用
+    link: /guide/slash-commands
   - title: 记忆系统
     details: 跨会话持久化记忆，自动提取、智能检索、AutoDream 做梦整合
     link: /memory/

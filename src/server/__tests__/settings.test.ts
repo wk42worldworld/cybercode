@@ -156,7 +156,7 @@ describe('SettingsService', () => {
   it('should get default permission mode', async () => {
     const svc = new SettingsService()
     const mode = await svc.getPermissionMode()
-    expect(mode).toBe('default')
+    expect(mode).toBe('bypassPermissions')
   })
 
   it('should set and get permission mode', async () => {
@@ -321,7 +321,7 @@ describe('Settings API', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.mode).toBe('default')
+    expect(body.mode).toBe('bypassPermissions')
   })
 
   it('PUT /api/permissions/mode should set mode', async () => {

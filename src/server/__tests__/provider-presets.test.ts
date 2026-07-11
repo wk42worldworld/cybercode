@@ -96,13 +96,18 @@ describe('provider presets API', () => {
     expect(zhipu?.defaultModels.haiku).toBe('glm-4.7')
     expect(zhipu?.defaultModels.sonnet).toBe('glm-5.2')
     expect(zhipu?.defaultModels.opus).toBe('glm-5.2')
-    expect(zhipu?.defaultModelContextWindows?.main).toBe(200_000)
+    expect(zhipu?.defaultModelContextWindows?.main).toBe(1_000_000)
+    expect(zhipu?.defaultModelContextWindows?.haiku).toBe(200_000)
+    expect(zhipu?.defaultModelContextWindows?.sonnet).toBe(1_000_000)
+    expect(zhipu?.defaultModelContextWindows?.opus).toBe(1_000_000)
     expect(kimiCode?.baseUrl).toBe('https://api.kimi.com/coding/')
     expect(kimiCode?.defaultModels.main).toBe('kimi-for-coding')
-    expect(kimiCode?.defaultModelContextWindows?.main).toBe(256_000)
-    expect(kimi?.baseUrl).toBe('https://api.moonshot.cn/anthropic')
-    expect(kimi?.defaultModels.main).toBe('kimi-k2.6')
-    expect(kimi?.defaultModelContextWindows?.main).toBe(256_000)
+    expect(kimiCode?.defaultModelContextWindows?.main).toBe(262_144)
+    expect(kimi?.baseUrl).toBe('https://api.moonshot.cn')
+    expect(kimi?.apiFormat).toBe('openai_chat')
+    expect(kimi?.defaultModels.main).toBe('kimi-k2.7-code')
+    expect(kimi?.defaultModels.haiku).toBe('kimi-k2.6')
+    expect(kimi?.defaultModelContextWindows?.main).toBe(262_144)
     expect(minimax?.defaultModels.main).toBe('MiniMax-M3')
     expect(minimax?.defaultModelContextWindows?.main).toBe(1_000_000)
     expect(xiaomi?.defaultModels.haiku).toBe('mimo-v2.5')
@@ -111,11 +116,11 @@ describe('provider presets API', () => {
     expect(xiaomi?.defaultModelContextWindows?.opus).toBe(1_000_000)
     expect(openai?.baseUrl).toBe('https://api.openai.com')
     expect(openai?.apiFormat).toBe('openai_responses')
-    expect(openai?.defaultModels.main).toBe('gpt-5.2')
-    expect(openai?.defaultModels.haiku).toBe('gpt-5-mini')
-    expect(openai?.defaultModels.sonnet).toBe('gpt-5.2')
-    expect(openai?.defaultModels.opus).toBe('gpt-5.2')
-    expect(openai?.defaultModelContextWindows?.main).toBe(400_000)
+    expect(openai?.defaultModels.main).toBe('gpt-5.5')
+    expect(openai?.defaultModels.haiku).toBe('gpt-5.4-mini')
+    expect(openai?.defaultModels.sonnet).toBe('gpt-5.5')
+    expect(openai?.defaultModels.opus).toBe('gpt-5.5')
+    expect(openai?.defaultModelContextWindows?.main).toBe(1_050_000)
     expect(openai?.defaultModelContextWindows?.haiku).toBe(400_000)
     expect(google?.baseUrl).toBe('https://generativelanguage.googleapis.com/v1beta/openai')
     expect(google?.apiFormat).toBe('openai_chat')
@@ -136,7 +141,7 @@ describe('provider presets API', () => {
     expect(byId.get('kimi-code')?.supportsImages).toBe(true)
     expect(byId.get('kimi')?.supportsImages).toBe(true)
     expect(byId.get('lmstudio')?.supportsImages).toBeUndefined()
-    expect(byId.get('ollama')?.supportsImages).toBeUndefined()
+    expect(byId.get('ollama')?.supportsImages).toBe(true)
     expect(byId.get('custom')?.supportsImages).toBeUndefined()
   })
 
@@ -156,27 +161,26 @@ describe('provider presets API', () => {
     expect(zhipu?.modelOptions?.[0]).toEqual({
       id: 'glm-5.2',
       label: 'GLM-5.2',
-      contextWindow: 200_000,
+      contextWindow: 1_000_000,
     })
     expect(kimiCode?.modelOptions?.[0]?.id).toBe('kimi-for-coding')
     expect(kimiCode?.modelOptions?.[1]).toEqual({
-      id: 'kimi-k2.7-code',
-      label: 'Kimi K2.7 Code',
-      contextWindow: 256_000,
+      id: 'kimi-for-coding-highspeed',
+      label: 'Kimi for Coding HighSpeed',
+      contextWindow: 262_144,
       supportsImages: true,
     })
-    expect(kimiCode?.modelOptions?.[2]).toEqual({
-      id: 'kimi-k2.7-code-highspeed',
-      label: 'Kimi K2.7 Code Highspeed',
-      contextWindow: 256_000,
-      supportsImages: true,
-    })
-    expect(kimi?.modelOptions?.[0]?.id).toBe('kimi-k2.6')
-    expect(kimi?.modelOptions?.some((option) => option.id.includes('kimi-k2.7-code'))).toBe(false)
+    expect(kimiCode?.modelOptions).toHaveLength(2)
+    expect(kimi?.modelOptions?.map((option) => option.id)).toEqual([
+      'kimi-k2.7-code',
+      'kimi-k2.7-code-highspeed',
+      'kimi-k2.6',
+      'kimi-k2.5',
+    ])
     expect(openai?.modelOptions?.map((option) => option.id).slice(0, 3)).toEqual([
-      'gpt-5.2',
-      'gpt-5.1',
-      'gpt-5-pro',
+      'gpt-5.5',
+      'gpt-5.5-pro',
+      'gpt-5.4',
     ])
     expect(google?.modelOptions?.map((option) => option.id).slice(0, 3)).toEqual([
       'gemini-3.5-flash',
@@ -184,6 +188,33 @@ describe('provider presets API', () => {
       'gemini-3.1-flash-lite',
     ])
     expect(custom?.modelOptions).toBeUndefined()
+  })
+
+  test('configured presets mark only verified million-token models as 1M-capable', () => {
+    const millionTokenModels = PROVIDER_PRESETS.flatMap((preset) =>
+      (preset.modelOptions ?? [])
+        .filter((model) => (model.contextWindow ?? 0) >= 1_000_000)
+        .map((model) => `${preset.id}:${model.id}`),
+    )
+
+    expect(millionTokenModels).toEqual([
+      'deepseek:deepseek-v4-pro',
+      'deepseek:deepseek-v4-flash',
+      'zhipuglm:glm-5.2',
+      'minimax:MiniMax-M3',
+      'xiaomimimo:mimo-v2.5-pro',
+      'xiaomimimo:mimo-v2.5',
+      'openai:gpt-5.5',
+      'openai:gpt-5.5-pro',
+      'openai:gpt-5.4',
+      'openai:gpt-5.4-pro',
+      'google:gemini-3.5-flash',
+      'google:gemini-3.1-pro-preview',
+      'google:gemini-3.1-flash-lite',
+      'google:gemini-2.5-pro',
+      'google:gemini-2.5-flash',
+      'google:gemini-2.5-flash-lite',
+    ])
   })
 
   test('configured presets can expose optional API key and promo metadata', () => {
@@ -200,13 +231,14 @@ describe('provider presets API', () => {
 
     expect(lmstudio?.needsApiKey).toBe(false)
     expect(lmstudio?.promoText).toContain('http://localhost:1234')
-    expect(lmstudio?.promoText).toContain('200K')
-    expect(lmstudio?.defaultModelContextWindows?.main).toBe(200_000)
+    expect(lmstudio?.promoText).toContain('131,072')
+    expect(lmstudio?.defaultModelContextWindows?.main).toBe(131_072)
     expect(lmstudio?.defaultEnv).toEqual({ ANTHROPIC_AUTH_TOKEN: 'lmstudio' })
     expect(ollama?.needsApiKey).toBe(false)
     expect(ollama?.promoText).toContain('http://localhost:11434')
     expect(ollama?.promoText).toContain('256K')
-    expect(ollama?.defaultModelContextWindows?.main).toBe(256_000)
+    expect(ollama?.defaultModelContextWindows?.main).toBe(262_144)
+    expect(ollama?.supportsImages).toBe(true)
     expect(ollama?.defaultEnv).toEqual({ ANTHROPIC_AUTH_TOKEN: 'ollama' })
     expect(deepseek?.apiKeyUrl).toBe('https://platform.deepseek.com/api_keys')
     expect(zhipu?.apiKeyUrl).toBe('https://www.bigmodel.cn/usercenter/proj-mgmt/apikeys')

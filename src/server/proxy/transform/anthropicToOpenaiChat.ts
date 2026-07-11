@@ -15,10 +15,16 @@ import type {
   OpenAITool,
 } from './types.js'
 
-/**
- * Convert Anthropic Messages request to OpenAI Chat Completions request.
- */
-export function anthropicToOpenaiChat(body: AnthropicRequest): OpenAIChatRequest {
+export type OpenAIChatTransformOptions = {
+  kimiThinking?: boolean
+  preserveReasoningContent?: boolean
+}
+
+/** Convert an Anthropic request to OpenAI Chat Completions. */
+export function anthropicToOpenaiChat(
+  body: AnthropicRequest,
+  options: OpenAIChatTransformOptions = {},
+): OpenAIChatRequest {
   const messages: OpenAIChatMessage[] = []
 
   // Convert system prompt
@@ -33,7 +39,7 @@ export function anthropicToOpenaiChat(body: AnthropicRequest): OpenAIChatRequest
 
   // Convert messages
   for (const msg of body.messages) {
-    convertMessage(msg, messages)
+    convertMessage(msg, messages, options)
   }
 
   // Build request
@@ -75,22 +81,34 @@ export function anthropicToOpenaiChat(body: AnthropicRequest): OpenAIChatRequest
     result.tool_choice = convertToolChoice(body.tool_choice)
   }
 
-  // thinking → reasoning_effort
+  // Kimi uses its own thinking object. Other compatible APIs commonly use
+  // reasoning_effort instead.
   if (body.thinking) {
-    const budget = body.thinking.budget_tokens
-    if (budget !== undefined) {
-      if (budget <= 1024) result.reasoning_effort = 'low'
-      else if (budget <= 8192) result.reasoning_effort = 'medium'
-      else result.reasoning_effort = 'high'
-    } else if (body.thinking.type === 'enabled') {
-      result.reasoning_effort = 'high'
+    if (options.kimiThinking) {
+      const alwaysThinking = body.model.toLowerCase().includes('kimi-k2.7-code')
+      result.thinking = {
+        type: alwaysThinking || body.thinking.type !== 'disabled' ? 'enabled' : 'disabled',
+      }
+    } else {
+      const budget = body.thinking.budget_tokens
+      if (budget !== undefined) {
+        if (budget <= 1024) result.reasoning_effort = 'low'
+        else if (budget <= 8192) result.reasoning_effort = 'medium'
+        else result.reasoning_effort = 'high'
+      } else if (body.thinking.type === 'enabled') {
+        result.reasoning_effort = 'high'
+      }
     }
   }
 
   return result
 }
 
-function convertMessage(msg: AnthropicMessage, output: OpenAIChatMessage[]): void {
+function convertMessage(
+  msg: AnthropicMessage,
+  output: OpenAIChatMessage[],
+  options: OpenAIChatTransformOptions,
+): void {
   const content = msg.content
 
   // Simple string content
@@ -108,7 +126,7 @@ function convertMessage(msg: AnthropicMessage, output: OpenAIChatMessage[]): voi
   if (msg.role === 'user') {
     convertUserMessage(content, output)
   } else {
-    convertAssistantMessage(content, output)
+    convertAssistantMessage(content, output, options)
   }
 }
 
@@ -147,8 +165,13 @@ function convertUserMessage(blocks: AnthropicContentBlock[], output: OpenAIChatM
   }
 }
 
-function convertAssistantMessage(blocks: AnthropicContentBlock[], output: OpenAIChatMessage[]): void {
+function convertAssistantMessage(
+  blocks: AnthropicContentBlock[],
+  output: OpenAIChatMessage[],
+  options: OpenAIChatTransformOptions,
+): void {
   let textContent = ''
+  const reasoningParts: string[] = []
   const toolCalls: OpenAIToolCall[] = []
 
   for (const block of blocks) {
@@ -163,8 +186,9 @@ function convertAssistantMessage(blocks: AnthropicContentBlock[], output: OpenAI
           arguments: typeof block.input === 'string' ? block.input : JSON.stringify(block.input),
         },
       })
+    } else if (block.type === 'thinking' && options.preserveReasoningContent) {
+      reasoningParts.push(block.thinking)
     }
-    // Skip thinking blocks — no OpenAI equivalent
   }
 
   const msg: OpenAIChatMessage = {
@@ -174,6 +198,9 @@ function convertAssistantMessage(blocks: AnthropicContentBlock[], output: OpenAI
 
   if (toolCalls.length > 0) {
     msg.tool_calls = toolCalls
+  }
+  if (reasoningParts.length > 0) {
+    msg.reasoning_content = reasoningParts.join('\n')
   }
 
   output.push(msg)

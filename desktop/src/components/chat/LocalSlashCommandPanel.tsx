@@ -223,6 +223,206 @@ function KeyValueRows({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   )
 }
 
+type UsageSegment = {
+  key: string
+  label: string
+  value: number
+  color: string
+}
+
+function compactNumber(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(Math.max(0, value))
+}
+
+function usageShare(value: number, total: number) {
+  if (total <= 0 || value <= 0) return 0
+  return (value / total) * 100
+}
+
+function TokenCompositionRing({ segments, total, reveal }: { segments: UsageSegment[]; total: number; reveal: boolean }) {
+  let offset = 0
+
+  return (
+    <div className="relative h-[120px] w-[120px] shrink-0" data-testid="usage-composition-ring">
+      <svg viewBox="0 0 112 112" className="h-full w-full -rotate-90" aria-hidden="true">
+        <circle cx="56" cy="56" r="43" fill="none" stroke="var(--color-border-separator)" strokeWidth="11" opacity="0.65" />
+        {segments.map((segment) => {
+          const share = usageShare(segment.value, total)
+          const currentOffset = offset
+          offset += share
+          return (
+            <circle
+              key={segment.key}
+              cx="56"
+              cy="56"
+              r="43"
+              pathLength="100"
+              fill="none"
+              stroke={segment.color}
+              strokeWidth="11"
+              strokeDasharray={reveal ? `${share} ${100 - share}` : '0 100'}
+              strokeDashoffset={-currentOffset}
+              style={{ transition: 'stroke-dasharray 700ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
+          )
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-mono text-[19px] font-semibold tabular-nums text-[var(--color-text-primary)]">{compactNumber(total)}</span>
+        <span className="mt-0.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">Token</span>
+      </div>
+    </div>
+  )
+}
+
+function ContextCapacityGauge({ context, reveal, t }: { context?: SessionContextSnapshot; reveal: boolean; t: Translate }) {
+  const percentage = context ? Math.max(0, Math.min(100, context.percentage)) : 0
+  const radius = 43
+  const circumference = 2 * Math.PI * radius
+  const remaining = context ? Math.max(0, context.maxTokens - context.totalTokens) : 0
+  const color = percentage >= 85
+    ? 'var(--color-error)'
+    : percentage >= 65
+      ? 'var(--color-warning)'
+      : 'var(--color-success)'
+
+  return (
+    <div className="flex min-w-0 items-center gap-5" data-testid="usage-context-gauge">
+      <div className="relative h-[120px] w-[120px] shrink-0">
+        <svg viewBox="0 0 112 112" className="h-full w-full" aria-hidden="true">
+          <circle cx="56" cy="56" r={radius} fill="none" stroke="var(--color-border-separator)" strokeWidth="11" opacity="0.65" />
+          <circle
+            cx="56"
+            cy="56"
+            r={radius}
+            fill="none"
+            stroke={color}
+            strokeWidth="11"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - (reveal ? percentage : 0) / 100)}
+            transform="rotate(-90 56 56)"
+            style={{ transition: 'stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1), stroke 180ms ease' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center font-mono text-[20px] font-semibold tabular-nums text-[var(--color-text-primary)]">
+          {context ? formatPercent(percentage) : '--'}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="text-[12px] font-semibold text-[var(--color-text-tertiary)]">{t('slash.inspector.usage.contextUsed')}</div>
+        {context ? (
+          <>
+            <div className="mt-1 font-mono text-[14px] font-semibold tabular-nums text-[var(--color-text-primary)]">
+              {formatNumber(context.totalTokens)} / {formatNumber(context.maxTokens)}
+            </div>
+            <div className="mt-2 text-[12px] text-[var(--color-text-secondary)]">
+              {t('slash.inspector.usage.contextRemaining', { tokens: formatNumber(remaining) })}
+            </div>
+          </>
+        ) : (
+          <div className="mt-2 text-[12px] leading-5 text-[var(--color-text-tertiary)]">{t('slash.inspector.usage.contextUnavailable')}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function TokenCompositionChart({ segments, total, reveal, t }: { segments: UsageSegment[]; total: number; reveal: boolean; t: Translate }) {
+  return (
+    <section data-testid="usage-composition-chart">
+      <InspectorSectionTitle>{t('slash.inspector.usage.composition')}</InspectorSectionTitle>
+      <div
+        className="flex h-[14px] w-full overflow-hidden rounded-[4px] bg-[var(--color-surface-container-high)]"
+        role="img"
+        aria-label={segments.map((segment) => `${segment.label} ${formatNumber(segment.value)}`).join(', ')}
+      >
+        {segments.map((segment) => {
+          const share = usageShare(segment.value, total)
+          return (
+            <div
+              key={segment.key}
+              className="h-full"
+              style={{
+                backgroundColor: segment.color,
+                width: reveal ? `${share}%` : '0%',
+                transition: 'width 700ms cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
+            />
+          )
+        })}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">
+        {segments.map((segment) => (
+          <div key={segment.key} className="flex min-w-0 items-center gap-2.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: segment.color }} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-semibold text-[var(--color-text-tertiary)]">{segment.label}</div>
+              <div className="mt-0.5 flex items-baseline gap-2 font-mono tabular-nums">
+                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{formatNumber(segment.value)}</span>
+                <span className="text-[10px] text-[var(--color-text-tertiary)]">{formatPercent(usageShare(segment.value, total))}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function ModelUsageChart({ models, reveal, t }: { models: SessionUsageSnapshot['models']; reveal: boolean; t: Translate }) {
+  const modelTotals = models.map((model) => ({
+    model,
+    total: model.inputTokens + model.outputTokens + model.cacheReadInputTokens + model.cacheCreationInputTokens,
+  }))
+  const maxTotal = Math.max(1, ...modelTotals.map((entry) => entry.total))
+
+  return (
+    <section data-testid="usage-model-chart">
+      <InspectorSectionTitle>{t('slash.inspector.usage.byModel')}</InspectorSectionTitle>
+      <div className="divide-y divide-[var(--color-border-separator)] border-y border-[var(--color-border-separator)]">
+        {modelTotals.map(({ model, total }) => {
+          const segments = [
+            { value: model.inputTokens, color: 'var(--color-brand)' },
+            { value: model.outputTokens, color: 'var(--color-success)' },
+            { value: model.cacheReadInputTokens, color: 'var(--color-warning)' },
+            { value: model.cacheCreationInputTokens, color: 'var(--color-text-secondary)' },
+          ]
+          return (
+            <div key={model.model} className="grid grid-cols-[minmax(120px,0.85fr)_minmax(160px,1.6fr)_90px] items-center gap-4 py-3">
+              <div className="min-w-0">
+                <div className="truncate text-[12px] font-semibold text-[var(--color-text-primary)]">{model.displayName || model.model}</div>
+                <div className="mt-0.5 truncate font-mono text-[10px] text-[var(--color-text-tertiary)]">{model.model}</div>
+              </div>
+              <div className="h-[10px] overflow-hidden rounded-[3px] bg-[var(--color-surface-container-high)]">
+                <div
+                  className="flex h-full overflow-hidden rounded-[3px]"
+                  style={{
+                    width: reveal ? `${Math.max(total > 0 ? 2 : 0, (total / maxTotal) * 100)}%` : '0%',
+                    transition: 'width 700ms cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                >
+                  {segments.map((segment, index) => (
+                    <span
+                      key={index}
+                      className="h-full"
+                      style={{ backgroundColor: segment.color, width: `${usageShare(segment.value, total)}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="text-right font-mono text-[12px] font-semibold tabular-nums text-[var(--color-text-primary)]">{compactNumber(total)}</div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function UsageTab({
   usage,
   context,
@@ -234,6 +434,13 @@ function UsageTab({
   error?: string
   t: Translate
 }) {
+  const [revealCharts, setRevealCharts] = useState(false)
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setRevealCharts(true))
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
   if (error && !usage) return <ErrorState message={error} />
   if (!usage) {
     return <EmptyState title={t('slash.inspector.usage.emptyTitle')} body={t('slash.inspector.usage.emptyBody')} />
@@ -274,15 +481,22 @@ function UsageTab({
       ? t('slash.inspector.usage.source.transcript')
       : t('slash.inspector.usage.source.currentProcess')
 
+  const totalTokens = totalInputTokens + totalOutputTokens + totalCacheReadInputTokens + totalCacheCreationInputTokens
+  const segments: UsageSegment[] = [
+    { key: 'input', label: t('slash.inspector.usage.input'), value: totalInputTokens, color: 'var(--color-brand)' },
+    { key: 'output', label: t('slash.inspector.usage.output'), value: totalOutputTokens, color: 'var(--color-success)' },
+    { key: 'cache-read', label: t('slash.inspector.usage.cacheRead'), value: totalCacheReadInputTokens, color: 'var(--color-warning)' },
+    { key: 'cache-write', label: t('slash.inspector.usage.cacheWrite'), value: totalCacheCreationInputTokens, color: 'var(--color-text-secondary)' },
+  ]
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       {useContextUsageFallback && (
         <InspectorNotice>
           {t('slash.inspector.usage.contextSnapshotNotice')}
         </InspectorNotice>
       )}
       {usage.source === 'transcript' && (
-        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-[14px] text-[#5f514c]">
+        <div className="rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-4 py-3 text-[14px] text-[var(--color-text-secondary)]">
           {t('slash.inspector.usage.transcriptNotice')}
         </div>
       )}
@@ -291,49 +505,49 @@ function UsageTab({
           {t('slash.inspector.usage.unknownCost')}
         </div>
       )}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <MetricCard label={t('slash.inspector.usage.totalCost')} value={useContextUsageFallback ? 'n/a' : usage.costDisplay} />
-        <MetricCard label={t('slash.inspector.usage.source')} value={sourceLabel} />
-        <MetricCard label={t('slash.inspector.usage.apiDuration')} value={usage.source === 'transcript' || useContextUsageFallback ? '0ms' : formatDuration(usage.totalAPIDuration)} />
-        <MetricCard label={usage.source === 'transcript' ? t('slash.inspector.usage.usageSpan') : t('slash.inspector.usage.wallDuration')} value={useContextUsageFallback ? '0ms' : formatDuration(usage.totalDuration)} />
-        <MetricCard
-          label={t('slash.inspector.usage.codeChanges')}
-          value={`${formatNumber(usage.totalLinesAdded)}/${formatNumber(usage.totalLinesRemoved)}`}
-        />
-        <MetricCard label={t('slash.inspector.usage.input')} value={formatNumber(totalInputTokens)} />
-        <MetricCard label={t('slash.inspector.usage.output')} value={formatNumber(totalOutputTokens)} />
-        <MetricCard label={t('slash.inspector.usage.cacheReadWrite')} value={`${formatNumber(totalCacheReadInputTokens)} / ${formatNumber(totalCacheCreationInputTokens)}`} />
-        <MetricCard label={t('slash.inspector.usage.webSearch')} value={formatNumber(usage.totalWebSearchRequests)} />
-      </div>
-      <section>
-        <div className="mb-3 text-[22px] font-semibold text-[var(--color-text-primary)]">{t('slash.inspector.usage.byModel')}</div>
-        {models.length === 0 ? (
-          <EmptyState title={t('slash.inspector.usage.noModelTitle')} body={t('slash.inspector.usage.noModelBody')} />
-        ) : (
-          <div className="overflow-hidden rounded-md border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] font-mono">
-            {models.map((model) => (
-              <div key={model.model} className="border-t border-[var(--color-border)] first:border-t-0">
-                <div className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-3">
-                  <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{model.displayName || model.model}</div>
-                  <div className="text-right text-[12px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-primary)]">{t('slash.inspector.usage.tokens')}</div>
-                </div>
-                <div className="grid grid-cols-[160px_minmax(0,1fr)_120px] items-center gap-4 border-b border-[var(--color-border)] px-4 py-3 last:border-b-0">
-                  <div className="text-[12px] uppercase tracking-[0.18em] text-[var(--color-text-primary)]">{t('slash.inspector.usage.input')}</div>
-                  <div className="h-1 overflow-hidden rounded-full bg-[#ebe7df]">
-                    <div className="h-full rounded-full bg-[#8f3217]" style={{ width: '95%' }} />
-                  </div>
-                  <div className="text-right text-[13px] text-[var(--color-text-primary)]">{formatNumber(model.inputTokens)}</div>
-                </div>
-                <div className="grid grid-cols-[160px_minmax(0,1fr)_120px] items-center gap-4 px-4 py-3">
-                  <div className="text-[12px] uppercase tracking-[0.18em] text-[var(--color-text-primary)]">{t('slash.inspector.usage.output')}</div>
-                  <div className="h-1 overflow-hidden rounded-full bg-[#ebe7df]">
-                    <div className="h-full rounded-full bg-[#0f5c8f]" style={{ width: `${Math.max(4, Math.min(100, (model.outputTokens / Math.max(1, model.inputTokens)) * 100))}%` }} />
-                  </div>
-                  <div className="text-right text-[13px] text-[var(--color-text-primary)]">{formatNumber(model.outputTokens)}</div>
-                </div>
-              </div>
-            ))}
+      <section className="grid gap-6 border-y border-[var(--color-border-separator)] py-5 lg:grid-cols-2 lg:divide-x lg:divide-[var(--color-border-separator)]" data-testid="usage-overview">
+        <div className="flex min-w-0 items-center gap-5 lg:pr-6">
+          <TokenCompositionRing segments={segments} total={totalTokens} reveal={revealCharts} />
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold text-[var(--color-text-tertiary)]">{t('slash.inspector.usage.totalTokens')}</div>
+            <div className="mt-1 font-mono text-[25px] font-semibold tabular-nums text-[var(--color-text-primary)]">{formatNumber(totalTokens)}</div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--color-text-tertiary)]">
+              <span>{sourceLabel}</span>
+              <span>{useContextUsageFallback ? 'n/a' : usage.costDisplay}</span>
+            </div>
           </div>
+        </div>
+        <div className="lg:pl-6">
+          <ContextCapacityGauge context={context} reveal={revealCharts} t={t} />
+        </div>
+      </section>
+      <TokenCompositionChart segments={segments} total={totalTokens} reveal={revealCharts} t={t} />
+      <section>
+        <InspectorSectionTitle>{t('slash.inspector.usage.supportingStats')}</InspectorSectionTitle>
+        <div className="grid grid-cols-2 border-y border-[var(--color-border-separator)] sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            [t('slash.inspector.usage.totalCost'), useContextUsageFallback ? 'n/a' : usage.costDisplay],
+            [t('slash.inspector.usage.apiDuration'), usage.source === 'transcript' || useContextUsageFallback ? '0ms' : formatDuration(usage.totalAPIDuration)],
+            [usage.source === 'transcript' ? t('slash.inspector.usage.usageSpan') : t('slash.inspector.usage.wallDuration'), useContextUsageFallback ? '0ms' : formatDuration(usage.totalDuration)],
+            [t('slash.inspector.usage.codeAdded'), `+${formatNumber(usage.totalLinesAdded)}`],
+            [t('slash.inspector.usage.codeRemoved'), `-${formatNumber(usage.totalLinesRemoved)}`],
+            [t('slash.inspector.usage.webSearch'), formatNumber(usage.totalWebSearchRequests)],
+          ].map(([label, value], index) => (
+            <div key={String(label)} className={`min-w-0 px-3 py-3 ${index > 0 ? 'border-l border-[var(--color-border-separator)]' : ''}`}>
+              <div className="truncate text-[10px] font-semibold text-[var(--color-text-tertiary)]">{label}</div>
+              <div className="mt-1 truncate font-mono text-[13px] font-semibold tabular-nums text-[var(--color-text-primary)]">{value}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        {models.length === 0 ? (
+          <>
+            <InspectorSectionTitle>{t('slash.inspector.usage.byModel')}</InspectorSectionTitle>
+            <EmptyState title={t('slash.inspector.usage.noModelTitle')} body={t('slash.inspector.usage.noModelBody')} />
+          </>
+        ) : (
+          <ModelUsageChart models={models} reveal={revealCharts} t={t} />
         )}
       </section>
     </div>
@@ -760,7 +974,7 @@ function SessionInspectorPanel({
       ) : data === null ? (
         <LoadingState label={t('slash.inspector.loading')} />
       ) : selectedTab === 'usage' ? (
-        <UsageTab usage={data.usage} context={data.context} error={data.errors?.usage} t={t} />
+        <UsageTab usage={data.usage} context={data.context ?? data.contextEstimate} error={data.errors?.usage} t={t} />
       ) : selectedTab === 'context' ? (
         <ContextTab
           context={data.context ?? data.contextEstimate}

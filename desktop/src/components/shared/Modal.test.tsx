@@ -17,6 +17,7 @@ describe('Modal', () => {
 
     expect(container.contains(dialog)).toBe(false)
     expect(document.body.contains(dialog)).toBe(true)
+    expect(dialog.parentElement?.classList.contains('z-[200]')).toBe(true)
   })
 
   it('closes when the backdrop is clicked', () => {

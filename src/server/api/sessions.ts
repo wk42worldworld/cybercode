@@ -114,6 +114,16 @@ export async function handleSessionsApi(
       return await getSessionInspection(sessionId, url)
     }
 
+    if (subResource === 'usage') {
+      if (req.method !== 'GET') {
+        return Response.json(
+          { error: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` },
+          { status: 405 }
+        )
+      }
+      return await getSessionUsage(sessionId, url)
+    }
+
     // Route to conversations handler if sub-resource is 'chat'
     if (subResource === 'chat') {
       // This is handled by the conversations API, but in case the router
@@ -370,6 +380,41 @@ async function getSessionInspection(sessionId: string, url: URL): Promise<Respon
 
   response.errors = errors
   return Response.json(response)
+}
+
+async function getSessionUsage(sessionId: string, url: URL): Promise<Response> {
+  const projectPath = getProjectPath(url)
+  const workDir =
+    conversationService.getSessionWorkDir(sessionId) ||
+    await sessionService.getSessionWorkDir(sessionId, { projectPath })
+
+  if (!workDir) {
+    throw ApiError.notFound(`Session not found: ${sessionId}`)
+  }
+
+  const [usage, contextEstimate] = await Promise.all([
+    sessionService.getTranscriptUsage(sessionId, { projectPath }),
+    sessionService.getTranscriptContextEstimate(sessionId, { projectPath }),
+  ])
+  const context = contextEstimate
+    ? {
+        model: contextEstimate.model,
+        usedTokens: contextEstimate.totalTokens,
+        contextWindow: contextEstimate.rawMaxTokens,
+        percentage: contextEstimate.percentage,
+        ...(contextEstimate.apiUsage
+          ? {
+              latestTurn: {
+                inputTokens: contextEstimate.apiUsage.input_tokens,
+                outputTokens: contextEstimate.apiUsage.output_tokens,
+                cacheReadInputTokens: contextEstimate.apiUsage.cache_read_input_tokens,
+                cacheCreationInputTokens: contextEstimate.apiUsage.cache_creation_input_tokens,
+              },
+            }
+          : {}),
+      }
+    : null
+  return Response.json({ usage, context })
 }
 
 function usageTokenTotal(usage: unknown): number {

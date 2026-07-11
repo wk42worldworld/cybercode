@@ -1,4 +1,4 @@
-const SPINNER_VERBS = [
+export const SPINNER_VERBS = [
   'Accomplishing',
   'Actioning',
   'Actualizing',
@@ -188,6 +188,12 @@ const SPINNER_VERBS = [
   'Zigzagging',
 ]
 
+const SPINNER_VERB_SET = new Set(SPINNER_VERBS)
+
 export function randomSpinnerVerb(): string {
   return SPINNER_VERBS[Math.floor(Math.random() * SPINNER_VERBS.length)] ?? 'Thinking'
+}
+
+export function isSpinnerVerb(value: string): boolean {
+  return SPINNER_VERB_SET.has(value)
 }

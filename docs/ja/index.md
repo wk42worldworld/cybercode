@@ -19,6 +19,9 @@ hero:
 features:
   - title: フル機能の TUI
     details: 対話セッションと --print ヘッドレスモードを備えた Ink ターミナル UI
+  - title: スラッシュコマンド
+    details: デスクトップ入力欄、ターミナル TUI、通常 shell の違いと各コマンドの役割
+    link: /ja/guide/slash-commands
   - title: 永続メモリ
     details: セッションをまたぐ記憶、自動抽出、検索、AutoDream による統合
   - title: Multi-Agent

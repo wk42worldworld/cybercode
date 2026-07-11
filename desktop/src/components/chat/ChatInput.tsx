@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { ArrowUp, Folder, Paperclip, Plus, Square } from 'lucide-react'
+import { ArrowUp, Folder, Paperclip, Plus, Square, UploadCloud } from 'lucide-react'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
 import { useTranslation } from '../../i18n'
@@ -16,7 +16,7 @@ import type { AttachmentRef } from '../../types/chat'
 import { AttachmentGallery } from './AttachmentGallery'
 import { FileSearchMenu, type FileSearchMenuHandle } from './FileSearchMenu'
 import { LocalSlashCommandPanel, type LocalSlashCommandName } from './LocalSlashCommandPanel'
-import { StreamingIndicator } from './StreamingIndicator'
+import { TokenUsageIndicator } from './TokenUsageIndicator'
 import {
   FALLBACK_SLASH_COMMANDS,
   findSlashTrigger,
@@ -141,6 +141,11 @@ function getDroppedPaths(dataTransfer: DataTransfer): string[] {
     .filter((path): path is string => Boolean(path))
 }
 
+function hasAttachableDragData(dataTransfer: DataTransfer): boolean {
+  const types = Array.from(dataTransfer.types ?? [])
+  return types.includes('Files') || types.includes('text/uri-list')
+}
+
 export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey }: ChatInputProps) {
   const t = useTranslation()
   const [input, setInput] = useState('')
@@ -154,6 +159,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const [slashFilter, setSlashFilter] = useState('')
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   const [modelSelectorOpenSignal, setModelSelectorOpenSignal] = useState(0)
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false)
   const composingRef = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -161,6 +167,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const slashMenuRef = useRef<HTMLDivElement>(null)
   const fileSearchRef = useRef<FileSearchMenuHandle>(null)
   const wasActiveRef = useRef(false)
+  const dragDepthRef = useRef(0)
   const slashItemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const { sendMessage, stopGeneration, queuePendingSteer } = useChatStore()
   const globalActiveTabId = useTabStore((s) => s.activeTabId)
@@ -242,6 +249,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     setPlusMenuOpen(false)
     setSlashMenuOpen(false)
     setFileSearchOpen(false)
+    setIsDraggingFiles(false)
+    dragDepthRef.current = 0
   }, [isMemberSession, activeTabId])
 
   useEffect(() => {
@@ -650,6 +659,52 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     ])
   }, [])
 
+  const resetDragState = useCallback(() => {
+    dragDepthRef.current = 0
+    setIsDraggingFiles(false)
+  }, [])
+
+  useEffect(() => {
+    if (isMemberSession || !isTauriRuntime()) return
+
+    let cancelled = false
+    let unlisten: (() => void) | undefined
+
+    void import('@tauri-apps/api/window')
+      .then(async ({ getCurrentWindow }) => {
+        unlisten = await getCurrentWindow().onDragDropEvent((event) => {
+          const payload = event.payload
+
+          if (payload.type === 'enter' || payload.type === 'over') {
+            setIsDraggingFiles(true)
+            return
+          }
+
+          if (payload.type === 'drop') {
+            resetDragState()
+            if (payload.paths.length > 0) {
+              void addPathAttachments(payload.paths)
+            }
+            return
+          }
+
+          resetDragState()
+        })
+
+        if (cancelled) {
+          unlisten()
+        }
+      })
+      .catch(() => {
+        resetDragState()
+      })
+
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  }, [addPathAttachments, isMemberSession, resetDragState])
+
   const handleAddFiles = async () => {
     if (isMemberSession) return
 
@@ -760,9 +815,37 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     }
   }, [insertTextAtCursor, isMemberSession, t])
 
-  const handleDrop = (event: React.DragEvent) => {
+  const handleDragEnter = (event: React.DragEvent) => {
+    if (isMemberSession || !hasAttachableDragData(event.dataTransfer)) return
+
     event.preventDefault()
-    if (isMemberSession) return
+    dragDepthRef.current += 1
+    setIsDraggingFiles(true)
+  }
+
+  const handleDragOver = (event: React.DragEvent) => {
+    if (isMemberSession || !hasAttachableDragData(event.dataTransfer)) return
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+    setIsDraggingFiles(true)
+  }
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    if (isMemberSession || !isDraggingFiles) return
+
+    event.preventDefault()
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+    if (dragDepthRef.current === 0) {
+      setIsDraggingFiles(false)
+    }
+  }
+
+  const handleDrop = (event: React.DragEvent) => {
+    if (isMemberSession || !hasAttachableDragData(event.dataTransfer)) return
+
+    event.preventDefault()
+    resetDragState()
     const droppedPaths = getDroppedPaths(event.dataTransfer)
     if (droppedPaths.length > 0) {
       void addPathAttachments(droppedPaths)
@@ -830,7 +913,9 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     <div className={isHeroComposer ? '' : 'wechat-input-container pointer-events-none flex justify-center p-[24px]'}>
       <div
         className={isHeroComposer ? 'relative w-full' : 'pointer-events-auto relative w-full max-w-[896px]'}
-        onDragOver={(e) => e.preventDefault()}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {/* Slash / file search menus positioned above the input */}
@@ -917,7 +1002,29 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
         )}
 
         {/* ── WeChat Style Input ── */}
-        <div className="flex w-full flex-col rounded-[28px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[8px] pt-[12px] transition-colors duration-150 focus-within:border-[var(--color-border-focus)]">
+        <div
+          className={`relative flex w-full flex-col rounded-[28px] border-2 bg-[var(--color-surface-container-lowest)] p-[8px] pt-[12px] transition-colors duration-150 focus-within:border-[var(--color-border-focus)] ${
+            isDraggingFiles
+              ? 'border-[var(--color-brand)]'
+              : 'border-[var(--color-border)]'
+          }`}
+        >
+          {!isMemberSession && isDraggingFiles && (
+            <div
+              className="pointer-events-none absolute inset-[8px] z-30 flex flex-col items-center justify-center rounded-[22px] border-2 border-dashed border-[var(--color-brand)] bg-[color-mix(in_srgb,var(--color-surface-container-lowest)_84%,var(--color-brand)_16%)] px-6 py-5 text-center shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--color-brand)_18%,transparent)]"
+              aria-live="polite"
+            >
+              <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand)] text-[var(--color-on-primary)]">
+                <UploadCloud size={20} strokeWidth={2.4} />
+              </span>
+              <span className="text-[14px] font-bold text-[var(--color-text-primary)]">
+                {t('chat.dropFilesTitle')}
+              </span>
+              <span className="mt-1 text-[12px] font-medium text-[var(--color-text-secondary)]">
+                {t('chat.dropFilesHint')}
+              </span>
+            </div>
+          )}
           <div className="flex px-[8px]">
             <textarea
               ref={textareaRef}
@@ -941,8 +1048,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
             </div>
           )}
 
-          <div className="flex items-center gap-[8px] px-[8px] pb-[8px] pt-[4px]">
-            <div className="flex items-center gap-[12px]">
+          <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[4px] px-[8px] pb-[8px] pt-[4px]">
+            <div className="flex items-center gap-[8px] min-[640px]:gap-[12px]">
               <div className="relative flex items-center" ref={plusMenuRef}>
                 {!isMemberSession && (
                   <>
@@ -1023,8 +1130,14 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
               )}
             </div>
 
-            <div className="ml-auto flex min-w-0 items-center justify-end gap-[8px] overflow-visible">
-              <StreamingIndicator sessionId={activeTabId ?? undefined} />
+            <div data-testid="composer-runtime-controls" className="ml-auto flex min-w-0 items-center justify-end gap-[8px] overflow-visible">
+              {!isHeroComposer && !isMemberSession && activeTabId && (
+                <TokenUsageIndicator
+                  sessionId={activeTabId}
+                  projectPath={projectPath}
+                  onOpenDetails={() => setLocalSlashPanel((current) => current === 'cost' ? null : 'cost')}
+                />
+              )}
 
               {runtimeKey && !isMemberSession && (
                 <div className="min-w-0 shrink">

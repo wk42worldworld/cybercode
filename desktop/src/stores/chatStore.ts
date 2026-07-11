@@ -94,6 +94,7 @@ export type PerSessionState = {
   } | null
   pendingSteers?: PendingSteer[]
   tokenUsage: TokenUsage
+  usageRevision?: number
   elapsedSeconds: number
   statusVerb: string
   turnStartedAt?: number | null
@@ -127,6 +128,7 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   pendingComputerUsePermission: null,
   pendingSteers: [],
   tokenUsage: { input_tokens: 0, output_tokens: 0 },
+  usageRevision: 0,
   elapsedSeconds: 0,
   statusVerb: '',
   turnStartedAt: null,
@@ -144,6 +146,7 @@ function createDefaultSessionState(): PerSessionState {
     messages: [],
     pendingSteers: [],
     tokenUsage: { input_tokens: 0, output_tokens: 0 },
+    usageRevision: 0,
   }
 }
 
@@ -632,6 +635,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             messages: newMessages,
             chatState: 'thinking',
             elapsedSeconds: 0,
+            tokenUsage: { input_tokens: 0, output_tokens: 0 },
             streamingText: '',
             dismissedThinkingPanelIdentityKey: null,
             statusVerb: isMemberSession ? '' : randomSpinnerVerb(),
@@ -1496,6 +1500,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         update(() => ({
           ...markConnectionActivity(),
           tokenUsage: msg.usage,
+          usageRevision: (session.usageRevision ?? 0) + 1,
           chatState: 'idle',
           activeThinkingId: null,
           pendingPermission: null,
@@ -1617,6 +1622,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             turnStartedAt: null,
             lastModelActivityAt: null,
             tokenUsage: { input_tokens: 0, output_tokens: 0 },
+            usageRevision: 0,
             slashCommands: [],
             pendingSteers: [],
           }))

@@ -12,6 +12,12 @@ describe('settingsStore locale defaults', () => {
     expect(useSettingsStore.getState().locale).toBe('zh')
   })
 
+  it('defaults new desktop users to bypass permissions mode', async () => {
+    const { useSettingsStore } = await import('./settingsStore')
+
+    expect(useSettingsStore.getState().permissionMode).toBe('bypassPermissions')
+  })
+
   it('keeps a stored locale override', async () => {
     window.localStorage.setItem('cybercode-locale', 'ja')
 

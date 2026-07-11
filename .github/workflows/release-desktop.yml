@@ -113,6 +113,7 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
+            zip \
             libfuse2
 
       # ── Bun ──────────────────────────────────────────────────
@@ -249,14 +250,37 @@ jobs:
               copy_first '*/bundle/macos/*.app.tar.gz' "CyberCode_${VERSION}_${ASSET_SUFFIX}_app.app.tar.gz"
               copy_first '*/bundle/macos/*.app.tar.gz.sig' "CyberCode_${VERSION}_${ASSET_SUFFIX}_app.app.tar.gz.sig"
               copy_first '*/bundle/dmg/*.dmg' "CyberCode_${VERSION}_${ASSET_SUFFIX}_dmg.dmg"
+
+              app_bundle="$(find desktop/src-tauri/target -type d -path '*/bundle/macos/*.app' | sort | head -n 1)"
+              if [ -z "$app_bundle" ]; then
+                echo "::error::Missing macOS app bundle for ZIP packaging"
+                find desktop/src-tauri/target -type d | sort
+                exit 1
+              fi
+              ditto -c -k --sequesterRsrc --keepParent \
+                "$app_bundle" \
+                "$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}.zip"
+              unzip -t "$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}.zip"
               ;;
             Linux-x64)
-              copy_first '*/bundle/deb/*.deb' "CyberCode_${VERSION}_${ASSET_SUFFIX}_deb.deb"
-              copy_first '*/bundle/deb/*.deb.sig' "CyberCode_${VERSION}_${ASSET_SUFFIX}_deb.deb.sig"
+              deb_name="CyberCode_${VERSION}_${ASSET_SUFFIX}_deb.deb"
+              copy_first '*/bundle/deb/*.deb' "$deb_name"
+              copy_first '*/bundle/deb/*.deb.sig' "${deb_name}.sig"
+              (
+                cd "$OUT"
+                zip -9 "CyberCode_${VERSION}_${ASSET_SUFFIX}.zip" "$deb_name"
+              )
+              unzip -t "$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}.zip"
               ;;
             Windows-x64)
-              copy_first '*/bundle/nsis/*.exe' "CyberCode_${VERSION}_${ASSET_SUFFIX}_nsis.exe"
-              copy_first '*/bundle/nsis/*.exe.sig' "CyberCode_${VERSION}_${ASSET_SUFFIX}_nsis.exe.sig"
+              nsis_name="CyberCode_${VERSION}_${ASSET_SUFFIX}_nsis.exe"
+              copy_first '*/bundle/nsis/*.exe' "$nsis_name"
+              copy_first '*/bundle/nsis/*.exe.sig' "${nsis_name}.sig"
+              (
+                cd "$OUT"
+                7z a -bd -tzip "CyberCode_${VERSION}_${ASSET_SUFFIX}.zip" "$nsis_name"
+              )
+              7z t "$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}.zip"
               ;;
             *)
               echo "::error::Unknown release label: $LABEL"
@@ -343,13 +367,17 @@ jobs:
             "CyberCode_${VERSION}_macos_arm64_app.app.tar.gz"
             "CyberCode_${VERSION}_macos_arm64_app.app.tar.gz.sig"
             "CyberCode_${VERSION}_macos_arm64_dmg.dmg"
+            "CyberCode_${VERSION}_macos_arm64.zip"
             "CyberCode_${VERSION}_macos_x64_app.app.tar.gz"
             "CyberCode_${VERSION}_macos_x64_app.app.tar.gz.sig"
             "CyberCode_${VERSION}_macos_x64_dmg.dmg"
+            "CyberCode_${VERSION}_macos_x64.zip"
             "CyberCode_${VERSION}_linux_x64_deb.deb"
             "CyberCode_${VERSION}_linux_x64_deb.deb.sig"
+            "CyberCode_${VERSION}_linux_x64.zip"
             "CyberCode_${VERSION}_windows_x64_nsis.exe"
             "CyberCode_${VERSION}_windows_x64_nsis.exe.sig"
+            "CyberCode_${VERSION}_windows_x64.zip"
           )
 
           for file in "${required[@]}"; do
@@ -377,33 +405,48 @@ jobs:
           const repo = process.env.GITHUB_REPOSITORY
           const notes = fs.readFileSync(process.env.NOTES_FILE, 'utf8').trim()
           const baseUrl = `https://github.com/${repo}/releases/download/${tagName}`
+          const mirrorManifests = [
+            {
+              name: 'latest-gh-proxy.json',
+              baseUrl: `https://gh-proxy.com/${baseUrl}`,
+            },
+            {
+              name: 'latest-ghfast.json',
+              baseUrl: `https://ghfast.top/${baseUrl}`,
+            },
+          ]
 
           const sig = (name) => fs.readFileSync(`release-assets/${name}.sig`, 'utf8').trim()
-          const url = (name) => `${baseUrl}/${name}`
-          const asset = (name) => ({ signature: sig(name), url: url(name) })
+          const asset = (base, name) => ({ signature: sig(name), url: `${base}/${name}` })
 
           const macArm = `CyberCode_${version}_macos_arm64_app.app.tar.gz`
           const macX64 = `CyberCode_${version}_macos_x64_app.app.tar.gz`
           const linux = `CyberCode_${version}_linux_x64_deb.deb`
           const windows = `CyberCode_${version}_windows_x64_nsis.exe`
 
-          const manifest = {
+          const createManifest = (assetBaseUrl) => ({
             version,
             notes,
             pub_date: new Date().toISOString(),
             platforms: {
-              'darwin-aarch64': asset(macArm),
-              'darwin-aarch64-app': asset(macArm),
-              'darwin-x86_64': asset(macX64),
-              'darwin-x86_64-app': asset(macX64),
-              'linux-x86_64': asset(linux),
-              'linux-x86_64-deb': asset(linux),
-              'windows-x86_64': asset(windows),
-              'windows-x86_64-nsis': asset(windows),
+              'darwin-aarch64': asset(assetBaseUrl, macArm),
+              'darwin-aarch64-app': asset(assetBaseUrl, macArm),
+              'darwin-x86_64': asset(assetBaseUrl, macX64),
+              'darwin-x86_64-app': asset(assetBaseUrl, macX64),
+              'linux-x86_64': asset(assetBaseUrl, linux),
+              'linux-x86_64-deb': asset(assetBaseUrl, linux),
+              'windows-x86_64': asset(assetBaseUrl, windows),
+              'windows-x86_64-nsis': asset(assetBaseUrl, windows),
             },
-          }
+          })
 
-          fs.writeFileSync('release-assets/latest.json', `${JSON.stringify(manifest, null, 2)}\n`)
+          fs.writeFileSync('release-assets/latest.json', `${JSON.stringify(createManifest(baseUrl), null, 2)}\n`)
+          for (const mirror of mirrorManifests) {
+            fs.writeFileSync(
+              `release-assets/${mirror.name}`,
+              `${JSON.stringify(createManifest(mirror.baseUrl), null, 2)}\n`,
+            )
+          }
           NODE
 
       - name: Publish GitHub Release

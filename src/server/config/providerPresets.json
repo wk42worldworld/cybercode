@@ -60,16 +60,16 @@
       "opus": "glm-5.2"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
+      "main": 1000000,
       "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "sonnet": 1000000,
+      "opus": 1000000
     },
     "modelOptions": [
       {
         "id": "glm-5.2",
         "label": "GLM-5.2",
-        "contextWindow": 200000
+        "contextWindow": 1000000
       },
       {
         "id": "glm-5.1",
@@ -119,28 +119,22 @@
       "opus": "kimi-for-coding"
     },
     "defaultModelContextWindows": {
-      "main": 256000,
-      "haiku": 256000,
-      "sonnet": 256000,
-      "opus": 256000
+      "main": 262144,
+      "haiku": 262144,
+      "sonnet": 262144,
+      "opus": 262144
     },
     "modelOptions": [
       {
         "id": "kimi-for-coding",
         "label": "Kimi for Coding",
-        "contextWindow": 256000,
+        "contextWindow": 262144,
         "supportsImages": true
       },
       {
-        "id": "kimi-k2.7-code",
-        "label": "Kimi K2.7 Code",
-        "contextWindow": 256000,
-        "supportsImages": true
-      },
-      {
-        "id": "kimi-k2.7-code-highspeed",
-        "label": "Kimi K2.7 Code Highspeed",
-        "contextWindow": 256000,
+        "id": "kimi-for-coding-highspeed",
+        "label": "Kimi for Coding HighSpeed",
+        "contextWindow": 262144,
         "supportsImages": true
       }
     ],
@@ -153,50 +147,40 @@
   {
     "id": "kimi",
     "name": "Kimi API",
-    "baseUrl": "https://api.moonshot.cn/anthropic",
-    "apiFormat": "anthropic",
+    "baseUrl": "https://api.moonshot.cn",
+    "apiFormat": "openai_chat",
     "defaultModels": {
-      "main": "kimi-k2.6",
+      "main": "kimi-k2.7-code",
       "haiku": "kimi-k2.6",
-      "sonnet": "kimi-k2.6",
-      "opus": "kimi-k2.6"
+      "sonnet": "kimi-k2.7-code",
+      "opus": "kimi-k2.7-code"
     },
     "defaultModelContextWindows": {
-      "main": 256000,
-      "haiku": 256000,
-      "sonnet": 256000,
-      "opus": 256000
+      "main": 262144,
+      "haiku": 262144,
+      "sonnet": 262144,
+      "opus": 262144
     },
     "modelOptions": [
       {
+        "id": "kimi-k2.7-code",
+        "label": "Kimi K2.7 Code",
+        "contextWindow": 262144
+      },
+      {
+        "id": "kimi-k2.7-code-highspeed",
+        "label": "Kimi K2.7 Code Highspeed",
+        "contextWindow": 262144
+      },
+      {
         "id": "kimi-k2.6",
         "label": "Kimi K2.6",
-        "contextWindow": 256000
+        "contextWindow": 262144
       },
       {
         "id": "kimi-k2.5",
         "label": "Kimi K2.5",
-        "contextWindow": 256000
-      },
-      {
-        "id": "kimi-k2-thinking-turbo",
-        "label": "Kimi K2 Thinking Turbo",
-        "contextWindow": 256000
-      },
-      {
-        "id": "kimi-k2-thinking",
-        "label": "Kimi K2 Thinking",
-        "contextWindow": 256000
-      },
-      {
-        "id": "kimi-k2-turbo-preview",
-        "label": "Kimi K2 Turbo Preview",
-        "contextWindow": 256000
-      },
-      {
-        "id": "kimi-k2-0905-preview",
-        "label": "Kimi K2 0905 Preview",
-        "contextWindow": 256000
+        "contextWindow": 262144
       }
     ],
     "supportsImages": true,
@@ -227,6 +211,41 @@
         "id": "MiniMax-M3",
         "label": "MiniMax M3",
         "contextWindow": 1000000
+      },
+      {
+        "id": "MiniMax-M2.7",
+        "label": "MiniMax M2.7",
+        "contextWindow": 204800
+      },
+      {
+        "id": "MiniMax-M2.7-highspeed",
+        "label": "MiniMax M2.7 Highspeed",
+        "contextWindow": 204800
+      },
+      {
+        "id": "MiniMax-M2.5",
+        "label": "MiniMax M2.5",
+        "contextWindow": 204800
+      },
+      {
+        "id": "MiniMax-M2.5-highspeed",
+        "label": "MiniMax M2.5 Highspeed",
+        "contextWindow": 204800
+      },
+      {
+        "id": "MiniMax-M2.1",
+        "label": "MiniMax M2.1",
+        "contextWindow": 204800
+      },
+      {
+        "id": "MiniMax-M2.1-highspeed",
+        "label": "MiniMax M2.1 Highspeed",
+        "contextWindow": 204800
+      },
+      {
+        "id": "MiniMax-M2",
+        "label": "MiniMax M2",
+        "contextWindow": 204800
       }
     ],
     "supportsImages": false,
@@ -275,18 +294,48 @@
     "baseUrl": "https://api.openai.com",
     "apiFormat": "openai_responses",
     "defaultModels": {
-      "main": "gpt-5.2",
-      "haiku": "gpt-5-mini",
-      "sonnet": "gpt-5.2",
-      "opus": "gpt-5.2"
+      "main": "gpt-5.5",
+      "haiku": "gpt-5.4-mini",
+      "sonnet": "gpt-5.5",
+      "opus": "gpt-5.5"
     },
     "defaultModelContextWindows": {
-      "main": 400000,
+      "main": 1050000,
       "haiku": 400000,
-      "sonnet": 400000,
-      "opus": 400000
+      "sonnet": 1050000,
+      "opus": 1050000
     },
     "modelOptions": [
+      {
+        "id": "gpt-5.5",
+        "label": "GPT-5.5",
+        "contextWindow": 1050000
+      },
+      {
+        "id": "gpt-5.5-pro",
+        "label": "GPT-5.5 Pro",
+        "contextWindow": 1050000
+      },
+      {
+        "id": "gpt-5.4",
+        "label": "GPT-5.4",
+        "contextWindow": 1050000
+      },
+      {
+        "id": "gpt-5.4-pro",
+        "label": "GPT-5.4 Pro",
+        "contextWindow": 1050000
+      },
+      {
+        "id": "gpt-5.4-mini",
+        "label": "GPT-5.4 mini",
+        "contextWindow": 400000
+      },
+      {
+        "id": "gpt-5.4-nano",
+        "label": "GPT-5.4 nano",
+        "contextWindow": 400000
+      },
       {
         "id": "gpt-5.2",
         "label": "GPT-5.2",
@@ -390,26 +439,26 @@
       "opus": "openai/gpt-oss-20b"
     },
     "defaultModelContextWindows": {
-      "main": 200000,
-      "haiku": 200000,
-      "sonnet": 200000,
-      "opus": 200000
+      "main": 131072,
+      "haiku": 131072,
+      "sonnet": 131072,
+      "opus": 131072
     },
     "modelOptions": [
       {
         "id": "openai/gpt-oss-20b",
         "label": "GPT-OSS 20B",
-        "contextWindow": 200000
+        "contextWindow": 131072
       },
       {
         "id": "openai/gpt-oss-120b",
         "label": "GPT-OSS 120B",
-        "contextWindow": 200000
+        "contextWindow": 131072
       }
     ],
     "needsApiKey": false,
     "websiteUrl": "https://lmstudio.ai/docs/integrations/claude-code",
-    "promoText": "LM Studio 使用 Anthropic 兼容协议，Base URL 填 http://localhost:1234，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，请在本地模型设置里把 Context Window 调大，建议至少 200K。",
+    "promoText": "LM Studio 使用 Anthropic 兼容协议，Base URL 填 http://localhost:1234，不要追加 /v1。GPT-OSS 原生上下文为 131,072 tokens，请确保 LM Studio 加载模型时分配匹配的 Context Length。",
     "defaultEnv": {
       "ANTHROPIC_AUTH_TOKEN": "lmstudio"
     }
@@ -426,18 +475,20 @@
       "opus": "qwen3.6"
     },
     "defaultModelContextWindows": {
-      "main": 256000,
-      "haiku": 256000,
-      "sonnet": 256000,
-      "opus": 256000
+      "main": 262144,
+      "haiku": 262144,
+      "sonnet": 262144,
+      "opus": 262144
     },
     "modelOptions": [
       {
         "id": "qwen3.6",
         "label": "Qwen 3.6",
-        "contextWindow": 256000
+        "contextWindow": 262144,
+        "supportsImages": true
       }
     ],
+    "supportsImages": true,
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
     "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",

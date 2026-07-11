@@ -9,6 +9,7 @@
  */
 
 import { readPromptMemoryAutoReviewLogs } from '../../promptMemory/autoReview.js'
+import { buildPromptMemoryInsights } from '../../promptMemory/insights.js'
 import {
   PromptMemoryError,
   addPromptMemoryEntry,
@@ -34,6 +35,21 @@ export async function handlePromptMemoryApi(
       return Response.json(
         await readPromptMemoryAutoReviewLogs(Number.isFinite(limit) ? limit : 50),
       )
+    }
+
+    if (segments[2] === 'insights') {
+      if (req.method !== 'GET') throw methodNotAllowed(req.method)
+      const [status, logs] = await Promise.all([
+        getPromptMemoryStatus(),
+        readPromptMemoryAutoReviewLogs(200),
+      ])
+      return Response.json(buildPromptMemoryInsights({
+        files: {
+          user: status.files.user,
+          brief: status.files.brief,
+        },
+        logs,
+      }))
     }
 
     const target = parsePromptMemoryTarget(segments[2])

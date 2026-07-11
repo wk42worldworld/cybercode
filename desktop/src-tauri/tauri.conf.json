@@ -31,7 +31,9 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY1NERGMEEzQkU2MDc4MzcKUldRM2VHQytvL0JOOVZPMUZjK3ROV2xwc3FXVm80N0lxUHZCT2FIZU5NUDd5Y1ZOR3RnVlZkZ3gK",
       "endpoints": [
-        "https://github.com/wk42worldworld/cybercode/releases/latest/download/latest.json"
+        "https://github.com/wk42worldworld/cybercode/releases/latest/download/latest.json",
+        "https://gh-proxy.com/https://github.com/wk42worldworld/cybercode/releases/latest/download/latest-gh-proxy.json",
+        "https://ghfast.top/https://github.com/wk42worldworld/cybercode/releases/latest/download/latest-ghfast.json"
       ],
       "windows": {
         "installMode": "passive"

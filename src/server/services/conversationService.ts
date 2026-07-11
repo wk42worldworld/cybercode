@@ -9,6 +9,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { ProviderService } from './providerService.js'
+import { DEFAULT_PERMISSION_MODE } from './settingsService.js'
 import { sessionService } from './sessionService.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import {
@@ -192,7 +193,7 @@ export class ConversationService {
       proc,
       outputCallbacks: [],
       workDir,
-      permissionMode: options?.permissionMode || 'default',
+      permissionMode: options?.permissionMode || DEFAULT_PERMISSION_MODE,
       sdkToken: this.getSdkTokenFromUrl(sdkUrl),
       sdkSocket: null,
       pendingOutbound: [],
@@ -424,7 +425,7 @@ export class ConversationService {
 
   getSessionPermissionMode(sessionId: string): string {
     const session = this.sessions.get(sessionId)
-    return session?.permissionMode || 'default'
+    return session?.permissionMode || DEFAULT_PERMISSION_MODE
   }
 
   authorizeSdkConnection(
@@ -607,7 +608,7 @@ export class ConversationService {
       return ['--dangerously-skip-permissions']
     }
 
-    const resolvedMode = mode || 'default'
+    const resolvedMode = mode || DEFAULT_PERMISSION_MODE
     if (resolvedMode === 'bypassPermissions') {
       return ['--dangerously-skip-permissions']
     }

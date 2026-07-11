@@ -94,6 +94,7 @@ describe('model image support', () => {
     expect(inferModelSupportsImages('kimi-k2.7-code')).toBe(true)
     expect(inferModelSupportsImages('kimi-for-coding')).toBe(true)
     expect(inferModelSupportsImages('qwen3.5:0.8b')).toBe(true)
+    expect(inferModelSupportsImages('qwen3.6')).toBe(true)
     expect(inferModelSupportsImages('mimo-v2.5')).toBe(true)
     expect(inferModelSupportsImages('mimo-v2.5-pro')).toBe(false)
     expect(inferModelSupportsImages('openai/gpt-oss-20b')).toBe(false)

@@ -55,6 +55,7 @@ import { executePromptMemoryAutoReview } from '../promptMemory/autoReview.js'
 import { executeSessionSearchIndexRefresh } from '../sessionSearch/turnIndex.js'
 import { executeSkillMemoryGovernanceRefresh } from '../skillMemory/governance.js'
 import { executeSkillMemoryLifecycleReview } from '../skillMemory/reviewer.js'
+import { executeSkillLearningReview } from '../skillLearning/reviewer.js'
 import { isBareMode, isEnvDefinedFalsy } from '../utils/envUtils.js'
 import {
   createCacheSafeParams,
@@ -160,6 +161,7 @@ export async function* handleStopHooks(
       void executePromptMemoryAutoReview(stopHookContext)
       void executeSkillMemoryLifecycleReview(stopHookContext)
       void executeSkillMemoryGovernanceRefresh(stopHookContext)
+      void executeSkillLearningReview(stopHookContext)
       void executeAutoDream(stopHookContext, toolUseContext.appendSystemMessage)
     }
   }

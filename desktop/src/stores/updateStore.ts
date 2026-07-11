@@ -17,6 +17,7 @@ type CheckOptions = {
 }
 
 const DISMISSED_UPDATE_VERSION_KEY = 'cybercode-dismissed-update-version'
+const UPDATE_CHECK_TIMEOUT_MS = 12_000
 
 type UpdateStore = {
   status: UpdateStatus
@@ -191,7 +192,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
 
     try {
       const { check } = await import('@tauri-apps/plugin-updater')
-      const update = await check()
+      const update = await check({ timeout: UPDATE_CHECK_TIMEOUT_MS })
       await setPendingUpdate(update)
 
       const checkedAt = Date.now()

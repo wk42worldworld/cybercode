@@ -97,7 +97,7 @@
   outline: none;
 }
 
-/* ─── Topbar AI activity text shimmer ─────────────────────── */
+/* ─── AI activity text shimmer ─────────────────────── */
 .ai-shimmer-text {
   --ai-shimmer-base: rgba(29, 29, 31, 0.46);
   --ai-shimmer-sheen: rgba(29, 29, 31, 0.72);
@@ -174,11 +174,35 @@
   }
 }
 
+@keyframes breathing-dot {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes ai-response-status-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.breathing-dot-ring {
+  animation: breathing-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.ai-response-status {
+  animation: ai-response-status-enter 160ms ease-out both;
+  contain: layout paint;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-shimmer-text {
     animation: none;
     background: none;
     -webkit-text-fill-color: currentColor;
+  }
+
+  .breathing-dot-ring,
+  .ai-response-status {
+    animation: none;
   }
 }
 

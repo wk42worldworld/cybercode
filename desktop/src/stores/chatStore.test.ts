@@ -307,6 +307,29 @@ describe('chatStore history mapping', () => {
     expect(updateTabTitleMock).toHaveBeenCalledWith(TEST_SESSION_ID, expectedTitle)
   })
 
+  it('resets the per-turn token counter when the next message starts', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          tokenUsage: {
+            input_tokens: 1_200,
+            output_tokens: 240,
+            cache_read_input_tokens: 600,
+          },
+          usageRevision: 2,
+        }),
+      },
+    })
+
+    useChatStore.getState().sendMessage(TEST_SESSION_ID, 'Continue')
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.tokenUsage).toEqual({
+      input_tokens: 0,
+      output_tokens: 0,
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.usageRevision).toBe(2)
+  })
+
   it('keeps local image previews on the user message shown in the transcript', () => {
     useChatStore.getState().sendMessage(TEST_SESSION_ID, '看下这张图', [
       {

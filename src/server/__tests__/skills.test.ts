@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import { getCwdState, setCwdState } from '../../bootstrap/state.js'
 import { handleSkillsApi } from '../api/skills.js'
 import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
+import { saveSkillCandidate } from '../../skillLearning/store.js'
 
 let tmpHome: string
 let originalHome: string | undefined
@@ -192,5 +193,119 @@ describe('Skills API', () => {
     expect(body.detail.files).toContainEqual(
       expect.objectContaining({ path: 'SKILL.md', body: 'child body' }),
     )
+  })
+
+  it('reads and updates Skill Learning configuration', async () => {
+    const getRequest = makeRequest('/api/skills/learning')
+    const getResponse = await handleSkillsApi(
+      getRequest.req,
+      getRequest.url,
+      getRequest.segments,
+    )
+    expect(getResponse.status).toBe(200)
+    const initial = await getResponse.json() as {
+      overview: { config: { mode: string }; pendingCandidates: unknown[] }
+    }
+    expect(initial.overview.config.mode).toBe('auto')
+    expect(initial.overview.pendingCandidates).toEqual([])
+
+    const updateRequest = makeRequest('/api/skills/learning', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'auto', minToolUses: 8 }),
+    })
+    const updateResponse = await handleSkillsApi(
+      updateRequest.req,
+      updateRequest.url,
+      updateRequest.segments,
+    )
+    expect(updateResponse.status).toBe(200)
+    const updated = await updateResponse.json() as {
+      config: { mode: string; minToolUses: number }
+    }
+    expect(updated.config).toMatchObject({ mode: 'auto', minToolUses: 8 })
+  })
+
+  it('lists and approves a project Skill draft through the API', async () => {
+    const projectRoot = path.join(tmpHome, 'workspace')
+    await fs.mkdir(projectRoot, { recursive: true })
+    const { candidate } = await saveSkillCandidate({
+      action: 'create',
+      scope: 'project',
+      projectRoot,
+      name: 'api-verification',
+      description: 'Verify this project consistently',
+      whenToUse: 'Use after code changes.',
+      reason: 'The workflow was repeated',
+      evidence: ['Focused tests passed'],
+      confidence: 0.94,
+      markdown: [
+        '---',
+        'name: api-verification',
+        'description: "Verify this project consistently"',
+        'when_to_use: "Use after code changes."',
+        '---',
+        '',
+        '# API Verification',
+        '',
+        'Run the focused test and production build.',
+        '',
+      ].join('\n'),
+      sourceSessionId: 'session-api',
+      sourceFingerprint: 'api-verification-fingerprint',
+      sourceToolUses: 9,
+    })
+
+    const listRequest = makeRequest(
+      `/api/skills/learning?cwd=${encodeURIComponent(projectRoot)}`,
+    )
+    const listResponse = await handleSkillsApi(
+      listRequest.req,
+      listRequest.url,
+      listRequest.segments,
+    )
+    const listed = await listResponse.json() as {
+      overview: { pendingCandidates: Array<{ id: string; name: string }> }
+    }
+    expect(listed.overview.pendingCandidates).toContainEqual(
+      expect.objectContaining({ id: candidate.id, name: 'api-verification' }),
+    )
+
+    const approveRequest = makeRequest(
+      `/api/skills/learning/${candidate.id}/approve`,
+      { method: 'POST' },
+    )
+    const approveResponse = await handleSkillsApi(
+      approveRequest.req,
+      approveRequest.url,
+      approveRequest.segments,
+    )
+    expect(approveResponse.status).toBe(200)
+    const approved = await approveResponse.json() as {
+      candidate: { status: string; outputPath: string }
+    }
+    expect(approved.candidate.status).toBe('approved')
+    expect(approved.candidate.outputPath).toBe(
+      path.join(
+        projectRoot,
+        '.cyber',
+        'skills',
+        'api-verification',
+        'SKILL.md',
+      ),
+    )
+    expect(
+      await fs.readFile(approved.candidate.outputPath, 'utf-8'),
+    ).toContain('# API Verification')
+  })
+
+  it('rejects unsafe Skill Learning configuration values', async () => {
+    const request = makeRequest('/api/skills/learning', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'reckless' }),
+    })
+    const response = await handleSkillsApi(request.req, request.url, request.segments)
+    expect(response.status).toBe(400)
   })
 })

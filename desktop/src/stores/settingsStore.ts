@@ -37,7 +37,7 @@ type SettingsStore = {
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
-  permissionMode: 'default',
+  permissionMode: 'bypassPermissions',
   currentModel: null,
   effortLevel: 'medium',
   availableModels: [],

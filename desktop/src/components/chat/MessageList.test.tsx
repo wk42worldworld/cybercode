@@ -45,6 +45,93 @@ describe('MessageList nested tool calls', () => {
     useChatStore.setState({ sessions: { [ACTIVE_TAB]: makeSessionState() } })
   })
 
+  it('shows localized activity after the user message until the AI turn completes', async () => {
+    const userMessage: UIMessage = {
+      id: 'user-status',
+      type: 'user_text',
+      content: '请检查这个问题',
+      timestamp: 1,
+    }
+    useSettingsStore.setState({ locale: 'zh' })
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [userMessage],
+          chatState: 'thinking',
+          statusVerb: 'Accomplishing',
+        }),
+      },
+    })
+
+    render(<MessageList __testInitialItemCount={100} />)
+
+    const status = screen.getByTestId('streaming-indicator')
+    expect(status.textContent).not.toContain('Accomplishing')
+    expect(screen.getByText('请检查这个问题').compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    act(() => {
+      useChatStore.setState({
+        sessions: {
+          [ACTIVE_TAB]: makeSessionState({
+            messages: [userMessage],
+            chatState: 'thinking',
+            statusVerb: 'Baking',
+            elapsedSeconds: 12,
+            tokenUsage: { input_tokens: 80, output_tokens: 24 },
+          }),
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streaming-indicator')).toBe(status)
+      expect(status.textContent).toContain('正在烘焙灵感')
+      expect(status.textContent).toContain('12秒')
+    })
+
+    act(() => {
+      useChatStore.setState({
+        sessions: {
+          [ACTIVE_TAB]: makeSessionState({
+            messages: [userMessage],
+            chatState: 'streaming',
+            streamingText: '正在生成回复',
+            statusVerb: 'Accomplishing',
+          }),
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('streaming-indicator')).toBeTruthy()
+      expect(screen.getByText('正在生成回复')).toBeTruthy()
+    })
+
+    act(() => {
+      useChatStore.setState({
+        sessions: {
+          [ACTIVE_TAB]: makeSessionState({
+            messages: [
+              userMessage,
+              {
+                id: 'assistant-status',
+                type: 'assistant_text',
+                content: '回复完成',
+                timestamp: 2,
+              },
+            ],
+            chatState: 'idle',
+          }),
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('streaming-indicator')).toBeNull()
+      expect(screen.getByText('回复完成')).toBeTruthy()
+    })
+  })
+
   it('renders an orphaned WebFetch as interrupted after reconnecting idle', () => {
     useChatStore.setState({
       sessions: {

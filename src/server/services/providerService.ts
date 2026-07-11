@@ -66,32 +66,43 @@ const DEFAULT_INDEX: ProvidersIndex = { activeId: null, providers: [] }
 const MODEL_ROLES = ['main', 'haiku', 'sonnet', 'opus'] as const
 const KIMI_CODE_PRESET_ID = 'kimi-code'
 const KIMI_API_PRESET_ID = 'kimi'
-const KIMI_API_FALLBACK_MODEL = 'kimi-k2.6'
+const KIMI_CODE_STABLE_MODEL = 'kimi-for-coding'
+const KIMI_CODE_HIGHSPEED_MODEL = 'kimi-for-coding-highspeed'
 const XIAOMI_MIMO_PRESET_ID = 'xiaomimimo'
-const XIAOMI_MIMO_UNSUPPORTED_V25_FLASH = 'mimo-v2.5-flash'
-const XIAOMI_MIMO_V25_MODEL = 'mimo-v2.5'
-const ZHIPU_GLM_PRESET_ID = 'zhipuglm'
-const ZHIPU_GLM_UNSUPPORTED_45_AIR = 'glm-4.5-air'
-const ZHIPU_GLM_SMALL_MODEL = 'glm-4.7'
 const MASKED_API_KEYS = new Set(['***', '••••••••'])
 const LEGACY_PRESET_MODEL_IDS: Record<string, Record<string, string>> = {
   deepseek: {
     'deepseek-v4-pro[1m]': 'deepseek-v4-pro',
+    'deepseek-chat': 'deepseek-v4-flash',
+    'deepseek-reasoner': 'deepseek-v4-flash',
   },
   zhipuglm: {
     'glm-5.2[1m]': 'glm-5.2',
+    'glm-4.5-air': 'glm-4.7',
+  },
+  kimi: {
+    'kimi-k2-thinking-turbo': 'kimi-k2.6',
+    'kimi-k2-thinking': 'kimi-k2.6',
+    'kimi-k2-turbo-preview': 'kimi-k2.6',
+    'kimi-k2-0905-preview': 'kimi-k2.6',
   },
   minimax: {
     'minimax-m3[1m]': 'MiniMax-M3',
   },
-  openai: {
-    'gpt-5.5': 'gpt-5.2',
-    'gpt-5.5-pro': 'gpt-5-pro',
-    'gpt-5.4': 'gpt-5.2',
-    'gpt-5.4-pro': 'gpt-5-pro',
-    'gpt-5.4-mini': 'gpt-5-mini',
-    'gpt-5.4-nano': 'gpt-5-nano',
+  xiaomimimo: {
+    'mimo-v2.5-flash': 'mimo-v2.5',
+    'mimo-v2-pro': 'mimo-v2.5-pro',
+    'mimo-v2-flash': 'mimo-v2.5',
   },
+}
+
+const STALE_PRESET_CONTEXT_WINDOWS: Record<string, ReadonlySet<number>> = {
+  zhipuglm: new Set([200_000]),
+  'kimi-code': new Set([256_000]),
+  kimi: new Set([256_000]),
+  minimax: new Set([1_000_000]),
+  lmstudio: new Set([200_000]),
+  ollama: new Set([256_000]),
 }
 
 function getPresetDefaultEnv(presetId: string): Record<string, string> {
@@ -249,12 +260,16 @@ function migrateProviderIndex(index: ProvidersIndex): { index: ProvidersIndex; c
       }
     }
 
-    if (isSavedKimiApiProviderWithMisplacedCodeModel(migrated)) {
+    const kimiCodeModelMigration = migrateKimiCodeModelIds(migrated)
+    if (kimiCodeModelMigration !== migrated) {
       changed = true
-      migrated = {
-        ...migrated,
-        models: replaceKimiCodeModelsWithApiFallback(migrated.models),
-      }
+      migrated = kimiCodeModelMigration
+    }
+
+    const kimiEndpointMigration = migrateLegacyKimiApiEndpoint(migrated)
+    if (kimiEndpointMigration !== migrated) {
+      changed = true
+      migrated = kimiEndpointMigration
     }
 
     if (
@@ -270,20 +285,10 @@ function migrateProviderIndex(index: ProvidersIndex): { index: ProvidersIndex; c
       }
     }
 
-    if (isSavedXiaomiMiMoProviderWithUnsupportedModels(migrated)) {
+    const contextWindowMigration = migrateStalePresetContextWindows(migrated)
+    if (contextWindowMigration !== migrated) {
       changed = true
-      migrated = {
-        ...migrated,
-        models: replaceUnsupportedXiaomiMiMoModels(migrated.models),
-      }
-    }
-
-    if (isSavedZhipuGlmProviderWithUnsupportedModels(migrated)) {
-      changed = true
-      migrated = {
-        ...migrated,
-        models: replaceUnsupportedZhipuGlmModels(migrated.models),
-      }
+      migrated = contextWindowMigration
     }
 
     return migrated
@@ -298,6 +303,41 @@ function migrateProviderIndex(index: ProvidersIndex): { index: ProvidersIndex; c
 function isSavedKimiCodeProvider(provider: SavedProvider): boolean {
   return provider.presetId === KIMI_API_PRESET_ID &&
     isKimiCodeBaseUrl(provider.baseUrl)
+}
+
+function migrateKimiCodeModelIds(provider: SavedProvider): SavedProvider {
+  if (provider.presetId !== KIMI_CODE_PRESET_ID || !isKimiCodeBaseUrl(provider.baseUrl)) {
+    return provider
+  }
+
+  let changed = false
+  const models = { ...provider.models }
+  for (const role of MODEL_ROLES) {
+    const normalized = normalizeSavedModel(models[role])
+    if (normalized === 'kimi-k2.7-code-highspeed') {
+      models[role] = KIMI_CODE_HIGHSPEED_MODEL
+      changed = true
+    } else if (normalized === 'kimi-k2.7-code' || normalized === 'kimi-k2.6') {
+      models[role] = KIMI_CODE_STABLE_MODEL
+      changed = true
+    }
+  }
+
+  return changed ? { ...provider, models } : provider
+}
+
+function migrateLegacyKimiApiEndpoint(provider: SavedProvider): SavedProvider {
+  if (provider.presetId !== KIMI_API_PRESET_ID) return provider
+  if ((provider.apiFormat ?? 'anthropic') !== 'anthropic') return provider
+
+  const normalized = provider.baseUrl.trim().replace(/\/+$/, '').toLowerCase()
+  if (normalized === 'https://api.moonshot.cn/anthropic') {
+    return { ...provider, baseUrl: 'https://api.moonshot.cn', apiFormat: 'openai_chat' }
+  }
+  if (normalized === 'https://api.moonshot.ai/anthropic') {
+    return { ...provider, baseUrl: 'https://api.moonshot.ai', apiFormat: 'openai_chat' }
+  }
+  return provider
 }
 
 function isSavedKimiApiProviderWithLegacyImageSupport(provider: SavedProvider): boolean {
@@ -317,60 +357,22 @@ function isSavedProviderWithStaleLegacyImageSupport(provider: SavedProvider): bo
     typeof provider.supportsImages === 'boolean'
 }
 
-function isSavedKimiApiProviderWithMisplacedCodeModel(provider: SavedProvider): boolean {
-  return provider.presetId === KIMI_API_PRESET_ID &&
-    isKimiBaseUrl(provider.baseUrl) &&
-    !isKimiCodeBaseUrl(provider.baseUrl) &&
-    MODEL_ROLES.some((role) => isKimiK27CodeModel(provider.models[role]))
-}
+function migrateStalePresetContextWindows(provider: SavedProvider): SavedProvider {
+  const staleValues = STALE_PRESET_CONTEXT_WINDOWS[provider.presetId]
+  if (!staleValues || !provider.modelContextWindows) return provider
 
-function replaceKimiCodeModelsWithApiFallback(models: ModelMapping): ModelMapping {
-  const next: ModelMapping = { ...models }
+  let changed = false
+  const next = { ...provider.modelContextWindows }
   for (const role of MODEL_ROLES) {
-    if (isKimiK27CodeModel(next[role])) {
-      next[role] = KIMI_API_FALLBACK_MODEL
-    }
+    const current = parseContextWindowTokenValue(next[role])
+    if (!current || !staleValues.has(current)) continue
+    const official = getPresetModelContextWindow(provider.presetId, provider.models[role])
+    if (!official || official === current) continue
+    next[role] = official
+    changed = true
   }
-  return next
-}
 
-function isKimiK27CodeModel(model: string | undefined): boolean {
-  const normalized = (model ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/:(?:\d+(?:k|m)?|[a-z]+)$/i, '')
-
-  return normalized.includes('kimi-k2.7-code')
-}
-
-function isSavedXiaomiMiMoProviderWithUnsupportedModels(provider: SavedProvider): boolean {
-  return provider.presetId === XIAOMI_MIMO_PRESET_ID &&
-    MODEL_ROLES.some((role) => normalizeSavedModel(provider.models[role]) === XIAOMI_MIMO_UNSUPPORTED_V25_FLASH)
-}
-
-function replaceUnsupportedXiaomiMiMoModels(models: ModelMapping): ModelMapping {
-  const next: ModelMapping = { ...models }
-  for (const role of MODEL_ROLES) {
-    if (normalizeSavedModel(next[role]) === XIAOMI_MIMO_UNSUPPORTED_V25_FLASH) {
-      next[role] = XIAOMI_MIMO_V25_MODEL
-    }
-  }
-  return next
-}
-
-function isSavedZhipuGlmProviderWithUnsupportedModels(provider: SavedProvider): boolean {
-  return provider.presetId === ZHIPU_GLM_PRESET_ID &&
-    MODEL_ROLES.some((role) => normalizeSavedModel(provider.models[role]) === ZHIPU_GLM_UNSUPPORTED_45_AIR)
-}
-
-function replaceUnsupportedZhipuGlmModels(models: ModelMapping): ModelMapping {
-  const next: ModelMapping = { ...models }
-  for (const role of MODEL_ROLES) {
-    if (normalizeSavedModel(next[role]) === ZHIPU_GLM_UNSUPPORTED_45_AIR) {
-      next[role] = ZHIPU_GLM_SMALL_MODEL
-    }
-  }
-  return next
+  return changed ? { ...provider, modelContextWindows: next } : provider
 }
 
 function normalizeSavedModel(model: string | undefined): string {
@@ -381,30 +383,7 @@ function normalizeSavedModel(model: string | undefined): string {
 }
 
 function normalizeProviderRuntimeModel(provider: SavedProvider, modelId: string): string {
-  if (
-    provider.presetId === KIMI_API_PRESET_ID &&
-    isKimiBaseUrl(provider.baseUrl) &&
-    !isKimiCodeBaseUrl(provider.baseUrl) &&
-    isKimiK27CodeModel(modelId)
-  ) {
-    return KIMI_API_FALLBACK_MODEL
-  }
-
-  if (
-    provider.presetId === XIAOMI_MIMO_PRESET_ID &&
-    normalizeSavedModel(modelId) === XIAOMI_MIMO_UNSUPPORTED_V25_FLASH
-  ) {
-    return XIAOMI_MIMO_V25_MODEL
-  }
-
-  if (
-    provider.presetId === ZHIPU_GLM_PRESET_ID &&
-    normalizeSavedModel(modelId) === ZHIPU_GLM_UNSUPPORTED_45_AIR
-  ) {
-    return ZHIPU_GLM_SMALL_MODEL
-  }
-
-  return modelId
+  return LEGACY_PRESET_MODEL_IDS[provider.presetId]?.[modelId.trim().toLowerCase()] ?? modelId
 }
 
 function getProviderRuntimeModelSet(provider: SavedProvider): Set<string> {
@@ -1183,7 +1162,11 @@ export class ProviderService {
       let upstreamUrl: string
       let transformedBody: unknown
       if (format === 'openai_chat') {
-        transformedBody = anthropicToOpenaiChat(anthropicReq)
+        const isKimi = isKimiBaseUrl(base)
+        transformedBody = anthropicToOpenaiChat(anthropicReq, {
+          kimiThinking: isKimi,
+          preserveReasoningContent: isKimi,
+        })
         upstreamUrl = buildOpenAICompatibleUrl(base, 'chat/completions')
       } else {
         transformedBody = anthropicToOpenaiResponses(anthropicReq)
@@ -1299,14 +1282,14 @@ function explainProviderTestError(base: string, modelId: string, error: string):
       'Kimi Code API Key 无效或已过期。',
       '这个接口需要 Kimi For Coding 会员页面生成的 API Key；',
       'Moonshot/Kimi 开放平台的 API Key 不能用于 https://api.kimi.com/coding/。',
-      '如果你使用的是开放平台 API Key，请把 API 地址改为 https://api.moonshot.cn/anthropic，并使用 kimi-k2.6。',
+      '如果你使用的是开放平台 API Key，请把 API 地址改为 https://api.moonshot.cn，协议选择 OpenAI Chat，并使用 kimi-k2.7-code。',
     ].join(' ')
   }
 
   if (isKimiBaseUrl(base)) {
     return [
       'Kimi/Moonshot API Key 无效或已过期。',
-      '请确认这个 Key 属于当前 API 地址；Kimi For Coding 会员 Key 应使用 https://api.kimi.com/coding/，开放平台 Key 应使用 https://api.moonshot.cn/anthropic。',
+      '请确认这个 Key 属于当前 API 地址；Kimi For Coding 会员 Key 应使用 https://api.kimi.com/coding/，开放平台 Key 应使用 https://api.moonshot.cn 和 OpenAI Chat 协议。',
     ].join(' ')
   }
 
