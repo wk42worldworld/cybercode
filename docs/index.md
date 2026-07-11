@@ -6,7 +6,7 @@ hero:
   text: 和你并肩战斗的AI编程伙伴
   tagline: '<span class="hero-promise">在 Claude Code 风格工作流上融合 Hermes 式自进化，持续沉淀记忆、技能与可复用工作方法。</span><span class="hero-provider">支持任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）</span>'
   image:
-    src: /images/cybercode-hero-character-v2.png
+    src: /images/cybercode-hero-character-v3.webp
     alt: CyberCode 女性角色
   actions:
     - theme: brand
