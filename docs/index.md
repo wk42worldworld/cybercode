@@ -4,11 +4,10 @@ layout: home
 hero:
   name: CyberCode
   text: 本地可运行的 AI 编码客户端
-  tagline: 高度借鉴 Claude Code 设计，支持接入任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）
+  tagline: '<span class="hero-promise">在 Claude Code 风格工作流上融合 Hermes 式自进化，持续沉淀记忆、技能与可复用工作方法。</span><span class="hero-provider">支持任意 Anthropic 兼容 API（MiniMax、OpenRouter 等）</span>'
   image:
-    light: /images/cybercode-wordmark.png
-    dark: /images/cybercode-wordmark-dark.png
-    alt: CyberCode
+    src: /images/cybercode-app-icon.png
+    alt: CyberCode 女性角色
   actions:
     - theme: brand
       text: 安装 CLI
@@ -21,35 +20,27 @@ hero:
       link: https://github.com/wk42worldworld/cybercode
 
 features:
-  - icon: "\U0001F5A5"
-    title: 完整 TUI 交互
+  - title: 完整 TUI 交互
     details: 与官方 Claude Code 一致的 Ink 终端界面，支持 --print 无头模式
-  - icon: "\U0001F9E0"
-    title: 记忆系统
+  - title: 记忆系统
     details: 跨会话持久化记忆，自动提取、智能检索、AutoDream 做梦整合
     link: /memory/
-  - icon: "\U0001F916"
-    title: 多 Agent 系统
+  - title: 多 Agent 系统
     details: 多代理编排、并行任务执行、Teams 协作、Worktree 隔离
     link: /agent/
-  - icon: "\U0001F9E9"
-    title: Skills 系统
+  - title: Skills 系统
     details: 可扩展能力插件、自定义工作流、条件激活
     link: /skills/01-usage-guide
-  - icon: "\U0001F310"
-    title: 第三方模型支持
+  - title: 第三方模型支持
     details: 接入 OpenAI、DeepSeek、Ollama 等任意兼容模型
     link: /guide/third-party-models
-  - icon: "\U0001F4AC"
-    title: IM 接入
+  - title: IM 接入
     details: 在桌面端 webapp 配置 Telegram / 飞书，并通过独立 adapter 进程远程对话 Claude Code
     link: /im/
-  - icon: "\U0001F4BB"
-    title: Computer Use
+  - title: Computer Use
     details: 桌面控制功能 — 截屏、鼠标、键盘操作（Python Bridge 实现）
     link: /features/computer-use
-  - icon: "\U0001F5A5"
-    title: 桌面端
+  - title: 桌面端
     details: 基于 Tauri 2 + React 的图形化客户端，多标签、多会话、IM 适配器接入，支持 macOS 和 Windows
     link: /desktop/
 ---

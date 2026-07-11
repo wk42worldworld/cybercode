@@ -4,11 +4,10 @@ layout: home
 hero:
   name: CyberCode
   text: Local AI Coding Client
-  tagline: Heavily inspired by Claude Code, supports any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.)
+  tagline: '<span class="hero-promise">Hermes-style self-evolution turns every session into lasting memory, skills, and reusable ways of working.</span><span class="hero-provider">Works with any Anthropic-compatible API (MiniMax, OpenRouter, and more).</span>'
   image:
-    light: /images/cybercode-wordmark.png
-    dark: /images/cybercode-wordmark-dark.png
-    alt: CyberCode
+    src: /images/cybercode-app-icon.png
+    alt: CyberCode female character
   actions:
     - theme: brand
       text: Install CLI
@@ -21,24 +20,18 @@ hero:
       link: https://github.com/wk42worldworld/cybercode
 
 features:
-  - icon: "\U0001F5A5"
-    title: Full TUI Experience
+  - title: Full TUI Experience
     details: Ink terminal UI matching the official Claude Code interface, with --print headless mode
-  - icon: "\U0001F9E0"
-    title: Memory System
+  - title: Memory System
     details: Cross-session persistent memory with auto-extraction, smart retrieval, and AutoDream consolidation
-  - icon: "\U0001F916"
-    title: Multi-Agent System
+  - title: Multi-Agent System
     details: Agent orchestration, parallel tasks, Teams collaboration, Worktree isolation
-  - icon: "\U0001F9E9"
-    title: Skills System
+  - title: Skills System
     details: Extensible capability plugins, custom workflows, conditional activation
-  - icon: "\U0001F4BB"
-    title: Computer Use
+  - title: Computer Use
     details: Desktop control — screenshots, mouse, and keyboard automation
     link: /en/features/computer-use
-  - icon: "\U0001F310"
-    title: Third-Party Models
+  - title: Third-Party Models
     details: Support for OpenAI, DeepSeek, Ollama, and any compatible model
     link: /en/guide/third-party-models
 ---

@@ -15,7 +15,7 @@ const localizedContent = {
     detail: 'Gets the latest stable release, installs Bun when needed, and adds the cybercode command to your user PATH.',
     unix: 'macOS / Linux',
     windows: 'Windows',
-    start: 'Then start an agent from any project:',
+    points: ['Latest stable release', 'Installs Bun when needed', 'Adds cybercode to PATH'],
     copy: 'Copy command',
     copied: 'Copied',
   },
@@ -25,7 +25,7 @@ const localizedContent = {
     detail: '自动获取最新稳定版，缺少 Bun 时自动安装，并将 cybercode 命令加入用户 PATH。',
     unix: 'macOS / Linux',
     windows: 'Windows',
-    start: '随后可在任意项目目录启动 Agent：',
+    points: ['自动获取最新稳定版', '缺少 Bun 时自动安装', '加入用户 PATH'],
     copy: '复制命令',
     copied: '已复制',
   },
@@ -35,7 +35,7 @@ const localizedContent = {
     detail: '最新の安定版を取得し、必要に応じて Bun をインストールして、cybercode コマンドをユーザー PATH に追加します。',
     unix: 'macOS / Linux',
     windows: 'Windows',
-    start: '任意のプロジェクトで Agent を起動できます：',
+    points: ['最新の安定版', '必要に応じて Bun を導入', 'ユーザー PATH に追加'],
     copy: 'コマンドをコピー',
     copied: 'コピーしました',
   },
@@ -45,7 +45,7 @@ const localizedContent = {
     detail: '최신 안정 버전을 가져오고, 필요한 경우 Bun을 설치한 뒤 cybercode 명령을 사용자 PATH에 추가합니다.',
     unix: 'macOS / Linux',
     windows: 'Windows',
-    start: '이제 어떤 프로젝트에서든 Agent를 시작할 수 있습니다:',
+    points: ['최신 안정 버전', '필요하면 Bun 자동 설치', '사용자 PATH에 추가'],
     copy: '명령 복사',
     copied: '복사됨',
   },
@@ -69,19 +69,32 @@ const commands: Record<Platform, string> = {
 
 const activeCommand = computed(() => commands[activePlatform.value])
 
+function copyWithTextarea() {
+  const textarea = document.createElement('textarea')
+  textarea.value = activeCommand.value
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const succeeded = document.execCommand('copy')
+  textarea.remove()
+  return succeeded
+}
+
 async function copyCommand() {
+  let succeeded = false
+
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(activeCommand.value)
-  } else {
-    const textarea = document.createElement('textarea')
-    textarea.value = activeCommand.value
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    textarea.remove()
+    try {
+      await navigator.clipboard.writeText(activeCommand.value)
+      succeeded = true
+    } catch {
+      succeeded = copyWithTextarea()
+    }
   }
+
+  if (!navigator.clipboard?.writeText) succeeded = copyWithTextarea()
+  if (!succeeded) return
 
   copied.value = true
   window.setTimeout(() => {
@@ -92,13 +105,7 @@ async function copyCommand() {
 
 <template>
   <section class="home-cli-install" aria-labelledby="home-cli-title">
-    <div class="home-cli-install__inner">
-      <header class="home-cli-install__intro">
-        <p class="home-cli-install__eyebrow">{{ content.eyebrow }}</p>
-        <h2 id="home-cli-title">{{ content.title }}</h2>
-        <p>{{ content.detail }}</p>
-      </header>
-
+    <div class="home-cli-terminal-band">
       <div class="home-cli-terminal">
         <div class="home-cli-terminal__toolbar">
           <div class="home-cli-platforms" role="tablist" :aria-label="content.title">
@@ -133,11 +140,18 @@ async function copyCommand() {
           <code>{{ activeCommand }}</code>
         </div>
 
-        <div class="home-cli-terminal__start">
-          <span>{{ content.start }}</span>
-          <code>cybercode</code>
-        </div>
+        <ul class="home-cli-terminal__status">
+          <li v-for="point in content.points" :key="point">{{ point }}</li>
+        </ul>
       </div>
+    </div>
+
+    <div class="home-cli-install__inner">
+      <header class="home-cli-install__intro">
+        <p class="home-cli-install__eyebrow">{{ content.eyebrow }}</p>
+        <h2 id="home-cli-title">{{ content.title }}</h2>
+        <p>{{ content.detail }}</p>
+      </header>
     </div>
   </section>
 </template>

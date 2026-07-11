@@ -289,6 +289,12 @@ export default withMermaid(defineConfig({
   },
 
   themeConfig: {
+    logo: {
+      light: '/images/cybercode-wordmark.png',
+      dark: '/images/cybercode-wordmark-dark.png',
+      alt: 'CyberCode',
+    },
+    siteTitle: false,
     editLink: {
       pattern: 'https://github.com/wk42worldworld/cybercode/edit/main/docs/:path',
       text: '在 GitHub 上编辑此页',

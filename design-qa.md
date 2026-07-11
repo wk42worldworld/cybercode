@@ -1,0 +1,56 @@
+# CyberCode VitePress Home Design QA
+
+- Source visual truth: `/Users/wang/.codex/generated_images/019f234c-5a9f-7d03-8b93-c7f51cb8752b/exec-d5a9d04d-12c9-40a0-b6bf-312983d6144d.png`
+- Implementation screenshot: `/tmp/cybercode-vitepress-desktop-final-1440.png`
+- Viewport: 1440 x 1024 desktop; 390 x 844 mobile
+- State: Chinese home, light theme, macOS/Linux installer selected
+- Full-view comparison: `/tmp/cybercode-design-comparison-final.png`
+- Focused hero comparison: `/tmp/cybercode-design-comparison-hero.png`
+- Focused terminal comparison: `/tmp/cybercode-design-comparison-terminal.png`
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- Typography: The implemented product name, Chinese heading, Hermes promise, provider line, and button hierarchy closely match the selected visual. Text uses the existing VitePress font stack for multilingual reliability; wrapping remains stable in Chinese, English, Japanese, and Korean.
+- Spacing and layout: Hero alignment, content width, portrait scale, terminal boundary, and next-section reveal match the selected composition. Desktop and mobile have no horizontal overflow.
+- Colors and tokens: The previous orange theme is replaced by cobalt, cyan, magenta, yellow, near-black, and white sampled from the supplied character art. Light and dark themes retain readable contrast.
+- Image quality: Navigation uses the supplied CyberCode wordmark and the hero uses the supplied female character asset. Both load from VitePress public assets with no broken-image fallback or generated substitute.
+- Copy: The primary promise explicitly describes Hermes-style self-evolution and its persistent memory, skill, and reusable-workflow outcomes. Provider support remains a separate secondary line.
+- Icons and controls: The copy control uses VitePress's native clipboard icon token. Platform tabs, command copying, theme switching, navigation links, and locale routes are functional.
+- Accessibility and responsiveness: Focus styles remain visible, the installer exposes tab and tabpanel semantics, imagery has localized alt text, and the 390 x 844 layout separates the portrait from the heading while preserving a visible terminal entry point.
+
+## Comparison History
+
+1. Initial implementation
+   - P2: The mobile portrait visually overlapped the `CyberCode` heading.
+   - P2: Desktop title, portrait, and content margins were underscaled relative to the selected visual.
+   - Fixes: Added positive mobile image-to-title spacing; increased desktop horizontal inset, hero top rhythm, title scale, portrait scale, and terminal alignment.
+
+2. Desktop refinement
+   - P2: The portrait and core promise remained slightly less prominent than the selected visual.
+   - Fixes: Increased final title, subtitle, promise, action spacing, and portrait scale while preserving the fixed hero-to-terminal boundary.
+   - Post-fix evidence: `/tmp/cybercode-design-comparison-final.png`, `/tmp/cybercode-design-comparison-hero.png`, and `/tmp/cybercode-design-comparison-terminal.png`.
+
+## Primary Interactions Tested
+
+- macOS/Linux and Windows installer tabs switch commands correctly.
+- Copy action writes the selected command and exposes the localized copied state.
+- Light and dark theme switching works with no broken imagery.
+- Chinese, English, Japanese, and Korean home routes render localized Hermes copy without overflow.
+- Browser console errors and warnings checked: none.
+
+## Follow-up Polish
+
+- P3: The mock's decorative multicolor calibration rule is intentionally omitted; the real character art already supplies the brand spectrum without adding CSS decoration.
+- P3: The real CLI command remains on one line at wide desktop widths instead of reproducing the mock's artificial wrap, improving copy scanning.
+
+## Implementation Checklist
+
+- [x] Use real CyberCode wordmark and female character assets.
+- [x] Replace orange tokens with the character-derived palette.
+- [x] Add localized Hermes self-evolution copy.
+- [x] Match the selected hero and terminal composition.
+- [x] Verify desktop, mobile, dark theme, locales, and copy interaction.
+
+final result: passed
