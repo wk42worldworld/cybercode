@@ -75,6 +75,20 @@ cybercode
 
 전체 옵션은 설치된 버전의 `cybercode --help` 출력을 기준으로 확인하세요.
 
+## 데스크톱 슬래시 명령
+
+데스크톱 채팅 입력창에서 `/`를 입력하면 명령을 검색하고 실행할 수 있습니다. 여기서 사용하는 문자는 슬래시 `/`이며 Windows 경로의 백슬래시 `\`가 아닙니다.
+
+| 분류 | 지원 명령 |
+|------|-----------|
+| 정보 및 도구 패널 | `/help`, `/status`, `/cost`, `/context`, `/mcp`, `/skills`, `/doctor`, `/memory`, `/bug` |
+| 설정 및 계정 | `/plugin`, `/config`, `/permissions`, `/terminal-setup`, `/login`, `/logout`, `/agents` |
+| 세션 및 개발 작업 | `/model`, `/compact`, `/clear`, `/review`, `/commit`, `/pr`, `/init` |
+
+`/plugins`는 `/plugin`의 별칭이고 `/feedback`은 `/bug`의 별칭입니다. 현재 프로젝트의 Skills, 플러그인, MCP Prompt, Workflow도 `/` 제안 목록에 동적으로 추가될 수 있습니다.
+
+각 명령의 동작, 터미널 TUI 명령, 조건부 명령 및 shell 대응 명령은 [전체 슬래시 명령 참조](./slash-commands.md)를 확인하세요.
+
 ## 소스에서 실행
 
 CyberCode를 개발하거나 소스 코드를 직접 수정할 때 사용합니다.

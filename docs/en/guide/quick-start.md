@@ -75,6 +75,20 @@ Options can be combined. For example, you can select a model and run one headles
 
 Use the `cybercode --help` output from your installed version as the complete option reference.
 
+## Desktop Slash Commands
+
+Type `/` in the desktop chat composer to search for and run commands. This is a forward slash `/`, not the backslash `\` used in Windows paths.
+
+| Category | Supported commands |
+|----------|--------------------|
+| Information and tool panels | `/help`, `/status`, `/cost`, `/context`, `/mcp`, `/skills`, `/doctor`, `/memory`, `/bug` |
+| Settings and accounts | `/plugin`, `/config`, `/permissions`, `/terminal-setup`, `/login`, `/logout`, `/agents` |
+| Session and development actions | `/model`, `/compact`, `/clear`, `/review`, `/commit`, `/pr`, `/init` |
+
+`/plugins` aliases `/plugin`, and `/feedback` aliases `/bug`. Skills, plugin commands, MCP prompts, and workflows from the current project can also appear dynamically in the `/` suggestions.
+
+See the [complete Slash Command Reference](./slash-commands.md) for command behavior, terminal TUI commands, conditional commands, and shell equivalents.
+
 ## Run From Source
 
 Use these steps when developing CyberCode or modifying the repository directly.

@@ -20,6 +20,7 @@ const zhSidebar = [
     text: '快速开始',
     items: [
       { text: '安装与启动', link: '/guide/quick-start' },
+      { text: '斜杠命令', link: '/guide/slash-commands' },
       { text: '环境变量', link: '/guide/env-vars' },
       { text: '第三方模型', link: '/guide/third-party-models' },
       { text: '全局使用', link: '/guide/global-usage' },
@@ -105,6 +106,7 @@ const enSidebar = [
     text: 'Getting Started',
     items: [
       { text: 'Quick Start', link: '/en/guide/quick-start' },
+      { text: 'Slash Commands', link: '/en/guide/slash-commands' },
       { text: 'Environment Variables', link: '/en/guide/env-vars' },
       { text: 'Third-Party Models', link: '/en/guide/third-party-models' },
       { text: 'Global Usage', link: '/en/guide/global-usage' },
@@ -181,6 +183,7 @@ const jaSidebar = [
     text: 'はじめに',
     items: [
       { text: 'インストールと CLI コマンド', link: '/ja/guide/quick-start' },
+      { text: 'スラッシュコマンド', link: '/ja/guide/slash-commands' },
     ],
   },
 ]
@@ -190,6 +193,7 @@ const koSidebar = [
     text: '시작하기',
     items: [
       { text: '설치 및 CLI 명령', link: '/ko/guide/quick-start' },
+      { text: '슬래시 명령', link: '/ko/guide/slash-commands' },
     ],
   },
 ]

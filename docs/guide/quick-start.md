@@ -75,6 +75,20 @@ cybercode
 
 完整参数始终以当前安装版本的 `cybercode --help` 输出为准。
 
+## 桌面端斜杠命令
+
+在桌面端聊天输入框中输入 `/`，即可搜索并执行命令。这里使用的是正斜杠 `/`，不是 Windows 路径中的反斜杠 `\`。
+
+| 类型 | 支持的命令 |
+|------|------------|
+| 信息与工具面板 | `/help`、`/status`、`/cost`、`/context`、`/mcp`、`/skills`、`/doctor`、`/memory`、`/bug` |
+| 设置与账号 | `/plugin`、`/config`、`/permissions`、`/terminal-setup`、`/login`、`/logout`、`/agents` |
+| 会话与开发操作 | `/model`、`/compact`、`/clear`、`/review`、`/commit`、`/pr`、`/init` |
+
+`/plugins` 是 `/plugin` 的别名，`/feedback` 是 `/bug` 的别名。当前项目中的 Skills、插件、MCP Prompt 和 Workflow 也会动态加入 `/` 候选列表。
+
+每条命令的作用、终端 TUI 命令、条件启用命令和 shell 等价操作，请查看 [斜杠命令完整参考](./slash-commands.md)。
+
 ## 从源码运行
 
 下面的步骤适用于开发者或需要直接修改 CyberCode 源码的用户。

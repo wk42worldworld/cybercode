@@ -75,6 +75,20 @@ cybercode
 
 完全なオプション一覧は、インストール済みバージョンの `cybercode --help` を参照してください。
 
+## デスクトップのスラッシュコマンド
+
+デスクトップのチャット入力欄で `/` を入力すると、コマンドを検索して実行できます。ここで使うのはスラッシュ `/` で、Windows パスのバックスラッシュ `\` ではありません。
+
+| カテゴリ | 対応コマンド |
+|----------|--------------|
+| 情報・ツールパネル | `/help`、`/status`、`/cost`、`/context`、`/mcp`、`/skills`、`/doctor`、`/memory`、`/bug` |
+| 設定・アカウント | `/plugin`、`/config`、`/permissions`、`/terminal-setup`、`/login`、`/logout`、`/agents` |
+| セッション・開発操作 | `/model`、`/compact`、`/clear`、`/review`、`/commit`、`/pr`、`/init` |
+
+`/plugins` は `/plugin`、`/feedback` は `/bug` の別名です。現在のプロジェクトにある Skills、プラグイン、MCP Prompt、Workflow も `/` の候補へ動的に追加されます。
+
+各コマンドの動作、ターミナル TUI コマンド、条件付きコマンド、shell の対応操作は [スラッシュコマンド完全リファレンス](./slash-commands.md) を参照してください。
+
 ## ソースから実行
 
 CyberCode の開発やソースコードの変更を行う場合に使用します。
