@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: CyberCode
-  text: Local AI Coding Client
+  text: The AI coding partner fighting by your side
   tagline: '<span class="hero-promise">Hermes-style self-evolution turns every session into lasting memory, skills, and reusable ways of working.</span><span class="hero-provider">Works with any Anthropic-compatible API (MiniMax, OpenRouter, and more).</span>'
   image:
     src: /images/cybercode-hero-character-v1.png

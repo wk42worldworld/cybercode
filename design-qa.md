@@ -12,7 +12,7 @@
 
 No actionable P0, P1, or P2 differences remain.
 
-- Typography: The implemented product name, Chinese heading, Hermes promise, provider line, and button hierarchy closely match the selected visual. Text uses the existing VitePress font stack for multilingual reliability; wrapping remains stable in Chinese, English, Japanese, and Korean.
+- Typography: The implemented product name, companion-focused heading, Hermes promise, provider line, and button hierarchy closely match the selected visual. Text uses the existing VitePress font stack for multilingual reliability; wrapping remains stable in Chinese, English, Japanese, and Korean.
 - Spacing and layout: Hero alignment, content width, portrait scale, terminal boundary, and next-section reveal match the selected composition. Desktop and mobile have no horizontal overflow.
 - Colors and tokens: The previous orange theme is replaced by cobalt, cyan, magenta, yellow, near-black, and white sampled from the supplied character art. Light and dark themes retain readable contrast.
 - Image quality: Navigation uses the supplied CyberCode wordmark and the hero uses the supplied female character asset. Both load from VitePress public assets with no broken-image fallback or generated substitute.
@@ -36,6 +36,10 @@ No actionable P0, P1, or P2 differences remain.
    - P1: A browser that had visited the pre-deployment URL retained the earlier cached 404 for the hero image, although the deployed file and checksum were correct.
    - Fix: Published the supplied character asset under the versioned path `cybercode-hero-character-v1.png` and updated every locale to use it, bypassing stale negative caches.
    - Post-fix evidence: public browser validation at `https://wk42worldworld.github.io/cybercode/` with the versioned image loaded and no broken images.
+
+4. Companion positioning copy
+   - Revision: Replaced the functional local-client heading with the more personal "AI coding partner fighting by your side" positioning across Chinese, English, Japanese, and Korean.
+   - Validation: Rechecked desktop and mobile wrapping for every locale with no clipping or horizontal overflow.
 
 ## Primary Interactions Tested
 

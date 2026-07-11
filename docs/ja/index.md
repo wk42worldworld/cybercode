@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: CyberCode
-  text: ローカルで動く AI コーディングクライアント
+  text: あなたと肩を並べて戦う AI コーディングパートナー
   tagline: '<span class="hero-promise">Hermes 型の自己進化により、対話から記憶・スキル・再利用可能な作業方法を継続的に蓄積します。</span><span class="hero-provider">任意の Anthropic 互換 API（MiniMax、OpenRouter など）に対応します。</span>'
   image:
     src: /images/cybercode-hero-character-v1.png
