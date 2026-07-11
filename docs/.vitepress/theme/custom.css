@@ -221,6 +221,15 @@ html {
   transform: translateY(-50%);
 }
 
+.cyber-js .VPHome .VPHero .image-src {
+  opacity: 0;
+  transition: opacity 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cyber-js .VPHome .VPHero .image-src.is-loaded {
+  opacity: 1;
+}
+
 .home-cli-install {
   margin: 0;
   border: 0;
@@ -553,20 +562,10 @@ html {
   }
 }
 
-@keyframes cyber-image-in {
-  from {
-    opacity: 0;
-  }
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .VPHome .VPHero .main,
   .home-cli-terminal {
     animation: cyber-content-in 460ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  }
-
-  .VPHome .VPHero .image-src {
-    animation: cyber-image-in 560ms ease-out both;
   }
 }
 
@@ -580,7 +579,8 @@ html {
   .VPLocalSearchBox .shell,
   .VPLocalSearchBox .search-bar,
   .VPLocalSearchBox .search-actions button,
-  .VPLocalSearchBox .result {
+  .VPLocalSearchBox .result,
+  .cyber-js .VPHome .VPHero .image-src {
     animation: none;
     transition-duration: 0.01ms;
   }

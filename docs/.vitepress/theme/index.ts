@@ -5,6 +5,10 @@ import { useRoute } from 'vitepress'
 import HomeCliInstall from './HomeCliInstall.vue'
 import './custom.css'
 
+if (typeof document !== 'undefined') {
+  document.documentElement.classList.add('cyber-js')
+}
+
 export default {
   extends: DefaultTheme,
   Layout: () =>
@@ -16,10 +20,33 @@ export default {
     const initZoom = () => {
       mediumZoom('.main img', { background: 'var(--vp-c-bg)' })
     }
-    onMounted(() => initZoom())
+
+    const initHeroImageReveal = () => {
+      const image = document.querySelector<HTMLImageElement>(
+        '.VPHome .VPHero .image-src'
+      )
+      if (!image || image.dataset.revealBound === 'true') return
+
+      image.dataset.revealBound = 'true'
+      const reveal = () => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => image.classList.add('is-loaded'))
+        })
+      }
+
+      if (image.complete && image.naturalWidth > 0) reveal()
+      else image.addEventListener('load', reveal, { once: true })
+    }
+
+    const initPageEnhancements = () => {
+      initZoom()
+      initHeroImageReveal()
+    }
+
+    onMounted(() => nextTick(() => initPageEnhancements()))
     watch(
       () => route.path,
-      () => nextTick(() => initZoom())
+      () => nextTick(() => initPageEnhancements())
     )
   },
 }

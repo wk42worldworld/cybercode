@@ -23,6 +23,7 @@ No actionable P0, P1, or P2 differences remain.
 - Copy: The primary promise explicitly describes Hermes-style self-evolution and its persistent memory, skill, and reusable-workflow outcomes. Provider support remains a separate secondary line.
 - Icons and controls: The copy control uses VitePress's native clipboard icon token. Platform tabs, command copying, theme switching, navigation links, and locale routes are functional.
 - Motion and search: Search opens without changing the 1425px page content width or shifting the hero image and navigation. The modal, backdrop, buttons, tabs, copy action, and linked feature rows use short restrained transitions, with animations disabled for reduced-motion users.
+- Hero loading: The right-side character remains transparent until its bitmap has actually loaded, then fades in over 480ms. First visits and cache hits use the same reveal path, with an effectively instant reduced-motion fallback.
 - Localization: Local search button text, input placeholder, detailed-view action, reset action, empty state, and keyboard hints are localized for Chinese, English, Japanese, and Korean.
 - Accessibility and responsiveness: Focus styles remain visible, the installer exposes tab and tabpanel semantics, imagery has localized alt text, and the 390 x 844 layout separates the portrait from the heading while preserving a visible terminal entry point.
 
@@ -65,12 +66,18 @@ No actionable P0, P1, or P2 differences remain.
    - Fixes: Reserved a stable scrollbar gutter, added four-locale local-search translations, introduced restrained 140-190ms interaction transitions and search entrance motion, and provided a reduced-motion fallback.
    - Post-fix evidence: `/tmp/cybercode-search-comparison-v2.png` and `/tmp/cybercode-search-v2-mobile.png`; before/after measurements keep the viewport at 1425px and hero artwork at x=663px.
 
+8. Load-aware hero reveal
+   - P2: The previous CSS animation started when the hero entered the DOM, so it could finish before a slow image response and still let the portrait appear abruptly.
+   - Fix: Bind the reveal to the image `load` state and add the visible class after two animation frames, giving both first loads and cached loads a consistent 480ms opacity transition.
+   - Post-fix evidence: Cached reload measured opacity 0 at load, 0.80 at 140ms, and 1 after completion; the 390 x 844 viewport measured an in-progress opacity of 0.83 with no horizontal overflow.
+
 ## Primary Interactions Tested
 
 - macOS/Linux and Windows installer tabs switch commands correctly.
 - Copy action writes the selected command and exposes the localized copied state.
 - Desktop download opens the latest GitHub Release directly.
 - Light and dark theme switching works with no broken imagery or background rectangle.
+- The hero portrait stays hidden until its bitmap is ready, then fades in on desktop and mobile, including cached reloads.
 - Local search opens and closes without layout shift; Chinese search controls and no-result feedback are localized.
 - Search remains full-width with no horizontal overflow at 390 x 844.
 - Chinese, English, Japanese, and Korean home routes render localized Hermes copy without overflow.
@@ -92,6 +99,7 @@ No actionable P0, P1, or P2 differences remain.
 - [x] Prevent scrollbar locking from shifting the page when search opens.
 - [x] Localize local-search UI across all four site languages.
 - [x] Add restrained interaction motion with a reduced-motion fallback.
+- [x] Trigger the hero portrait fade only after the image has loaded.
 - [x] Verify desktop, mobile, dark theme, locales, and copy interaction.
 
 final result: passed
