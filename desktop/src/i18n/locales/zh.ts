@@ -211,7 +211,7 @@ export const zh: Record<TranslationKey, string> = {
 
   // Settings > Adapters
   'settings.tab.adapters': 'IM 接入',
-  'settings.adapters.description': '配置即时通讯适配器，通过 Telegram 或飞书与 Claude Code 对话。',
+  'settings.adapters.description': '配置即时通讯适配器，通过 Telegram 或飞书远程使用 CyberCode。',
   'settings.adapters.telegram': 'Telegram',
   'settings.adapters.feishu': '飞书 (Feishu)',
   'settings.adapters.botToken': 'Bot Token',

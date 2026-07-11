@@ -20,7 +20,7 @@ Telegram 方案适合个人私聊远程使用。当前实现只处理 `private c
 
 按提示走完三步：
 
-- **取一个机器人名称**，例如 `ClaudeCodeCybercode机器人`
+- **取一个机器人名称**，例如 `CyberCode 助手`
 - **取一个机器人用户名**，要求全英文字母，且必须以 `_bot` 结尾，例如 `jiang_cc_hah_bot`
 - 创建成功后，复制 BotFather 返回的 **Bot Token**
 
@@ -34,9 +34,11 @@ Telegram 方案适合个人私聊远程使用。当前实现只处理 `private c
 
 ![填写 Bot Token](../images/im/telegram/04-fill-bot-token.png)
 
+填写完成后，先点击页面底部的「保存」。
+
 ### 2.2 生成配对码
 
-点击「生成配对码」按钮，拿到 6 位配对码后点击保存：
+保存成功后，点击「生成配对码」按钮，拿到 6 位配对码：
 
 ![生成配对码](../images/im/telegram/05-generate-pairing-code.png)
 
@@ -58,7 +60,7 @@ Telegram 方案适合个人私聊远程使用。当前实现只处理 `private c
 
 ## 权限审批
 
-当 Claude 请求敏感权限时，Telegram adapter 会发带按钮的消息：
+当 CyberCode 请求敏感权限时，Telegram adapter 会发带按钮的消息：
 
 - `✅ 允许`
 - `❌ 拒绝`
@@ -100,7 +102,7 @@ export ADAPTER_SERVER_URL="ws://127.0.0.1:3456"
 
 ### bot 启动时报缺少 token
 
-说明 `TELEGRAM_BOT_TOKEN` 和 `~/.claude/adapters.json` 里的 `telegram.botToken` 都没有生效。
+说明 `TELEGRAM_BOT_TOKEN` 和 `~/.cyber/adapters.json` 里的 `telegram.botToken` 都没有生效。
 
 ### 能打开设置页但 bot 不工作
 
@@ -115,7 +117,7 @@ Webapp 只负责配置，不会自动拉起 `bun run telegram`（桌面端发布
 
 ### 每次重启后会话丢失
 
-检查 `~/.claude/adapter-sessions.json` 是否能正常写入，以及 Desktop server 的 session 是否仍存在。
+检查 `~/.cyber/adapter-sessions.json` 是否能正常写入，以及 CyberCode Desktop server 的 session 是否仍存在。
 
 ## 源码入口
 

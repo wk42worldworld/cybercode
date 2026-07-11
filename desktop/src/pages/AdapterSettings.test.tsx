@@ -29,6 +29,9 @@ describe('AdapterSettings', () => {
   it('shows prominent full setup guide buttons for IM adapters', async () => {
     render(<AdapterSettings />)
 
+    expect(
+      await screen.findByText('配置即时通讯适配器，通过 Telegram 或飞书远程使用 CyberCode。'),
+    ).toBeInTheDocument()
     expect((await screen.findAllByText('飞书接入教程')).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Telegram 接入教程').length).toBeGreaterThanOrEqual(1)
     expect(

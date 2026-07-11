@@ -209,7 +209,7 @@ export const en = {
 
   // Settings > Adapters
   'settings.tab.adapters': 'IM Adapters',
-  'settings.adapters.description': 'Configure IM adapters to chat with Claude Code via Telegram or Feishu.',
+  'settings.adapters.description': 'Configure IM adapters to use CyberCode remotely through Telegram or Feishu.',
   'settings.adapters.telegram': 'Telegram',
   'settings.adapters.feishu': 'Feishu',
   'settings.adapters.botToken': 'Bot Token',

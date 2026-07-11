@@ -4,7 +4,7 @@
 
 ## 适用场景
 
-飞书方案适合在中国区环境下通过企业自建应用私聊 Claude Code。当前实现只处理 `p2p` 私聊，不处理群聊。
+飞书方案适合在中国区环境下通过企业自建应用远程使用 CyberCode。当前实现只处理 `p2p` 私聊，不处理群聊。
 
 实现入口：`adapters/feishu/index.ts`
 
@@ -68,15 +68,17 @@
 
 ![填写 App ID / App Secret](../images/im/feishu/10-fill-app-credentials.png)
 
+填写完成后，先点击页面底部的「保存」。
+
 ### 3.2 生成配对码
 
-点击「生成配对码」按钮，得到 6 位码：
+保存成功后，点击「生成配对码」按钮，得到 6 位码：
 
 ![生成配对码](../images/im/feishu/11-generate-pairing-code.png)
 
 ![配对码详情](../images/im/feishu/12-pairing-code-detail.png)
 
-**记得点保存！！**
+配对码有效期为 60 分钟；重新生成后，旧码会立即失效。
 
 ## 4. 飞书机器人与桌面端配对
 
@@ -103,7 +105,7 @@
 
 ## 权限审批
 
-当 Claude 请求敏感权限时，adapter 会在飞书里发送交互卡片，点击「允许 / 拒绝」即可把结果回传给桌面端。
+当 CyberCode 请求敏感权限时，adapter 会在飞书里发送交互卡片，点击「允许 / 拒绝」即可把结果回传给桌面端。
 
 ## 返回消息的表现
 
@@ -155,7 +157,7 @@ OpenClaw 官方模板已预配 `im:message`、`im:message:send_as_bot`、`im:res
 
 ### 会话没恢复
 
-检查 `~/.claude/adapter-sessions.json` 是否能正常写入，以及 Desktop server 里的 session 是否仍存在。
+检查 `~/.cyber/adapter-sessions.json` 是否能正常写入，以及 CyberCode Desktop server 里的 session 是否仍存在。
 
 ## 源码入口
 
