@@ -203,7 +203,7 @@
   top: 50%;
   right: -18px;
   left: auto;
-  width: min(820px, 59vw);
+  width: min(780px, 56vw);
   height: auto;
   max-width: none;
   max-height: none;
@@ -491,8 +491,8 @@
     right: auto;
     order: 1;
     width: 100%;
-    height: 330px;
-    margin: -34px 0 24px;
+    height: 400px;
+    margin: -24px 0 48px;
   }
 
   .VPHome .VPHero .image-container {
@@ -537,12 +537,12 @@
   }
 
   .VPHome .VPHero .image {
-    height: 274px;
-    margin: -28px 0 22px;
+    height: 300px;
+    margin: -18px 0 48px;
   }
 
   .VPHome .VPHero .image-src {
-    width: min(350px, 90vw);
+    width: min(310px, 82vw);
   }
 
   .VPHome .VPHero .heading {
