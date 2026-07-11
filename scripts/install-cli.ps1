@@ -8,6 +8,7 @@ $BinDir = if ($env:CYBERCODE_BIN_DIR) { $env:CYBERCODE_BIN_DIR } else { Join-Pat
 $Version = $env:CYBERCODE_VERSION
 $ArchiveUrl = $env:CYBERCODE_ARCHIVE_URL
 $Headers = @{ "User-Agent" = "CyberCode-Installer" }
+$OriginalProcessPath = $env:Path
 
 function Write-Step([string]$Message) {
   Write-Host "CyberCode: $Message"
@@ -49,6 +50,13 @@ if ($BunCommand) {
   if (-not (Test-Path -LiteralPath $BunPath)) {
     throw "Bun was installed but its executable was not found."
   }
+}
+
+$BunBinDir = Split-Path -Parent $BunPath
+if (($OriginalProcessPath -split ';') -contains $BunBinDir) {
+  $env:Path = $OriginalProcessPath
+} else {
+  $env:Path = "$BunBinDir;$OriginalProcessPath"
 }
 
 $InstallParent = Split-Path -Parent $InstallDir
