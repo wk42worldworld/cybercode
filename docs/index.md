@@ -15,9 +15,6 @@ hero:
     - theme: alt
       text: 下载桌面端
       link: https://github.com/wk42worldworld/cybercode/releases/latest
-    - theme: alt
-      text: 大陆镜像下载
-      link: https://ghfast.top/https://github.com/wk42worldworld/cybercode/releases/latest
 
 features:
   - title: 完整 TUI 交互

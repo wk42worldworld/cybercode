@@ -15,9 +15,6 @@ hero:
     - theme: alt
       text: Download Desktop
       link: https://github.com/wk42worldworld/cybercode/releases/latest
-    - theme: alt
-      text: China Mirror
-      link: https://ghfast.top/https://github.com/wk42worldworld/cybercode/releases/latest
 
 features:
   - title: Full TUI Experience

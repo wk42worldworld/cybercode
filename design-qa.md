@@ -48,8 +48,8 @@ No actionable P0, P1, or P2 differences remain.
    - Validation: Rechecked desktop and mobile wrapping for every locale with no clipping or horizontal overflow.
 
 5. Desktop download routing
-   - Revision: Routed the desktop CTA directly to the latest GitHub Release and replaced the redundant hero GitHub link with a localized mainland China mirror CTA using `ghfast.top`.
-   - Validation: Confirmed both routes resolve to the current release page, and rechecked all four locales at desktop and mobile widths with no clipped actions or horizontal overflow.
+   - Revision: Routed the desktop CTA directly to the latest GitHub Release. A temporary mainland China mirror CTA was later removed by product decision.
+   - Validation: Confirmed the remaining release route resolves correctly, and rechecked all four locales at desktop and mobile widths with no clipped actions or horizontal overflow.
 
 6. High-resolution transparent hero asset
    - P1: The previous image contained a large white backing area that became a dominant rectangle in dark mode.
@@ -69,7 +69,7 @@ No actionable P0, P1, or P2 differences remain.
 
 - macOS/Linux and Windows installer tabs switch commands correctly.
 - Copy action writes the selected command and exposes the localized copied state.
-- Desktop download opens the latest GitHub Release; the mainland China mirror opens the same release through `ghfast.top`.
+- Desktop download opens the latest GitHub Release directly.
 - Light and dark theme switching works with no broken imagery or background rectangle.
 - Local search opens and closes without layout shift; Chinese search controls and no-result feedback are localized.
 - Search remains full-width with no horizontal overflow at 390 x 844.

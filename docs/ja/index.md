@@ -15,9 +15,6 @@ hero:
     - theme: alt
       text: デスクトップ版をダウンロード
       link: https://github.com/wk42worldworld/cybercode/releases/latest
-    - theme: alt
-      text: 中国大陸向けミラー
-      link: https://ghfast.top/https://github.com/wk42worldworld/cybercode/releases/latest
 
 features:
   - title: フル機能の TUI

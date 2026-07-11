@@ -181,21 +181,6 @@ html {
   box-shadow: none;
 }
 
-.VPHome .VPHero .action:nth-child(3) .VPButton {
-  min-width: auto;
-  border-color: transparent;
-  background: transparent;
-  color: var(--vp-c-brand-1);
-  padding-right: 8px;
-  padding-left: 8px;
-}
-
-.VPHome .VPHero .action:nth-child(3) .VPButton:hover,
-.VPHome .VPHero .action:nth-child(3) .VPButton:focus-visible {
-  color: var(--vp-c-brand-2);
-  background: var(--vp-c-brand-soft);
-}
-
 .VPHome .VPHero .image {
   position: absolute;
   z-index: 1;
