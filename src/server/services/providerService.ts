@@ -160,6 +160,10 @@ function getManagedEnvKeys(): string[] {
   return [...keys]
 }
 
+export function getProviderManagedEnvKeys(): string[] {
+  return getManagedEnvKeys()
+}
+
 function compactModelContextWindows(
   input: ModelContextWindows | undefined,
 ): ModelContextWindows | undefined {
@@ -882,7 +886,10 @@ export class ProviderService {
     const index = await this.readIndex()
     if (index.activeId) {
       const provider = index.providers.find(p => p.id === index.activeId)
-      if (provider?.apiKey) {
+      const preset = provider
+        ? PROVIDER_PRESETS.find(item => item.id === provider.presetId)
+        : undefined
+      if (provider && (provider.apiKey || preset?.needsApiKey === false)) {
         return { hasAuth: true, source: 'cybercode-provider', activeProvider: provider.name }
       }
     }

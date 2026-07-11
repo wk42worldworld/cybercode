@@ -19,7 +19,8 @@ import { WelcomeV2 } from './LogoV2/WelcomeV2.js';
 import { PressEnterToContinue } from './PressEnterToContinue.js';
 import { ThemePicker } from './ThemePicker.js';
 import { OrderedList } from './ui/OrderedList.js';
-type StepId = 'preflight' | 'theme' | 'oauth' | 'api-key' | 'security' | 'terminal-setup';
+import { ProviderSetupWizard } from './providers/ProviderSetupWizard.js';
+type StepId = 'preflight' | 'theme' | 'provider' | 'oauth' | 'api-key' | 'security' | 'terminal-setup';
 interface OnboardingStep {
   id: StepId;
   component: React.ReactNode;
@@ -71,9 +72,9 @@ export function Onboarding({
          */}
         <OrderedList>
           <OrderedList.Item>
-            <Text>Claude can make mistakes</Text>
+            <Text>AI models can make mistakes</Text>
             <Text dimColor wrap="wrap">
-              You should always review Claude&apos;s responses, especially when
+              You should always review model responses, especially when
               <Newline />
               running code.
               <Newline />
@@ -94,12 +95,21 @@ export function Onboarding({
       <PressEnterToContinue />
     </Box>;
   const preflightStep = <PreflightStep onSuccess={goToNextStep} />;
+  const providerStep = <Box marginX={1}>
+      <ProviderSetupWizard
+        allowCancel={false}
+        onComplete={result => {
+          setSkipOAuth(!result.isOfficial);
+          goToNextStep();
+        }}
+      />
+    </Box>;
   // Create the steps array - determine which steps to include based on reAuth and oauthEnabled
   const apiKeyNeedingApproval = useMemo(() => {
     // Add API key step if needed
     // On homespace, ANTHROPIC_API_KEY is preserved in process.env for child
     // processes but ignored by Claude Code itself (see auth.ts).
-    if (!process.env.ANTHROPIC_API_KEY || isRunningOnHomespace()) {
+    if (process.env.CYBERCODE_PROVIDER_ID || !process.env.ANTHROPIC_API_KEY || isRunningOnHomespace()) {
       return '';
     }
     const customApiKeyTruncated = normalizeApiKeyForConfig(process.env.ANTHROPIC_API_KEY);
@@ -124,6 +134,10 @@ export function Onboarding({
     id: 'theme',
     component: themeStep
   });
+  steps.push({
+    id: 'provider',
+    component: providerStep
+  });
   if (apiKeyNeedingApproval) {
     steps.push({
       id: 'api-key',
@@ -146,7 +160,7 @@ export function Onboarding({
     steps.push({
       id: 'terminal-setup',
       component: <Box flexDirection="column" gap={1} paddingLeft={1}>
-          <Text bold>Use Claude Code&apos;s terminal setup?</Text>
+          <Text bold>Use CyberCode&apos;s terminal setup?</Text>
           <Box flexDirection="column" width={70} gap={1}>
             <Text>
               For the optimal coding experience, enable the recommended settings

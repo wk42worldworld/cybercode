@@ -68,6 +68,25 @@ export const init = memoize(async (): Promise<void> => {
     })
     profileCheckpoint('init_configs_enabled')
 
+    // Standalone TUI sessions own their OpenAI-compatible protocol bridge.
+    // Desktop child sessions carry a host-managed marker and skip this path.
+    const providerRuntimeStart = Date.now()
+    try {
+      const { ensureActiveProviderRuntime } = await import(
+        '../server/proxy/embeddedProxy.js'
+      )
+      await ensureActiveProviderRuntime({ applyEnvironment: true })
+    } catch (error) {
+      logForDebugging(
+        `[init] provider runtime setup failed: ${errorMessage(error)}`,
+        { level: 'warn' },
+      )
+    }
+    logForDiagnosticsNoPII('info', 'init_provider_runtime_configured', {
+      duration_ms: Date.now() - providerRuntimeStart,
+    })
+    profileCheckpoint('init_provider_runtime_configured')
+
     // Apply only safe environment variables before trust dialog
     // Full environment variables are applied after trust is established
     const envVarsStart = Date.now()
