@@ -1,0 +1,78 @@
+name: Test CLI Installers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/install-cli.sh'
+      - 'scripts/install-cli.ps1'
+      - 'bin/cybercode'
+      - 'bin/cybercode.cmd'
+      - '.github/workflows/test-cli-installers.yml'
+  pull_request:
+    paths:
+      - 'scripts/install-cli.sh'
+      - 'scripts/install-cli.ps1'
+      - 'bin/cybercode'
+      - 'bin/cybercode.cmd'
+      - '.github/workflows/test-cli-installers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-linux:
+    name: Install (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate shell syntax
+        run: bash -n scripts/install-cli.sh
+
+      - name: Install latest stable CLI
+        env:
+          HOME: ${{ runner.temp }}/home
+          SHELL: /bin/bash
+          CYBERCODE_INSTALL_DIR: ${{ runner.temp }}/cybercode
+          CYBERCODE_BIN_DIR: ${{ runner.temp }}/bin
+        run: |
+          mkdir -p "$HOME"
+          bash < scripts/install-cli.sh
+          "$CYBERCODE_BIN_DIR/cybercode" --version
+
+  windows:
+    name: Install (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate PowerShell syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "$PWD\scripts\install-cli.ps1",
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+
+      - name: Install latest stable CLI
+        shell: powershell
+        env:
+          CYBERCODE_INSTALL_DIR: ${{ runner.temp }}\cybercode
+          CYBERCODE_BIN_DIR: ${{ runner.temp }}\bin
+        run: |
+          Get-Content -Raw .\scripts\install-cli.ps1 | Invoke-Expression
+          & "$env:CYBERCODE_BIN_DIR\cybercode.cmd" --version
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }

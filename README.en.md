@@ -41,8 +41,34 @@ A **Claude Code-style local coding agent** with **permanent memory** and **self-
 </p>
 
 <p align="center">
-  <a href="#why-cybercode">Why</a> · <a href="#quick-comparison">Compare</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="#community-and-growth">Community</a> · <a href="#more-documentation">More Docs</a>
+  <a href="#install-the-cli">Install CLI</a> · <a href="#why-cybercode">Why</a> · <a href="#quick-comparison">Compare</a> · <a href="#features">Features</a> · <a href="#quick-start">Quick Start</a> · <a href="#guided-tutorial">Guided Tutorial</a> · <a href="#feature-module-tutorials">Module Tutorials</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="#community-and-growth">Community</a> · <a href="#more-documentation">More Docs</a>
 </p>
+
+---
+
+## Install the CLI
+
+### macOS / Linux
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wk42worldworld/cybercode/main/scripts/install-cli.sh | bash
+```
+
+### Windows PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/wk42worldworld/cybercode/main/scripts/install-cli.ps1 | iex
+```
+
+Then open a project directory and start the agent:
+
+```bash
+cybercode
+```
+
+The installer gets the latest stable release, installs Bun when needed, and adds `cybercode` to your user PATH. It runs without administrator access and preserves an existing CLI `.env` when updating. You can review the [macOS/Linux installer](scripts/install-cli.sh) or [Windows installer](scripts/install-cli.ps1) before running it.
+
+Looking for the GUI? [Download the desktop app for macOS, Windows, or Linux](https://github.com/wk42worldworld/cybercode/releases/latest).
 
 ---
 
@@ -77,7 +103,7 @@ A **Claude Code-style local coding agent** with **permanent memory** and **self-
 
 ## Latest Highlights
 
-Latest stable desktop release: [CyberCode v1.0.15](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.15)
+Latest stable desktop release: [CyberCode v1.0.21](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.21)
 
 - **Running-turn input steering**: when an assistant response is still running, new user input is saved in a pending bar instead of disappearing or interrupting blindly. You can edit it, delete it, or add it to the current turn; otherwise queued input is sent automatically when the current turn finishes.
 - **Provider-aware model context windows**: model presets can now carry context-window metadata, and CyberCode forwards those limits into desktop sessions so third-party providers behave more predictably.

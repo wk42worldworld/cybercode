@@ -20,8 +20,237 @@
 }
 
 .VPHero .image-container .image-src {
+  width: min(500px, calc(100vw - 32px)) !important;
+  height: auto !important;
   max-width: 500px !important;
   max-height: 500px !important;
+}
+
+.home-cli-install {
+  margin: 24px 0 40px;
+  border-top: 1px solid var(--vp-c-divider);
+  border-bottom: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+}
+
+.home-cli-install__inner {
+  display: grid;
+  gap: 28px;
+  width: 100%;
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 36px 24px;
+}
+
+.home-cli-install__intro {
+  max-width: 620px;
+}
+
+.home-cli-install__eyebrow {
+  margin: 0 0 8px;
+  color: var(--vp-c-brand-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.home-cli-install__intro h2 {
+  margin: 0;
+  border: 0;
+  font-size: 26px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.home-cli-install__intro > p:last-child {
+  margin: 12px 0 0;
+  color: var(--vp-c-text-2);
+  line-height: 1.7;
+}
+
+.home-cli-terminal {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #34383f;
+  border-radius: 8px;
+  background: #17191d;
+  color: #f4f5f7;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+}
+
+.home-cli-terminal__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid #34383f;
+}
+
+.home-cli-platforms {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #24272d;
+}
+
+.home-cli-platforms button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #aeb4bd;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.home-cli-platforms button:hover,
+.home-cli-platforms button:focus-visible {
+  color: #ffffff;
+}
+
+.home-cli-platforms button.active {
+  background: #3b4048;
+  color: #ffffff;
+}
+
+.home-cli-copy {
+  position: relative;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #c8ccd2;
+  cursor: pointer;
+}
+
+.home-cli-copy:hover,
+.home-cli-copy:focus-visible {
+  background: #30343a;
+  color: #ffffff;
+}
+
+.home-cli-copy__glyph::before,
+.home-cli-copy__glyph::after {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  content: '';
+}
+
+.home-cli-copy__glyph::before {
+  top: 9px;
+  left: 9px;
+}
+
+.home-cli-copy__glyph::after {
+  top: 12px;
+  left: 12px;
+  background: #17191d;
+}
+
+.home-cli-copy:hover .home-cli-copy__glyph::after,
+.home-cli-copy:focus-visible .home-cli-copy__glyph::after {
+  background: #30343a;
+}
+
+.home-cli-copy__check {
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  width: 9px;
+  height: 14px;
+  border-right: 2px solid #62d6a6;
+  border-bottom: 2px solid #62d6a6;
+  transform: rotate(42deg);
+}
+
+.home-cli-command {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 92px;
+  padding: 24px 20px;
+  overflow: hidden;
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: normal;
+}
+
+.home-cli-command__prompt {
+  color: #62d6a6;
+  user-select: none;
+}
+
+.home-cli-command code,
+.home-cli-terminal__start code {
+  color: inherit;
+  font-family: inherit;
+}
+
+.home-cli-command code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.home-cli-terminal__start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-top: 1px solid #2b2e34;
+  color: #aeb4bd;
+  font-size: 12px;
+}
+
+.home-cli-terminal__start code {
+  color: #8abcf8;
+  font-size: 13px;
+}
+
+@media (min-width: 768px) {
+  .home-cli-install {
+    margin: 32px 0 56px;
+  }
+
+  .home-cli-install__inner {
+    grid-template-columns: minmax(240px, 0.78fr) minmax(0, 1.4fr);
+    align-items: center;
+    padding: 44px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-cli-install__inner {
+    padding: 30px 20px;
+  }
+
+  .home-cli-platforms button {
+    padding: 0 9px;
+  }
+
+  .home-cli-command {
+    min-height: 104px;
+    padding: 20px 16px;
+  }
+
+  .home-cli-terminal__start {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+  }
 }
 
 /* medium-zoom overlay */

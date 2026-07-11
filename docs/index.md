@@ -11,8 +11,11 @@ hero:
     alt: CyberCode
   actions:
     - theme: brand
-      text: 快速开始
+      text: 安装 CLI
       link: /guide/quick-start
+    - theme: alt
+      text: 下载桌面端
+      link: /desktop/
     - theme: alt
       text: GitHub
       link: https://github.com/wk42worldworld/cybercode
