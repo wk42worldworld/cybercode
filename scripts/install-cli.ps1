@@ -38,7 +38,7 @@ if (-not $ArchiveUrl) {
   $ArchiveUrl = $DefaultArchiveUrl
 }
 
-$BunCommand = Get-Command bun -CommandType Application -ErrorAction SilentlyContinue
+$BunCommand = Get-Command bun -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($BunCommand) {
   $BunPath = $BunCommand.Source
 } else {
@@ -69,7 +69,7 @@ $NextDir = Join-Path $StagingRoot "next"
 try {
   New-Item -ItemType Directory -Force -Path $UnpackDir | Out-Null
   Write-Step "downloading $Version"
-  $CurlCommand = Get-Command curl.exe -CommandType Application -ErrorAction SilentlyContinue
+  $CurlCommand = Get-Command curl.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($CurlCommand) {
     & $CurlCommand.Source -fsSL --retry 3 -o $ArchivePath $ArchiveUrl
     if ($LASTEXITCODE -ne 0) {
@@ -85,7 +85,7 @@ try {
     }
   }
 
-  $TarCommand = Get-Command tar.exe -CommandType Application -ErrorAction SilentlyContinue
+  $TarCommand = Get-Command tar.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $TarCommand) {
     throw "tar.exe is required. Install current Windows updates and run the installer again."
   }
