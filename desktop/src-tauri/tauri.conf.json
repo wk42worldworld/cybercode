@@ -50,11 +50,13 @@
       }
     },
     "externalBin": [
-      "binaries/claude-sidecar"
+      "binaries/claude-sidecar",
+      "binaries/rtk"
     ],
     "resources": [
       "resources/codegraph",
-      "resources/rtk"
+      "resources/rtk/LICENSE",
+      "resources/rtk/manifest.json"
     ],
     "icon": [
       "icons/32x32.png",

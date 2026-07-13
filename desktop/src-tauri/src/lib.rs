@@ -847,13 +847,7 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
         .join("resources")
         .join("codegraph");
     let codegraph_asset_dir_arg = codegraph_asset_dir.to_string_lossy().to_string();
-    let rtk_binary = app
-        .path()
-        .resource_dir()
-        .map_err(|err| format!("resolve RTK resources: {err}"))?
-        .join("resources")
-        .join("rtk")
-        .join(if cfg!(windows) { "rtk.exe" } else { "rtk" });
+    let rtk_binary = resolve_rtk_binary(app, &app_root)?;
     let rtk_binary_arg = rtk_binary.to_string_lossy().to_string();
 
     // 单一合并 sidecar：第一个参数选 server / cli / adapters 模式。
@@ -929,6 +923,24 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
         auth_token,
         child,
     })
+}
+
+fn resolve_rtk_binary(app: &AppHandle, app_root: &Path) -> Result<PathBuf, String> {
+    let binary_name = if cfg!(windows) { "rtk.exe" } else { "rtk" };
+    let external_binary = app_root.join(binary_name);
+    if external_binary.is_file() {
+        return Ok(external_binary);
+    }
+
+    // Development builds still use the prepared resource directly. Packaged
+    // builds use Tauri's externalBin copy so macOS signs and notarizes RTK.
+    Ok(app
+        .path()
+        .resource_dir()
+        .map_err(|err| format!("resolve RTK resources: {err}"))?
+        .join("resources")
+        .join("rtk")
+        .join(binary_name))
 }
 
 fn stop_server_sidecar(app: &AppHandle) {

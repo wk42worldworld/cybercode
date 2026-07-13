@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { chmod, mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const RTK_VERSION = '0.43.0'
@@ -14,17 +14,23 @@ const CHECKSUMS: Record<string, string> = {
 }
 const desktopRoot = path.resolve(import.meta.dir, '..')
 const resourceDir = path.join(desktopRoot, 'src-tauri', 'resources', 'rtk')
+const binariesDir = path.join(desktopRoot, 'src-tauri', 'binaries')
 const targetTriple = process.env.TAURI_ENV_TARGET_TRIPLE || process.env.CARGO_BUILD_TARGET || ''
 
 const archiveName = archiveForTarget(targetTriple)
 const expectedChecksum = CHECKSUMS[archiveName]
 const releaseBase = `https://github.com/rtk-ai/rtk/releases/download/${RTK_TAG}`
 const binaryName = targetTriple.includes('windows') ? 'rtk.exe' : 'rtk'
+const externalBinaryPath = path.join(
+  binariesDir,
+  `rtk-${targetTriple}${targetTriple.includes('windows') ? '.exe' : ''}`,
+)
 
 await prepareRuntime()
 
 async function prepareRuntime() {
   if (hasReusableRuntime()) {
+    await stageExternalBinary()
     console.log(`[prepare-rtk] reusing RTK ${RTK_VERSION} for ${targetTriple}`)
     return
   }
@@ -86,10 +92,28 @@ async function prepareRuntime() {
       throw error
     }
     await rm(backupDir, { recursive: true, force: true })
+    await stageExternalBinary()
     console.log(`[prepare-rtk] RTK ${RTK_VERSION} prepared for ${targetTriple}`)
   } finally {
     await rm(temporaryDir, { recursive: true, force: true })
     await rm(backupDir, { recursive: true, force: true })
+  }
+}
+
+async function stageExternalBinary() {
+  const sourcePath = path.join(resourceDir, binaryName)
+  const temporaryPath = `${externalBinaryPath}.preparing-${process.pid}-${Date.now()}`
+
+  await mkdir(binariesDir, { recursive: true })
+  await rm(temporaryPath, { force: true })
+
+  try {
+    await copyFile(sourcePath, temporaryPath)
+    if (!targetTriple.includes('windows')) await chmod(temporaryPath, 0o755)
+    await rm(externalBinaryPath, { force: true })
+    await rename(temporaryPath, externalBinaryPath)
+  } finally {
+    await rm(temporaryPath, { force: true })
   }
 }
 
