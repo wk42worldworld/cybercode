@@ -3,6 +3,7 @@ import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
 import { MessageActionBar } from './MessageActionBar'
 import { InlineImageGallery } from './InlineImageGallery'
 import { MessageExecutionLog } from './MessageExecutionLog'
+import { SmoothStreamingText } from './SmoothStreamingText'
 
 type ToolCall = Extract<UIMessage, { type: 'tool_use' }>
 type ToolResult = Extract<UIMessage, { type: 'tool_result' }>
@@ -68,7 +69,7 @@ export function AssistantMessage({
           >
             <div className="chat-bubble-text text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
               {isStreaming ? (
-                <span className="whitespace-pre-wrap">{content}</span>
+                <SmoothStreamingText content={content} />
               ) : (
                 <>
                   <MarkdownRenderer content={content} variant="chat" />

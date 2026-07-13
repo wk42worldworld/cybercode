@@ -400,6 +400,12 @@ describe('MessageList initial bottom positioning', () => {
     await waitFor(() => {
       expect(virtuosoMock.getLatestProps().followOutput(false)).toBe('smooth')
     })
+    await waitFor(() => {
+      const startupScrolls = virtuosoMock.scrollToIndex.mock.calls.filter(
+        ([options]) => options.behavior === 'smooth',
+      )
+      expect(startupScrolls.length).toBeGreaterThanOrEqual(2)
+    })
 
     virtuosoMock.scrollToIndex.mockClear()
 
@@ -424,9 +430,12 @@ describe('MessageList initial bottom positioning', () => {
       expect(virtuosoMock.scrollToIndex).toHaveBeenCalledWith({
         index: 'LAST',
         align: 'end',
-        behavior: 'smooth',
+        behavior: 'auto',
       })
     })
+    expect(virtuosoMock.scrollToIndex).not.toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: 'smooth' }),
+    )
   })
 
   it('does not pass thinking messages to the virtual list as hidden rows', async () => {

@@ -266,6 +266,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const initialBottomCompleteFirstRafRef = useRef<number | null>(null)
   const initialBottomCompleteSecondRafRef = useRef<number | null>(null)
   const initialBottomCompleteThirdRafRef = useRef<number | null>(null)
+  const streamingFollowRafRef = useRef<number | null>(null)
 
   const t = useTranslation()
   const [rewindTarget, setRewindTarget] = useState<{
@@ -638,6 +639,10 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
     if (chatState === 'idle') {
       autoFollowCurrentTurnRef.current = false
+      if (streamingFollowRafRef.current !== null) {
+        cancelAnimationFrame(streamingFollowRafRef.current)
+        streamingFollowRafRef.current = null
+      }
     }
 
     // 1) AI just started responding — scroll to bottom only if the user was near
@@ -655,13 +660,22 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     // 2) AI is actively streaming text — keep following ONLY if the user is near
     //    the bottom. If they scrolled up to read history, respect that.
     if (chatState !== 'idle' && streamingText && (isNearBottomRef.current || autoFollowCurrentTurnRef.current)) {
-      const timer = setTimeout(() => {
-        scrollToLatest('smooth')
-      }, 50)
-      return () => clearTimeout(timer)
+      if (streamingFollowRafRef.current !== null) return
+      const key = initialBottomKeyRef.current
+      streamingFollowRafRef.current = requestAnimationFrame(() => {
+        streamingFollowRafRef.current = null
+        if (!isNearBottomRef.current && !autoFollowCurrentTurnRef.current) return
+        scrollToLatest('auto', key)
+      })
     }
   }, [streamingText, chatState, scrollToLatest])
 
+  useEffect(() => () => {
+    if (streamingFollowRafRef.current !== null) {
+      cancelAnimationFrame(streamingFollowRafRef.current)
+      streamingFollowRafRef.current = null
+    }
+  }, [listIdentity])
 
   // Rewind preview fetch
   useEffect(() => {
