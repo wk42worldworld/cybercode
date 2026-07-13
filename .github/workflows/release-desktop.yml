@@ -122,6 +122,52 @@ jobs:
         with:
           bun-version: latest
 
+      # Bun currently cannot move a newly downloaded compile runtime from the
+      # runner's D: checkout to its C: cache on Windows. Warm the baseline
+      # runtime from C: once so the real sidecar build can reuse it.
+      - name: Warm Windows Bun baseline runtime
+        if: matrix.rust_target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $warmupDir = Join-Path $env:USERPROFILE 'cybercode-bun-baseline-warmup'
+
+          Remove-Item $warmupDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item $warmupDir -ItemType Directory -Force | Out-Null
+          Set-Content `
+            -Path (Join-Path $warmupDir 'warmup.ts') `
+            -Value "console.log('CyberCode sidecar runtime warmup')" `
+            -Encoding utf8NoBOM
+
+          Push-Location $warmupDir
+          try {
+            $built = $false
+            for ($attempt = 1; $attempt -le 3; $attempt++) {
+              Write-Host "Warming Bun baseline runtime (attempt $attempt/3)..."
+              & bun build .\warmup.ts `
+                --compile `
+                --target=bun-windows-x64-baseline `
+                --outfile .\warmup.exe
+
+              if ($LASTEXITCODE -eq 0) {
+                $built = $true
+                break
+              }
+
+              if ($attempt -lt 3) {
+                & bun pm cache rm
+                Start-Sleep -Seconds (2 * $attempt)
+              }
+            }
+
+            if (-not $built) {
+              throw 'Failed to prepare the Bun Windows baseline runtime after 3 attempts.'
+            }
+          } finally {
+            Pop-Location
+            Remove-Item $warmupDir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+
       # ── Node.js (for tauri-action compatibility) ─────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
