@@ -36,18 +36,23 @@ export function compactCodeGraphWal(
   const db = new Database(dbPath)
   try {
     db.exec('PRAGMA busy_timeout = 1500')
-    const row = db.query<{
+    const checkpoint = db.query<{
       busy: number
       log: number
       checkpointed: number
-    }, []>('PRAGMA wal_checkpoint(TRUNCATE)').get()
-    return {
-      attempted: true,
-      beforeBytes,
-      afterBytes: fileSize(walPath),
-      busy: Number(row?.busy || 0),
-      log: Number(row?.log || 0),
-      checkpointed: Number(row?.checkpointed || 0),
+    }, []>('PRAGMA wal_checkpoint(TRUNCATE)')
+    try {
+      const row = checkpoint.get()
+      return {
+        attempted: true,
+        beforeBytes,
+        afterBytes: fileSize(walPath),
+        busy: Number(row?.busy || 0),
+        log: Number(row?.log || 0),
+        checkpointed: Number(row?.checkpointed || 0),
+      }
+    } finally {
+      checkpoint.finalize()
     }
   } finally {
     db.close()

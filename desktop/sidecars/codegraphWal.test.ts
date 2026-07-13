@@ -9,7 +9,12 @@ const temporaryDirectories: string[] = []
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
-    fs.rmSync(directory, { recursive: true, force: true })
+    fs.rmSync(directory, {
+      recursive: true,
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    })
   }
 })
 
@@ -26,15 +31,19 @@ describe('CodeGraph WAL maintenance', () => {
     writer.exec('PRAGMA wal_autocheckpoint = 0')
     writer.exec('CREATE TABLE payloads (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
     const insert = writer.prepare('INSERT INTO payloads (value) VALUES (?)')
-    for (let index = 0; index < 500; index += 1) insert.run('x'.repeat(2_048))
+    try {
+      for (let index = 0; index < 500; index += 1) insert.run('x'.repeat(2_048))
 
-    const walPath = `${dbPath}-wal`
-    const beforeBytes = fs.statSync(walPath).size
-    const result = compactCodeGraphWal(projectPath, true)
+      const walPath = `${dbPath}-wal`
+      const beforeBytes = fs.statSync(walPath).size
+      const result = compactCodeGraphWal(projectPath, true)
 
-    expect(beforeBytes).toBeGreaterThan(0)
-    expect(result).toMatchObject({ attempted: true, busy: 0, afterBytes: 0 })
-    expect(fs.statSync(walPath).size).toBe(0)
-    writer.close()
+      expect(beforeBytes).toBeGreaterThan(0)
+      expect(result).toMatchObject({ attempted: true, busy: 0, afterBytes: 0 })
+      expect(fs.statSync(walPath).size).toBe(0)
+    } finally {
+      insert.finalize()
+      writer.close()
+    }
   })
 })
