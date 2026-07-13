@@ -9,12 +9,10 @@ const temporaryDirectories: string[] = []
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
-    fs.rmSync(directory, {
-      recursive: true,
-      force: true,
-      maxRetries: 20,
-      retryDelay: 100,
-    })
+    // Windows can retain a short-lived SQLite file lock after close(). The CI
+    // runner owns its temp directory and removes it when the job exits.
+    if (process.platform === 'win32') continue
+    fs.rmSync(directory, { recursive: true, force: true })
   }
 })
 
