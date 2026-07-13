@@ -95,10 +95,32 @@ describe('model image support', () => {
     expect(inferModelSupportsImages('kimi-for-coding')).toBe(true)
     expect(inferModelSupportsImages('qwen3.5:0.8b')).toBe(true)
     expect(inferModelSupportsImages('qwen3.6')).toBe(true)
+    expect(inferModelSupportsImages('qwen3.7-plus')).toBe(true)
+    expect(inferModelSupportsImages('qwen3.7-plus-2026-05-26')).toBe(true)
+    expect(inferModelSupportsImages('gemma3:4b')).toBe(true)
+    expect(inferModelSupportsImages('gemma3:1b')).toBeUndefined()
+    expect(inferModelSupportsImages('pixtral-large-2411')).toBe(true)
+    expect(inferModelSupportsImages('grok-4.5')).toBe(true)
+    expect(inferModelSupportsImages('minicpm-v:8b')).toBe(true)
     expect(inferModelSupportsImages('mimo-v2.5')).toBe(true)
     expect(inferModelSupportsImages('mimo-v2.5-pro')).toBe(false)
     expect(inferModelSupportsImages('openai/gpt-oss-20b')).toBe(false)
     expect(inferModelSupportsImages('deepseek-v4-pro[1m]')).toBe(false)
+  })
+
+  test('routes custom Qwen 3.7 providers through vision input', () => {
+    const resolved = resolveProviderImageSupport(provider({
+      apiFormat: 'openai_responses',
+      models: {
+        main: 'qwen3.7-plus',
+        haiku: 'qwen3.7-plus',
+        sonnet: 'qwen3.7-plus',
+        opus: 'qwen3.7-plus',
+      },
+    }))
+    expect(resolved.supportsImages).toBe(true)
+    expect(resolved.status).toBe('supported')
+    expect(resolved.source).toBe('model-id')
   })
 
   test('keeps unknown custom providers safe until dynamic detection completes', () => {

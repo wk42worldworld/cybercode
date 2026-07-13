@@ -15,6 +15,8 @@ import { ComputerUseSettings } from '../../pages/ComputerUseSettings'
 import { McpSettings } from '../../pages/McpSettings'
 import { ScheduledTasks } from '../../pages/ScheduledTasks'
 import { TerminalSettings } from '../../pages/TerminalSettings'
+import { TokenOptimization } from '../../pages/TokenOptimization'
+import { AgentMigration } from '../../pages/AgentMigration'
 import { useUIStore, type SettingsPanelView } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
 import { Icon } from '../shared/Icon'
@@ -73,12 +75,14 @@ export function SettingsPanel({ visible }: Props) {
 }
 
 function PanelHeader({ onClose }: { onClose: () => void }) {
+  const t = useTranslation()
+
   return (
     <header className="flex h-[76px] shrink-0 items-center justify-end bg-[var(--color-background)] px-[24px] md:px-[32px]">
       <button
         onClick={onClose}
         className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-        aria-label="Close"
+        aria-label={t('common.close')}
         title="Esc"
       >
         <Icon name="close" size={18} />
@@ -131,6 +135,10 @@ function renderPanelContent(view: SettingsPanelView): ReactNode {
       return <AboutSettings />
     case 'scheduled':
       return <ScheduledTasks />
+    case 'tokenOptimization':
+      return <TokenOptimization />
+    case 'agentMigration':
+      return <AgentMigration />
     case 'settings':
     default:
       return <MemoSettings />
@@ -140,5 +148,7 @@ function renderPanelContent(view: SettingsPanelView): ReactNode {
 function getPanelLabel(view: SettingsPanelView, t: ReturnType<typeof useTranslation>) {
   if (view === 'settings') return t('sidebar.settings')
   if (view === 'scheduled') return t('sidebar.scheduled')
+  if (view === 'tokenOptimization') return t('tokenOptimization.title')
+  if (view === 'agentMigration') return t('agentMigration.title')
   return t(`settings.tab.${view}` as never)
 }

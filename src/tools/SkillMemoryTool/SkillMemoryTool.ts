@@ -10,9 +10,10 @@ import {
   readSkillMemorySummary,
   setSkillLifecycleStatus,
 } from '../../skillMemory/store.js'
-import { buildTool } from '../../Tool.js'
+import { buildTool, type ToolDef } from '../../Tool.js'
 import type { Command } from '../../types/command.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
 import { SKILL_MEMORY_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 
@@ -243,4 +244,11 @@ export const SkillMemoryTool = buildTool({
       }
     }
   },
-})
+  mapToolResultToToolResultBlockParam(content, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: jsonStringify(content),
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)

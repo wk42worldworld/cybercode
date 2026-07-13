@@ -9,11 +9,19 @@ export function EmptySession() {
   const t = useTranslation()
   const sessions = useSessionStore((state) => state.sessions)
   const selectedProjects = useSessionStore((state) => state.selectedProjects)
+  const projectDisplayNames = useSessionStore((state) => state.projectDisplayNames)
   const createAndOpenSession = useCreateAndOpenSession()
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false)
   const currentProject = useMemo(
-    () => resolveCurrentProject(selectedProjects, sessions),
-    [selectedProjects, sessions],
+    () => {
+      const resolved = resolveCurrentProject(selectedProjects, sessions)
+      if (!resolved) return undefined
+      return {
+        ...resolved,
+        title: projectDisplayNames[resolved.projectPath] || resolved.title,
+      }
+    },
+    [projectDisplayNames, selectedProjects, sessions],
   )
 
   return (

@@ -16,6 +16,19 @@ describe('resolveSidecarInvocation', () => {
     })
   })
 
+  it('routes embedded codegraph commands without treating them as CLI args', () => {
+    expect(
+      resolveSidecarInvocation(
+        ['codegraph', 'index', '--project', '/tmp/project'],
+        '/tmp/claude-sidecar',
+      ),
+    ).toEqual({
+      mode: 'codegraph',
+      restArgs: ['index', '--project', '/tmp/project'],
+      defaultAppRoot: null,
+    })
+  })
+
   it('defaults cybercode invocations to cli mode', () => {
     expect(
       resolveSidecarInvocation(

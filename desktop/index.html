@@ -3,14 +3,218 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <link rel="preload" as="image" href="/app-icon.png" />
+    <link rel="preload" as="image" href="/brand/cybercode-wordmark-long-flat-v4.png" />
     <title>CyberCode</title>
-    <!-- Fonts are self-hosted in /fonts/ and declared via @font-face in globals.css -->
+    <script>
+      try {
+        const theme = localStorage.getItem('cybercode-theme') === 'dark' ? 'dark' : 'light'
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+      } catch {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
     <style>
-      /* Prevent white flash on load */
-      html { background: #FAF9F5; }
+      :root {
+        --boot-background: #f8f9fa;
+        --boot-surface: #ffffff;
+        --boot-border: rgba(0, 0, 0, 0.08);
+        --boot-shadow: rgba(29, 29, 31, 0.14);
+      }
+
+      :root[data-theme="dark"] {
+        --boot-background: #111315;
+        --boot-surface: #0f1114;
+        --boot-border: rgba(244, 244, 245, 0.13);
+        --boot-shadow: rgba(0, 0, 0, 0.34);
+      }
+
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        min-height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: var(--boot-background);
+      }
+
+      .boot-splash {
+        position: fixed;
+        z-index: 9999;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        opacity: 1;
+        background: var(--boot-background);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        isolation: isolate;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-app-region: drag;
+      }
+
+      .boot-splash.boot-splash-exit {
+        display: none;
+        pointer-events: none;
+      }
+
+      .boot-splash-brand {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .boot-splash-wordmark-frame {
+        visibility: hidden;
+      }
+
+      .boot-splash.boot-splash-assets-ready .boot-splash-wordmark-frame {
+        visibility: visible;
+      }
+
+      .boot-splash-logo-frame {
+        position: relative;
+        isolation: isolate;
+        width: 112px;
+        height: 112px;
+        overflow: hidden;
+        border: 1px solid var(--boot-border);
+        border-radius: 28px;
+        background: var(--boot-surface);
+        box-shadow: 0 18px 48px var(--boot-shadow);
+        opacity: 0;
+        transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .boot-splash.boot-splash-assets-ready .boot-splash-logo-frame {
+        opacity: 1;
+      }
+
+      .boot-splash-logo {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+      }
+
+      .boot-splash-wordmark-frame {
+        position: relative;
+        width: 240px;
+        height: 50px;
+        margin-top: 18px;
+        overflow: hidden;
+      }
+
+      .boot-splash-wordmark {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+      }
+
+      :root[data-theme="dark"] .boot-splash-wordmark {
+        filter: invert(1) brightness(1.08) contrast(1.05);
+      }
+
+      .boot-splash-wordmark-shine {
+        position: absolute;
+        z-index: 1;
+        inset: 0;
+        background: linear-gradient(108deg, transparent 35%, rgba(255, 255, 255, 0.18) 43%, rgba(255, 255, 255, 0.96) 49%, rgba(73, 211, 255, 0.58) 52%, transparent 60%);
+        background-position: 130% 0;
+        background-size: 260% 100%;
+        -webkit-mask: url('/brand/cybercode-wordmark-long-flat-v4.png') center / contain no-repeat;
+        mask: url('/brand/cybercode-wordmark-long-flat-v4.png') center / contain no-repeat;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .boot-splash.boot-splash-assets-ready .boot-splash-wordmark-shine-intro {
+        animation: boot-wordmark-shine-intro 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      .boot-splash.boot-splash-assets-ready .boot-splash-wordmark-shine-loop {
+        animation: boot-wordmark-shine-loop 1.9s cubic-bezier(0.45, 0, 0.2, 1) 760ms infinite;
+      }
+
+      @keyframes boot-wordmark-shine-intro {
+        0% { background-position: 112% 0; opacity: 1; }
+        76% { background-position: -130% 0; opacity: 1; }
+        100% { background-position: -130% 0; opacity: 0; }
+      }
+
+      @keyframes boot-wordmark-shine-loop {
+        0%, 14% { background-position: 130% 0; opacity: 0; }
+        24%, 72% { opacity: 1; }
+        86%, 100% { background-position: -130% 0; opacity: 0; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .boot-splash-logo-frame {
+          transition: none;
+        }
+
+        .boot-splash-wordmark-shine {
+          animation: none;
+        }
+
+        .boot-splash-wordmark-shine {
+          background-position: center;
+          opacity: 0.22;
+        }
+      }
     </style>
   </head>
   <body>
+    <div id="boot-splash" class="boot-splash" role="status" aria-label="Loading CyberCode">
+      <div class="boot-splash-brand" aria-hidden="true">
+        <div class="boot-splash-logo-frame">
+          <img class="boot-splash-logo" src="/app-icon.png" alt="" draggable="false" decoding="async" fetchpriority="high" />
+        </div>
+        <div class="boot-splash-wordmark-frame">
+          <img class="boot-splash-wordmark" src="/brand/cybercode-wordmark-long-flat-v4.png" alt="" draggable="false" decoding="async" fetchpriority="high" />
+          <span class="boot-splash-wordmark-shine boot-splash-wordmark-shine-intro"></span>
+          <span class="boot-splash-wordmark-shine boot-splash-wordmark-shine-loop"></span>
+        </div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const splash = document.getElementById('boot-splash')
+        if (!splash) return
+
+        const waitForImage = async (image) => {
+          if (!image.complete) {
+            await new Promise((resolve) => {
+              image.addEventListener('load', resolve, { once: true })
+              image.addEventListener('error', resolve, { once: true })
+            })
+          }
+
+          if (image.naturalWidth > 0 && typeof image.decode === 'function') {
+            try {
+              await image.decode()
+            } catch {
+              // The load event already confirmed the local asset is available.
+            }
+          }
+        }
+
+        const images = Array.from(splash.querySelectorAll('img'))
+        Promise.all(images.map(waitForImage)).then(() => {
+          splash.classList.add('boot-splash-assets-ready')
+        })
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

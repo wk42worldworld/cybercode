@@ -28,6 +28,7 @@ import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js';
 import { semanticBoolean } from '../../utils/semanticBoolean.js';
 import { semanticNumber } from '../../utils/semanticNumber.js';
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js';
+import { rtkOptimizationService } from '../../services/rtkOptimization.js';
 import { EndTruncatingAccumulator } from '../../utils/stringUtils.js';
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js';
 import { TaskOutput } from '../../utils/task/TaskOutput.js';
@@ -728,7 +729,8 @@ async function* runPowerShellCommand({
   }
   let shellCommand: Awaited<ReturnType<typeof exec>>;
   try {
-    shellCommand = await exec(command, abortController.signal, 'powershell', {
+    const executionCommand = await rtkOptimizationService.rewriteCommand(command, 'powershell');
+    shellCommand = await exec(executionCommand, abortController.signal, 'powershell', {
       timeout: timeoutMs,
       onProgress(lastLines, allLines, totalLines, totalBytes, isIncomplete) {
         lastProgressOutput = lastLines;

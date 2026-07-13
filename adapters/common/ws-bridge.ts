@@ -1,7 +1,7 @@
 /**
  * WebSocket Bridge
  *
- * 封装与 Claude Code Desktop 服务端 /ws/:sessionId 的通信。
+ * 封装与 CyberCode Desktop 服务端 /ws/:sessionId 的通信。
  * 管理 chatId → sessionId 映射，自动重连，心跳。
  */
 

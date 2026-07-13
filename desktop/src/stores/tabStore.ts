@@ -36,7 +36,7 @@ type TabStore = {
   switchToSession: (sessionId: string, title: string, projectPath?: string) => void
   closeTab: (sessionId: string, projectPath?: string) => void
   setActiveTab: (sessionId: string) => void
-  updateTabTitle: (sessionId: string, title: string) => void
+  updateTabTitle: (sessionId: string, title: string, projectPath?: string) => void
   updateTabStatus: (sessionId: string, status: Tab['status']) => void
   replaceTabSession: (oldSessionId: string, newSessionId: string, projectPath?: string) => void
   moveTab: (fromIndex: number, toIndex: number) => void
@@ -153,9 +153,11 @@ export const useTabStore = create<TabStore>((set, get) => ({
     get().saveTabs()
   },
 
-  updateTabTitle: (sessionId, title) => {
+  updateTabTitle: (sessionId, title, projectPath) => {
     set((s) => ({
-      tabs: s.tabs.map((t) => (t.sessionId === sessionId ? { ...t, title } : t)),
+      tabs: s.tabs.map((tab) =>
+        matchesSessionLocator(tab, sessionId, projectPath) ? { ...tab, title } : tab,
+      ),
     }))
     get().saveTabs()
   },

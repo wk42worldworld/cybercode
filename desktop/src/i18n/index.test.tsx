@@ -33,6 +33,10 @@ describe('useTranslation', () => {
     expect(translate('zh', 'empty.title')).toBe('新建会话')
     expect(translate('ja', 'empty.title')).toBe('新しいセッション')
     expect(translate('ko', 'empty.title')).toBe('새 세션')
+    expect(translate('en', 'common.close')).toBe('Close')
+    expect(translate('zh', 'common.close')).toBe('关闭')
+    expect(translate('ja', 'common.close')).toBe('閉じる')
+    expect(translate('ko', 'common.close')).toBe('닫기')
   })
 
   it('falls back to English when a partial locale is missing a key', () => {

@@ -6,10 +6,11 @@ import {
   type SkillGateDecision,
   type SkillGateMatch,
 } from '../../skillMemory/gate.js'
-import { buildTool } from '../../Tool.js'
+import { buildTool, type ToolDef } from '../../Tool.js'
 import type { Command } from '../../types/command.js'
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
 import { SKILL_GATE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 
@@ -197,4 +198,11 @@ export const SkillGateTool = buildTool({
       },
     }
   },
-})
+  mapToolResultToToolResultBlockParam(content, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: jsonStringify(content),
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)

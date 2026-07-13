@@ -491,7 +491,7 @@
     "supportsImages": true,
     "needsApiKey": false,
     "websiteUrl": "https://docs.ollama.com/integrations/claude-code",
-    "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。Claude Code 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",
+    "promoText": "Ollama 使用 Anthropic 兼容协议，Base URL 填 http://localhost:11434，不要追加 /v1。CyberCode 的提示词、工具和 Skill 会占用较多上下文，qwen3.6 建议使用 256K Context Window。",
     "defaultEnv": {
       "ANTHROPIC_AUTH_TOKEN": "ollama"
     }

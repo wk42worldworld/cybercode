@@ -22,6 +22,7 @@ import {
   CYBERCODE_PROVIDER_BASE_URL_ENV,
   CYBERCODE_PROVIDER_ID_ENV,
 } from '../../utils/model/imageCapabilityRegistry.js'
+import { codeGraphService } from './codeGraphService.js'
 
 type AttachmentRef = {
   type: 'file' | 'image'
@@ -147,6 +148,16 @@ export class ConversationService {
       )
     }
 
+    if (launchInfo && !launchInfo.isTemporary) {
+      try {
+        codeGraphService.ensureProject(workDir)
+      } catch (error) {
+        console.warn(
+          `[CodeGraph] Could not prepare ${workDir}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+
     const args = this.buildSessionCliArgs(
       sessionId,
       sdkUrl,
@@ -154,6 +165,10 @@ export class ConversationService {
       shouldResume ? launchInfo?.filePath : undefined,
       options,
     )
+    const codeGraphMcpConfig = codeGraphService.getMcpConfig(workDir)
+    if (codeGraphMcpConfig) {
+      args.push('--mcp-config', JSON.stringify(codeGraphMcpConfig))
+    }
 
     console.log(
       `[ConversationService] Starting CLI for ${sessionId}, cwd: ${workDir} (process.cwd()=${process.cwd()}, CALLER_DIR will be pinned to workDir)`,

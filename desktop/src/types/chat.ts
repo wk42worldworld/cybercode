@@ -178,7 +178,7 @@ export type TaskSummaryItem = {
 
 export type UIMessage =
   | { id: string; type: 'user_text'; content: string; timestamp: number; attachments?: UIAttachment[]; pending?: boolean; serverId?: string }
-  | { id: string; type: 'assistant_text'; content: string; timestamp: number; model?: string; serverId?: string }
+  | { id: string; type: 'assistant_text'; content: string; timestamp: number; model?: string; serverId?: string; branchServerId?: string }
   | { id: string; type: 'thinking'; content: string; timestamp: number; serverId?: string }
   | { id: string; type: 'tool_use'; toolName: string; toolUseId: string; input: unknown; timestamp: number; parentToolUseId?: string; serverId?: string }
   | { id: string; type: 'tool_result'; toolUseId: string; content: unknown; isError: boolean; timestamp: number; parentToolUseId?: string; serverId?: string }

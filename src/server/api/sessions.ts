@@ -8,12 +8,14 @@
  *   GET    /api/sessions/:id        — 获取会话详情
  *   GET    /api/sessions/:id/messages — 获取会话消息
  *   POST   /api/sessions            — 创建新会话
+ *   POST   /api/sessions/:id/branch — 从 AI 回复创建分支会话
  *   DELETE /api/sessions/:id        — 删除会话
  *   PATCH  /api/sessions/:id        — 重命名会话
  */
 
 import { sessionService } from '../services/sessionService.js'
 import { conversationService } from '../services/conversationService.js'
+import { codeGraphService } from '../services/codeGraphService.js'
 import { ApiError, errorResponse } from '../middleware/errorHandler.js'
 import { getSlashCommands } from '../ws/handler.js'
 import { getCommandName } from '../../commands.js'
@@ -92,6 +94,16 @@ export async function handleSessionsApi(
         )
       }
       return await rewindSession(req, sessionId, url)
+    }
+
+    if (subResource === 'branch') {
+      if (req.method !== 'POST') {
+        return Response.json(
+          { error: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` },
+          { status: 405 }
+        )
+      }
+      return await branchSession(req, sessionId, url)
     }
 
     if (subResource === 'slash-commands') {
@@ -221,6 +233,15 @@ async function createSession(req: Request): Promise<Response> {
     workDir: body.workDir,
     temporary: body.temporary === true,
   })
+  if (!result.session.isTemporary && result.session.workDir) {
+    try {
+      codeGraphService.ensureProject(result.session.workDir)
+    } catch (error) {
+      console.warn(
+        `[CodeGraph] Could not prepare ${result.session.workDir}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
   return Response.json(result, { status: 201 })
 }
 
@@ -521,6 +542,36 @@ async function rewindSession(req: Request, sessionId: string, url: URL): Promise
   return Response.json(result)
 }
 
+async function branchSession(req: Request, sessionId: string, url: URL): Promise<Response> {
+  let body: { targetAssistantMessageId?: string; expectedContent?: string }
+  try {
+    body = (await req.json()) as { targetAssistantMessageId?: string; expectedContent?: string }
+  } catch {
+    throw ApiError.badRequest('Invalid JSON body')
+  }
+
+  if (
+    typeof body.targetAssistantMessageId !== 'string' ||
+    body.targetAssistantMessageId.trim().length === 0
+  ) {
+    throw ApiError.badRequest('targetAssistantMessageId (string) is required')
+  }
+  if (body.expectedContent !== undefined && typeof body.expectedContent !== 'string') {
+    throw ApiError.badRequest('expectedContent must be a string')
+  }
+
+  const result = await sessionService.branchSession(
+    sessionId,
+    body.targetAssistantMessageId,
+    {
+      projectPath: getProjectPath(url),
+      expectedContent: body.expectedContent,
+    },
+  )
+  invalidateRecentProjectsCache()
+  return Response.json(result, { status: 201 })
+}
+
 async function patchSession(req: Request, sessionId: string, url: URL): Promise<Response> {
   let body: { title?: string }
   try {
@@ -551,6 +602,10 @@ type RecentProjectEntry = {
 // In-memory cache for recent projects (TTL: 30s)
 let recentProjectsCache: { projects: RecentProjectEntry[]; timestamp: number } | null = null
 const RECENT_PROJECTS_CACHE_TTL = 30_000
+
+export function invalidateRecentProjectsCache(): void {
+  recentProjectsCache = null
+}
 
 async function getRecentProjects(url: URL): Promise<Response> {
   const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '10', 10) || 10, 1), 500)

@@ -640,7 +640,7 @@ function buildTeachTools(
           reason: {
             type: "string",
             description:
-              'What you will be teaching. Shown in the approval dialog as "Claude wants to guide you through {reason}". Keep it short and task-focused.',
+              'What you will be teaching. Shown in the approval dialog as "CyberCode wants to guide you through {reason}". Keep it short and task-focused.',
           },
         },
         required: ["apps", "reason"],

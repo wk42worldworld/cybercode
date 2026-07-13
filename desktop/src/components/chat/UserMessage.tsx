@@ -37,7 +37,7 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
         )}
 
         {(hasText || hasAttachments) && (
-          <div className="mt-[2px] opacity-0 transition-opacity group-hover/msg:opacity-100">
+          <div className="pointer-events-none mt-[2px] opacity-0 transition-opacity group-hover/msg:pointer-events-auto group-hover/msg:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
             <MessageActionBar
               copyText={content}
               copyLabel="Copy prompt"

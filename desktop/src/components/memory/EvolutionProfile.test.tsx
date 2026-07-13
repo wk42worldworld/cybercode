@@ -48,7 +48,10 @@ describe('EvolutionProfile', () => {
       />,
     )
 
-    expect(screen.getByText('What CyberCode understands about you')).toBeInTheDocument()
+    const userHeading = screen.getByRole('heading', { name: 'What CyberCode understands about you' })
+    expect(userHeading).toBeInTheDocument()
+    expect(userHeading.className).toContain('whitespace-normal')
+    expect(userHeading.className).not.toContain('truncate')
     expect(screen.getByText('Ways of working learned')).toBeInTheDocument()
     expect(screen.getByText('Identity & names')).toBeInTheDocument()
     expect(screen.getByText('Meta method')).toBeInTheDocument()

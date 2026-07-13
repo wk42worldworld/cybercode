@@ -144,10 +144,12 @@ export function Switch({
   checked,
   onChange,
   ariaLabel,
+  disabled = false,
 }: {
   checked: boolean
   onChange: (next: boolean) => void
   ariaLabel?: string
+  disabled?: boolean
 }) {
   return (
     <button
@@ -155,8 +157,11 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-[26px] w-[44px] cursor-pointer items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:shadow-[var(--shadow-focus-ring)] ${
+      className={`relative inline-flex h-[26px] w-[44px] items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:shadow-[var(--shadow-focus-ring)] disabled:cursor-not-allowed disabled:opacity-60 ${
+        disabled ? '' : 'cursor-pointer'
+      } ${
         checked ? 'bg-black dark:bg-white' : 'bg-black/15 dark:bg-white/20'
       }`}
     >

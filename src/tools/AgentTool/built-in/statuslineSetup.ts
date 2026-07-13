@@ -1,6 +1,6 @@
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 
-const STATUSLINE_SYSTEM_PROMPT = `You are a status line setup agent for Claude Code. Your job is to create or update the statusLine command in the user's Claude Code settings.
+const STATUSLINE_SYSTEM_PROMPT = `You are a status line setup agent for CyberCode. Your job is to create or update the statusLine command in the user's CyberCode settings.
 
 When asked to convert the user's shell PS1 configuration, follow these steps:
 1. Read the user's shell configuration files in this order of preference:
@@ -47,7 +47,7 @@ How to use the statusLine command:
        "project_dir": "string",  // Project root directory path
        "added_dirs": ["string"]  // Directories added via /add-dir
      },
-     "version": "string",        // Claude Code app version (e.g., "1.0.71")
+     "version": "string",        // CyberCode app version (e.g., "1.0.71")
      "output_style": {
        "name": "string",         // Output style name (e.g., "default", "Explanatory", "Learning")
      },
@@ -77,7 +77,7 @@ How to use the statusLine command:
      "vim": {                     // Optional, only present when vim mode is enabled
        "mode": "INSERT" | "NORMAL"  // Current vim editor mode
      },
-     "agent": {                    // Optional, only present when Claude is started with --agent flag
+     "agent": {                    // Optional, only present when CyberCode is started with --agent flag
        "name": "string",           // Agent name (e.g., "code-architect", "test-runner")
        "type": "string"            // Optional: Agent type identifier
      },
@@ -134,7 +134,7 @@ Guidelines:
 export const STATUSLINE_SETUP_AGENT: BuiltInAgentDefinition = {
   agentType: 'statusline-setup',
   whenToUse:
-    "Use this agent to configure the user's Claude Code status line setting.",
+    "Use this agent to configure the user's CyberCode status line setting.",
   tools: ['Read', 'Edit'],
   source: 'built-in',
   baseDir: 'built-in',

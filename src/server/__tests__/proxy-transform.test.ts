@@ -370,6 +370,54 @@ describe('anthropicToOpenaiResponses', () => {
     }
   })
 
+  test('uses output_text for assistant history before a function call', () => {
+    const req: AnthropicRequest = {
+      model: 'qwen3.7-plus',
+      max_tokens: 100,
+      messages: [{
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'I will inspect that.' },
+          { type: 'tool_use', id: 'tc_1', name: 'read_file', input: { path: 'README.md' } },
+        ],
+      }],
+    }
+    const result = anthropicToOpenaiResponses(req)
+    expect(result.input[0]).toEqual({
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: 'I will inspect that.' }],
+    })
+    expect(result.input[1]).toMatchObject({
+      type: 'function_call',
+      call_id: 'tc_1',
+      name: 'read_file',
+    })
+  })
+
+  test('preserves mixed image and text content using Responses API types', () => {
+    const req: AnthropicRequest = {
+      model: 'qwen3.7-plus',
+      max_tokens: 100,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'abc123' } },
+          { type: 'text', text: 'Describe this image.' },
+        ],
+      }],
+    }
+    const result = anthropicToOpenaiResponses(req)
+    expect(result.input).toEqual([{
+      type: 'message',
+      role: 'user',
+      content: [
+        { type: 'input_image', image_url: 'data:image/png;base64,abc123' },
+        { type: 'input_text', text: 'Describe this image.' },
+      ],
+    }])
+  })
+
   test('tool_result lifted to function_call_output', () => {
     const req: AnthropicRequest = {
       model: 'gpt-4o',

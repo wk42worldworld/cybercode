@@ -20,6 +20,8 @@ import { handleComputerUseApi } from './api/computer-use.js'
 import { handleCybercodeOAuthApi } from './api/cybercode-oauth.js'
 import { handleMcpApi } from './api/mcp.js'
 import { handlePromptMemoryApi } from './api/prompt-memory.js'
+import { handleTokenOptimizationApi } from './api/token-optimization.js'
+import { handleAgentMigrationApi } from './api/agent-migration.js'
 
 export async function handleApiRequest(req: Request, url: URL): Promise<Response> {
   const path = url.pathname
@@ -84,6 +86,12 @@ export async function handleApiRequest(req: Request, url: URL): Promise<Response
 
     case 'prompt-memory':
       return handlePromptMemoryApi(req, url, segments)
+
+    case 'token-optimization':
+      return handleTokenOptimizationApi(req, url, segments)
+
+    case 'agent-migration':
+      return handleAgentMigrationApi(req, url, segments)
 
     case 'plugins':
       return handlePluginsApi(req, url, segments)

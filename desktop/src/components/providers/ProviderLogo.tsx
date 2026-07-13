@@ -82,7 +82,9 @@ export function ProviderLogo({
             width: assetScale,
             height: assetScale,
             objectFit: 'contain',
-            filter: 'drop-shadow(0 1px 1px rgba(15, 23, 42, 0.10))',
+            filter: identity.assetShadow === false
+              ? undefined
+              : 'drop-shadow(0 1px 1px rgba(15, 23, 42, 0.10))',
           }}
         />
       ) : (

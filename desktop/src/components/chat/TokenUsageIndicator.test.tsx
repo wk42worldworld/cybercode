@@ -9,8 +9,10 @@ import {
   calculateContextUsagePercent,
   formatCompactTokenCount,
   getContextTokenTotal,
+  getTurnInputTokenTotal,
   getTurnTokenTotal,
 } from './tokenUsage'
+import { clearSessionUsageCache } from './sessionUsageCache'
 
 vi.mock('../../api/sessions', () => ({
   sessionsApi: {
@@ -48,6 +50,7 @@ function makeSession(overrides: Partial<PerSessionState> = {}): PerSessionState 
 
 describe('TokenUsageIndicator', () => {
   beforeEach(() => {
+    clearSessionUsageCache()
     useSettingsStore.setState({ locale: 'zh' })
     useChatStore.setState({
       sessions: {
@@ -92,8 +95,7 @@ describe('TokenUsageIndicator', () => {
     render(<TokenUsageIndicator sessionId="session-1" projectPath="/tmp/project" onOpenDetails={onOpenDetails} />)
 
     const button = await screen.findByRole('button')
-    expect(button).not.toHaveTextContent('本轮180')
-    expect(button).not.toHaveTextContent('会话1.4K')
+    expect(screen.getByTestId('token-turn-total')).toHaveTextContent('180')
     await waitFor(() => {
       expect(button).toHaveTextContent('本轮180')
       expect(button).toHaveTextContent('会话1.4K')
@@ -102,17 +104,43 @@ describe('TokenUsageIndicator', () => {
     })
     expect(screen.getByTestId('token-context-summary')).toContainElement(screen.getByTestId('token-context-ring'))
     expect(screen.getByTestId('token-context-summary')).toHaveTextContent('20%')
-    expect(screen.getByTestId('token-turn-summary').className).toContain('w-[52px]')
-    expect(screen.getByTestId('token-session-summary').className).toContain('w-[56px]')
+    expect(screen.getByTestId('token-turn-summary').className).toContain('w-[58px]')
+    expect(screen.getByTestId('token-session-summary').className).toContain('w-[58px]')
     expect(button.className).toContain('w-[200px]')
     expect(button).toHaveStyle({ contain: 'layout paint' })
-    expect(button).toHaveAccessibleName(/\u8f93\u5165 100/)
+    expect(button).toHaveAccessibleName(/\u8f93\u5165\u603b\u8ba1 130/)
+    expect(button).toHaveAccessibleName(/\u666e\u901a\u8f93\u5165 100/)
     expect(button).toHaveAccessibleName(/\u672c\u8f6e 180 Token/)
     expect(button).toHaveAccessibleName(/\u5f53\u524d\u4e0a\u4e0b\u6587 40,000\/200,000/)
     expect(sessionsApi.getUsage).toHaveBeenCalledWith('session-1', { projectPath: '/tmp/project' })
 
     fireEvent.click(button)
     expect(onOpenDetails).toHaveBeenCalledTimes(1)
+  })
+
+  it('reserves enough width for the exact compact turn value', () => {
+    useChatStore.setState({
+      sessions: {
+        'session-1': makeSession({
+          chatState: 'streaming',
+          usageRevision: 0,
+          tokenUsage: {
+            input_tokens: 10_000,
+            output_tokens: 1_400,
+            cache_read_input_tokens: 700,
+            cache_creation_input_tokens: 300,
+          },
+        }),
+      },
+    })
+    vi.mocked(sessionsApi.getUsage).mockImplementationOnce(() => new Promise(() => {}))
+
+    render(<TokenUsageIndicator sessionId="session-1" onOpenDetails={() => {}} />)
+
+    const turnTotal = screen.getByTestId('token-turn-total')
+    expect(turnTotal).toHaveTextContent('12.4K')
+    expect(turnTotal.className).toContain('min-w-[34px]')
+    expect(turnTotal.className).toContain('shrink-0')
   })
 
   it('adds live turn usage to the persisted session total while generating', async () => {
@@ -147,6 +175,37 @@ describe('TokenUsageIndicator', () => {
     await waitFor(() => {
       expect(button).toHaveTextContent('本轮180')
       expect(button).toHaveTextContent('会话1.4K')
+      expect(button).toHaveAccessibleName(/输入总计 130/)
+      expect(button).toHaveAccessibleName(/普通输入 100/)
+      expect(button).toHaveAccessibleName(/输出 50/)
+      expect(button).toHaveAccessibleName(/缓存读取 20/)
+      expect(button).toHaveAccessibleName(/缓存写入 10/)
+    })
+  })
+
+  it('keeps non-zero live usage in the hover details', async () => {
+    useChatStore.setState({
+      sessions: {
+        'session-1': makeSession({
+          tokenUsage: {
+            input_tokens: 210,
+            output_tokens: 90,
+            cache_read_input_tokens: 30,
+            cache_creation_input_tokens: 15,
+          },
+        }),
+      },
+    })
+
+    render(<TokenUsageIndicator sessionId="session-1" onOpenDetails={() => {}} />)
+
+    const button = await screen.findByRole('button')
+    await waitFor(() => {
+      expect(button).toHaveAccessibleName(/输入总计 255/)
+      expect(button).toHaveAccessibleName(/普通输入 210/)
+      expect(button).toHaveAccessibleName(/输出 90/)
+      expect(button).toHaveAccessibleName(/缓存读取 30/)
+      expect(button).toHaveAccessibleName(/缓存写入 15/)
     })
   })
 
@@ -175,6 +234,26 @@ describe('TokenUsageIndicator', () => {
     expect(switchedButton).not.toHaveTextContent('1.4K')
   })
 
+  it('shows zero percent for a new session without usage data', async () => {
+    useChatStore.setState({
+      sessions: {
+        'session-1': makeSession({
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          usageRevision: 0,
+        }),
+      },
+    })
+    vi.mocked(sessionsApi.getUsage).mockResolvedValueOnce({ usage: null, context: null })
+
+    render(<TokenUsageIndicator sessionId="session-1" onOpenDetails={() => {}} />)
+
+    const button = await screen.findByRole('button')
+    await waitFor(() => expect(sessionsApi.getUsage).toHaveBeenCalled())
+    expect(button).toHaveTextContent('0%')
+    expect(button).not.toHaveTextContent('--')
+    expect(screen.getByTestId('token-context-ring')).toHaveAttribute('data-context-percent', '0')
+  })
+
   it('formats compact values and counts cache tokens', () => {
     expect(formatCompactTokenCount(999)).toBe('999')
     expect(formatCompactTokenCount(12_400)).toBe('12.4K')
@@ -185,6 +264,12 @@ describe('TokenUsageIndicator', () => {
       cache_read_tokens: 30,
       cache_creation_tokens: 40,
     })).toBe(100)
+    expect(getTurnInputTokenTotal({
+      input_tokens: 10,
+      output_tokens: 20,
+      cache_read_tokens: 30,
+      cache_creation_tokens: 40,
+    })).toBe(80)
     expect(getContextTokenTotal({
       input_tokens: 10,
       output_tokens: 20,

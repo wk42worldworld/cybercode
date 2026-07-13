@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from '../../i18n'
 import { Button } from './Button'
 import { Icon } from './Icon'
 
@@ -26,6 +27,8 @@ export function ConfirmDialog({
   confirmVariant = 'primary',
   loading = false,
 }: ConfirmDialogProps) {
+  const t = useTranslation()
+
   useEffect(() => {
     if (!open) return
     const handleEsc = (event: KeyboardEvent) => {
@@ -66,7 +69,7 @@ export function ConfirmDialog({
               type="button"
               onClick={handleClose}
               disabled={loading}
-              aria-label="Close dialog"
+              aria-label={t('common.close')}
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--color-text-tertiary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:opacity-40"
             >
               <Icon name="close" size={13} />

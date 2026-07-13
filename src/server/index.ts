@@ -1,5 +1,5 @@
 /**
- * Claude Code Desktop App — HTTP + WebSocket Server
+ * CyberCode Desktop App — HTTP + WebSocket Server
  *
  * 为桌面端 UI 提供 REST API 和 WebSocket 实时通信。
  * 读写与 CLI 完全相同的文件系统，确保 CLI/UI 数据互通。
@@ -15,6 +15,7 @@ import { handleProxyRequest } from './proxy/handler.js'
 import { ProviderService } from './services/providerService.js'
 import { handleCybercodeOAuthCallback } from './api/cybercode-oauth.js'
 import { ensureDesktopCliLauncherInstalled } from './services/desktopCliLauncherService.js'
+import { codeGraphService } from './services/codeGraphService.js'
 
 function readArgValue(flag: string): string | undefined {
   const args = process.argv.slice(2)
@@ -227,7 +228,9 @@ export function startServer(port = PORT, host = HOST) {
     )
   })
 
-  console.log(`[Server] Claude Code API server running at http://${host}:${port}`)
+  codeGraphService.restoreEnabledProjects()
+
+  console.log(`[Server] CyberCode API server running at http://${host}:${port}`)
   return server
 }
 
@@ -235,6 +238,7 @@ export function startServer(port = PORT, host = HOST) {
 import { conversationService } from './services/conversationService.js'
 
 function cleanupAllSessions() {
+  codeGraphService.shutdown()
   const active = conversationService.getActiveSessions()
   if (active.length > 0) {
     console.log(`[Server] Shutting down — killing ${active.length} CLI subprocess(es)`)

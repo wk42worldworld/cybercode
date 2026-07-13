@@ -16,6 +16,7 @@ export type ProviderLogoIdentity = {
   motif: ProviderLogoMotif
   assetSrc?: string
   assetScale?: number
+  assetShadow?: boolean
 }
 
 type ProviderIdentityDefinition = ProviderLogoIdentity & {
@@ -114,8 +115,11 @@ const KNOWN_PROVIDER_IDENTITIES: ProviderIdentityDefinition[] = [
     id: 'openai',
     label: 'OpenAI',
     initials: 'OA',
-    accent: '#0f766e',
-    motif: 'orbit',
+    accent: '#111111',
+    motif: 'asset',
+    assetSrc: '/provider-icons/official/openai-blossom.svg',
+    assetScale: 0.72,
+    assetShadow: false,
     matchers: ['openai', 'chatgpt', 'gpt4', 'gpt5', 'gptoss'],
   },
   {
@@ -123,7 +127,10 @@ const KNOWN_PROVIDER_IDENTITIES: ProviderIdentityDefinition[] = [
     label: 'Gemini',
     initials: 'G',
     accent: '#2563eb',
-    motif: 'spark',
+    motif: 'asset',
+    assetSrc: '/provider-icons/official/google-gemini.png',
+    assetScale: 0.76,
+    assetShadow: false,
     matchers: ['google', 'gemini', 'aistudio', 'generativelanguage'],
   },
   {

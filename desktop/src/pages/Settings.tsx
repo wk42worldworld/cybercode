@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useProviderStore } from '../stores/providerStore'
 import { localeOptions, useTranslation } from '../i18n'
@@ -79,7 +80,7 @@ export function Settings() {
         <button
           onClick={() => useUIStore.getState().closeSettings()}
           className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black dark:text-[var(--color-text-secondary)] dark:hover:bg-[var(--color-surface-hover)] dark:hover:text-[var(--color-text-primary)]"
-          aria-label="Close"
+          aria-label={t('common.close')}
           title="Esc"
         >
           <Icon name="close" size={18} />
@@ -607,7 +608,13 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
     normalized.includes('gpt-5') ||
     normalized.includes('kimi-k2') ||
     normalized.includes('kimi-for-coding') ||
-    /\bqwen3\.(?:5|6)(?:[:\-]|$)/.test(normalized) ||
+    /\bqwen3\.(?:5|6|7)(?:[:\-]|$)/.test(normalized) ||
+    /\b(?:pixtral|llava|internvl|molmo|paligemma)\b/.test(normalized) ||
+    /\bminicpm[-_.]?v\b/.test(normalized) ||
+    /\bgemma[-_. ]?3n\b/.test(normalized) ||
+    /\bgemma[-_. ]?3(?:[:\-_. ](?:4b|12b|27b))\b/.test(normalized) ||
+    /\bgemma[-_. ]?4\b/.test(normalized) ||
+    /\bgrok[-_. ]?4\.(?:3|5)\b/.test(normalized) ||
     normalized.includes('claude-3') ||
     normalized.includes('claude-4') ||
     normalized.includes('claude-sonnet') ||
@@ -1426,9 +1433,16 @@ const MEMORY_TARGET_DESCRIPTION_KEYS = {
   user: 'settings.memory.target.userDescription',
 } as const
 
+const MEMORY_TARGET_ICONS = {
+  soul: 'psychology',
+  brief: 'memory',
+  user: 'person',
+} as const
+
 export function MemorySettings() {
   const t = useTranslation()
   const addToast = useUIStore((s) => s.addToast)
+  const [activeView, setActiveView] = useState<'profile' | 'files' | 'history'>('profile')
   const [target, setTarget] = useState<PromptMemoryTarget>('brief')
   const [status, setStatus] = useState<PromptMemoryStatus | null>(null)
   const [autoLogs, setAutoLogs] = useState<PromptMemoryAutoReviewLogEntry[]>([])
@@ -1515,6 +1529,7 @@ export function MemorySettings() {
   }
 
   const handleEditInsight = (insight: PromptMemoryInsight) => {
+    setActiveView('files')
     setTarget(insight.target)
     if (status) setDraft(status.files[insight.target].content)
     window.requestAnimationFrame(() => {
@@ -1552,156 +1567,263 @@ export function MemorySettings() {
   }
 
   return (
-    <SettingsPage
-      title={t('settings.memory.title')}
-      description={t('settings.memory.description')}
+    <main
+      className="mx-auto w-full max-w-[980px] overflow-x-hidden pb-[20px]"
+      style={{ fontFamily: 'Geist, var(--font-body)' }}
     >
-      <SettingsSection
-        title={t('settings.memory.insight.title')}
-        description={t('settings.memory.insight.description')}
+      <motion.header
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+        className="mb-[30px] flex min-h-[78px] items-end justify-between gap-[24px]"
       >
-        <EvolutionProfile
-          overview={insights}
-          removingId={removingInsightId}
-          onEdit={handleEditInsight}
-          onRemove={setPendingRemoveInsight}
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title={t('settings.memory.sectionTitle')}
-        description={t('settings.memory.sectionDescription')}
-        action={(
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void loadMemory(target)}
-            loading={isLoading}
-          >
-            {t('settings.memory.reload')}
-          </Button>
-        )}
-      >
-        <div id="prompt-memory-editor" className="flex flex-col gap-[14px] px-[20px] py-[16px]">
-          <div className="flex flex-wrap items-center justify-between gap-[12px]">
-            <SegmentedControl items={targetItems} value={target} onChange={handleTargetChange} />
-            <div className={`rounded-full border px-[10px] py-[5px] text-[11px] font-semibold ${
-              isOverLimit
-                ? 'border-[var(--color-error)] text-[var(--color-error)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)]'
-            }`}>
-              {t('settings.memory.characters', {
-                count: draftCharCount,
-                limit: limit || '-',
-              })}
-            </div>
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center gap-[8px] text-[12px]">
-            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[10px] py-[5px] font-mono font-semibold text-[var(--color-text-primary)]">
-              {selectedFile?.filename ?? t(MEMORY_TARGET_LABEL_KEYS[target])}
-            </span>
-            {selectedFile?.path && (
-              <span className="min-w-0 truncate text-[var(--color-text-tertiary)]">
-                {selectedFile.path}
-              </span>
-            )}
-          </div>
-
-          <p className="max-w-[720px] text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
-            {t(MEMORY_TARGET_DESCRIPTION_KEYS[target])}
+        <div className="min-w-0">
+          <h1 className="w-full max-w-none text-[28px] font-semibold leading-[34px] text-[var(--color-text-primary)]">
+            {t('settings.memory.title')}
+          </h1>
+          <p className="mt-[8px] max-w-[720px] text-[13px] leading-[20px] text-[var(--color-text-secondary)]">
+            {t('settings.memory.description')}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => void loadMemory(target)}
+          disabled={isLoading}
+          aria-label={t('settings.memory.reload')}
+          title={t('settings.memory.reload')}
+          className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[7px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] transition-[transform,background-color,color] duration-200 hover:-translate-y-[1px] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+        >
+          <Icon name={isLoading ? 'loading' : 'refresh'} size={16} className={isLoading ? 'animate-spin' : ''} />
+        </button>
+      </motion.header>
 
-        <div className="flex flex-col gap-[14px] px-[20px] py-[16px]">
-          {error && (
-            <div className="flex items-start gap-[10px] rounded-[10px] border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-[12px] py-[10px] text-[12px] leading-[18px] text-[var(--color-error)]">
-              <Icon name="warning" size={16} className="mt-[1px] shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-[18px] flex items-start gap-[10px] overflow-hidden rounded-[8px] border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 px-[13px] py-[11px] text-[12px] leading-[18px] text-[var(--color-error)]"
+          >
+            <Icon name="warning" size={16} className="mt-[1px] shrink-0" />
+            <span>{error}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          {target === 'soul' && (
-            <div className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[12px] py-[10px] text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
-              {t('settings.memory.soulWarning')}
-            </div>
-          )}
-
-          <Textarea
-            aria-label={t('settings.memory.editorLabel')}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            disabled={isLoading}
-            rows={14}
-            spellCheck={false}
-            className={`min-h-[320px] font-mono text-[12px] leading-[20px] ${
-              isOverLimit ? 'border-[var(--color-error)] focus:border-[var(--color-error)]' : ''
+      <nav className="mb-[22px] flex min-h-[44px] items-end gap-[26px] border-b border-[var(--color-border-separator)]" aria-label={t('settings.memory.title')}>
+        {([
+          ['profile', 'settings.memory.insight.title'],
+          ['files', 'settings.memory.sectionTitle'],
+          ['history', 'settings.memory.autoLogTitle'],
+        ] as const).map(([view, labelKey]) => (
+          <button
+            key={view}
+            type="button"
+            onClick={() => setActiveView(view)}
+            aria-pressed={activeView === view}
+            className={`relative h-[43px] whitespace-nowrap text-[12px] font-semibold transition-colors ${
+              activeView === view
+                ? 'text-[var(--color-text-primary)]'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
             }`}
-            placeholder={t('settings.memory.placeholder')}
-          />
+          >
+            {t(labelKey)}
+            {activeView === view && (
+              <motion.span
+                layoutId="memory-active-view"
+                className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-[var(--color-text-primary)]"
+              />
+            )}
+          </button>
+        ))}
+      </nav>
 
-          <div className="flex flex-wrap items-center justify-between gap-[12px]">
-            <div className="flex flex-wrap items-center gap-[8px] text-[11px] text-[var(--color-text-tertiary)]">
-              <span>{t('settings.memory.delayedEffect')}</span>
-              {selectedFile && target !== 'soul' && (
-                <span>
-                  {t('settings.memory.entries', { count: selectedFile.entries.length })}
-                </span>
-              )}
-              {isDirty && <span>{t('settings.memory.unsaved')}</span>}
-            </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => void handleSave()}
-              loading={isSaving}
-              disabled={isLoading || !selectedFile || !isDirty || isOverLimit}
-            >
-              {t('common.save')}
-            </Button>
-          </div>
-        </div>
-      </SettingsSection>
+      <AnimatePresence initial={false}>
+        {activeView === 'profile' && (
+          <motion.section
+            key="profile"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            <p className="mb-[12px] max-w-[760px] whitespace-normal text-[11px] leading-[17px] text-[var(--color-text-tertiary)]">
+              {t('settings.memory.insight.description')}
+            </p>
+            <EvolutionProfile
+              overview={insights}
+              removingId={removingInsightId}
+              onEdit={handleEditInsight}
+              onRemove={setPendingRemoveInsight}
+            />
+          </motion.section>
+        )}
 
-      <SettingsSection
-        title={t('settings.memory.autoLogTitle')}
-        description={t('settings.memory.autoLogDescription')}
-      >
-        <div className="flex flex-col gap-[10px] px-[20px] py-[16px]">
-          {autoLogs.length === 0 ? (
-            <div className="rounded-[10px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[14px] py-[12px] text-[12px] text-[var(--color-text-secondary)]">
-              {t('settings.memory.autoLogEmpty')}
-            </div>
-          ) : (
-            autoLogs.map((entry) => (
-              <div
-                key={entry.id}
-                className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-[12px] py-[10px]"
-              >
-                <div className="flex min-w-0 flex-wrap items-center gap-[8px]">
-                  <span className="rounded-full bg-[var(--color-surface-container-high)] px-[8px] py-[3px] text-[10px] font-bold uppercase tracking-normal text-[var(--color-text-primary)]">
-                    {t(`settings.memory.autoLog.action.${entry.action}` as never)}
-                  </span>
-                  <span className="font-mono text-[11px] font-semibold text-[var(--color-text-primary)]">
-                    {t(entry.target === 'user'
-                      ? 'settings.memory.autoLog.target.user'
-                      : 'settings.memory.autoLog.target.brief')}
-                  </span>
-                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
-                    {t(`settings.memory.autoLog.trigger.${entry.trigger}` as never)}
-                  </span>
-                  <span className="text-[11px] text-[var(--color-text-tertiary)]">
-                    {formatMemoryLogTime(entry.timestamp)}
-                  </span>
-                </div>
-                <div className="mt-[8px] break-words text-[12px] leading-[18px] text-[var(--color-text-secondary)]">
-                  {formatMemoryLogContent(entry.content || entry.oldText || entry.message)}
-                </div>
+        {activeView === 'files' && (
+          <motion.section
+            key="files"
+            id="prompt-memory-editor"
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            className="overflow-hidden rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]"
+          >
+            <header className="flex min-h-[66px] items-center justify-between gap-[16px] border-b border-[var(--color-border-separator)] px-[16px] py-[12px]">
+              <div className="min-w-0 flex-1">
+                <h2 className="whitespace-normal text-[13px] font-semibold leading-[19px] text-[var(--color-text-primary)]">
+                  {t('settings.memory.sectionTitle')}
+                </h2>
+                <p className="mt-[3px] break-all text-[10px] leading-[15px] text-[var(--color-text-tertiary)]">
+                  {selectedFile?.path ?? t('settings.memory.sectionDescription')}
+                </p>
               </div>
-            ))
-          )}
-        </div>
-      </SettingsSection>
+              <span className={`shrink-0 font-mono text-[11px] tabular-nums ${
+                isOverLimit ? 'text-[var(--color-error)]' : 'text-[var(--color-text-secondary)]'
+              }`}>
+                {t('settings.memory.characters', { count: draftCharCount, limit: limit || '-' })}
+              </span>
+            </header>
+
+            <div className="grid h-[72px] grid-cols-3 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
+              {targetItems.map((item) => {
+                const isActive = item.value === target
+                const file = status?.files[item.value]
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => handleTargetChange(item.value)}
+                    aria-pressed={isActive}
+                    className={`flex min-w-0 items-center justify-center gap-[9px] border-l border-[var(--color-border-separator)] px-[12px] text-left first:border-l-0 ${
+                      isActive
+                        ? 'bg-[var(--color-text-primary)] text-[var(--color-background)]'
+                        : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
+                    }`}
+                  >
+                    <Icon name={MEMORY_TARGET_ICONS[item.value]} size={15} className="shrink-0" />
+                    <div className="min-w-0">
+                      <div className="whitespace-normal text-[11px] font-semibold leading-[15px]">{item.label}</div>
+                      <div className={`mt-[3px] break-all font-mono text-[9px] leading-[13px] ${isActive ? 'opacity-60' : 'text-[var(--color-text-tertiary)]'}`}>
+                        {file?.filename ?? item.label}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="px-[16px] pb-[12px] pt-[14px]">
+              <p className="whitespace-normal text-[11px] leading-[18px] text-[var(--color-text-secondary)]">
+                {t(MEMORY_TARGET_DESCRIPTION_KEYS[target])}
+              </p>
+              <AnimatePresence mode="wait">
+                {target === 'soul' && (
+                  <motion.div
+                    key="soul-warning"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="mt-[10px] border-l-2 border-[var(--color-warning)] bg-[var(--color-surface-container-low)] px-[10px] py-[8px] text-[10px] leading-[16px] text-[var(--color-text-secondary)]"
+                  >
+                    {t('settings.memory.soulWarning')}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="px-[16px] pb-[14px]">
+              <Textarea
+                aria-label={t('settings.memory.editorLabel')}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                disabled={isLoading}
+                rows={15}
+                spellCheck={false}
+                className={`min-h-[360px] rounded-[7px] bg-[var(--color-background)] font-mono text-[12px] leading-[20px] ${
+                  isOverLimit ? 'border-[var(--color-error)] focus:border-[var(--color-error)]' : ''
+                }`}
+                placeholder={t('settings.memory.placeholder')}
+              />
+            </div>
+
+            <footer className="flex min-h-[58px] flex-wrap items-center justify-between gap-[12px] border-t border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-[16px] py-[10px]">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-[12px] gap-y-[4px] text-[10px] text-[var(--color-text-tertiary)]">
+                <span>{t('settings.memory.delayedEffect')}</span>
+                {selectedFile && target !== 'soul' && <span>{t('settings.memory.entries', { count: selectedFile.entries.length })}</span>}
+                {isDirty && <span className="font-semibold text-[var(--color-warning)]">{t('settings.memory.unsaved')}</span>}
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={isLoading || isSaving || !selectedFile || !isDirty || isOverLimit}
+                className="inline-flex h-[34px] items-center justify-center gap-[7px] rounded-[6px] bg-[var(--color-text-primary)] px-[13px] text-[11px] font-semibold text-[var(--color-background)] transition-[transform,opacity] duration-200 hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+              >
+                <Icon name={isSaving ? 'loading' : 'save'} size={14} className={isSaving ? 'animate-spin' : ''} />
+                {t('common.save')}
+              </button>
+            </footer>
+          </motion.section>
+        )}
+
+        {activeView === 'history' && (
+          <motion.section
+            key="history"
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            className="overflow-hidden rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)]"
+          >
+            <header className="flex min-h-[66px] items-center justify-between gap-[16px] border-b border-[var(--color-border-separator)] px-[16px] py-[12px]">
+              <div className="min-w-0">
+                <h2 className="whitespace-normal text-[13px] font-semibold leading-[19px] text-[var(--color-text-primary)]">
+                  {t('settings.memory.autoLogTitle')}
+                </h2>
+                <p className="mt-[3px] whitespace-normal text-[10px] leading-[15px] text-[var(--color-text-tertiary)]">
+                  {t('settings.memory.autoLogDescription')}
+                </p>
+              </div>
+              <span className="shrink-0 font-mono text-[11px] tabular-nums text-[var(--color-text-tertiary)]">{autoLogs.length}</span>
+            </header>
+            {autoLogs.length === 0 ? (
+              <div className="flex min-h-[300px] flex-col items-center justify-center px-[24px] text-center">
+                <span className="mb-[12px] flex h-[38px] w-[38px] items-center justify-center rounded-[8px] border border-[var(--color-border-separator)] text-[var(--color-text-tertiary)]">
+                  <Icon name="history" size={17} />
+                </span>
+                <p className="max-w-[360px] whitespace-normal text-[11px] leading-[17px] text-[var(--color-text-tertiary)]">
+                  {t('settings.memory.autoLogEmpty')}
+                </p>
+              </div>
+            ) : autoLogs.map((entry, index) => (
+              <motion.div
+                key={entry.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(index * 0.025, 0.2), duration: 0.22 }}
+                className="grid grid-cols-[18px_minmax(0,1fr)] gap-[10px] border-t border-[var(--color-border-separator)] px-[16px] py-[14px] first:border-t-0 hover:bg-[var(--color-surface-hover)]"
+              >
+                <div className="relative flex justify-center">
+                  <span className="relative z-10 mt-[5px] h-[6px] w-[6px] rounded-full bg-[var(--color-brand)]" />
+                  {index < autoLogs.length - 1 && <span className="absolute bottom-[-15px] top-[11px] w-px bg-[var(--color-border-separator)]" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-[8px] gap-y-[3px] text-[10px] leading-[15px] text-[var(--color-text-tertiary)]">
+                    <span className="font-semibold text-[var(--color-text-primary)]">{t(`settings.memory.autoLog.action.${entry.action}` as never)}</span>
+                    <span>{t(entry.target === 'user' ? 'settings.memory.autoLog.target.user' : 'settings.memory.autoLog.target.brief')}</span>
+                    <span>{t(`settings.memory.autoLog.trigger.${entry.trigger}` as never)}</span>
+                    <span>{formatMemoryLogTime(entry.timestamp)}</span>
+                  </div>
+                  <p className="mt-[6px] whitespace-pre-wrap break-words text-[12px] leading-[19px] text-[var(--color-text-secondary)]">
+                    {formatMemoryLogContent(entry.content || entry.oldText || entry.message)}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={pendingRemoveInsight !== null}
@@ -1720,7 +1842,7 @@ export function MemorySettings() {
         confirmVariant="danger"
         loading={removingInsightId !== null}
       />
-    </SettingsPage>
+    </main>
   )
 }
 

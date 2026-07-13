@@ -25,6 +25,13 @@ export type SessionRewindResponse = {
   }
 }
 
+export type SessionBranchResponse = {
+  sessionId: string
+  sourceSessionId: string
+  targetAssistantMessageId: string
+  session: SessionListItem
+}
+
 export type RecentProject = {
   projectPath: string
   realPath: string
@@ -238,6 +245,16 @@ export const sessionsApi = {
   }, params?: SessionLocatorParams) {
     const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
     return api.post<SessionRewindResponse>(`/api/sessions/${sessionId}/rewind${query}`, body, {
+      timeout: 60_000,
+    })
+  },
+
+  branch(sessionId: string, body: {
+    targetAssistantMessageId: string
+    expectedContent?: string
+  }, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.post<SessionBranchResponse>(`/api/sessions/${sessionId}/branch${query}`, body, {
       timeout: 60_000,
     })
   },

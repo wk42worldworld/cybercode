@@ -59,6 +59,8 @@ import { TICK_TAG } from './xml.js'
 import { logForDebugging } from '../utils/debug.js'
 import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { loadPromptMemory } from '../promptMemory/loadPromptMemory.js'
+import { cavemanOptimizationService } from '../services/cavemanOptimization.js'
+import { ponytailOptimizationService } from '../services/ponytailOptimization.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import agentWorkRulesSection from '../defaults/agent-work-rules.md' with { type: 'text' }
@@ -218,7 +220,7 @@ function getSimpleDoingTasksSection(): string {
   ]
 
   const userHelpSubitems = [
-    `/help: Get help with using Claude Code`,
+    `/help: Get help with using CyberCode`,
     `To give feedback, users should ${MACRO.ISSUES_EXPLAINER}`,
   ]
 
@@ -246,7 +248,7 @@ function getSimpleDoingTasksSection(): string {
       : []),
     ...(process.env.USER_TYPE === 'ant'
       ? [
-          `If the user reports a bug, slowness, or unexpected behavior with Claude Code itself (as opposed to asking you to fix their own code), recommend the appropriate slash command: /issue for model-related problems (odd outputs, wrong tool choices, hallucinations, refusals), or /share to upload the full session transcript for product bugs, crashes, slowness, or general issues. Only recommend these when the user is describing a problem with Claude Code. After /share produces a ccshare link, if you have a Slack MCP tool available, offer to post the link to #claude-code-feedback (channel ID C07VBSHV7EV) for the user.`,
+          `If the user reports a bug, slowness, or unexpected behavior with CyberCode itself (as opposed to asking you to fix their own code), recommend the appropriate slash command: /issue for model-related problems (odd outputs, wrong tool choices, hallucinations, refusals), or /share to upload the full session transcript for product bugs, crashes, slowness, or general issues. Only recommend these when the user is describing a problem with CyberCode. After /share produces a ccshare link, if you have a Slack MCP tool available, offer to post the link to #claude-code-feedback (channel ID C07VBSHV7EV) for the user.`,
         ]
       : []),
     `If the user asks for help or wants to give feedback inform them of the following:`,
@@ -457,8 +459,10 @@ export async function getSystemPrompt(
 ): Promise<string[]> {
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
     return [
-      `You are Claude Code, Anthropic's official CLI for Claude.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
-    ]
+      `You are CyberCode, an AI coding agent.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
+      ponytailOptimizationService.getSystemPrompt(),
+      cavemanOptimizationService.getSystemPrompt(),
+    ].filter(s => s !== null)
   }
 
   const cwd = getCwd()
@@ -485,6 +489,8 @@ ${CYBER_RISK_INSTRUCTION}`,
       await loadMemoryPrompt(),
       envInfo,
       getLanguageSection(settings.language),
+      ponytailOptimizationService.getSystemPrompt(),
+      cavemanOptimizationService.getSystemPrompt(),
       // When delta enabled, instructions are announced via persisted
       // mcp_instructions_delta attachments (attachments.ts) instead.
       isMcpInstructionsDeltaEnabled()
@@ -514,6 +520,16 @@ ${CYBER_RISK_INSTRUCTION}`,
     ),
     systemPromptSection('output_style', () =>
       getOutputStyleSection(outputStyleConfig),
+    ),
+    DANGEROUS_uncachedSystemPromptSection(
+      'ponytail_optimization',
+      () => ponytailOptimizationService.getSystemPrompt(),
+      'the global Token Optimization switch must affect active sessions on their next turn',
+    ),
+    DANGEROUS_uncachedSystemPromptSection(
+      'caveman_optimization',
+      () => cavemanOptimizationService.getSystemPrompt(),
+      'the global Token Optimization switch must affect active sessions on their next turn',
     ),
     // When delta enabled, instructions are announced via persisted
     // mcp_instructions_delta attachments (attachments.ts) instead of this
@@ -707,10 +723,10 @@ export async function computeSimpleEnvInfo(
       : `The most recent Claude model family is Claude 5/4.8/4.5. Model IDs — Opus 4.8: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.opus}', Sonnet 5: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.sonnet}', Haiku 4.5: '${CLAUDE_4_5_OR_4_6_MODEL_IDS.haiku}'. When building AI applications, default to the latest and most capable Claude models.`,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
-      : `Claude Code is available as a CLI in the terminal, desktop app (Mac/Windows), web app (claude.ai/code), and IDE extensions (VS Code, JetBrains).`,
+      : `CyberCode is available as a CLI and desktop app for macOS, Windows, and Linux.`,
     process.env.USER_TYPE === 'ant' && isUndercover()
       ? null
-      : `Fast mode for Claude Code uses the same ${FRONTIER_MODEL_NAME} model with faster output. It does NOT switch to a different model. It can be toggled with /fast.`,
+      : `Fast mode for CyberCode uses the same ${FRONTIER_MODEL_NAME} model with faster output. It does NOT switch to a different model. It can be toggled with /fast.`,
   ].filter(item => item !== null)
 
   return [
@@ -770,7 +786,7 @@ export function getUnameSR(): string {
   return `${osType()} ${osRelease()}`
 }
 
-export const DEFAULT_AGENT_PROMPT = `You are an agent for Claude Code, Anthropic's official CLI for Claude. Given the user's message, you should use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done. When you complete the task, respond with a concise report covering what was done and any key findings — the caller will relay this to the user, so it only needs the essentials.`
+export const DEFAULT_AGENT_PROMPT = `You are an agent for CyberCode. Given the user's message, you should use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done. When you complete the task, respond with a concise report covering what was done and any key findings — the caller will relay this to the user, so it only needs the essentials.`
 
 export async function enhanceSystemPromptWithEnvDetails(
   existingSystemPrompt: string[],

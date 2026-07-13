@@ -445,6 +445,18 @@ export const SDKControlMcpSetServersResponseSchema = lazySchema(() =>
     ),
 )
 
+export const SDKControlCybercodeMcpPatchServersRequestSchema = lazySchema(() =>
+  z
+    .object({
+      subtype: z.literal('cybercode_mcp_patch_servers'),
+      servers: z.record(z.string(), McpServerConfigForProcessTransportSchema()),
+      remove: z.array(z.string()),
+    })
+    .describe(
+      'Adds, updates, or removes CyberCode-owned dynamic MCP servers without replacing SDK-managed servers.',
+    ),
+)
+
 export const SDKControlReloadPluginsRequestSchema = lazySchema(() =>
   z
     .object({
@@ -609,6 +621,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlCancelAsyncMessageRequestSchema(),
     SDKControlSeedReadStateRequestSchema(),
     SDKControlMcpSetServersRequestSchema(),
+    SDKControlCybercodeMcpPatchServersRequestSchema(),
     SDKControlReloadPluginsRequestSchema(),
     SDKControlMcpReconnectRequestSchema(),
     SDKControlMcpToggleRequestSchema(),

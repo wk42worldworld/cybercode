@@ -1488,3 +1488,24 @@ button, input, textarea, select, a, [role="button"] {
 .message-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #c7c7cc;
 }
+
+.token-savings-ring {
+  stroke-dasharray: var(--ring-circumference);
+  stroke-dashoffset: var(--ring-offset);
+  animation: token-savings-ring-fill 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes token-savings-ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-savings-ring {
+    animation: none;
+  }
+}

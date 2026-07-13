@@ -6,6 +6,7 @@ import type { CreateSessionInput, SessionListItem } from '../types/session'
 import { getDefaultSessionTitle } from '../utils/sessionTitle'
 
 const HIDDEN_SIDEBAR_PROJECTS_KEY = 'cybercode.sidebar.hiddenProjects.v1'
+const PROJECT_DISPLAY_NAMES_KEY = 'cybercode.sidebar.projectDisplayNames.v1'
 
 type SessionFilterScope = 'all' | 'project' | 'temporary'
 
@@ -28,6 +29,28 @@ function readHiddenProjectPaths(): string[] {
 function writeHiddenProjectPaths(projectPaths: string[]) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(HIDDEN_SIDEBAR_PROJECTS_KEY, JSON.stringify(projectPaths))
+}
+
+function readProjectDisplayNames(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PROJECT_DISPLAY_NAMES_KEY) || '{}')
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter((entry): entry is [string, string] =>
+          entry[0].length > 0 && typeof entry[1] === 'string' && entry[1].trim().length > 0,
+        )
+        .map(([projectPath, title]) => [projectPath, title.trim().slice(0, 80)]),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function writeProjectDisplayNames(names: Record<string, string>) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(PROJECT_DISPLAY_NAMES_KEY, JSON.stringify(names))
 }
 
 function deriveAvailableProjects(
@@ -68,6 +91,7 @@ type SessionStore = {
   selectedSessionScope: SessionFilterScope
   availableProjects: string[]
   hiddenProjectPaths: string[]
+  projectDisplayNames: Record<string, string>
 
   fetchSessions: (project?: string) => Promise<void>
   createSession: (input?: CreateSessionInput) => Promise<string>
@@ -77,6 +101,7 @@ type SessionStore = {
   setActiveSession: (id: string | null) => void
   setSelectedProjects: (projects: string[]) => void
   setSessionFilterScope: (scope: SessionFilterScope, projectPath?: string) => void
+  renameProject: (projectPath: string, title: string) => void
   hideProject: (projectPath: string) => void
   restoreProject: (projectPath: string) => void
 }
@@ -90,6 +115,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   selectedSessionScope: 'all',
   availableProjects: [],
   hiddenProjectPaths: readHiddenProjectPaths(),
+  projectDisplayNames: readProjectDisplayNames(),
 
   fetchSessions: async (project?: string) => {
     set({ isLoading: true, error: null })
@@ -224,6 +250,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({
       selectedProjects: [],
       selectedSessionScope: scope === 'temporary' ? 'temporary' : 'all',
+    })
+  },
+  renameProject: (projectPath, title) => {
+    const normalizedTitle = title.trim().slice(0, 80)
+    set((state) => {
+      const projectDisplayNames = { ...state.projectDisplayNames }
+      if (normalizedTitle) {
+        projectDisplayNames[projectPath] = normalizedTitle
+      } else {
+        delete projectDisplayNames[projectPath]
+      }
+      writeProjectDisplayNames(projectDisplayNames)
+      return { projectDisplayNames }
     })
   },
   hideProject: (projectPath) => {

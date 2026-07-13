@@ -96,6 +96,20 @@ describe('IconRail floating panel navigation', () => {
     expect(useUIStore.getState().settingsPanelView).toBe('agents')
   })
 
+  it('keeps agent migration visible as a direct rail button', () => {
+    renderIconRail()
+
+    const migrationButton = screen.getByRole('button', { name: 'Agent 数据迁移' })
+    expect(migrationButton).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '更多' }))
+    expect(screen.queryByRole('menuitem', { name: 'Agent 数据迁移' })).not.toBeInTheDocument()
+    fireEvent.click(migrationButton)
+
+    expect(useUIStore.getState().settingsOpen).toBe(true)
+    expect(useUIStore.getState().settingsPanelView).toBe('agentMigration')
+  })
+
   it('toggles direct rail pages through the same floating panel state', () => {
     renderIconRail()
 
@@ -121,6 +135,7 @@ describe('IconRail floating panel navigation', () => {
     renderIconRail(256)
 
     expect(screen.getByRole('button', { name: '设置' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Agent 数据迁移' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '点赞收藏项目' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '大模型' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'IM 接入' })).not.toBeInTheDocument()

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { BookOpenText } from 'lucide-react'
+import { BookOpenText, Gauge } from 'lucide-react'
 import { Icon } from '../shared/Icon'
 import { useTranslation } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
@@ -16,12 +16,21 @@ export function ChatModeSidebar({ label, ariaLabel }: ChatModeSidebarProps) {
   const closeSettings = useUIStore((state) => state.closeSettings)
   const t = useTranslation()
   const memoryActive = settingsOpen && settingsPanelView === 'memory'
+  const tokenOptimizationActive = settingsOpen && settingsPanelView === 'tokenOptimization'
 
   const handleMemoryClick = () => {
     if (memoryActive) {
       closeSettings()
     } else {
       openSettings('memory')
+    }
+  }
+
+  const handleTokenOptimizationClick = () => {
+    if (tokenOptimizationActive) {
+      closeSettings()
+    } else {
+      openSettings('tokenOptimization')
     }
   }
 
@@ -40,6 +49,13 @@ export function ChatModeSidebar({ label, ariaLabel }: ChatModeSidebarProps) {
           onClick={handleMemoryClick}
         >
           <BookOpenText size={22} strokeWidth={1.5} />
+        </SideRailButton>
+        <SideRailButton
+          active={tokenOptimizationActive}
+          label={t('tokenOptimization.title')}
+          onClick={handleTokenOptimizationClick}
+        >
+          <Gauge size={22} strokeWidth={1.5} />
         </SideRailButton>
       </div>
     </aside>

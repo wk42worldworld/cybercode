@@ -278,6 +278,18 @@ Run the browser verification flow.
 
     expect(result.data.decision).toBe('reuse')
     expect(result.data.bestMatch?.skillName).toBe('verify-ui')
+
+    const toolResult = SkillGateTool.mapToolResultToToolResultBlockParam(
+      result.data,
+      'skill-gate-1',
+    )
+    expect(toolResult.type).toBe('tool_result')
+    expect(toolResult.tool_use_id).toBe('skill-gate-1')
+    expect(JSON.parse(String(toolResult.content))).toMatchObject({
+      success: true,
+      decision: 'reuse',
+      bestMatch: { skillName: 'verify-ui' },
+    })
   })
 
   test('marks low-frequency unused skills archived without deleting files', async () => {

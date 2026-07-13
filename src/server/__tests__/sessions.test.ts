@@ -718,6 +718,247 @@ describe('SessionService', () => {
     })
   })
 
+  it('should branch a conversation at the selected assistant response without changing the source', async () => {
+    const sourceSessionId = '11111111-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const firstUserId = crypto.randomUUID()
+    const attachmentId = crypto.randomUUID()
+    const firstAssistantId = crypto.randomUUID()
+    const secondUserId = crypto.randomUUID()
+    const secondAssistantId = crypto.randomUUID()
+    const workDir = path.join(tmpDir, 'branch-project')
+    const projectDir = sanitizePath(workDir)
+    await fs.mkdir(workDir, { recursive: true })
+
+    await writeSessionFile(projectDir, sourceSessionId, [
+      makeSnapshotEntry(),
+      {
+        ...makeSessionMetaEntry(workDir),
+        isTemporary: true,
+      },
+      {
+        ...makeUserEntry('first prompt', firstUserId),
+        sessionId: sourceSessionId,
+      },
+      {
+        type: 'attachment',
+        uuid: attachmentId,
+        parentUuid: firstUserId,
+        isSidechain: false,
+        sessionId: sourceSessionId,
+        timestamp: '2026-01-01T00:01:30.000Z',
+        attachment: {
+          type: 'file',
+          filePath: '/tmp/spec.md',
+          content: 'branch requirements',
+        },
+      },
+      {
+        ...makeAssistantEntry('first reply', attachmentId),
+        uuid: firstAssistantId,
+        sessionId: sourceSessionId,
+      },
+      {
+        ...makeUserEntry('second prompt', secondUserId),
+        parentUuid: firstAssistantId,
+        sessionId: sourceSessionId,
+      },
+      {
+        ...makeAssistantEntry('second reply', secondUserId),
+        uuid: secondAssistantId,
+        sessionId: sourceSessionId,
+      },
+      {
+        type: 'custom-title',
+        customTitle: 'Parser repair',
+        timestamp: '2026-01-01T00:05:00.000Z',
+      },
+    ])
+
+    const firstBranch = await service.branchSession(
+      sourceSessionId,
+      firstAssistantId,
+      { projectPath: projectDir, expectedContent: 'first reply' },
+    )
+    const secondBranch = await service.branchSession(
+      sourceSessionId,
+      firstAssistantId,
+      { projectPath: projectDir, expectedContent: 'first reply' },
+    )
+
+    expect(firstBranch.sessionId).not.toBe(sourceSessionId)
+    expect(firstBranch.session).toMatchObject({
+      title: 'Parser repair (Branch)',
+      projectPath: projectDir,
+      workDir,
+      isTemporary: true,
+    })
+    expect(secondBranch.session.title).toBe('Parser repair (Branch 2)')
+
+    const sourceMessages = await service.getSessionMessages(sourceSessionId, { projectPath: projectDir })
+    expect(sourceMessages.messages.map((message) => message.id)).toEqual([
+      firstUserId,
+      firstAssistantId,
+      secondUserId,
+      secondAssistantId,
+    ])
+
+    const branchMessages = await service.getSessionMessages(firstBranch.sessionId, { projectPath: projectDir })
+    expect(branchMessages.messages.map((message) => message.id)).toEqual([
+      firstUserId,
+      firstAssistantId,
+    ])
+
+    const branchFile = path.join(tmpDir, 'projects', projectDir, `${firstBranch.sessionId}.jsonl`)
+    const branchEntries = (await fs.readFile(branchFile, 'utf-8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+    const transcriptEntries = branchEntries.filter(
+      (entry) => entry.type === 'user' || entry.type === 'attachment' || entry.type === 'assistant',
+    )
+    expect(transcriptEntries.map((entry) => entry.parentUuid)).toEqual([
+      null,
+      firstUserId,
+      attachmentId,
+    ])
+    expect(transcriptEntries.every((entry) => entry.sessionId === firstBranch.sessionId)).toBe(true)
+    expect(transcriptEntries[1]).toMatchObject({
+      type: 'attachment',
+      attachment: { filePath: '/tmp/spec.md' },
+    })
+    expect(transcriptEntries[2]?.forkedFrom).toEqual({
+      sessionId: sourceSessionId,
+      messageUuid: firstAssistantId,
+    })
+  })
+
+  it('should include matching tool results and replacement metadata in a branch', async () => {
+    const sourceSessionId = '22222222-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const userId = crypto.randomUUID()
+    const assistantId = crypto.randomUUID()
+    const toolResultId = crypto.randomUUID()
+    const laterAssistantId = crypto.randomUUID()
+    const workDir = path.join(tmpDir, 'branch-tool-project')
+    const projectDir = sanitizePath(workDir)
+    await fs.mkdir(workDir, { recursive: true })
+
+    await writeSessionFile(projectDir, sourceSessionId, [
+      makeSnapshotEntry(),
+      makeSessionMetaEntry(workDir),
+      {
+        ...makeUserEntry('inspect the file', userId),
+        sessionId: sourceSessionId,
+      },
+      {
+        parentUuid: userId,
+        isSidechain: false,
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          model: 'claude-opus-4-7',
+          content: [
+            { type: 'text', text: 'I will inspect it.' },
+            { type: 'tool_use', id: 'tool-read-1', name: 'Read', input: { file_path: 'src/app.ts' } },
+          ],
+        },
+        uuid: assistantId,
+        sessionId: sourceSessionId,
+        timestamp: '2026-01-01T00:02:00.000Z',
+      },
+      {
+        parentUuid: assistantId,
+        isSidechain: false,
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [
+            { type: 'tool_result', tool_use_id: 'tool-read-1', content: 'const answer = 42' },
+          ],
+        },
+        uuid: toolResultId,
+        sessionId: sourceSessionId,
+        timestamp: '2026-01-01T00:03:00.000Z',
+      },
+      {
+        ...makeAssistantEntry('The answer is 42.', toolResultId),
+        uuid: laterAssistantId,
+        sessionId: sourceSessionId,
+      },
+      {
+        type: 'content-replacement',
+        sessionId: sourceSessionId,
+        replacements: [
+          { toolUseId: 'tool-read-1', replacement: 'preview' },
+          { toolUseId: 'tool-not-in-branch', replacement: 'unrelated' },
+        ],
+      },
+    ])
+
+    const branch = await service.branchSession(sourceSessionId, assistantId, {
+      projectPath: projectDir,
+      expectedContent: 'I will inspect it.',
+    })
+    const messages = await service.getSessionMessages(branch.sessionId, { projectPath: projectDir })
+
+    expect(messages.messages.map((message) => message.id)).toEqual([
+      userId,
+      assistantId,
+      toolResultId,
+    ])
+    expect(messages.messages.map((message) => message.type)).toEqual([
+      'user',
+      'tool_use',
+      'tool_result',
+    ])
+    expect(messages.messages.some((message) => message.id === laterAssistantId)).toBe(false)
+
+    const branchFile = path.join(tmpDir, 'projects', projectDir, `${branch.sessionId}.jsonl`)
+    const branchEntries = (await fs.readFile(branchFile, 'utf-8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+    expect(branchEntries.find((entry) => entry.type === 'content-replacement')).toMatchObject({
+      sessionId: branch.sessionId,
+      replacements: [{ toolUseId: 'tool-read-1', replacement: 'preview' }],
+    })
+  })
+
+  it('should reject non-assistant and unfinished-tool branch targets', async () => {
+    const sourceSessionId = '33333333-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const userId = crypto.randomUUID()
+    const assistantId = crypto.randomUUID()
+    const workDir = path.join(tmpDir, 'invalid-branch-project')
+    const projectDir = sanitizePath(workDir)
+    await fs.mkdir(workDir, { recursive: true })
+
+    await writeSessionFile(projectDir, sourceSessionId, [
+      makeSessionMetaEntry(workDir),
+      {
+        ...makeUserEntry('run it', userId),
+        sessionId: sourceSessionId,
+      },
+      {
+        parentUuid: userId,
+        isSidechain: false,
+        type: 'assistant',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 'pending-tool', name: 'Bash', input: {} }],
+        },
+        uuid: assistantId,
+        sessionId: sourceSessionId,
+        timestamp: '2026-01-01T00:02:00.000Z',
+      },
+    ])
+
+    expect(
+      service.branchSession(sourceSessionId, userId, { projectPath: projectDir }),
+    ).rejects.toThrow('not an assistant response')
+    expect(
+      service.branchSession(sourceSessionId, assistantId, { projectPath: projectDir }),
+    ).rejects.toThrow('unfinished tool calls')
+  })
+
   it('should throw when workDir does not exist', async () => {
     expect(service.createSession('/tmp/definitely-missing-cybercode')).rejects.toThrow(
       'Working directory does not exist'
@@ -1005,6 +1246,62 @@ describe('Sessions API', () => {
     expect(body.sessionId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     )
+  })
+
+  it('POST /api/sessions/:id/branch should create and return an independent branch', async () => {
+    const sourceSessionId = '44444444-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const userId = crypto.randomUUID()
+    const assistantId = crypto.randomUUID()
+    const workDir = path.join(tmpDir, 'api-branch-project')
+    const projectDir = sanitizePath(workDir)
+    await fs.mkdir(workDir, { recursive: true })
+    await writeSessionFile(projectDir, sourceSessionId, [
+      makeSessionMetaEntry(workDir),
+      {
+        ...makeUserEntry('branch this reply', userId),
+        sessionId: sourceSessionId,
+      },
+      {
+        ...makeAssistantEntry('branch point', userId),
+        uuid: assistantId,
+        sessionId: sourceSessionId,
+      },
+    ])
+
+    const response = await fetch(
+      `${baseUrl}/api/sessions/${sourceSessionId}/branch?projectPath=${encodeURIComponent(projectDir)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetAssistantMessageId: assistantId,
+          expectedContent: 'branch point',
+        }),
+      },
+    )
+
+    expect(response.status).toBe(201)
+    const body = await response.json() as {
+      sessionId: string
+      sourceSessionId: string
+      targetAssistantMessageId: string
+      session: { id: string; title: string; projectPath: string }
+    }
+    expect(body).toMatchObject({
+      sourceSessionId,
+      targetAssistantMessageId: assistantId,
+      session: {
+        id: body.sessionId,
+        title: 'branch this reply (Branch)',
+        projectPath: projectDir,
+      },
+    })
+    expect(body.sessionId).not.toBe(sourceSessionId)
+
+    const sourceMessages = await service.getSessionMessages(sourceSessionId, { projectPath: projectDir })
+    const branchMessages = await service.getSessionMessages(body.sessionId, { projectPath: projectDir })
+    expect(sourceMessages.messages).toHaveLength(2)
+    expect(branchMessages.messages.map((message) => message.id)).toEqual([userId, assistantId])
   })
 
   it('POST /api/sessions/project-folders should create a project folder', async () => {

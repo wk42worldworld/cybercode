@@ -51,6 +51,13 @@ export type CreateSessionOptions = {
   temporary?: boolean
 }
 
+export type BranchSessionResult = {
+  sessionId: string
+  sourceSessionId: string
+  targetAssistantMessageId: string
+  session: SessionListItem
+}
+
 export type SessionLaunchInfo = {
   filePath: string
   projectDir: string
@@ -317,6 +324,59 @@ export class SessionService {
       entry.type === 'session-meta' &&
       (entry as Record<string, unknown>).isTemporary === true
     )
+  }
+
+  private isMainTranscriptEntry(entry: RawEntry): boolean {
+    if (entry.isMeta === true || entry.isSidechain === true) return false
+    if (entry.type === 'attachment') return true
+    return (
+      (entry.type === 'user' || entry.type === 'assistant' || entry.type === 'system') &&
+      typeof entry.message?.role === 'string'
+    )
+  }
+
+  private extractToolUseIds(content: unknown): string[] {
+    if (!Array.isArray(content)) return []
+    return content.flatMap((block) => {
+      if (!block || typeof block !== 'object') return []
+      const record = block as Record<string, unknown>
+      return record.type === 'tool_use' && typeof record.id === 'string'
+        ? [record.id]
+        : []
+    })
+  }
+
+  private extractToolResultIds(content: unknown): string[] {
+    if (!Array.isArray(content)) return []
+    return content.flatMap((block) => {
+      if (!block || typeof block !== 'object') return []
+      const record = block as Record<string, unknown>
+      return record.type === 'tool_result' && typeof record.tool_use_id === 'string'
+        ? [record.tool_use_id]
+        : []
+    })
+  }
+
+  private normalizeBranchGuardText(value: string): string {
+    return value.replace(/\r\n/g, '\n').trim()
+  }
+
+  private async getUniqueBranchTitle(sourceTitle: string, workDir: string): Promise<string> {
+    const baseTitle = sourceTitle.replace(/\s+\(Branch(?: \d+)?\)$/i, '').trim() || 'Untitled Session'
+    const { sessions } = await this.listSessions({
+      project: workDir,
+      limit: Number.MAX_SAFE_INTEGER,
+    })
+    const existingTitles = new Set(sessions.map((session) => session.title))
+
+    const firstCandidate = `${baseTitle} (Branch)`
+    if (!existingTitles.has(firstCandidate)) return firstCandidate
+
+    let suffix = 2
+    while (existingTitles.has(`${baseTitle} (Branch ${suffix})`)) {
+      suffix += 1
+    }
+    return `${baseTitle} (Branch ${suffix})`
   }
 
   // --------------------------------------------------------------------------
@@ -1493,6 +1553,180 @@ export class SessionService {
         workDirExists: true,
         isTemporary,
       },
+    }
+  }
+
+  /**
+   * Create an independent conversation branch ending at an assistant response.
+   * The source transcript is never modified.
+   */
+  async branchSession(
+    sourceSessionId: string,
+    targetAssistantMessageId: string,
+    options?: { projectPath?: string; expectedContent?: string },
+  ): Promise<BranchSessionResult> {
+    const found = await this.findSessionFile(sourceSessionId, {
+      projectPath: options?.projectPath,
+    })
+    if (!found) {
+      throw ApiError.notFound(`Session not found: ${sourceSessionId}`)
+    }
+
+    const sourceEntries = await this.readJsonlFile(found.filePath)
+    const mainEntries = sourceEntries.filter((entry) => this.isMainTranscriptEntry(entry))
+    const targetIndex = mainEntries.findIndex((entry) => entry.uuid === targetAssistantMessageId)
+    if (targetIndex < 0) {
+      throw ApiError.badRequest('The selected assistant response no longer exists')
+    }
+
+    const targetEntry = mainEntries[targetIndex]!
+    if (targetEntry.type !== 'assistant' || targetEntry.message?.role !== 'assistant') {
+      throw ApiError.badRequest('The selected message is not an assistant response')
+    }
+
+    if (typeof options?.expectedContent === 'string' && options.expectedContent.trim()) {
+      const expected = this.normalizeBranchGuardText(options.expectedContent)
+      const actual = this.normalizeBranchGuardText(
+        this.extractTextFromContent(targetEntry.message.content),
+      )
+      if (!actual || (expected !== actual && !expected.endsWith(actual))) {
+        throw ApiError.conflict('The selected assistant response changed; reload the conversation and try again')
+      }
+    }
+
+    let cutoffIndex = targetIndex
+    const unresolvedToolUseIds = new Set(
+      this.extractToolUseIds(targetEntry.message.content),
+    )
+    if (unresolvedToolUseIds.size > 0) {
+      for (let index = targetIndex + 1; index < mainEntries.length; index += 1) {
+        const entry = mainEntries[index]!
+        for (const toolUseId of this.extractToolResultIds(entry.message?.content)) {
+          unresolvedToolUseIds.delete(toolUseId)
+        }
+        cutoffIndex = index
+        if (unresolvedToolUseIds.size === 0) break
+      }
+
+      if (unresolvedToolUseIds.size > 0) {
+        throw ApiError.badRequest('This response still has unfinished tool calls and cannot be branched yet')
+      }
+    }
+
+    const selectedEntries = mainEntries.slice(0, cutoffIndex + 1)
+    if (selectedEntries.length === 0) {
+      throw ApiError.badRequest('No conversation messages are available to branch')
+    }
+
+    const workDir = this.resolveWorkDirFromEntries(sourceEntries, found.projectDir)
+    if (!workDir) {
+      throw ApiError.badRequest('The source session working directory could not be resolved')
+    }
+
+    const sessionId = crypto.randomUUID()
+    const filePath = path.join(this.getProjectsDir(), found.projectDir, `${sessionId}.jsonl`)
+    const temporaryFilePath = `${filePath}.${crypto.randomUUID()}.tmp`
+    const now = new Date().toISOString()
+    const title = await this.getUniqueBranchTitle(this.extractTitle(sourceEntries), workDir)
+    const isTemporary = this.resolveIsTemporaryFromEntries(sourceEntries)
+
+    let parentUuid: string | null = null
+    const includedToolUseIds = new Set<string>()
+    const branchedEntries = selectedEntries.map((entry) => {
+      const sourceUuid = entry.uuid || crypto.randomUUID()
+      for (const toolUseId of this.extractToolUseIds(entry.message?.content)) {
+        includedToolUseIds.add(toolUseId)
+      }
+
+      const branchedEntry: RawEntry = {
+        ...entry,
+        uuid: sourceUuid,
+        sessionId,
+        parentUuid,
+        isSidechain: false,
+        forkedFrom: {
+          sessionId: sourceSessionId,
+          messageUuid: sourceUuid,
+        },
+      }
+      parentUuid = sourceUuid
+      return branchedEntry
+    })
+
+    const replacements = sourceEntries.flatMap((entry) => {
+      if (entry.type !== 'content-replacement' || !Array.isArray(entry.replacements)) {
+        return []
+      }
+      return entry.replacements.filter((replacement) => {
+        if (!replacement || typeof replacement !== 'object') return false
+        const toolUseId = (replacement as Record<string, unknown>).toolUseId
+        return typeof toolUseId === 'string' && includedToolUseIds.has(toolUseId)
+      })
+    })
+
+    const outputEntries: RawEntry[] = [
+      {
+        type: 'file-history-snapshot',
+        messageId: crypto.randomUUID(),
+        snapshot: {
+          messageId: crypto.randomUUID(),
+          trackedFileBackups: {},
+          timestamp: now,
+        },
+        isSnapshotUpdate: false,
+      },
+      {
+        type: 'session-meta',
+        isMeta: true,
+        workDir,
+        isTemporary,
+        timestamp: now,
+        branchedFrom: {
+          sessionId: sourceSessionId,
+          messageUuid: targetAssistantMessageId,
+        },
+      },
+      ...branchedEntries,
+      ...(replacements.length > 0
+        ? [{ type: 'content-replacement', sessionId, replacements }]
+        : []),
+      {
+        type: 'custom-title',
+        customTitle: title,
+        timestamp: now,
+      },
+    ]
+
+    await fs.mkdir(path.dirname(filePath), { recursive: true })
+    try {
+      await fs.writeFile(
+        temporaryFilePath,
+        outputEntries.map((entry) => JSON.stringify(entry)).join('\n') + '\n',
+        { encoding: 'utf-8', mode: 0o600 },
+      )
+      await fs.rename(temporaryFilePath, filePath)
+    } catch (error) {
+      await fs.rm(temporaryFilePath, { force: true }).catch(() => {})
+      throw error
+    }
+
+    await this.syncSessionSearchIndex({
+      filePath,
+      projectDir: found.projectDir,
+      sessionId,
+    })
+
+    const detail = await this.getSession(sessionId, { projectPath: found.projectDir })
+    if (!detail) {
+      throw new Error(`Created branch could not be loaded: ${sessionId}`)
+    }
+    const { messages: _messages, ...session } = detail
+
+    return {
+      sessionId,
+      sourceSessionId,
+      targetAssistantMessageId,
+      session,
     }
   }
 

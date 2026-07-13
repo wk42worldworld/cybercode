@@ -130,20 +130,39 @@ function parseCapabilities(value: unknown): string[] | undefined {
     return value.filter((entry): entry is string => typeof entry === 'string')
   }
   if (!value || typeof value !== 'object') return undefined
-  const enabled = Object.entries(value as Record<string, unknown>)
+  const entries = Object.entries(value as Record<string, unknown>)
+  const enabled = entries
     .filter(([, state]) => state === true)
     .map(([name]) => name)
-  return enabled.length > 0 ? enabled : undefined
+  return entries.some(([, state]) => typeof state === 'boolean') ? enabled : undefined
 }
 
 function supportsImages(record: Record<string, unknown>): boolean | undefined {
   const direct = record.supports_images ?? record.supportsImages
   if (typeof direct === 'boolean') return direct
-  const capabilities = parseCapabilities(record.capabilities)
-  if (!capabilities) return undefined
-  return capabilities.some((capability) =>
-    /^(?:vision|image|images|image_input|input_image|multimodal)$/i.test(capability.trim())
-  )
+
+  const modalities = record.modalities
+  const modalityRecord = modalities && typeof modalities === 'object' && !Array.isArray(modalities)
+    ? modalities as Record<string, unknown>
+    : undefined
+  const candidates = [
+    record.capabilities,
+    record.input_modalities,
+    record.inputModalities,
+    modalityRecord?.input,
+    modalityRecord?.inputs,
+    Array.isArray(modalities) ? modalities : undefined,
+  ]
+  let hasExplicitMetadata = false
+  for (const candidate of candidates) {
+    const capabilities = parseCapabilities(candidate)
+    if (!capabilities) continue
+    hasExplicitMetadata = true
+    if (capabilities.some((capability) =>
+      /^(?:vision|image|images|image_input|input_image|multimodal)$/i.test(capability.trim())
+    )) return true
+  }
+  return hasExplicitMetadata ? false : undefined
 }
 
 function toModelInfo(record: Record<string, unknown>): ProviderModelInfo | undefined {

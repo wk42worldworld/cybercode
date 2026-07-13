@@ -15,11 +15,15 @@ const PROMPT_MEMORY_SECTION = [
   '',
   'User calls CyberCode 零.',
 ].join('\n')
+const CAVEMAN_SECTION = '# Caveman response compression\nKeep responses concise.'
+const PONYTAIL_SECTION = '# Ponytail minimal implementation discipline\nBuild the minimum complete solution.'
 
 function buildPrompt(params: {
   customSystemPrompt?: string
   agentPrompt?: string
   appendSystemPrompt?: string
+  cavemanEnabled?: boolean
+  ponytailEnabled?: boolean
 }): readonly string[] {
   const mainThreadAgentDefinition = params.agentPrompt
     ? {
@@ -37,6 +41,8 @@ function buildPrompt(params: {
     defaultSystemPrompt: [
       'Default static coding instructions.',
       PROMPT_MEMORY_SECTION,
+      ...(params.ponytailEnabled ? [PONYTAIL_SECTION] : []),
+      ...(params.cavemanEnabled ? [CAVEMAN_SECTION] : []),
       'Default environment info.',
     ],
     appendSystemPrompt: params.appendSystemPrompt,
@@ -74,5 +80,23 @@ describe('system prompt assembly', () => {
     expect(prompt).toContain(PROMPT_MEMORY_SECTION)
     expect(prompt).toContain('Agent-specific behavior.')
     expect(prompt).not.toContain('Default static coding instructions.')
+  })
+
+  test('preserves global optimizations for custom and agent prompts', () => {
+    const customPrompt = buildPrompt({
+      customSystemPrompt: 'Custom task behavior.',
+      cavemanEnabled: true,
+      ponytailEnabled: true,
+    })
+    const agentPrompt = buildPrompt({
+      agentPrompt: 'Agent-specific behavior.',
+      cavemanEnabled: true,
+      ponytailEnabled: true,
+    })
+
+    expect(customPrompt).toContain(CAVEMAN_SECTION)
+    expect(customPrompt).toContain(PONYTAIL_SECTION)
+    expect(agentPrompt).toContain(CAVEMAN_SECTION)
+    expect(agentPrompt).toContain(PONYTAIL_SECTION)
   })
 })

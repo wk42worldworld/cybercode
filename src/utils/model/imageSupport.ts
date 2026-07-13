@@ -27,7 +27,13 @@ export function inferModelSupportsImages(modelId: string | undefined): boolean |
     normalized.includes('gpt-5') ||
     normalized.includes('kimi-k2') ||
     normalized.includes('kimi-for-coding') ||
-    /\bqwen3\.(?:5|6)(?:[:\-]|$)/.test(normalized) ||
+    /\bqwen3\.(?:5|6|7)(?:[:\-]|$)/.test(normalized) ||
+    /\b(?:pixtral|llava|internvl|molmo|paligemma)\b/.test(normalized) ||
+    /\bminicpm[-_.]?v\b/.test(normalized) ||
+    /\bgemma[-_. ]?3n\b/.test(normalized) ||
+    /\bgemma[-_. ]?3(?:[:\-_. ](?:4b|12b|27b))\b/.test(normalized) ||
+    /\bgemma[-_. ]?4\b/.test(normalized) ||
+    /\bgrok[-_. ]?4\.(?:3|5)\b/.test(normalized) ||
     normalized.includes('claude-3') ||
     normalized.includes('claude-4') ||
     normalized.includes('claude-sonnet') ||

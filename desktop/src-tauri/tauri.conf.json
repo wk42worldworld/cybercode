@@ -52,7 +52,10 @@
     "externalBin": [
       "binaries/claude-sidecar"
     ],
-    "resources": [],
+    "resources": [
+      "resources/codegraph",
+      "resources/rtk"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -34,4 +34,21 @@ describe('Modal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('consumes Escape so a parent panel does not close from the same key press', () => {
+    const onClose = vi.fn()
+    const onWindowKeyDown = vi.fn()
+    window.addEventListener('keydown', onWindowKeyDown)
+    render(
+      <Modal open onClose={onClose} title="Preview">
+        <span>Preview content</span>
+      </Modal>,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onWindowKeyDown).not.toHaveBeenCalled()
+    window.removeEventListener('keydown', onWindowKeyDown)
+  })
 })

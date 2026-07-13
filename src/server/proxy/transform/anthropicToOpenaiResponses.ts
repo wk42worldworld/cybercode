@@ -10,8 +10,8 @@ import type {
   AnthropicMessage,
   OpenAIResponsesRequest,
   OpenAIResponsesInputItem,
+  OpenAIResponsesContentPart,
   OpenAITool,
-  OpenAIChatContentPart,
 } from './types.js'
 
 /**
@@ -98,27 +98,31 @@ function convertMessageToInputItems(msg: AnthropicMessage, output: OpenAIRespons
   }
 
   // Collect text/image parts and handle tool blocks separately
-  const contentParts: (string | OpenAIChatContentPart)[] = []
+  const contentParts: OpenAIResponsesContentPart[] = []
+
+  const flushContentParts = () => {
+    if (contentParts.length === 0) return
+    output.push({
+      type: 'message',
+      role: msg.role,
+      content: [...contentParts],
+    })
+    contentParts.length = 0
+  }
 
   for (const block of content) {
     if (block.type === 'text') {
-      contentParts.push(block.text)
+      contentParts.push({
+        type: msg.role === 'assistant' ? 'output_text' : 'input_text',
+        text: block.text,
+      })
     } else if (block.type === 'image') {
       contentParts.push({
-        type: 'image_url',
-        image_url: { url: `data:${block.source.media_type};base64,${block.source.data}` },
+        type: 'input_image',
+        image_url: `data:${block.source.media_type};base64,${block.source.data}`,
       })
     } else if (block.type === 'tool_use') {
-      // Flush any accumulated content first
-      if (contentParts.length > 0) {
-        const flatContent = contentParts.length === 1 && typeof contentParts[0] === 'string'
-          ? contentParts[0]
-          : contentParts.map((p) => typeof p === 'string' ? p : '').join('')
-        if (flatContent) {
-          output.push({ type: 'message', role: msg.role, content: flatContent })
-        }
-        contentParts.length = 0
-      }
+      flushContentParts()
       // Lift to function_call item
       output.push({
         type: 'function_call',
@@ -143,14 +147,7 @@ function convertMessageToInputItems(msg: AnthropicMessage, output: OpenAIRespons
   }
 
   // Flush remaining content
-  if (contentParts.length > 0) {
-    const flatContent = contentParts.length === 1 && typeof contentParts[0] === 'string'
-      ? contentParts[0]
-      : contentParts.map((p) => typeof p === 'string' ? p : '').join('')
-    if (flatContent) {
-      output.push({ type: 'message', role: msg.role, content: flatContent })
-    }
-  }
+  flushContentParts()
 }
 
 function convertToolChoice(choice: unknown): unknown {

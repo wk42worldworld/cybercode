@@ -29,6 +29,22 @@ describe('ProviderLogo', () => {
     }).id).toBe('qwen')
   })
 
+  it('uses the official OpenAI and Google Gemini assets', () => {
+    const { rerender } = render(<ProviderLogo name="OpenAI" providerId="openai" />)
+
+    const openAiLogo = screen.getByAltText('OpenAI logo')
+    expect(openAiLogo).toHaveAttribute('src', '/provider-icons/official/openai-blossom.svg')
+    expect(openAiLogo.parentElement).toHaveAttribute('data-provider-logo-kind', 'asset')
+    expect(openAiLogo).not.toHaveStyle({ filter: expect.stringContaining('drop-shadow') })
+
+    rerender(<ProviderLogo name="Gemini" providerId="google" />)
+
+    const geminiLogo = screen.getByAltText('Gemini logo')
+    expect(geminiLogo).toHaveAttribute('src', '/provider-icons/official/google-gemini.png')
+    expect(geminiLogo.parentElement).toHaveAttribute('data-provider-logo-kind', 'asset')
+    expect(geminiLogo).not.toHaveStyle({ filter: expect.stringContaining('drop-shadow') })
+  })
+
   it('renders unknown custom providers as generated monograms', () => {
     render(<ProviderLogo name="Acme Lab" providerId="custom" />)
 

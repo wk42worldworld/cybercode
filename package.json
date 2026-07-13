@@ -50,6 +50,7 @@
     "ignore": "^7.0.5",
     "indent-string": "^5.0.0",
     "ink": "^6.8.0",
+    "json5": "^2.2.3",
     "jsonc-parser": "^3.3.1",
     "lodash-es": "^4.17.23",
     "lru-cache": "^11.2.7",

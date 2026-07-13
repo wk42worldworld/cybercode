@@ -10,11 +10,8 @@
         "decorations": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "transparent": true,
-        "windowEffects": {
-          "effects": ["sidebar"],
-          "state": "active"
-        },
+        "transparent": false,
+        "backgroundColor": "#f8f9fa",
         "acceptFirstMouse": true
       }
     ]

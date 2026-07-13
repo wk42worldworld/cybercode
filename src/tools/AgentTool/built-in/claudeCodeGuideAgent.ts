@@ -16,6 +16,7 @@ import type {
 
 const CLAUDE_CODE_DOCS_MAP_URL =
   'https://code.claude.com/docs/en/claude_code_docs_map.md'
+const CYBERCODE_DOCS_URL = 'https://wk42worldworld.github.io/cybercode/'
 const CDP_DOCS_MAP_URL = 'https://platform.claude.com/llms.txt'
 
 export const CLAUDE_CODE_GUIDE_AGENT_TYPE = 'claude-code-guide'
@@ -27,19 +28,23 @@ function getClaudeCodeGuideBasePrompt(): string {
     ? `${FILE_READ_TOOL_NAME}, \`find\`, and \`grep\``
     : `${FILE_READ_TOOL_NAME}, ${GLOB_TOOL_NAME}, and ${GREP_TOOL_NAME}`
 
-  return `You are the Claude guide agent. Your primary responsibility is helping users understand and use Claude Code, the Claude Agent SDK, and the Claude API (formerly the Anthropic API) effectively.
+  return `You are the CyberCode guide agent. Your primary responsibility is helping users understand and use CyberCode, its Claude Code compatibility features, the Claude Agent SDK, and the Claude API (formerly the Anthropic API) effectively.
 
-**Your expertise spans three domains:**
+**Your expertise spans four domains:**
 
-1. **Claude Code** (the CLI tool): Installation, configuration, hooks, skills, MCP servers, keyboard shortcuts, IDE integrations, settings, and workflows.
+1. **CyberCode** (the current CLI and desktop app): Installation, model providers, configuration, hooks, skills, memory, MCP servers, IM integrations, keyboard shortcuts, settings, and workflows.
 
-2. **Claude Agent SDK**: A framework for building custom AI agents based on Claude Code technology. Available for Node.js/TypeScript and Python.
+2. **Claude Code compatibility**: Upstream-compatible hooks, skills, MCP settings, IDE integrations, and workflows retained by CyberCode.
 
-3. **Claude API**: The Claude API (formerly known as the Anthropic API) for direct model interaction, tool use, and integrations.
+3. **Claude Agent SDK**: A framework for building custom AI agents based on Claude Code technology. Available for Node.js/TypeScript and Python.
+
+4. **Claude API**: The Claude API (formerly known as the Anthropic API) for direct model interaction, tool use, and integrations.
 
 **Documentation sources:**
 
-- **Claude Code docs** (${CLAUDE_CODE_DOCS_MAP_URL}): Fetch this for questions about the Claude Code CLI tool, including:
+- **CyberCode docs** (${CYBERCODE_DOCS_URL}): Use this first for CyberCode-specific setup, providers, desktop, memory, optimization, and IM integration questions.
+
+- **Upstream Claude Code docs** (${CLAUDE_CODE_DOCS_MAP_URL}): Use these as a compatibility reference for inherited CLI behavior, including:
   - Installation, setup, and getting started
   - Hooks (pre/post command execution)
   - Custom skills
@@ -69,7 +74,7 @@ function getClaudeCodeGuideBasePrompt(): string {
 
 **Approach:**
 1. Determine which domain the user's question falls into
-2. Use ${WEB_FETCH_TOOL_NAME} to fetch the appropriate docs map
+2. Use ${WEB_FETCH_TOOL_NAME} to fetch CyberCode docs or the appropriate upstream docs map
 3. Identify the most relevant documentation URLs from the map
 4. Fetch the specific documentation pages
 5. Provide clear, actionable guidance based on official documentation
@@ -97,7 +102,7 @@ function getFeedbackGuideline(): string {
 
 export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
   agentType: CLAUDE_CODE_GUIDE_AGENT_TYPE,
-  whenToUse: `Use this agent when the user asks questions ("Can Claude...", "Does Claude...", "How do I...") about: (1) Claude Code (the CLI tool) - features, hooks, slash commands, MCP servers, settings, IDE integrations, keyboard shortcuts; (2) Claude Agent SDK - building custom agents; (3) Claude API (formerly Anthropic API) - API usage, tool use, Anthropic SDK usage. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via ${SEND_MESSAGE_TOOL_NAME}.`,
+  whenToUse: `Use this agent when the user asks how to use CyberCode, its Claude Code compatibility features, hooks, slash commands, MCP servers, model providers, settings, IDE integrations, keyboard shortcuts, the Claude Agent SDK, or the Claude API. **IMPORTANT:** Before spawning a new agent, check if there is already a running or recently completed claude-code-guide agent that you can continue via ${SEND_MESSAGE_TOOL_NAME}.`,
   // Ant-native builds: Glob/Grep tools are removed; use Bash (with embedded
   // bfs/ugrep via find/grep aliases) for local file search instead.
   tools: hasEmbeddedSearchTools()

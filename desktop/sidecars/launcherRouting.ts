@@ -1,8 +1,8 @@
 import path from 'node:path'
 
-export type SidecarMode = 'server' | 'cli' | 'adapters'
+export type SidecarMode = 'server' | 'cli' | 'adapters' | 'codegraph'
 
-const EXPLICIT_MODES = new Set<SidecarMode>(['server', 'cli', 'adapters'])
+const EXPLICIT_MODES = new Set<SidecarMode>(['server', 'cli', 'adapters', 'codegraph'])
 const DESKTOP_CLI_NAMES = new Set(['cybercode', 'cybercode.exe'])
 
 export function resolveSidecarInvocation(
@@ -57,7 +57,7 @@ export function parseLauncherArgs(
   }
 
   if (!appRoot) {
-    throw new Error('Missing --app-root for claude-sidecar')
+    throw new Error('Missing --app-root for CyberCode sidecar')
   }
 
   return { appRoot, args: nextArgs }

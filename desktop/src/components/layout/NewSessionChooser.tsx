@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { sessionsApi, type RecentProject } from '../../api/sessions'
 import { useTranslation } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
+import { useSessionStore } from '../../stores/sessionStore'
 import type { CreateSessionInput, SessionListItem } from '../../types/session'
 import { Icon } from '../shared/Icon'
 
@@ -76,6 +77,7 @@ export function NewSessionChooser({
 }: NewSessionChooserProps) {
   const t = useTranslation()
   const addToast = useUIStore((state) => state.addToast)
+  const projectDisplayNames = useSessionStore((state) => state.projectDisplayNames)
   const [projects, setProjects] = useState<RecentProject[]>(() => cachedRecentProjects ?? [])
   const [isLoading, setIsLoading] = useState(() => cachedRecentProjects === null)
   const [creatingKey, setCreatingKey] = useState<string | null>(null)
@@ -178,7 +180,7 @@ export function NewSessionChooser({
             {recentProjects.map((project) => (
               <ProjectMenuItem
                 key={`${project.projectPath}:${project.realPath}`}
-                title={projectTitle(project)}
+                title={projectDisplayNames[project.projectPath] || projectTitle(project)}
                 subtitle={`${compactPath(project.realPath)}${project.branch ? ` · ${project.branch}` : ''}`}
                 meta={t('newSession.sessionCount', { count: project.sessionCount })}
                 icon={project.isGit ? 'source' : 'folder'}

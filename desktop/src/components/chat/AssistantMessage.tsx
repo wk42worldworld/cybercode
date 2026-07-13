@@ -16,6 +16,11 @@ type Props = {
   resultMap?: Map<string, ToolResult>
   childToolCallsByParent?: Map<string, ToolCall[]>
   isToolExecutionActive?: boolean
+  onBranch?: () => void
+  branchLabel?: string
+  branchDisabledLabel?: string
+  isBranching?: boolean
+  branchDisabled?: boolean
 }
 
 function isDocumentLike(content: string): boolean {
@@ -37,6 +42,11 @@ export function AssistantMessage({
   resultMap,
   childToolCallsByParent,
   isToolExecutionActive = true,
+  onBranch,
+  branchLabel,
+  branchDisabledLabel,
+  isBranching = false,
+  branchDisabled = false,
 }: Props) {
   const layout = !isStreaming && isDocumentLike(content) ? 'document' : 'bubble'
 
@@ -81,10 +91,15 @@ export function AssistantMessage({
           />
         )}
 
-        <div className="mt-[2px] opacity-0 transition-opacity group-hover/msg:opacity-100">
+        <div className="pointer-events-none ml-[16px] mt-[8px] min-h-6 opacity-0 transition-opacity group-hover/msg:pointer-events-auto group-hover/msg:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
           <MessageActionBar
             copyText={isStreaming ? undefined : content}
             copyLabel="Copy reply"
+            onBranch={isStreaming ? undefined : onBranch}
+            branchLabel={branchLabel}
+            branchDisabledLabel={branchDisabledLabel}
+            branching={isBranching}
+            branchDisabled={branchDisabled}
             align="start"
           />
         </div>

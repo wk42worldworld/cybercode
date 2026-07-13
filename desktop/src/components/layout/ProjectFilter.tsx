@@ -32,6 +32,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
     selectedProjects,
     selectedSessionScope,
     setSessionFilterScope,
+    projectDisplayNames,
   } = useSessionStore()
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<RecentProject[]>([])
@@ -130,7 +131,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
       if (!availableSet.has(project.projectPath)) continue
       optionsByPath.set(project.projectPath, {
         projectPath: project.projectPath,
-        title: project.repoName || project.projectName,
+        title: projectDisplayNames[project.projectPath] || project.repoName || project.projectName,
         subtitle: project.realPath,
         isGit: project.isGit,
         branch: project.branch,
@@ -142,7 +143,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
       if (optionsByPath.has(projectPath)) continue
       optionsByPath.set(projectPath, {
         projectPath,
-        title: fallbackProjectTitle(projectPath, t('sidebar.other')),
+        title: projectDisplayNames[projectPath] || fallbackProjectTitle(projectPath, t('sidebar.other')),
         subtitle: null,
         isGit: false,
         branch: null,
@@ -150,7 +151,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
     }
 
     return [...optionsByPath.values()].sort(compareProjectOptions)
-  }, [availableProjects, projects, t])
+  }, [availableProjects, projectDisplayNames, projects, t])
 
   const optionByPath = useMemo(
     () => new Map(options.map((option) => [option.projectPath, option])),
@@ -291,6 +292,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                       <button
                         key={option.projectPath}
                         type="button"
+                        title={option.subtitle ?? option.title}
                         onClick={() => selectProject(option.projectPath)}
                         className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors group ${
                           checked
@@ -303,11 +305,6 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                           <div className={`truncate text-[13px] ${checked ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                             {option.title}
                           </div>
-                          {option.subtitle && (
-                            <div className="truncate mt-px text-[10px] text-[var(--color-text-tertiary)] font-mono">
-                              {option.subtitle}
-                            </div>
-                          )}
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-1.5">
                           {option.branch && (

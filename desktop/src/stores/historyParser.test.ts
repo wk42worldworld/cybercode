@@ -71,6 +71,33 @@ describe('historyParser.mapHistoryMessages', () => {
     ])
   })
 
+  it('keeps the first history cursor and the latest assistant id for branching merged text', () => {
+    const messages: MessageEntry[] = [
+      {
+        id: 'assistant-part-1',
+        type: 'assistant',
+        timestamp: '2026-04-06T00:00:00.000Z',
+        content: [{ type: 'text', text: 'first part' }],
+      },
+      {
+        id: 'assistant-part-2',
+        type: 'assistant',
+        timestamp: '2026-04-06T00:00:01.000Z',
+        content: [{ type: 'text', text: ' second part' }],
+      },
+    ]
+
+    const mapped = mapHistoryMessages(messages, idGen)
+
+    expect(mapped).toHaveLength(1)
+    expect(mapped[0]).toMatchObject({
+      type: 'assistant_text',
+      content: 'first part second part',
+      serverId: 'assistant-part-1',
+      branchServerId: 'assistant-part-2',
+    })
+  })
+
   it('hides teammate-message wrappers by default', () => {
     const messages: MessageEntry[] = [
       {

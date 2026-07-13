@@ -93,6 +93,7 @@ describe('Sidebar', () => {
   const fetchSessions = vi.fn()
   const createSession = vi.fn()
   const deleteSession = vi.fn()
+  const renameSession = vi.fn()
   const addToast = vi.fn()
 
   beforeEach(() => {
@@ -102,6 +103,7 @@ describe('Sidebar', () => {
     fetchSessions.mockReset()
     createSession.mockReset()
     deleteSession.mockReset()
+    renameSession.mockReset()
     addToast.mockReset()
     createProjectFolderMock.mockReset()
     getRecentProjectsMock.mockReset()
@@ -120,9 +122,11 @@ describe('Sidebar', () => {
       selectedSessionScope: 'all',
       availableProjects: [],
       hiddenProjectPaths: [],
+      projectDisplayNames: {},
       fetchSessions,
       createSession,
       deleteSession,
+      renameSession,
     })
     useChatStore.setState({
       connectToSession,
@@ -131,6 +135,7 @@ describe('Sidebar', () => {
     } as Partial<ReturnType<typeof useChatStore.getState>>)
     useUIStore.setState({
       sidebarOpen: true,
+      settingsOpen: false,
       addToast,
     } as Partial<ReturnType<typeof useUIStore.getState>>)
   })
@@ -165,6 +170,19 @@ describe('Sidebar', () => {
     ])
     expect(useTabStore.getState().activeTabId).toBe('session-new-1')
     expect(screen.getByRole('complementary')).not.toHaveAttribute('data-tauri-drag-region')
+  })
+
+  it('closes the new-session menu when a settings panel opens', async () => {
+    render(<Sidebar />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Session' }))
+    expect(await screen.findByRole('menu', { name: 'New Session' })).toBeInTheDocument()
+
+    act(() => useUIStore.getState().openSettings('agentMigration'))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menu', { name: 'New Session' })).not.toBeInTheDocument()
+    })
   })
 
   it('shows a toast when session creation fails', async () => {
@@ -416,6 +434,162 @@ describe('Sidebar', () => {
 
     expect(useTabStore.getState().tabs).toEqual([])
     expect(useTabStore.getState().activeTabId).toBeNull()
+  })
+
+  it('keeps project and session paths in hover titles instead of visible rows', () => {
+    const now = new Date().toISOString()
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-path-tooltip',
+          title: 'Project Session',
+          lastMessage: 'Discuss release',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+          isTemporary: false,
+        },
+      ],
+    })
+
+    render(<Sidebar />)
+
+    expect(screen.queryByText('/workspace/project')).not.toBeInTheDocument()
+    expect(screen.getByText('project').closest('button')).toHaveAttribute('title', '/workspace/project')
+    expect(screen.getByText('Discuss release').closest('button')).toHaveAttribute('title', '/workspace/project')
+  })
+
+  it('renames a project display name without changing its path', () => {
+    const now = new Date().toISOString()
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-project-rename',
+          title: 'Project Session',
+          lastMessage: 'Recent work',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+          isTemporary: false,
+        },
+      ],
+    })
+
+    render(<Sidebar />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename: project' }))
+    const input = screen.getByRole('textbox', { name: 'Rename: project' })
+    fireEvent.change(input, { target: { value: 'Client Portal' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(screen.getByText('Client Portal')).toBeInTheDocument()
+    expect(screen.getByText('Client Portal').closest('button')).toHaveAttribute('title', '/workspace/project')
+    expect(useSessionStore.getState().projectDisplayNames).toEqual({
+      '-workspace-project': 'Client Portal',
+    })
+  })
+
+  it('renames a session from its hover action and updates the open tab title', async () => {
+    const now = new Date().toISOString()
+    renameSession.mockImplementation(async (id, title, projectPath) => {
+      useSessionStore.setState((state) => ({
+        sessions: state.sessions.map((session) =>
+          session.id === id && session.projectPath === projectPath
+            ? { ...session, title }
+            : session,
+        ),
+      }))
+    })
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-title-rename',
+          title: 'Original Session',
+          lastMessage: 'Recent work remains visible',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+          isTemporary: false,
+        },
+      ],
+    })
+    useTabStore.setState({
+      tabs: [{
+        sessionId: 'session-title-rename',
+        projectPath: '-workspace-project',
+        title: 'Original Session',
+        type: 'session',
+        status: 'idle',
+      }],
+      activeTabId: 'session-title-rename',
+    })
+
+    render(<Sidebar />)
+
+    expect(screen.getByText('Original Session')).toBeInTheDocument()
+    expect(screen.getByText('Recent work remains visible')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Rename: Original Session' }))
+    const input = screen.getByRole('textbox', { name: 'Rename: Original Session' })
+    fireEvent.change(input, { target: { value: 'Renamed Session' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(renameSession).toHaveBeenCalledTimes(1)
+      expect(renameSession).toHaveBeenCalledWith(
+        'session-title-rename',
+        'Renamed Session',
+        '-workspace-project',
+      )
+      expect(screen.getByText('Renamed Session')).toBeInTheDocument()
+    })
+    expect(useTabStore.getState().tabs[0]?.title).toBe('Renamed Session')
+  })
+
+  it('cancels project and session renames without saving draft names', () => {
+    const now = new Date().toISOString()
+    useSessionStore.setState({
+      sessions: [
+        {
+          id: 'session-rename-cancel',
+          title: 'Original Session',
+          lastMessage: 'Recent work',
+          createdAt: now,
+          modifiedAt: now,
+          messageCount: 1,
+          projectPath: '-workspace-project',
+          workDir: '/workspace/project',
+          workDirExists: true,
+          isTemporary: false,
+        },
+      ],
+    })
+
+    render(<Sidebar />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename: project' }))
+    const projectInput = screen.getByRole('textbox', { name: 'Rename: project' })
+    fireEvent.change(projectInput, { target: { value: 'Unsaved Project' } })
+    fireEvent.keyDown(projectInput, { key: 'Escape' })
+
+    expect(screen.getByText('project')).toBeInTheDocument()
+    expect(useSessionStore.getState().projectDisplayNames).toEqual({})
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename: Original Session' }))
+    const sessionInput = screen.getByRole('textbox', { name: 'Rename: Original Session' })
+    fireEvent.change(sessionInput, { target: { value: 'Unsaved Session' } })
+    fireEvent.keyDown(sessionInput, { key: 'Escape' })
+
+    expect(screen.getByText('Original Session')).toBeInTheDocument()
+    expect(renameSession).not.toHaveBeenCalled()
   })
 
   it('passes the selected projectPath locator when opening duplicate session ids', async () => {

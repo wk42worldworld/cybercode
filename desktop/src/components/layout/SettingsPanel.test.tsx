@@ -39,6 +39,10 @@ vi.mock('../../pages/TerminalSettings', () => ({
   ),
 }))
 
+vi.mock('../../pages/TokenOptimization', () => ({
+  TokenOptimization: () => <div data-testid="token-optimization-panel" />,
+}))
+
 describe('SettingsPanel content routing', () => {
   beforeEach(() => {
     useSettingsStore.setState({ locale: 'zh' })
@@ -80,7 +84,7 @@ describe('SettingsPanel content routing', () => {
     useUIStore.setState({ settingsPanelView: 'providers' })
 
     render(<SettingsPanel visible />)
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }))
 
     expect(useUIStore.getState().settingsOpen).toBe(false)
   })
@@ -92,5 +96,14 @@ describe('SettingsPanel content routing', () => {
 
     expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', '记忆')
     expect(screen.getByTestId('memory-panel')).toBeInTheDocument()
+  })
+
+  it('renders token optimization inside the shared floating panel', () => {
+    useUIStore.setState({ settingsPanelView: 'tokenOptimization' })
+
+    render(<SettingsPanel visible />)
+
+    expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', 'Token 优化')
+    expect(screen.getByTestId('token-optimization-panel')).toBeInTheDocument()
   })
 })

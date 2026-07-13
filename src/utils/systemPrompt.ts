@@ -26,6 +26,11 @@ function isProactiveActive_SAFE_TO_CALL_ANYWHERE(): boolean {
 }
 
 const PROMPT_MEMORY_MARKERS = ['# CyberCode Soul', '# Prompt Memory']
+const GLOBAL_OPTIMIZATION_MARKERS = [
+  '# Caveman response compression',
+  '# Ponytail minimal implementation discipline',
+  '# Lazy Programmer minimal implementation discipline',
+]
 
 export function getPromptMemorySections(
   defaultSystemPrompt: readonly string[],
@@ -41,15 +46,31 @@ function containsPromptMemorySection(sections: readonly string[]): boolean {
   )
 }
 
+function getGlobalOptimizationSections(
+  defaultSystemPrompt: readonly string[],
+): string[] {
+  return defaultSystemPrompt.filter(section =>
+    GLOBAL_OPTIMIZATION_MARKERS.some(marker => section.includes(marker)),
+  )
+}
+
+function containsGlobalOptimizationSection(sections: readonly string[]): boolean {
+  return sections.some(section =>
+    GLOBAL_OPTIMIZATION_MARKERS.some(marker => section.includes(marker)),
+  )
+}
+
 export function preservePromptMemoryForReplacement(params: {
   defaultSystemPrompt: readonly string[]
   replacementSystemPrompt: readonly string[]
 }): string[] {
-  if (containsPromptMemorySection(params.replacementSystemPrompt)) {
-    return [...params.replacementSystemPrompt]
-  }
   return [
-    ...getPromptMemorySections(params.defaultSystemPrompt),
+    ...(containsPromptMemorySection(params.replacementSystemPrompt)
+      ? []
+      : getPromptMemorySections(params.defaultSystemPrompt)),
+    ...(containsGlobalOptimizationSection(params.replacementSystemPrompt)
+      ? []
+      : getGlobalOptimizationSections(params.defaultSystemPrompt)),
     ...params.replacementSystemPrompt,
   ]
 }

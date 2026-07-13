@@ -6,7 +6,6 @@ import {
   type LearnedImageSupportSource,
 } from '../../utils/model/imageCapabilityRegistry.js'
 import {
-  inferModelSupportsImages,
   resolveProviderImageSupport,
   type ImageSupportResolution,
 } from './modelImageSupport.js'
@@ -23,7 +22,9 @@ type ProbeOptions = {
 }
 
 const PROBE_IMAGE_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlqsAAAAASUVORK5CYII='
+  'iVBORw0KGgoAAAANSUhEUgAAAJQAAAAwCAYAAAD3sVMsAAAA8ElEQVR4Ae3BsS3EcQCG4fe+UCh0LgaQuAWYQgwgUSpFZwqdKJUSA4gpzgInMYCcTqFQnJvgJ//kK9/nmW22kEqCVBSkoiAVBakoSEU7/ONjsWCKo9WKkfXFPlPMn78ZWd7tMsXp7S8jh09nTPF5+crI3v0LU/zcnDNyfPXFFO+PB4w8nKyZ4vptzkiQioJUFKSiIBUFqShIRUEqClJRkIqCVBSkoiAVBakoSEVBKgpSUZCKglQUpKIgFQWpKEhFQSoKUlGQioJUFKSiIBUFqShIRUEqClJRkIqCVBSkotlmC6kkSEVBKgpSUZCKglT0B0kfHVmUN/WnAAAAAElFTkSuQmCC'
+const PROBE_PROMPT =
+  'Count the distinct vertical colored bars in the image. Reply with only the number.'
 
 export function isImageInputUnsupportedError(message: string): boolean {
   const normalized = message.replace(/\s+/g, ' ').trim()
@@ -204,7 +205,7 @@ function buildImageProbeRequest(provider: SavedProvider, modelId: string): {
           role: 'user',
           content: [
             { type: 'image_url', image_url: { url: dataUrl } },
-            { type: 'text', text: 'Reply with OK.' },
+            { type: 'text', text: PROBE_PROMPT },
           ],
         }],
       },
@@ -222,7 +223,7 @@ function buildImageProbeRequest(provider: SavedProvider, modelId: string): {
           role: 'user',
           content: [
             { type: 'input_image', image_url: dataUrl },
-            { type: 'input_text', text: 'Reply with OK.' },
+            { type: 'input_text', text: PROBE_PROMPT },
           ],
         }],
       },
@@ -246,7 +247,7 @@ function buildImageProbeRequest(provider: SavedProvider, modelId: string): {
             type: 'image',
             source: { type: 'base64', media_type: 'image/png', data: PROBE_IMAGE_BASE64 },
           },
-          { type: 'text', text: 'Reply with OK.' },
+          { type: 'text', text: PROBE_PROMPT },
         ],
       }],
     },
@@ -275,6 +276,50 @@ function extractResponseText(raw: string): string {
   } catch {
     return raw.slice(0, 2000)
   }
+}
+
+function textFromContent(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (!Array.isArray(value)) return ''
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return ''
+      const record = item as Record<string, unknown>
+      if (typeof record.text === 'string') return record.text
+      return textFromContent(record.content)
+    })
+    .filter(Boolean)
+    .join(' ')
+}
+
+function extractProbeOutputText(raw: string): string {
+  if (!raw.trim()) return ''
+  try {
+    const body = JSON.parse(raw) as Record<string, unknown>
+    const choices = Array.isArray(body.choices) ? body.choices : []
+    const output = Array.isArray(body.output) ? body.output : []
+    return [
+      typeof body.output_text === 'string' ? body.output_text : '',
+      textFromContent(body.content),
+      ...choices.map((choice) => {
+        if (!choice || typeof choice !== 'object') return ''
+        const message = (choice as Record<string, unknown>).message
+        if (!message || typeof message !== 'object') return ''
+        return textFromContent((message as Record<string, unknown>).content)
+      }),
+      ...output.map((item) => {
+        if (!item || typeof item !== 'object') return ''
+        return textFromContent((item as Record<string, unknown>).content)
+      }),
+    ].filter(Boolean).join(' ').trim()
+  } catch {
+    return ''
+  }
+}
+
+function passedVisionChallenge(output: string): boolean {
+  const normalized = output.trim().toLowerCase().replace(/[\s.!。！]+/g, '')
+  return normalized === '7' || normalized === 'seven' || normalized === '七'
 }
 
 export async function probeProviderImageSupport(
@@ -306,11 +351,21 @@ export async function probeProviderImageSupport(
     const raw = await response.text().catch(() => '')
     const detail = extractResponseText(raw)
 
-    if (response.ok && !isImageInputUnsupportedError(detail)) {
-      return { status: 'supported', source: 'probe' }
-    }
     if (isImageInputUnsupportedError(detail)) {
       return { status: 'unsupported', source: 'probe', detail }
+    }
+    if (response.ok) {
+      const output = extractProbeOutputText(raw)
+      if (passedVisionChallenge(output)) {
+        return { status: 'supported', source: 'probe' }
+      }
+      return {
+        status: 'unknown',
+        source: 'probe',
+        detail: output
+          ? `Vision challenge returned an unexpected answer: ${output.slice(0, 200)}`
+          : 'Vision challenge returned no readable answer.',
+      }
     }
     return { status: 'unknown', source: 'probe', detail }
   } catch (error) {
@@ -337,14 +392,17 @@ export async function resolveProviderImageSupportDynamically(
     return initial
   }
 
-  // A supported prediction is verified by the user's real request. If it turns
-  // out to be wrong, the WebSocket layer learns the rejection and retries the
-  // same turn as a tool-accessible file reference.
+  // Local runtimes expose the capabilities of the model that is actually
+  // installed, so their metadata must win over optimistic preset/catalog data.
+  // For remote providers, trust explicit provider metadata and built-in
+  // catalogs; model-id inference still needs the visual challenge below.
+  const hasLocalCapabilityMetadata = isOllamaProvider(provider) || isLmStudioProvider(provider)
   if (
+    !hasLocalCapabilityMetadata &&
     initial.status === 'supported' &&
-    !isOllamaProvider(provider) &&
-    !isLmStudioProvider(provider) &&
-    inferModelSupportsImages(initial.modelId) === true
+    (initial.source === 'provider-catalog' ||
+      initial.source === 'preset-model' ||
+      initial.source === 'preset')
   ) {
     return initial
   }

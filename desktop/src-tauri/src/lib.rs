@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, VecDeque},
-    io::{Error as IoError, ErrorKind, Read, Write},
+    io::{Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Command as StdCommand, Stdio},
@@ -32,9 +32,10 @@ const TRAY_QUIT_ID: &str = "tray_quit";
 const CYBER_CONFIG_DIR_ENV: &str = "CYBER_CONFIG_DIR";
 const LEGACY_CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
 const IMAGE_PREVIEW_MAX_BYTES: u64 = 10 * 1024 * 1024;
+const SERVER_CONNECTION_WAIT_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Default)]
-struct ServerState(Mutex<ServerStatus>);
+struct ServerState(Arc<Mutex<ServerStatus>>);
 
 struct ServerRuntime {
     url: String,
@@ -119,23 +120,39 @@ fn get_server_url(state: State<'_, ServerState>) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn get_server_connection(state: State<'_, ServerState>) -> Result<ServerConnection, String> {
-    let guard = state
-        .0
-        .lock()
-        .map_err(|_| "desktop server state is unavailable".to_string())?;
+async fn get_server_connection(state: State<'_, ServerState>) -> Result<ServerConnection, String> {
+    let status = Arc::clone(&state.0);
+    tauri::async_runtime::spawn_blocking(move || wait_for_server_connection(status))
+        .await
+        .map_err(|err| format!("desktop server startup task failed: {err}"))?
+}
 
-    if let Some(runtime) = guard.runtime.as_ref() {
-        return Ok(ServerConnection {
-            url: runtime.url.clone(),
-            auth_token: runtime.auth_token.clone(),
-        });
+fn wait_for_server_connection(
+    status: Arc<Mutex<ServerStatus>>,
+) -> Result<ServerConnection, String> {
+    let deadline = Instant::now() + SERVER_CONNECTION_WAIT_TIMEOUT;
+
+    loop {
+        {
+            let guard = status
+                .lock()
+                .map_err(|_| "desktop server state is unavailable".to_string())?;
+            if let Some(runtime) = guard.runtime.as_ref() {
+                return Ok(ServerConnection {
+                    url: runtime.url.clone(),
+                    auth_token: runtime.auth_token.clone(),
+                });
+            }
+            if let Some(error) = guard.startup_error.as_ref() {
+                return Err(error.clone());
+            }
+        }
+
+        if Instant::now() >= deadline {
+            return Err("desktop server did not become ready within 15 seconds".to_string());
+        }
+        thread::sleep(Duration::from_millis(25));
     }
-
-    Err(guard
-        .startup_error
-        .clone()
-        .unwrap_or_else(|| "desktop server did not start".to_string()))
 }
 
 /// 前端在设置页保存飞书 / Telegram 凭据后调用，触发 adapter sidecar 热重启。
@@ -273,14 +290,18 @@ fn mark_app_quitting(app: &AppHandle) {
     }
 }
 
+fn is_app_quitting(app: &AppHandle) -> bool {
+    app.try_state::<AppExitState>()
+        .and_then(|state| state.is_quitting.lock().ok().map(|value| *value))
+        .unwrap_or(false)
+}
+
 fn should_hide_to_tray(app: &AppHandle, label: &str) -> bool {
     if label != MAIN_WINDOW_LABEL {
         return false;
     }
 
-    app.try_state::<AppExitState>()
-        .and_then(|state| state.is_quitting.lock().ok().map(|value| !*value))
-        .unwrap_or(true)
+    !is_app_quitting(app)
 }
 
 fn show_main_window(app: &AppHandle) {
@@ -735,7 +756,11 @@ fn reserve_local_port() -> Result<u16, String> {
     Ok(port)
 }
 
-fn wait_for_server(url_host: &str, port: u16) -> Result<(), String> {
+fn wait_for_server(
+    url_host: &str,
+    port: u16,
+    startup_exit: &Arc<Mutex<Option<String>>>,
+) -> Result<(), String> {
     let addr: SocketAddr = format!("{url_host}:{port}")
         .parse()
         .map_err(|err| format!("parse server address: {err}"))?;
@@ -744,6 +769,11 @@ fn wait_for_server(url_host: &str, port: u16) -> Result<(), String> {
     while Instant::now() < deadline {
         if TcpStream::connect_timeout(&addr, Duration::from_millis(200)).is_ok() {
             return Ok(());
+        }
+        if let Some(exit) = startup_exit.lock().ok().and_then(|guard| guard.clone()) {
+            return Err(format!(
+                "desktop server exited before listening on {url_host}:{port}: {exit}"
+            ));
         }
         std::thread::sleep(Duration::from_millis(150));
     }
@@ -810,6 +840,21 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     let auth_token = general_purpose::URL_SAFE_NO_PAD.encode(token_bytes);
     let app_root = resolve_app_root(app)?;
     let app_root_arg = app_root.to_string_lossy().to_string();
+    let codegraph_asset_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|err| format!("resolve Code Graph resources: {err}"))?
+        .join("resources")
+        .join("codegraph");
+    let codegraph_asset_dir_arg = codegraph_asset_dir.to_string_lossy().to_string();
+    let rtk_binary = app
+        .path()
+        .resource_dir()
+        .map_err(|err| format!("resolve RTK resources: {err}"))?
+        .join("resources")
+        .join("rtk")
+        .join(if cfg!(windows) { "rtk.exe" } else { "rtk" });
+    let rtk_binary_arg = rtk_binary.to_string_lossy().to_string();
 
     // 单一合并 sidecar：第一个参数选 server / cli / adapters 模式。
     let mut sidecar = app
@@ -819,19 +864,25 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     for (key, value) in terminal_environment(&default_shell()) {
         sidecar = sidecar.env(key, value);
     }
-    let sidecar = sidecar.env("SERVER_AUTH_TOKEN", &auth_token).args([
-        "server",
-        "--auth-required",
-        "--app-root",
-        &app_root_arg,
-        "--host",
-        host,
-        "--port",
-        &port.to_string(),
-    ]);
+    let sidecar = sidecar
+        .env("SERVER_AUTH_TOKEN", &auth_token)
+        .env("CYBER_CODEGRAPH_ASSET_DIR", &codegraph_asset_dir_arg)
+        .env("CYBER_RTK_PATH", &rtk_binary_arg)
+        .args([
+            "server",
+            "--auth-required",
+            "--app-root",
+            &app_root_arg,
+            "--host",
+            host,
+            "--port",
+            &port.to_string(),
+        ]);
 
     let startup_logs = Arc::new(Mutex::new(VecDeque::new()));
     let logs_for_task = Arc::clone(&startup_logs);
+    let startup_exit = Arc::new(Mutex::new(None));
+    let exit_for_task = Arc::clone(&startup_exit);
 
     let (mut rx, child) = sidecar
         .spawn()
@@ -859,13 +910,16 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
                     );
                     eprintln!("[claude-server] {line}");
                     push_server_startup_log(&logs_for_task, format!("[exit] {line}"));
+                    if let Ok(mut guard) = exit_for_task.lock() {
+                        *guard = Some(line);
+                    }
                 }
                 _ => {}
             }
         }
     });
 
-    if let Err(err) = wait_for_server(host, port) {
+    if let Err(err) = wait_for_server(host, port, &startup_exit) {
         let _ = child.kill();
         return Err(format_server_startup_error(&err, &startup_logs));
     }
@@ -1025,8 +1079,26 @@ fn kill_windows_sidecars() {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_terminal_output, default_utf8_locale, ensure_utf8_locale, parse_env_block};
+    use super::{
+        decode_terminal_output, default_utf8_locale, ensure_utf8_locale, parse_env_block,
+        wait_for_server,
+    };
     use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn server_wait_returns_immediately_after_sidecar_exit() {
+        let startup_exit = Arc::new(Mutex::new(Some(
+            "sidecar exited (code=Some(3), signal=None)".to_string(),
+        )));
+        let started = Instant::now();
+
+        let error = wait_for_server("127.0.0.1", 0, &startup_exit).unwrap_err();
+
+        assert!(error.contains("sidecar exited (code=Some(3), signal=None)"));
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
 
     #[test]
     fn terminal_output_decoder_preserves_split_chinese_characters() {
@@ -1192,29 +1264,46 @@ pub fn run() {
         .setup(|app| {
             setup_system_tray(app)?;
 
-            let state = app.state::<ServerState>();
-            let mut guard = state
-                .0
-                .lock()
-                .map_err(|_| IoError::new(ErrorKind::Other, "server state lock poisoned"))?;
+            // Login-shell discovery can take several seconds on machines with
+            // Conda, Homebrew, or a large shell profile. Keep all sidecar startup
+            // work off the Tauri event loop so the native window remains responsive.
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                match start_server_sidecar(&app_handle) {
+                    Ok(runtime) => {
+                        if is_app_quitting(&app_handle) {
+                            let _ = runtime.child.kill();
+                            return;
+                        }
 
-            match start_server_sidecar(&app.handle()) {
-                Ok(runtime) => {
-                    guard.runtime = Some(runtime);
-                    guard.startup_error = None;
-                }
-                Err(err) => {
-                    eprintln!("[desktop] failed to start local server: {err}");
-                    guard.runtime = None;
-                    guard.startup_error = Some(err);
-                }
-            }
-            drop(guard);
+                        let Some(state) = app_handle.try_state::<ServerState>() else {
+                            let _ = runtime.child.kill();
+                            return;
+                        };
+                        let Ok(mut guard) = state.0.lock() else {
+                            let _ = runtime.child.kill();
+                            eprintln!("[desktop] server state lock poisoned during startup");
+                            return;
+                        };
+                        guard.runtime = Some(runtime);
+                        guard.startup_error = None;
+                        drop(guard);
 
-            // server 起来之后再起 adapter sidecar —— start_adapters_sidecar
-            // 内部会从 ServerState 读 server URL 注入 ADAPTER_SERVER_URL env，
-            // 让 adapter 连上动态端口。
-            spawn_and_track_adapters_sidecar(&app.handle());
+                        // The adapter sidecar reads the dynamic server URL from
+                        // ServerState, so it starts only after the runtime is stored.
+                        spawn_and_track_adapters_sidecar(&app_handle);
+                    }
+                    Err(err) => {
+                        eprintln!("[desktop] failed to start local server: {err}");
+                        if let Some(state) = app_handle.try_state::<ServerState>() {
+                            if let Ok(mut guard) = state.0.lock() {
+                                guard.runtime = None;
+                                guard.startup_error = Some(err);
+                            }
+                        }
+                    }
+                }
+            });
 
             Ok(())
         })

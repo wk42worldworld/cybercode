@@ -22,6 +22,7 @@ describe('ChatModeSidebar', () => {
     expect(screen.getByLabelText('聊天侧边栏')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '编程模式' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '记忆与进化' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Token 优化' })).toBeInTheDocument()
   })
 
   it('opens and closes memory settings from the right rail', () => {
@@ -35,6 +36,20 @@ describe('ChatModeSidebar', () => {
     expect(memoryButton).toHaveAttribute('data-active', 'true')
 
     fireEvent.click(memoryButton)
+    expect(useUIStore.getState().settingsOpen).toBe(false)
+  })
+
+  it('opens and closes token optimization from the right rail', () => {
+    render(<ChatModeSidebar label="编程模式" ariaLabel="聊天侧边栏" />)
+
+    const tokenButton = screen.getByRole('button', { name: 'Token 优化' })
+    fireEvent.click(tokenButton)
+
+    expect(useUIStore.getState().settingsOpen).toBe(true)
+    expect(useUIStore.getState().settingsPanelView).toBe('tokenOptimization')
+    expect(tokenButton).toHaveAttribute('data-active', 'true')
+
+    fireEvent.click(tokenButton)
     expect(useUIStore.getState().settingsOpen).toBe(false)
   })
 })

@@ -64,7 +64,7 @@ describe('dynamic model image capability', () => {
       requestBody = JSON.parse(String(init?.body))
       return new Response(JSON.stringify({
         type: 'message',
-        content: [{ type: 'text', text: 'OK' }],
+        content: [{ type: 'text', text: '7' }],
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch
 
@@ -90,6 +90,65 @@ describe('dynamic model image capability', () => {
 
     const result = await probeProviderImageSupport(provider(), 'private-model', { fetchImpl })
     expect(result.status).toBe('unknown')
+  })
+
+  test('does not mistake a successful text-only response for vision support', async () => {
+    const fetchImpl = (async () => new Response(JSON.stringify({
+      choices: [{ message: { content: 'OK' } }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch
+
+    const result = await probeProviderImageSupport(provider({
+      apiFormat: 'openai_chat',
+    }), 'private-model', { fetchImpl })
+
+    expect(result.status).toBe('unknown')
+    expect(result.detail).toContain('unexpected answer')
+  })
+
+  test('verifies name-inferred vision support through custom gateways', async () => {
+    let calls = 0
+    const fetchImpl = (async () => {
+      calls++
+      return new Response(JSON.stringify({
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'OK' }] }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch
+
+    const result = await resolveProviderImageSupportDynamically(provider({
+      apiFormat: 'openai_responses',
+      models: {
+        main: 'qwen3.7-plus',
+        haiku: 'qwen3.7-plus',
+        sonnet: 'qwen3.7-plus',
+        opus: 'qwen3.7-plus',
+      },
+    }), 'qwen3.7-plus', { fetchImpl })
+
+    expect(calls).toBe(1)
+    expect(result.status).toBe('unknown')
+    expect(result.supportsImages).toBe(false)
+    expect(result.source).toBe('model-id')
+  })
+
+  test('validates OpenAI Responses image support from the visual answer', async () => {
+    let requestBody: any
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      requestBody = JSON.parse(String(init?.body))
+      return new Response(JSON.stringify({
+        output: [{ type: 'message', content: [{ type: 'output_text', text: '7' }] }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch
+
+    const result = await probeProviderImageSupport(provider({
+      apiFormat: 'openai_responses',
+    }), 'private-model', { fetchImpl })
+
+    expect(result.status).toBe('supported')
+    expect(requestBody.input[0].content[0]).toMatchObject({ type: 'input_image' })
+    expect(requestBody.input[0].content[1]).toEqual({
+      type: 'input_text',
+      text: 'Count the distinct vertical colored bars in the image. Reply with only the number.',
+    })
   })
 
   test('reads Ollama vision capability metadata without stripping model tags', async () => {
@@ -120,6 +179,42 @@ describe('dynamic model image capability', () => {
       status: 'supported',
       source: 'local-metadata',
       modelId: 'qwen3.5:0.8b',
+    })
+  })
+
+  test('lets Ollama metadata override optimistic preset image support', async () => {
+    let calls = 0
+    const fetchImpl = (async (url: string | URL | Request) => {
+      calls++
+      expect(String(url)).toBe('http://localhost:11434/api/show')
+      return new Response(JSON.stringify({
+        capabilities: ['completion', 'tools'],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch
+    const ollama = provider({
+      presetId: 'ollama',
+      baseUrl: 'http://localhost:11434',
+      apiKey: '',
+      models: {
+        main: 'qwen3.6',
+        haiku: 'qwen3.6',
+        sonnet: 'qwen3.6',
+        opus: 'qwen3.6',
+      },
+    })
+
+    const result = await resolveProviderImageSupportDynamically(
+      ollama,
+      'qwen3.6',
+      { fetchImpl },
+    )
+
+    expect(calls).toBe(1)
+    expect(result.status).toBe('unsupported')
+    expect(result.source).toBe('learned')
+    expect(getLearnedImageSupport(ollama.baseUrl, 'qwen3.6')).toMatchObject({
+      status: 'unsupported',
+      source: 'local-metadata',
     })
   })
 
@@ -158,7 +253,7 @@ describe('dynamic model image capability', () => {
     })
     const fetchImpl = (async () => new Response(JSON.stringify({
       type: 'message',
-      content: [{ type: 'text', text: 'OK' }],
+      content: [{ type: 'text', text: '7' }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch
 
     const result = await resolveProviderImageSupportDynamically(

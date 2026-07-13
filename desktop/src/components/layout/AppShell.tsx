@@ -15,6 +15,21 @@ import { useChatStore } from '../../stores/chatStore'
 import { ChatModeSidebar } from '../chat/ChatModeSidebar'
 import { useTranslation } from '../../i18n'
 
+const BOOT_SPLASH_REMOVE_DELAY_MS = 16
+
+function dismissBootSplash() {
+  const splash = document.getElementById('boot-splash')
+  if (!splash) return () => {}
+
+  splash.classList.add('boot-splash-exit')
+  const remove = () => splash.remove()
+  const timeout = window.setTimeout(remove, BOOT_SPLASH_REMOVE_DELAY_MS)
+
+  return () => {
+    window.clearTimeout(timeout)
+  }
+}
+
 export function AppShell() {
   const fetchSettings = useSettingsStore((s) => s.fetchAll)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
@@ -46,26 +61,23 @@ export function AppShell() {
         return
       }
 
-      try {
-        await fetchSettings()
-      } catch (error) {
-        console.warn('[desktop] Failed to load startup settings:', error)
-      }
+      await Promise.all([
+        fetchSettings().catch((error) => {
+          console.warn('[desktop] Failed to load startup settings:', error)
+        }),
+        useTabStore.getState().restoreTabs().catch((error) => {
+          console.warn('[desktop] Failed to restore startup tabs:', error)
+        }),
+      ])
 
-      try {
-        await useTabStore.getState().restoreTabs()
-
-        const { activeTabId: activeId, tabs } = useTabStore.getState()
-        const activeTab = tabs.find((tab) => tab.sessionId === activeId)
-        if (activeId && activeTab?.type === 'session') {
-          // Preload history BEFORE revealing UI. The loading screen absorbs the
-          // network round-trip so the main-app tree replacement (loading → shell)
-          // sees data already in the store — one controlled DOM swap, no second
-          // burst that would crash the WKWebView GPU compositor.
+      const { activeTabId: activeId, tabs } = useTabStore.getState()
+      const activeTab = tabs.find((tab) => tab.sessionId === activeId)
+      if (activeId && activeTab?.type === 'session') {
+        try {
           await useChatStore.getState().ensureSessionReady(activeTab.sessionId, activeTab.projectPath)
+        } catch (error) {
+          console.warn('[desktop] Failed to prepare the startup session:', error)
         }
-      } catch (error) {
-        console.warn('[desktop] Failed to restore startup tabs/history:', error)
       }
 
       if (!cancelled) setReady(true)
@@ -89,6 +101,11 @@ export function AppShell() {
     return () => { unlisten?.() }
   }, [])
 
+  useEffect(() => {
+    if (!ready && !startupError) return
+    return dismissBootSplash()
+  }, [ready, startupError])
+
   useKeyboardShortcuts()
 
   if (startupError) {
@@ -96,16 +113,7 @@ export function AppShell() {
   }
 
   if (!ready) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-[var(--color-background)] font-sans">
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-[3px] border-black/10 dark:border-white/10 border-t-black/50 dark:border-t-white/50"
-            style={{ animation: 'spin 0.8s linear infinite' }}
-          />
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (

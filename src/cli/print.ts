@@ -3072,6 +3072,27 @@ function runHeadlessStreaming(
           if (sdkServersChanged) {
             void updateSdkMcp()
           }
+        } else if (
+          message.request.subtype === 'cybercode_mcp_patch_servers'
+        ) {
+          const existingProcessServers = Object.fromEntries(
+            Object.entries(dynamicMcpState.configs).map(([name, config]) => {
+              const { scope: _scope, pluginSource: _pluginSource, ...server } = config
+              return [name, server]
+            }),
+          )
+          const nextServers = {
+            ...sdkMcpConfigs,
+            ...existingProcessServers,
+            ...message.request.servers,
+          }
+          for (const name of message.request.remove) delete nextServers[name]
+
+          const { response, sdkServersChanged } = await applyMcpServerChanges(
+            nextServers,
+          )
+          sendControlResponseSuccess(message, response)
+          if (sdkServersChanged) void updateSdkMcp()
         } else if (message.request.subtype === 'reload_plugins') {
           try {
             if (

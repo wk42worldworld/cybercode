@@ -41,6 +41,7 @@ describe('sessionStore', () => {
       selectedSessionScope: 'all',
       availableProjects: [],
       hiddenProjectPaths: [],
+      projectDisplayNames: {},
     })
     useSettingsStore.setState({ locale: 'zh' })
   })
@@ -155,6 +156,17 @@ describe('sessionStore', () => {
 
     expect(useSessionStore.getState().selectedProjects).toEqual([])
     expect(useSessionStore.getState().selectedSessionScope).toBe('all')
+  })
+
+  it('persists project display names without changing the project locator', () => {
+    useSessionStore.getState().renameProject('-workspace-project', '  Client Portal  ')
+
+    expect(useSessionStore.getState().projectDisplayNames).toEqual({
+      '-workspace-project': 'Client Portal',
+    })
+    expect(JSON.parse(localStorage.getItem('cybercode.sidebar.projectDisplayNames.v1') || '{}')).toEqual({
+      '-workspace-project': 'Client Portal',
+    })
   })
 
   it('hides projects from sidebar availability without deleting their sessions', () => {

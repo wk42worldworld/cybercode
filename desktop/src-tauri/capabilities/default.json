@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/nicegui/static/tauri-capabilities-schema-v2.json",
   "identifier": "default",
-  "description": "Default capabilities for Claude Code Desktop",
+  "description": "Default capabilities for CyberCode Desktop",
   "windows": ["main"],
   "permissions": [
     "core:default",

@@ -105,6 +105,7 @@ import {
   extractQuotaStatusFromHeaders,
 } from '../claudeAiLimits.js'
 import { getAPIContextManagement } from '../compact/apiMicrocompact.js'
+import { liteOptimizationService } from '../liteOptimization.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
@@ -1427,7 +1428,7 @@ async function* queryModel(
 
   // filter(Boolean) works by converting each element to a boolean - empty strings become false and are filtered out.
   systemPrompt = asSystemPrompt(
-    [
+    liteOptimizationService.cleanSystemPrompt([
       getAttributionHeader(fingerprint),
       getCLISyspromptPrefix({
         isNonInteractive: options.isNonInteractiveSession,
@@ -1437,7 +1438,7 @@ async function* queryModel(
       ...(!supportsImageInput ? [IMAGE_INPUT_UNSUPPORTED_MODEL_CONTEXT] : []),
       ...(advisorModel ? [ADVISOR_TOOL_INSTRUCTIONS] : []),
       ...(injectChromeHere ? [CHROME_TOOL_SEARCH_INSTRUCTIONS] : []),
-    ].filter(Boolean),
+    ].filter(Boolean)),
   )
 
   // Prepend system prompt block for easy API identification

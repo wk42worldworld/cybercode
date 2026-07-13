@@ -1,5 +1,5 @@
 /**
- * Telegram Adapter for Claude Code Desktop
+ * Telegram Adapter for CyberCode Desktop
  *
  * 基于 grammY 的轻量 Telegram Bot，直连服务端 /ws/:sessionId。
  * 启动：TELEGRAM_BOT_TOKEN=xxx bun run telegram/index.ts
@@ -478,7 +478,7 @@ async function handleServerMessage(chatId: string, msg: ServerMessage): Promise<
 // ---------- bot handlers ----------
 
 async function sendHelp(ctx: Context): Promise<void> {
-  await ctx.reply(`👋 Claude Code Bot 已就绪。\n\n${formatImHelp()}`)
+  await ctx.reply(`👋 CyberCode Bot 已就绪。\n\n${formatImHelp()}`)
 }
 
 bot.command('start', (ctx) => void sendHelp(ctx))
@@ -598,9 +598,9 @@ async function routeUserMessage(
     const displayName = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ')
     const success = tryPair(text.trim(), { userId, displayName }, 'telegram')
     if (success) {
-      await ctx.reply('✅ 配对成功！现在可以开始聊天了。\n\n发送消息即可与 Claude 对话。')
+      await ctx.reply('✅ 配对成功！现在可以开始聊天了。\n\n发送消息即可与 CyberCode 对话。')
     } else {
-      await ctx.reply('🔒 未授权。请在 Claude Code 桌面端生成配对码后发送给我。')
+      await ctx.reply('🔒 未授权。请在 CyberCode 桌面端生成配对码后发送给我。')
     }
     return
   }

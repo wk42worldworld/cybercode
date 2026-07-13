@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { sessionsApi, type SessionUsageSnapshot } from '../../api/sessions'
 import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n/locales/en'
 import { useChatStore } from '../../stores/chatStore'
 import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
 import {
-  calculateContextUsagePercent,
   formatCompactTokenCount,
-  getContextTokenTotal,
-  getSessionTokenTotal,
-  getTurnTokenTotal,
+  getTurnInputTokenTotal,
+  resolveTokenUsageValues,
 } from './tokenUsage'
+import { readCachedSessionUsageEntry, writeCachedSessionUsage } from './sessionUsageCache'
 
 type Props = {
   sessionId?: string
@@ -36,6 +35,20 @@ type LoadedUsage = {
   revision: number
 }
 
+function loadCachedUsage(
+  key: string,
+  sessionId?: string,
+  projectPath?: string,
+): LoadedUsage {
+  const cached = sessionId ? readCachedSessionUsageEntry(sessionId, projectPath) : null
+  return {
+    key,
+    snapshot: cached?.response.usage ?? null,
+    context: cached?.response.context ?? null,
+    revision: cached?.revision ?? -1,
+  }
+}
+
 type TokenUsageButtonProps = {
   contextPercentage: number | null
   contextTokens: number
@@ -45,70 +58,6 @@ type TokenUsageButtonProps = {
   sessionTotal: number
   turnTotal: number
   translate: (key: TranslationKey) => string
-}
-
-type AnimatedUsageValues = {
-  turn: number
-  session: number
-  context: number
-}
-
-const ANIMATION_DURATIONS: AnimatedUsageValues = {
-  turn: 420,
-  session: 520,
-  context: 480,
-}
-
-function useAnimatedUsage(targets: AnimatedUsageValues): AnimatedUsageValues {
-  const [display, setDisplay] = useState<AnimatedUsageValues>({ turn: 0, session: 0, context: 0 })
-  const displayRef = useRef(display)
-
-  useEffect(() => {
-    const normalized: AnimatedUsageValues = {
-      turn: Number.isFinite(targets.turn) ? Math.max(0, targets.turn) : 0,
-      session: Number.isFinite(targets.session) ? Math.max(0, targets.session) : 0,
-      context: Number.isFinite(targets.context) ? Math.max(0, targets.context) : 0,
-    }
-    const from = displayRef.current
-    const base: AnimatedUsageValues = {
-      turn: normalized.turn <= from.turn ? normalized.turn : from.turn,
-      session: normalized.session <= from.session ? normalized.session : from.session,
-      context: normalized.context <= from.context ? normalized.context : from.context,
-    }
-    const growing = (Object.keys(normalized) as Array<keyof AnimatedUsageValues>)
-      .filter((key) => normalized[key] > from[key])
-
-    displayRef.current = base
-    setDisplay(base)
-    if (growing.length === 0) return
-
-    const startedAt = Date.now()
-    let frame = 0
-    let lastPaintAt = 0
-    const tick = () => {
-      const now = Date.now()
-      const elapsed = Math.max(0, now - startedAt)
-      const complete = growing.every((key) => elapsed >= ANIMATION_DURATIONS[key])
-      if (!complete && now - lastPaintAt < 32) {
-        frame = requestAnimationFrame(tick)
-        return
-      }
-      lastPaintAt = now
-      const next = { ...base }
-      for (const key of growing) {
-        const progress = Math.min(elapsed / ANIMATION_DURATIONS[key], 1)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        next[key] = from[key] + (normalized[key] - from[key]) * eased
-      }
-      displayRef.current = next
-      setDisplay(next)
-      if (!complete) frame = requestAnimationFrame(tick)
-    }
-    frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
-  }, [targets.context, targets.session, targets.turn])
-
-  return display
 }
 
 function formatContextPercent(percentage: number | null, contextTokens: number): string {
@@ -195,15 +144,7 @@ function TokenUsageButton({
   turnTotal,
   translate,
 }: TokenUsageButtonProps) {
-  const animated = useAnimatedUsage({
-    turn: turnTotal,
-    session: sessionTotal,
-    context: contextPercentage ?? 0,
-  })
-  const contextPercentLabel = formatContextPercent(
-    contextPercentage === null ? null : animated.context,
-    contextTokens,
-  )
+  const contextPercentLabel = formatContextPercent(contextPercentage, contextTokens)
 
   return (
     <button
@@ -214,26 +155,26 @@ function TokenUsageButton({
       title={detailsLabel}
       data-testid="token-usage-indicator"
       style={{ contain: 'layout paint' }}
-      className="group flex h-[34px] w-[200px] shrink-0 items-center justify-between gap-[5px] overflow-hidden whitespace-nowrap rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[9px] py-0 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+      className="group flex h-[34px] w-[200px] shrink-0 items-center justify-between gap-[3px] overflow-hidden whitespace-nowrap rounded-full border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[6px] py-0 text-[11px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
     >
-      <span data-testid="token-turn-summary" className="flex w-[52px] shrink-0 items-baseline gap-[3px] overflow-hidden">
-        <span className="shrink-0 text-[10px] text-[var(--color-text-tertiary)]">{translate('chat.tokenUsage.turn')}</span>
-        <span data-testid="token-turn-total" className="min-w-0 flex-1 overflow-hidden text-right font-mono font-semibold tabular-nums text-[var(--color-text-primary)]">
-          {formatCompactTokenCount(animated.turn)}
+      <span data-testid="token-turn-summary" className="flex w-[58px] shrink-0 items-baseline gap-[3px] overflow-hidden">
+        <span className="min-w-0 truncate text-[10px] text-[var(--color-text-tertiary)]">{translate('chat.tokenUsage.turn')}</span>
+        <span data-testid="token-turn-total" className="min-w-[34px] shrink-0 text-right font-mono font-semibold tabular-nums text-[var(--color-text-primary)]">
+          {formatCompactTokenCount(turnTotal)}
         </span>
       </span>
       <span className="h-[12px] w-px bg-[var(--color-border-separator)]" />
-      <span data-testid="token-session-summary" className="flex w-[56px] shrink-0 items-baseline gap-[3px] overflow-hidden">
-        <span className="shrink-0 text-[10px] text-[var(--color-text-tertiary)]">{translate('chat.tokenUsage.session')}</span>
-        <span data-testid="token-session-total" className="min-w-0 flex-1 overflow-hidden text-right font-mono font-semibold tabular-nums text-[var(--color-text-primary)]">
-          {formatCompactTokenCount(animated.session)}
+      <span data-testid="token-session-summary" className="flex w-[58px] shrink-0 items-baseline gap-[3px] overflow-hidden">
+        <span className="min-w-0 truncate text-[10px] text-[var(--color-text-tertiary)]">{translate('chat.tokenUsage.session')}</span>
+        <span data-testid="token-session-total" className="min-w-[34px] shrink-0 text-right font-mono font-semibold tabular-nums text-[var(--color-text-primary)]">
+          {formatCompactTokenCount(sessionTotal)}
         </span>
       </span>
       <span className="h-[12px] w-px bg-[var(--color-border-separator)]" />
       <span data-testid="token-context-summary" className="flex w-[52px] shrink-0 items-center justify-end gap-[4px]">
         <ContextRing
           loading={loading}
-          percentage={contextPercentage === null ? null : animated.context}
+          percentage={contextPercentage}
         />
         <span className="w-[26px] text-center font-mono font-semibold tabular-nums text-[var(--color-text-tertiary)] group-hover:text-[var(--color-text-secondary)]">
           {contextPercentLabel}
@@ -253,15 +194,17 @@ export function TokenUsageIndicator({ sessionId, projectPath, onOpenDetails }: P
     sessionId ? state.selections[sessionId]?.contextWindow : undefined,
   )
   const usageKey = `${sessionId ?? ''}:${projectPath ?? ''}`
-  const [loadedUsage, setLoadedUsage] = useState<LoadedUsage>({ key: usageKey, snapshot: null, context: null, revision: -1 })
+  const [loadedUsage, setLoadedUsage] = useState<LoadedUsage>(() => (
+    loadCachedUsage(usageKey, sessionId, projectPath)
+  ))
   const [loading, setLoading] = useState(false)
   const effectiveLoadedUsage = loadedUsage.key === usageKey
     ? loadedUsage
     : { key: usageKey, snapshot: null, context: null, revision: -1 }
 
   useEffect(() => {
-    setLoadedUsage({ key: usageKey, snapshot: null, context: null, revision: -1 })
-  }, [usageKey])
+    setLoadedUsage(loadCachedUsage(usageKey, sessionId, projectPath))
+  }, [projectPath, sessionId, usageKey])
 
   useEffect(() => {
     if (!sessionId) {
@@ -277,6 +220,7 @@ export function TokenUsageIndicator({ sessionId, projectPath, onOpenDetails }: P
       sessionsApi.getUsage(sessionId, { projectPath })
         .then((response) => {
           if (!cancelled) {
+            writeCachedSessionUsage(sessionId, projectPath, response, usageRevision)
             setLoadedUsage({
               key: usageKey,
               snapshot: response.usage,
@@ -300,41 +244,29 @@ export function TokenUsageIndicator({ sessionId, projectPath, onOpenDetails }: P
     }
   }, [sessionId, projectPath, usageKey, usageRevision])
 
-  const values = useMemo(() => {
-    const liveTurnTotal = getTurnTokenTotal(turnUsage)
-    const latestTurn = effectiveLoadedUsage.context?.latestTurn
-    const persistedTurnTotal = latestTurn
-      ? latestTurn.inputTokens +
-        latestTurn.outputTokens +
-        latestTurn.cacheReadInputTokens +
-        latestTurn.cacheCreationInputTokens
-      : 0
-    const persistedTotal = getSessionTokenTotal(effectiveLoadedUsage.snapshot)
-    const includesUnpersistedTurn = chatState !== 'idle' || usageRevision > effectiveLoadedUsage.revision
-    const turnTotal = includesUnpersistedTurn || liveTurnTotal > 0
-      ? liveTurnTotal
-      : persistedTurnTotal
-    const sessionTotal = persistedTotal + (includesUnpersistedTurn ? turnTotal : 0)
-    const liveContextTokens = getContextTokenTotal(turnUsage)
-    const contextTokens = includesUnpersistedTurn && liveContextTokens > 0
-      ? liveContextTokens
-      : effectiveLoadedUsage.context?.usedTokens ?? liveContextTokens
-    const contextWindow = runtimeContextWindow ?? effectiveLoadedUsage.context?.contextWindow ?? 0
-    const contextPercentage = calculateContextUsagePercent(contextTokens, contextWindow)
-    return { turnTotal, sessionTotal, contextTokens, contextWindow, contextPercentage }
-  }, [chatState, effectiveLoadedUsage, runtimeContextWindow, turnUsage, usageRevision])
+  const values = useMemo(() => resolveTokenUsageValues({
+    liveTurnUsage: turnUsage,
+    persistedUsage: effectiveLoadedUsage.snapshot,
+    persistedContext: effectiveLoadedUsage.context,
+    isTurnActive: chatState !== 'idle',
+    usageRevision,
+    loadedRevision: effectiveLoadedUsage.revision,
+    contextWindowOverride: runtimeContextWindow,
+  }), [chatState, effectiveLoadedUsage, runtimeContextWindow, turnUsage, usageRevision])
 
   if (!sessionId) return null
 
-  const input = turnUsage.input_tokens
-  const output = turnUsage.output_tokens
-  const cacheRead = turnUsage.cache_read_input_tokens ?? turnUsage.cache_read_tokens ?? 0
-  const cacheWrite = turnUsage.cache_creation_input_tokens ?? turnUsage.cache_creation_tokens ?? 0
+  const uncachedInput = values.effectiveTurnUsage.input_tokens
+  const input = getTurnInputTokenTotal(values.effectiveTurnUsage)
+  const output = values.effectiveTurnUsage.output_tokens
+  const cacheRead = values.effectiveTurnUsage.cache_read_input_tokens ?? values.effectiveTurnUsage.cache_read_tokens ?? 0
+  const cacheWrite = values.effectiveTurnUsage.cache_creation_input_tokens ?? values.effectiveTurnUsage.cache_creation_tokens ?? 0
   const contextPercentLabel = formatContextPercent(values.contextPercentage, values.contextTokens)
   const detailsLabel = t('chat.tokenUsage.details', {
     turn: new Intl.NumberFormat().format(values.turnTotal),
     session: new Intl.NumberFormat().format(values.sessionTotal),
     input: new Intl.NumberFormat().format(input),
+    uncachedInput: new Intl.NumberFormat().format(uncachedInput),
     output: new Intl.NumberFormat().format(output),
     cacheRead: new Intl.NumberFormat().format(cacheRead),
     cacheWrite: new Intl.NumberFormat().format(cacheWrite),

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 const { getRecentProjectsMock } = vi.hoisted(() => ({
@@ -44,6 +44,7 @@ describe('ProjectFilter', () => {
       error: null,
       selectedProjects: [],
       selectedSessionScope: 'all',
+      projectDisplayNames: {},
       availableProjects: [
         'Users-dev-workspace-myself_code-OpenCutSkill',
         'Users-dev-workspace-myself_code-cybercode',
@@ -83,20 +84,31 @@ describe('ProjectFilter', () => {
 
     await waitFor(() => {
       expect(screen.getByText('wk42worldworld/cybercode')).toBeInTheDocument()
-      expect(screen.getByText('/path/to/cybercode')).toBeInTheDocument()
+      expect(screen.queryByText('/path/to/cybercode')).not.toBeInTheDocument()
       expect(screen.getByText('wk42worldworld/OpenCutSkill')).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /wk42worldworld\/cybercode/i }))
+    const cybercodeProject = screen.getByRole('button', { name: /wk42worldworld\/cybercode/i })
+    expect(cybercodeProject).toHaveAttribute('title', '/path/to/cybercode')
+    fireEvent.click(cybercodeProject)
 
     await waitFor(() => {
       expect(useSessionStore.getState().selectedProjects).toEqual(['Users-dev-workspace-myself_code-cybercode'])
       expect(useSessionStore.getState().selectedSessionScope).toBe('project')
     })
 
-    expect(screen.getByRole('button', { name: /wk42worldworld\/cybercode/i })).toBeInTheDocument()
+    act(() => {
+      useSessionStore.getState().renameProject(
+        'Users-dev-workspace-myself_code-cybercode',
+        'Cyber Workspace',
+      )
+    })
 
-    fireEvent.click(screen.getByRole('button', { name: /wk42worldworld\/cybercode/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Cyber Workspace/i })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Cyber Workspace/i }))
     fireEvent.click(screen.getByRole('button', { name: /wk42worldworld\/OpenCutSkill/i }))
 
     await waitFor(() => {

@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MessageList, buildRenderModel } from './MessageList'
+import { ApiError } from '../../api/client'
 import { sessionsApi } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
+import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
+import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useTabStore } from '../../stores/tabStore'
+import { useUIStore } from '../../stores/uiStore'
 import type { UIMessage } from '../../types/chat'
 import type { PerSessionState } from '../../stores/chatStore'
 
@@ -43,6 +47,9 @@ describe('MessageList nested tool calls', () => {
     useSettingsStore.setState({ locale: 'en' })
     useTabStore.setState({ activeTabId: ACTIVE_TAB, tabs: [{ sessionId: ACTIVE_TAB, title: 'Test', type: 'session' as const, status: 'idle' }] })
     useChatStore.setState({ sessions: { [ACTIVE_TAB]: makeSessionState() } })
+    useSessionRuntimeStore.setState({ selections: {} })
+    useSessionStore.setState({ sessions: [], isLoading: false, error: null })
+    useUIStore.setState({ toasts: [] })
   })
 
   it('shows localized activity after the user message until the AI turn completes', async () => {
@@ -438,7 +445,7 @@ describe('MessageList nested tool calls', () => {
     expect(within(dialog).getByText(/第二段补充内容用于验证 dialog 展示的是完整结果而不是截断摘要。/)).toBeTruthy()
     expect(within(dialog).queryByText(/agentId:/)).toBeNull()
     expect(within(dialog).queryByText(/total_tokens/)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Close dialog' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
   })
 
   it('keeps async launched agents in running state until a terminal notification arrives', () => {
@@ -513,6 +520,7 @@ describe('MessageList nested tool calls', () => {
     render(<MessageList __testInitialItemCount={100} />)
 
     expect(screen.getByRole('button', { name: 'Copy prompt' })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Branch from this reply' })).toHaveLength(2)
 
     // Messages render in chronological order: oldest at top, newest at bottom.
     fireEvent.click(screen.getAllByRole('button', { name: 'Copy reply' })[0]!)
@@ -523,6 +531,312 @@ describe('MessageList nested tool calls', () => {
     expect(writeText).not.toHaveBeenCalledWith(
       '先看 CLI 和服务端入口。\n再看 desktop 前后端边界。'
     )
+  })
+
+  it('creates a branch from a saved assistant reply and inherits the runtime selection', async () => {
+    const projectPath = '-tmp-branch-project'
+    const branchSessionId = 'branch-session-id'
+    const sourceSelection = {
+      providerId: 'deepseek',
+      modelId: 'deepseek-v4-pro',
+      contextWindow: 200_000,
+    }
+    useSessionRuntimeStore.getState().setSelection(ACTIVE_TAB, sourceSelection)
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'assistant-live-id',
+              type: 'assistant_text',
+              content: 'This answer just finished.',
+              timestamp: new Date('2026-04-06T00:00:00.000Z').getTime(),
+            },
+          ],
+        }),
+      },
+    })
+    vi.spyOn(sessionsApi, 'getMessages').mockResolvedValue({
+      messages: [
+        {
+          id: 'assistant-server-id',
+          type: 'assistant',
+          content: 'This answer just finished.',
+          timestamp: '2026-04-06T00:00:00.000Z',
+        },
+      ],
+      hasMore: false,
+    })
+    const branchSpy = vi.spyOn(sessionsApi, 'branch').mockResolvedValue({
+      sessionId: branchSessionId,
+      sourceSessionId: ACTIVE_TAB,
+      targetAssistantMessageId: 'assistant-server-id',
+      session: {
+        id: branchSessionId,
+        title: 'Test (Branch)',
+        lastMessage: 'This answer just finished.',
+        createdAt: '2026-04-06T00:00:00.000Z',
+        modifiedAt: '2026-04-06T00:00:00.000Z',
+        messageCount: 1,
+        projectPath,
+        workDir: '/tmp/branch-project',
+        workDirExists: true,
+        isTemporary: false,
+      },
+    })
+    vi.spyOn(sessionsApi, 'list').mockResolvedValue({ sessions: [], total: 0 })
+
+    render(
+      <MessageList
+        sessionId={ACTIVE_TAB}
+        projectPath={projectPath}
+        __testInitialItemCount={100}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Branch from this reply' }))
+
+    await waitFor(() => {
+      expect(branchSpy).toHaveBeenCalledWith(
+        ACTIVE_TAB,
+        {
+          targetAssistantMessageId: 'assistant-server-id',
+          expectedContent: 'This answer just finished.',
+        },
+        { projectPath },
+      )
+    })
+    expect(useSessionRuntimeStore.getState().selections[branchSessionId]).toEqual(sourceSelection)
+    expect(useTabStore.getState().activeTabId).toBe(branchSessionId)
+    expect(useTabStore.getState().tabs).toContainEqual(
+      expect.objectContaining({
+        sessionId: branchSessionId,
+        title: 'Test (Branch)',
+        projectPath,
+      }),
+    )
+  })
+
+  it('branches after attached tool results instead of stopping at the preceding text', async () => {
+    const getMessagesSpy = vi.spyOn(sessionsApi, 'getMessages')
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'assistant-with-tool',
+              type: 'assistant_text',
+              content: 'I will inspect that file.',
+              timestamp: 1,
+              serverId: 'assistant-text-server-id',
+            },
+            {
+              id: 'tool-read',
+              type: 'tool_use',
+              toolName: 'Read',
+              toolUseId: 'tool-read-id',
+              input: { file_path: 'src/app.ts' },
+              timestamp: 2,
+              serverId: 'assistant-tool-server-id',
+            },
+            {
+              id: 'tool-result',
+              type: 'tool_result',
+              toolUseId: 'tool-read-id',
+              content: 'ok',
+              isError: false,
+              timestamp: 3,
+            },
+          ],
+        }),
+      },
+    })
+    const branchSpy = vi.spyOn(sessionsApi, 'branch').mockResolvedValue({
+      sessionId: 'tool-branch-session',
+      sourceSessionId: ACTIVE_TAB,
+      targetAssistantMessageId: 'assistant-tool-server-id',
+      session: {
+        id: 'tool-branch-session',
+        title: 'Test (Branch)',
+        lastMessage: 'ok',
+        createdAt: '2026-04-06T00:00:00.000Z',
+        modifiedAt: '2026-04-06T00:00:00.000Z',
+        messageCount: 3,
+        projectPath: '-tmp-tool-project',
+        workDir: '/tmp/tool-project',
+        workDirExists: true,
+        isTemporary: false,
+      },
+    })
+    vi.spyOn(sessionsApi, 'list').mockResolvedValue({ sessions: [], total: 0 })
+
+    render(<MessageList sessionId={ACTIVE_TAB} __testInitialItemCount={100} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Branch from this reply' }))
+
+    await waitFor(() => {
+      expect(branchSpy).toHaveBeenCalledWith(
+        ACTIVE_TAB,
+        { targetAssistantMessageId: 'assistant-tool-server-id' },
+        { projectPath: undefined },
+      )
+    })
+    expect(getMessagesSpy).not.toHaveBeenCalled()
+  })
+
+  it('resolves a newly streamed tool call before branching from mixed saved and live state', async () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'assistant-saved-text',
+              type: 'assistant_text',
+              content: 'I will run the tests.',
+              timestamp: 1,
+              serverId: 'assistant-saved-text-server',
+            },
+            {
+              id: 'tool-live',
+              type: 'tool_use',
+              toolName: 'Bash',
+              toolUseId: 'tool-live-id',
+              input: { command: 'bun test' },
+              timestamp: 2,
+            },
+            {
+              id: 'tool-live-result',
+              type: 'tool_result',
+              toolUseId: 'tool-live-id',
+              content: 'pass',
+              isError: false,
+              timestamp: 3,
+            },
+          ],
+        }),
+      },
+    })
+    const getMessagesSpy = vi.spyOn(sessionsApi, 'getMessages').mockResolvedValue({
+      messages: [
+        {
+          id: 'assistant-saved-text-server',
+          type: 'assistant',
+          content: 'I will run the tests.',
+          timestamp: '2026-04-06T00:00:00.000Z',
+        },
+        {
+          id: 'assistant-live-tool-server',
+          type: 'tool_use',
+          content: [
+            { type: 'tool_use', id: 'tool-live-id', name: 'Bash', input: { command: 'bun test' } },
+          ],
+          timestamp: '2026-04-06T00:00:01.000Z',
+        },
+        {
+          id: 'tool-live-result-server',
+          type: 'tool_result',
+          content: [
+            { type: 'tool_result', tool_use_id: 'tool-live-id', content: 'pass' },
+          ],
+          timestamp: '2026-04-06T00:00:02.000Z',
+        },
+      ],
+      hasMore: false,
+    })
+    const branchSpy = vi.spyOn(sessionsApi, 'branch').mockResolvedValue({
+      sessionId: 'mixed-state-branch',
+      sourceSessionId: ACTIVE_TAB,
+      targetAssistantMessageId: 'assistant-live-tool-server',
+      session: {
+        id: 'mixed-state-branch',
+        title: 'Test (Branch)',
+        lastMessage: 'pass',
+        createdAt: '2026-04-06T00:00:00.000Z',
+        modifiedAt: '2026-04-06T00:00:02.000Z',
+        messageCount: 3,
+        projectPath: '-tmp-mixed-project',
+        workDir: '/tmp/mixed-project',
+        workDirExists: true,
+        isTemporary: false,
+      },
+    })
+    vi.spyOn(sessionsApi, 'list').mockResolvedValue({ sessions: [], total: 0 })
+
+    render(<MessageList sessionId={ACTIVE_TAB} __testInitialItemCount={100} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Branch from this reply' }))
+
+    await waitFor(() => {
+      expect(getMessagesSpy).toHaveBeenCalledWith(ACTIVE_TAB, {
+        limit: 200,
+        projectPath: undefined,
+      })
+      expect(branchSpy).toHaveBeenCalledWith(
+        ACTIVE_TAB,
+        { targetAssistantMessageId: 'assistant-live-tool-server' },
+        { projectPath: undefined },
+      )
+    })
+  })
+
+  it('disables branching while the current AI turn is still running', () => {
+    const branchSpy = vi.spyOn(sessionsApi, 'branch')
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          chatState: 'streaming',
+          messages: [
+            {
+              id: 'assistant-running',
+              type: 'assistant_text',
+              content: 'Previous answer',
+              timestamp: 1,
+              serverId: 'assistant-running-server',
+            },
+          ],
+          streamingText: 'New answer in progress',
+        }),
+      },
+    })
+
+    render(<MessageList sessionId={ACTIVE_TAB} __testInitialItemCount={100} />)
+
+    const branchButton = screen.getByRole('button', { name: 'Branch from this reply' })
+    expect((branchButton as HTMLButtonElement).disabled).toBe(true)
+    expect(branchButton.getAttribute('title')).toBe('Wait for the current reply to finish')
+    fireEvent.click(branchButton)
+    expect(branchSpy).not.toHaveBeenCalled()
+  })
+
+  it('explains that the desktop service must be restarted when branch routing is outdated', async () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'assistant-outdated-sidecar',
+              type: 'assistant_text',
+              content: 'Saved answer',
+              timestamp: 1,
+              serverId: 'assistant-outdated-sidecar-server',
+            },
+          ],
+        }),
+      },
+    })
+    vi.spyOn(sessionsApi, 'branch').mockRejectedValue(
+      new ApiError(405, { message: 'Method not allowed' }),
+    )
+
+    render(<MessageList sessionId={ACTIVE_TAB} __testInitialItemCount={100} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Branch from this reply' }))
+
+    await waitFor(() => {
+      expect(useUIStore.getState().toasts).toContainEqual(
+        expect.objectContaining({
+          type: 'error',
+          message: 'The desktop service is out of date. Restart CyberCode and try again.',
+        }),
+      )
+    })
   })
 
   it('does not force-scroll to the bottom while the user is reading history', async () => {
@@ -665,6 +979,8 @@ describe('MessageList nested tool calls', () => {
     expect(assistantBubble?.className).not.toContain('p-[20px]')
     expect(userActions?.getAttribute('data-align')).toBe('end')
     expect(assistantActions?.getAttribute('data-align')).toBe('start')
+    expect(assistantActions?.parentElement?.className).toContain('ml-[16px]')
+    expect(assistantActions?.parentElement?.className).toContain('mt-[8px]')
   })
 
   it('uses the document column for markdown-heavy assistant replies', () => {
@@ -843,7 +1159,7 @@ describe('MessageList nested tool calls', () => {
               type: 'error',
               code: 'CLI_START_FAILED',
               message:
-                'CLI exited during startup (code 1): Claude Code on Windows requires git-bash (https://git-scm.com/downloads/win).',
+                'CLI exited during startup (code 1): CyberCode on Windows requires git-bash (https://git-scm.com/downloads/win).',
               timestamp: 1,
             },
           ],
@@ -856,7 +1172,7 @@ describe('MessageList nested tool calls', () => {
     expect(screen.getByText('Failed to start CLI process.')).toBeTruthy()
     expect(
       screen.getByText(
-        'CLI exited during startup (code 1): Claude Code on Windows requires git-bash (https://git-scm.com/downloads/win).',
+        'CLI exited during startup (code 1): CyberCode on Windows requires git-bash (https://git-scm.com/downloads/win).',
       ),
     ).toBeTruthy()
     expect(container.querySelector('[data-message-shell="error"]')?.className).toContain('max-w-[878px]')

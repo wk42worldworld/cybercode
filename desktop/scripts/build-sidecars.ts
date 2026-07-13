@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import { detectHostTriple, mapTargetTripleToBun } from './sidecarTarget'
 
 const desktopRoot = path.resolve(import.meta.dir, '..')
 const repoRoot = path.resolve(desktopRoot, '..')
@@ -8,12 +9,44 @@ const binariesDir = path.join(desktopRoot, 'src-tauri', 'binaries')
 const targetTriple =
   process.env.TAURI_ENV_TARGET_TRIPLE ||
   process.env.CARGO_BUILD_TARGET ||
-  (await detectHostTriple())
+  (await detectHostTriple(repoRoot))
 
 const bunTarget = mapTargetTripleToBun(targetTriple)
 
-// 编译前先扫一遍 src/ 把所有缺失的 ant-internal 模块在磁盘上 stub 出来。
-// 见 desktop/scripts/scan-missing-imports.ts。
+await mkdir(binariesDir, { recursive: true })
+
+console.log('[build-sidecars] preparing embedded RTK runtime...')
+const rtkPrepareProc = Bun.spawn(
+  ['bun', 'run', path.join(desktopRoot, 'scripts/prepare-rtk.ts')],
+  {
+    cwd: repoRoot,
+    env: { ...process.env, TAURI_ENV_TARGET_TRIPLE: targetTriple },
+    stdout: 'inherit',
+    stderr: 'inherit',
+  },
+)
+const rtkPrepareExit = await rtkPrepareProc.exited
+if (rtkPrepareExit !== 0) {
+  throw new Error(`[build-sidecars] prepare-rtk failed (exit ${rtkPrepareExit})`)
+}
+
+console.log('[build-sidecars] preparing embedded CodeGraph core...')
+const codeGraphPrepareProc = Bun.spawn(
+  ['bun', 'run', path.join(desktopRoot, 'scripts/prepare-codegraph.ts')],
+  {
+    cwd: repoRoot,
+    env: { ...process.env, TAURI_ENV_TARGET_TRIPLE: targetTriple },
+    stdout: 'inherit',
+    stderr: 'inherit',
+  },
+)
+const codeGraphPrepareExit = await codeGraphPrepareProc.exited
+if (codeGraphPrepareExit !== 0) {
+  throw new Error(`[build-sidecars] prepare-codegraph failed (exit ${codeGraphPrepareExit})`)
+}
+
+// 编译前扫一遍 src/ 把缺失的 ant-internal 模块在磁盘上 stub 出来。
+// CodeGraph 的平台桥接要先生成，避免被扫描器当成缺失模块。
 console.log('[build-sidecars] scanning for missing imports...')
 const scanProc = Bun.spawn(
   ['bun', 'run', path.join(desktopRoot, 'scripts/scan-missing-imports.ts')],
@@ -24,69 +57,17 @@ if (scanExit !== 0) {
   throw new Error(`[build-sidecars] scan-missing-imports failed (exit ${scanExit})`)
 }
 
-await mkdir(binariesDir, { recursive: true })
-
 // 单一合并 sidecar：server / cli 共享一份 bun runtime + 共享依赖代码。
 // 调用方（Tauri lib.rs / conversationService）通过第一个 positional 参数
 // 选择 'server' 或 'cli' 模式，详见 desktop/sidecars/claude-sidecar.ts。
 await compileExecutable({
   entrypoint: path.join(desktopRoot, 'sidecars/claude-sidecar.ts'),
   outfileBase: path.join(binariesDir, `claude-sidecar-${targetTriple}`),
-  productName: 'Claude Code Sidecar',
+  productName: 'CyberCode Sidecar',
   bunTarget,
 })
 
 console.log(`[build-sidecars] Built desktop sidecar for ${targetTriple} (${bunTarget})`)
-
-async function detectHostTriple() {
-  const proc = Bun.spawn(['rustc', '-vV'], {
-    cwd: repoRoot,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
-
-  const stdout = await new Response(proc.stdout).text()
-  const stderr = await new Response(proc.stderr).text()
-  const exitCode = await proc.exited
-
-  if (exitCode !== 0) {
-    throw new Error(`[build-sidecars] rustc -vV failed: ${stderr || stdout}`)
-  }
-
-  const hostLine = stdout
-    .split('\n')
-    .map((line) => line.trim())
-    .find((line) => line.startsWith('host: '))
-
-  if (!hostLine) {
-    throw new Error('[build-sidecars] Could not detect Rust host triple')
-  }
-
-  return hostLine.replace('host: ', '')
-}
-
-function mapTargetTripleToBun(triple: string) {
-  switch (triple) {
-    case 'aarch64-apple-darwin':
-      return 'bun-darwin-arm64'
-    case 'x86_64-apple-darwin':
-      return 'bun-darwin-x64'
-    case 'x86_64-pc-windows-msvc':
-      return 'bun-windows-x64'
-    case 'aarch64-pc-windows-msvc':
-      return 'bun-windows-arm64'
-    case 'x86_64-unknown-linux-gnu':
-      return 'bun-linux-x64-baseline'
-    case 'aarch64-unknown-linux-gnu':
-      return 'bun-linux-arm64'
-    case 'x86_64-unknown-linux-musl':
-      return 'bun-linux-x64-musl'
-    case 'aarch64-unknown-linux-musl':
-      return 'bun-linux-arm64-musl'
-    default:
-      throw new Error(`[build-sidecars] Unsupported target triple: ${triple}`)
-  }
-}
 
 async function compileExecutable({
   entrypoint,
@@ -142,7 +123,7 @@ async function compileExecutable({
       autoloadPackageJson: true,
       windows: {
         title: productName,
-        publisher: 'Claude Code',
+        publisher: 'CyberCode',
         description: productName,
         hideConsole: true,
       },

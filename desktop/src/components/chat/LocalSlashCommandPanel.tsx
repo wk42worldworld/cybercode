@@ -6,11 +6,14 @@ import {
   sessionsApi,
   type SessionContextSnapshot,
   type SessionInspectionResponse,
+  type SessionUsageResponse,
   type SessionUsageSnapshot,
 } from '../../api/sessions'
 import { useTranslation, type TranslationKey } from '../../i18n'
+import { useChatStore } from '../../stores/chatStore'
 import { useUIStore } from '../../stores/uiStore'
 import { useMcpStore } from '../../stores/mcpStore'
+import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
 import { useSkillStore } from '../../stores/skillStore'
 import type { McpServerRecord } from '../../types/mcp'
 import type { SkillMeta } from '../../types/skill'
@@ -18,6 +21,8 @@ import type { SlashCommandOption } from './composerUtils'
 import { Icon } from '../shared/Icon'
 import { CopyButton } from '../shared/CopyButton'
 import { formatBytes } from '../../lib/formatBytes'
+import { readCachedSessionUsageEntry, writeCachedSessionUsage } from './sessionUsageCache'
+import { formatCompactTokenCount, getTurnInputTokenTotal, resolveTokenUsageValues } from './tokenUsage'
 
 export type LocalSlashCommandName = 'mcp' | 'skills' | 'help' | 'status' | 'cost' | 'context' | 'doctor' | 'memory' | 'bug'
 
@@ -877,6 +882,216 @@ function SessionInspectorShell({
   )
 }
 
+function CompactTokenUsagePanel({
+  sessionId,
+  projectPath,
+  onClose,
+}: {
+  sessionId?: string
+  projectPath?: string
+  onClose: () => void
+}) {
+  const t = useTranslation()
+  const sessionState = useChatStore((state) => sessionId ? state.sessions[sessionId] : undefined)
+  const liveTurnUsage = sessionState?.tokenUsage ?? { input_tokens: 0, output_tokens: 0 }
+  const usageRevision = sessionState?.usageRevision ?? 0
+  const chatState = sessionState?.chatState ?? 'idle'
+  const runtimeContextWindow = useSessionRuntimeStore((state) =>
+    sessionId ? state.selections[sessionId]?.contextWindow : undefined,
+  )
+  const usageKey = `${sessionId ?? ''}:${projectPath ?? ''}`
+  const emptyUsage = useMemo<SessionUsageResponse>(() => ({ usage: null, context: null }), [])
+  const [loadedUsage, setLoadedUsage] = useState(() => {
+    const cached = sessionId ? readCachedSessionUsageEntry(sessionId, projectPath) : null
+    return {
+      key: usageKey,
+      data: cached?.response ?? emptyUsage,
+      revision: cached?.revision ?? -1,
+    }
+  })
+  const [error, setError] = useState<string | null>(null)
+  const effectiveLoadedUsage = loadedUsage.key === usageKey
+    ? loadedUsage
+    : { key: usageKey, data: emptyUsage, revision: -1 }
+
+  useEffect(() => {
+    if (!sessionId) {
+      setLoadedUsage({ key: usageKey, data: emptyUsage, revision: -1 })
+      return
+    }
+    let cancelled = false
+    const cached = readCachedSessionUsageEntry(sessionId, projectPath)
+    const requestedRevision = usageRevision
+    setLoadedUsage({
+      key: usageKey,
+      data: cached?.response ?? emptyUsage,
+      revision: cached?.revision ?? -1,
+    })
+    setError(null)
+    const timer = window.setTimeout(() => {
+      sessionsApi.getUsage(sessionId, { projectPath })
+        .then((response) => {
+          if (!cancelled) {
+            writeCachedSessionUsage(sessionId, projectPath, response, requestedRevision)
+            setLoadedUsage({ key: usageKey, data: response, revision: requestedRevision })
+          }
+        })
+        .catch((loadError) => {
+          if (!cancelled) setError(loadError instanceof Error ? loadError.message : String(loadError))
+        })
+    }, requestedRevision > 0 ? 180 : 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [emptyUsage, projectPath, sessionId, usageKey, usageRevision])
+
+  const data = effectiveLoadedUsage.data
+  const usage = data.usage
+  const values = useMemo(() => resolveTokenUsageValues({
+    liveTurnUsage,
+    persistedUsage: usage,
+    persistedContext: data.context,
+    isTurnActive: chatState !== 'idle',
+    usageRevision,
+    loadedRevision: effectiveLoadedUsage.revision,
+    contextWindowOverride: runtimeContextWindow,
+  }), [chatState, data.context, effectiveLoadedUsage.revision, liveTurnUsage, runtimeContextWindow, usage, usageRevision])
+  const uncachedInput = values.effectiveTurnUsage.input_tokens
+  const cacheRead = values.effectiveTurnUsage.cache_read_input_tokens ?? values.effectiveTurnUsage.cache_read_tokens ?? 0
+  const cacheWrite = values.effectiveTurnUsage.cache_creation_input_tokens ?? values.effectiveTurnUsage.cache_creation_tokens ?? 0
+  const input = getTurnInputTokenTotal(values.effectiveTurnUsage)
+  const output = values.effectiveTurnUsage.output_tokens
+  const contextPercentage = values.contextPercentage
+  const metrics = [
+    { key: 'turn', label: t('chat.tokenUsage.turn'), value: values.turnTotal },
+    { key: 'session', label: t('chat.tokenUsage.session'), value: values.sessionTotal },
+    { key: 'input', label: t('chat.tokenUsage.inputTotal'), value: input },
+    { key: 'output', label: t('slash.inspector.usage.output'), value: output },
+  ]
+  const inputBreakdown = [
+    { key: 'uncached', label: t('chat.tokenUsage.uncachedInput'), value: uncachedInput },
+    { key: 'cache-read', label: t('slash.inspector.usage.cacheRead'), value: cacheRead },
+    { key: 'cache-write', label: t('slash.inspector.usage.cacheWrite'), value: cacheWrite },
+  ]
+
+  return (
+    <div
+      data-testid="compact-token-usage-panel"
+      className="absolute bottom-full right-0 z-50 mb-[12px] w-[min(380px,calc(100vw-32px))] overflow-hidden rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)]"
+    >
+      <div className="flex h-[54px] items-center justify-between border-b border-[var(--color-border-separator)] px-[14px]">
+        <div className="flex min-w-0 items-center gap-[10px]">
+          <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] bg-[var(--color-brand)]/10 text-[var(--color-brand)]">
+            <Icon name="analytics" size={16} />
+          </span>
+          <div className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
+            {t('slash.inspector.tab.usage')}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('slash.inspector.close')}
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+        >
+          <Icon name="close" size={14} />
+        </button>
+      </div>
+
+      <div className="px-[14px] py-[13px]">
+        {error ? (
+          <div className="rounded-[7px] border border-[var(--color-error)]/20 bg-[var(--color-error)]/5 px-[12px] py-[10px] text-[12px] text-[var(--color-error)]">
+            {error}
+          </div>
+        ) : (
+          <>
+            <div data-testid="compact-token-context" className="rounded-[7px] bg-[var(--color-surface-container-low)] px-[12px] py-[11px]">
+              <div className="flex items-end justify-between gap-[12px]">
+                <div>
+                  <div className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+                    {t('slash.inspector.usage.contextUsed')}
+                  </div>
+                  <div className="mt-[3px] font-mono text-[11px] tabular-nums text-[var(--color-text-secondary)]">
+                    {formatNumber(values.contextTokens)} / {values.contextWindow > 0 ? formatNumber(values.contextWindow) : '--'}
+                  </div>
+                </div>
+                <div className="font-mono text-[20px] font-semibold tabular-nums text-[var(--color-text-primary)]">
+                  {contextPercentage === null ? '--' : formatPercent(contextPercentage)}
+                </div>
+              </div>
+              <div className="mt-[10px] h-[4px] overflow-hidden rounded-full bg-[var(--color-border-separator)]">
+                <div
+                  className="h-full rounded-full bg-[var(--color-brand)] transition-[width] duration-300 ease-out"
+                  style={{ width: `${contextPercentage ?? 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-[10px] grid grid-cols-2 overflow-hidden rounded-[7px] border border-[var(--color-border-separator)]">
+              {metrics.map((metric, index) => {
+                const compactValue = formatCompactTokenCount(metric.value)
+                const exactValue = formatNumber(metric.value)
+                return (
+                  <div
+                    key={metric.key}
+                    data-testid={`compact-token-metric-${metric.key}`}
+                    className={`min-w-0 px-[12px] py-[10px] ${index % 2 === 1 ? 'border-l border-[var(--color-border-separator)]' : ''} ${index >= 2 ? 'border-t border-[var(--color-border-separator)]' : ''}`}
+                  >
+                    <div className="text-[10px] font-medium text-[var(--color-text-secondary)]">{metric.label}</div>
+                    <div
+                      className="mt-[3px] truncate font-mono text-[14px] font-semibold tabular-nums text-[var(--color-text-primary)]"
+                      title={exactValue}
+                    >
+                      {compactValue}
+                    </div>
+                    <div
+                      data-testid={`compact-token-metric-${metric.key}-exact`}
+                      className="mt-[1px] h-[11px] truncate font-mono text-[9px] tabular-nums text-[var(--color-text-tertiary)]"
+                      aria-hidden={compactValue === exactValue}
+                    >
+                      {compactValue === exactValue ? '\u00a0' : exactValue}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div data-testid="compact-token-input-breakdown" className="mt-[10px] border-t border-[var(--color-border-separator)] pt-[9px]">
+              <div className="mb-[7px] text-[10px] font-medium text-[var(--color-text-secondary)]">
+                {t('chat.tokenUsage.inputBreakdown')}
+              </div>
+              <div className="grid grid-cols-3 divide-x divide-[var(--color-border-separator)]">
+                {inputBreakdown.map((item) => {
+                  const compactValue = formatCompactTokenCount(item.value)
+                  const exactValue = formatNumber(item.value)
+                  return (
+                    <div key={item.key} className="min-w-0 px-[8px] first:pl-0 last:pr-0">
+                      <div className="truncate text-[9px] text-[var(--color-text-tertiary)]" title={item.label}>
+                        {item.label}
+                      </div>
+                      <div className="mt-[2px] truncate font-mono text-[11px] font-semibold tabular-nums text-[var(--color-text-secondary)]" title={exactValue}>
+                        {compactValue}
+                      </div>
+                      <div
+                        data-testid={`compact-token-input-${item.key}-exact`}
+                        className="mt-[1px] h-[10px] truncate font-mono text-[8px] tabular-nums text-[var(--color-text-tertiary)]"
+                        aria-hidden={compactValue === exactValue}
+                      >
+                        {compactValue === exactValue ? '\u00a0' : exactValue}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SessionInspectorPanel({
   command,
   sessionId,
@@ -1454,7 +1669,10 @@ export function LocalSlashCommandPanel({ command, sessionId, projectPath, cwd, c
   if (command === 'doctor') return <DoctorPanel onClose={onClose} />
   if (command === 'memory') return <MemoryPanel sessionId={sessionId} projectPath={projectPath} onClose={onClose} />
   if (command === 'bug') return <BugPanel onClose={onClose} />
-  if (command === 'status' || command === 'cost' || command === 'context') {
+  if (command === 'cost') {
+    return <CompactTokenUsagePanel sessionId={sessionId} projectPath={projectPath} onClose={onClose} />
+  }
+  if (command === 'status' || command === 'context') {
     return <SessionInspectorPanel command={command} sessionId={sessionId} projectPath={projectPath} commands={commands} onClose={onClose} />
   }
   return <HelpPanel commands={commands} onClose={onClose} />

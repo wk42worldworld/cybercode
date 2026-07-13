@@ -72,9 +72,14 @@ describe('AppShell bootstrap', () => {
       activeModal: null,
       toasts: [],
     })
+    document.body.insertAdjacentHTML(
+      'afterbegin',
+      '<div id="boot-splash" class="boot-splash" data-testid="boot-splash"></div>',
+    )
   })
 
   afterEach(() => {
+    document.getElementById('boot-splash')?.remove()
     vi.restoreAllMocks()
   })
 
@@ -96,6 +101,65 @@ describe('AppShell bootstrap', () => {
       '[desktop] Failed to load startup settings:',
       expect.any(Error),
     )
+  })
+
+  it('keeps the single boot splash until settings finish loading', async () => {
+    vi.mocked(initializeDesktopServerUrl).mockResolvedValue('http://127.0.0.1:3456')
+    let finishSettings!: () => void
+    const pendingSettings = new Promise<void>((resolve) => {
+      finishSettings = resolve
+    })
+    const fetchAll = vi.fn(() => pendingSettings)
+    useSettingsStore.setState({
+      fetchAll,
+    } as Partial<ReturnType<typeof useSettingsStore.getState>>)
+
+    render(<AppShell />)
+
+    expect(screen.getByTestId('boot-splash')).toBeInTheDocument()
+    expect(screen.queryByTestId('content-router')).not.toBeInTheDocument()
+    await waitFor(() => expect(fetchAll).toHaveBeenCalledOnce())
+
+    finishSettings()
+    expect(await screen.findByTestId('content-router')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByTestId('boot-splash')).not.toBeInTheDocument())
+  })
+
+  it('keeps the startup splash visible while the restored session prepares', async () => {
+    vi.mocked(initializeDesktopServerUrl).mockResolvedValue('http://127.0.0.1:3456')
+    let finishHistory!: () => void
+    const pendingHistory = new Promise<void>((resolve) => {
+      finishHistory = resolve
+    })
+    const ensureSessionReady = vi.fn(() => pendingHistory)
+    const restoreTabs = vi.fn(async () => {
+      useTabStore.setState({
+        tabs: [{
+          sessionId: 'session-1',
+          projectPath: '/workspace/project',
+          title: 'Restored session',
+          type: 'session',
+          status: 'idle',
+        }],
+        activeTabId: 'session-1',
+        recentSessionIds: ['session-1'],
+      })
+    })
+    useTabStore.setState({ restoreTabs } as Partial<ReturnType<typeof useTabStore.getState>>)
+    useChatStore.setState({
+      ensureSessionReady,
+    } as Partial<ReturnType<typeof useChatStore.getState>>)
+
+    render(<AppShell />)
+
+    await waitFor(() => {
+      expect(ensureSessionReady).toHaveBeenCalledWith('session-1', '/workspace/project')
+    })
+    expect(screen.getByTestId('boot-splash')).toBeInTheDocument()
+    expect(screen.queryByTestId('content-router')).not.toBeInTheDocument()
+
+    finishHistory()
+    expect(await screen.findByTestId('content-router')).toBeInTheDocument()
   })
 
   it('shows the startup error view when the local server cannot initialize', async () => {

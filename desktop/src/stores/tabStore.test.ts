@@ -88,4 +88,32 @@ describe('tabStore', () => {
       { sessionId: 'session-1', projectPath: '-project-a', title: 'Restored Session' },
     ])
   })
+
+  it('updates a duplicate session id only in the matching project tab', () => {
+    useTabStore.setState({
+      tabs: [
+        {
+          sessionId: 'session-dup',
+          projectPath: '-project-a',
+          title: 'Project A',
+          type: 'session',
+          status: 'idle',
+        },
+        {
+          sessionId: 'session-dup',
+          projectPath: '-project-b',
+          title: 'Project B',
+          type: 'session',
+          status: 'idle',
+        },
+      ],
+    })
+
+    useTabStore.getState().updateTabTitle('session-dup', 'Renamed A', '-project-a')
+
+    expect(useTabStore.getState().tabs.map((tab) => tab.title)).toEqual([
+      'Renamed A',
+      'Project B',
+    ])
+  })
 })

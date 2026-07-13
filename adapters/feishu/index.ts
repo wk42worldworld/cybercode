@@ -1,5 +1,5 @@
 /**
- * 飞书 (Feishu/Lark) Adapter for Claude Code Desktop
+ * 飞书 (Feishu/Lark) Adapter for CyberCode Desktop
  *
  * 基于 @larksuiteoapi/node-sdk 的轻量飞书 Bot，直连服务端 /ws/:sessionId。
  * 使用 WebSocket 长连接接收事件，无需公网地址。
@@ -438,7 +438,7 @@ type ToolCallSummary = {
   filePath?: string
 }
 
-/** Map a Claude Code tool call to an icon + human-readable Chinese label.
+/** Map a CyberCode tool call to an icon + human-readable Chinese label.
  *  Unknown tools fall back to the raw tool name with a generic icon. */
 function summarizeToolCall(toolName: string, input: unknown): ToolCallSummary {
   const rec: Record<string, unknown> =
@@ -963,9 +963,9 @@ async function handleMessage(data: any): Promise<void> {
       if (pairText) {
         const success = tryPair(pairText.trim(), { userId: senderOpenId, displayName: 'Feishu User' }, 'feishu')
         if (success) {
-          await sendText(chatId, '✅ 配对成功！现在可以开始聊天了。\n\n发送消息即可与 Claude 对话。')
+          await sendText(chatId, '✅ 配对成功！现在可以开始聊天了。\n\n发送消息即可与 CyberCode 对话。')
         } else {
-          await sendText(chatId, '🔒 未授权。请在 Claude Code 桌面端生成配对码后发送给我。')
+          await sendText(chatId, '🔒 未授权。请在 CyberCode 桌面端生成配对码后发送给我。')
         }
       }
       return

@@ -28,7 +28,7 @@ type SidebarSessionGroup = {
   key: string
   projectPath?: string
   title: string
-  subtitle: string | null
+  path: string | null
   modifiedAt: string | null
   isTemporary: boolean
   sessions: SessionListItem[]
@@ -66,12 +66,15 @@ export function Sidebar() {
   const selectedProjects = useSessionStore((s) => s.selectedProjects)
   const selectedSessionScope = useSessionStore((s) => s.selectedSessionScope)
   const hiddenProjectPaths = useSessionStore((s) => s.hiddenProjectPaths)
+  const projectDisplayNames = useSessionStore((s) => s.projectDisplayNames)
+  const renameProject = useSessionStore((s) => s.renameProject)
   const hideProject = useSessionStore((s) => s.hideProject)
   const error = useSessionStore((s) => s.error)
   const fetchSessions = useSessionStore((s) => s.fetchSessions)
   const deleteSession = useSessionStore((s) => s.deleteSession)
   const renameSession = useSessionStore((s) => s.renameSession)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
+  const settingsOpen = useUIStore((s) => s.settingsOpen)
 
   const activeTabId = useTabStore((s) => s.activeTabId)
   const activeTab = useTabStore((s) => s.tabs.find((tab) => tab.sessionId === s.activeTabId))
@@ -86,10 +89,13 @@ export function Sidebar() {
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false)
   const [renamingSession, setRenamingSession] = useState<SessionRef | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [renamingProjectPath, setRenamingProjectPath] = useState<string | null>(null)
+  const [projectRenameValue, setProjectRenameValue] = useState('')
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<Set<string>>(
     () => new Set(readCollapsedGroupKeys()),
   )
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const projectRenameInputRef = useRef<HTMLInputElement>(null)
   const newSessionButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { fetchSessions() }, [fetchSessions])
@@ -105,6 +111,12 @@ export function Sidebar() {
   }, [contextMenu, sidebarOpen])
 
   useEffect(() => {
+    if (!settingsOpen) return
+    setContextMenu(null)
+    setNewSessionMenuOpen(false)
+  }, [settingsOpen])
+
+  useEffect(() => {
     if (!contextMenu) return
     const close = () => setContextMenu(null)
     document.addEventListener('click', close)
@@ -117,12 +129,13 @@ export function Sidebar() {
       sessionFilterScope: selectedSessionScope,
       selectedProjectPaths: selectedProjects,
       hiddenProjectPaths,
+      projectDisplayNames,
       searchQuery,
       fallbackProjectTitle: t('sidebar.other'),
       temporaryTitle: t('sidebar.temporarySessions'),
       getDisplayTitle: (session) => getSessionDisplayTitle(session, t),
     }),
-    [hiddenProjectPaths, searchQuery, selectedProjects, selectedSessionScope, sessions, t],
+    [hiddenProjectPaths, projectDisplayNames, searchQuery, selectedProjects, selectedSessionScope, sessions, t],
   )
 
   const visibleSessionCount = useMemo(
@@ -133,11 +146,14 @@ export function Sidebar() {
   )
 
   const currentProject = useMemo(() => {
-    const selectedProject = resolveCurrentProject(selectedProjects, sessions)
-    if (selectedProject) return selectedProject
-    if (!activeTab?.projectPath) return undefined
-    return resolveCurrentProject([activeTab.projectPath], sessions)
-  }, [activeTab?.projectPath, selectedProjects, sessions])
+    const resolved = resolveCurrentProject(selectedProjects, sessions)
+      ?? (activeTab?.projectPath ? resolveCurrentProject([activeTab.projectPath], sessions) : undefined)
+    if (!resolved) return undefined
+    return {
+      ...resolved,
+      title: projectDisplayNames[resolved.projectPath] || resolved.title,
+    }
+  }, [activeTab?.projectPath, projectDisplayNames, selectedProjects, sessions])
 
   const activeKey = activeTab ? sessionKey(activeTab.sessionId, activeTab.projectPath) : activeTabId
 
@@ -187,11 +203,36 @@ export function Sidebar() {
 
   const handleFinishRename = useCallback(async () => {
     if (renamingSession && renameValue.trim()) {
-      await renameSession(renamingSession.id, renameValue.trim(), renamingSession.projectPath)
+      const nextTitle = renameValue.trim()
+      await renameSession(renamingSession.id, nextTitle, renamingSession.projectPath)
+      useTabStore.getState().updateTabTitle(
+        renamingSession.id,
+        nextTitle,
+        renamingSession.projectPath,
+      )
     }
     setRenamingSession(null)
     setRenameValue('')
   }, [renamingSession, renameValue, renameSession])
+
+  const handleStartProjectRename = useCallback((projectPath: string, currentTitle: string) => {
+    setContextMenu(null)
+    setNewSessionMenuOpen(false)
+    setRenamingProjectPath(projectPath)
+    setProjectRenameValue(currentTitle)
+  }, [])
+
+  useEffect(() => {
+    if (renamingProjectPath) projectRenameInputRef.current?.focus()
+  }, [renamingProjectPath])
+
+  const handleFinishProjectRename = useCallback(() => {
+    if (renamingProjectPath && projectRenameValue.trim()) {
+      renameProject(renamingProjectPath, projectRenameValue)
+    }
+    setRenamingProjectPath(null)
+    setProjectRenameValue('')
+  }, [projectRenameValue, renameProject, renamingProjectPath])
 
   const toggleGroup = useCallback((groupKey: string) => {
     setCollapsedGroupKeys((current) => {
@@ -264,7 +305,7 @@ export function Sidebar() {
       <div className="flex flex-1 flex-col overflow-hidden pt-[8px]">
         <div className="flex h-[92px] items-center justify-center px-[10px]">
           <img
-            src="/brand/cybercode-wordmark-long-flat-v4.png"
+            src="/brand/cybercode-wordmark-long-flat-v4-4x.png"
             alt="CyberCode"
             className="cybercode-wordmark-image h-[50px] w-[240px] object-contain"
             draggable={false}
@@ -323,14 +364,22 @@ export function Sidebar() {
                 renamingSession={renamingSession}
                 renameValue={renameValue}
                 renameInputRef={renameInputRef}
+                renamingProjectPath={renamingProjectPath}
+                projectRenameValue={projectRenameValue}
+                projectRenameInputRef={projectRenameInputRef}
                 onToggle={() => toggleGroup(group.key)}
                 onOpenSession={openSession}
                 onSessionContextMenu={handleSessionContextMenu}
                 onProjectContextMenu={handleProjectContextMenu}
                 onDelete={handleDelete}
+                onStartSessionRename={handleStartRename}
+                onStartProjectRename={handleStartProjectRename}
                 onRenameChange={setRenameValue}
                 onFinishRename={handleFinishRename}
                 onCancelRename={() => { setRenamingSession(null); setRenameValue('') }}
+                onProjectRenameChange={setProjectRenameValue}
+                onFinishProjectRename={handleFinishProjectRename}
+                onCancelProjectRename={() => { setRenamingProjectPath(null); setProjectRenameValue('') }}
               />
             ))}
 
@@ -342,13 +391,21 @@ export function Sidebar() {
                 renamingSession={renamingSession}
                 renameValue={renameValue}
                 renameInputRef={renameInputRef}
+                renamingProjectPath={renamingProjectPath}
+                projectRenameValue={projectRenameValue}
+                projectRenameInputRef={projectRenameInputRef}
                 onToggle={() => toggleGroup(TEMPORARY_GROUP_KEY)}
                 onOpenSession={openSession}
                 onSessionContextMenu={handleSessionContextMenu}
                 onDelete={handleDelete}
+                onStartSessionRename={handleStartRename}
+                onStartProjectRename={handleStartProjectRename}
                 onRenameChange={setRenameValue}
                 onFinishRename={handleFinishRename}
                 onCancelRename={() => { setRenamingSession(null); setRenameValue('') }}
+                onProjectRenameChange={setProjectRenameValue}
+                onFinishProjectRename={handleFinishProjectRename}
+                onCancelProjectRename={() => { setRenamingProjectPath(null); setProjectRenameValue('') }}
               />
             )}
           </div>
@@ -381,6 +438,14 @@ export function Sidebar() {
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            type="button"
+            onClick={() => handleStartProjectRename(contextMenu.projectPath, contextMenu.title)}
+            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+          >
+            <Icon name="edit" size={13} className="text-[var(--color-text-tertiary)]" />
+            <span>{t('common.rename')}</span>
+          </button>
           <button
             type="button"
             onClick={() => removeProjectFromSidebar(contextMenu.projectPath)}
@@ -431,14 +496,22 @@ function SessionProjectGroup({
   renamingSession,
   renameValue,
   renameInputRef,
+  renamingProjectPath,
+  projectRenameValue,
+  projectRenameInputRef,
   onToggle,
   onOpenSession,
   onSessionContextMenu,
   onProjectContextMenu,
   onDelete,
+  onStartSessionRename,
+  onStartProjectRename,
   onRenameChange,
   onFinishRename,
   onCancelRename,
+  onProjectRenameChange,
+  onFinishProjectRename,
+  onCancelProjectRename,
 }: {
   group: SidebarSessionGroup
   expanded: boolean
@@ -446,50 +519,85 @@ function SessionProjectGroup({
   renamingSession: SessionRef | null
   renameValue: string
   renameInputRef: React.RefObject<HTMLInputElement>
+  renamingProjectPath: string | null
+  projectRenameValue: string
+  projectRenameInputRef: React.RefObject<HTMLInputElement>
   onToggle: () => void
   onOpenSession: (session: SessionListItem, displayTitle: string) => void
   onSessionContextMenu: (event: React.MouseEvent, session: SessionRef) => void
   onProjectContextMenu?: (event: React.MouseEvent, group: SidebarSessionGroup) => void
   onDelete: (session: SessionRef) => void
+  onStartSessionRename: (session: SessionRef, currentTitle: string) => void
+  onStartProjectRename: (projectPath: string, currentTitle: string) => void
   onRenameChange: (value: string) => void
   onFinishRename: () => void
   onCancelRename: () => void
+  onProjectRenameChange: (value: string) => void
+  onFinishProjectRename: () => void
+  onCancelProjectRename: () => void
 }) {
   const t = useTranslation()
 
   return (
     <section className="flex flex-col gap-[6px]" aria-label={group.title}>
-      <button
-        type="button"
-        aria-expanded={expanded}
-        onClick={onToggle}
-        onContextMenu={group.isTemporary ? undefined : (event) => onProjectContextMenu?.(event, group)}
-        className="group/project flex h-[40px] w-full items-center gap-[9px] rounded-[8px] px-[8px] text-left text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
-      >
-        <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)] transition-colors group-hover/project:bg-[var(--color-surface-container-high)]">
-          {group.isTemporary
-            ? <Icon name="bolt" size={14} />
-            : <Folder size={14} strokeWidth={1.85} />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12px] font-bold leading-[16px] text-[var(--color-text-primary)]">
-            {group.title}
-          </span>
-          {group.subtitle && (
-            <span className="block truncate text-[10px] font-medium leading-[13px] text-[var(--color-text-tertiary)]">
-              {group.subtitle}
-            </span>
-          )}
-        </span>
-        <span className="shrink-0 rounded-full bg-[var(--color-surface-container)] px-[6px] py-[2px] text-[10px] font-bold text-[var(--color-text-tertiary)]">
-          {t('sidebar.projectSessionCount', { count: group.sessions.length })}
-        </span>
-        <ChevronDown
-          size={14}
-          strokeWidth={1.85}
-          className={`shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-100 ${expanded ? '' : '-rotate-90'}`}
-        />
-      </button>
+      <div className="group/project relative">
+        {renamingProjectPath === group.projectPath && !group.isTemporary ? (
+          <input
+            ref={projectRenameInputRef}
+            value={projectRenameValue}
+            maxLength={80}
+            aria-label={`${t('common.rename')}: ${group.title}`}
+            onChange={(event) => onProjectRenameChange(event.target.value)}
+            onBlur={onFinishProjectRename}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') onFinishProjectRename()
+              if (event.key === 'Escape') onCancelProjectRename()
+            }}
+            className="h-[40px] w-full rounded-[8px] border border-[var(--color-border-focus)] bg-[var(--color-surface-container-lowest)] px-[12px] text-[12px] font-bold text-[var(--color-text-primary)] outline-none ring-2 ring-[var(--color-brand)]/15"
+          />
+        ) : (
+          <>
+            <button
+              type="button"
+              aria-expanded={expanded}
+              title={group.path ?? undefined}
+              onClick={onToggle}
+              onContextMenu={group.isTemporary ? undefined : (event) => onProjectContextMenu?.(event, group)}
+              className="flex h-[40px] w-full items-center gap-[9px] rounded-[8px] px-[8px] text-left text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+            >
+              <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-surface-container)] text-[var(--color-text-tertiary)] transition-colors group-hover/project:bg-[var(--color-surface-container-high)]">
+                {group.isTemporary
+                  ? <Icon name="bolt" size={14} />
+                  : <Folder size={14} strokeWidth={1.85} />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12px] font-bold leading-[16px] text-[var(--color-text-primary)]">
+                  {group.title}
+                </span>
+              </span>
+              <span className={`shrink-0 rounded-full bg-[var(--color-surface-container)] px-[6px] py-[2px] text-[10px] font-bold text-[var(--color-text-tertiary)] transition-opacity ${group.isTemporary ? '' : 'group-hover/project:opacity-0'}`}>
+                {t('sidebar.projectSessionCount', { count: group.sessions.length })}
+              </span>
+              <ChevronDown
+                size={14}
+                strokeWidth={1.85}
+                className={`shrink-0 text-[var(--color-text-tertiary)] transition-transform duration-100 ${expanded ? '' : '-rotate-90'}`}
+              />
+            </button>
+            {!group.isTemporary && group.projectPath && (
+              <button
+                type="button"
+                aria-label={`${t('common.rename')}: ${group.title}`}
+                title={t('common.rename')}
+                onClick={() => onStartProjectRename(group.projectPath!, group.title)}
+                className="absolute right-[31px] top-[8px] flex h-[24px] w-[24px] items-center justify-center rounded-[6px] text-[var(--color-text-tertiary)] opacity-0 transition duration-100 hover:bg-[var(--color-surface-container-high)] hover:text-[var(--color-text-primary)] group-hover/project:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+              >
+                <Icon name="edit" size={12} />
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {expanded && (
         <div className="flex flex-col gap-2 pl-[6px]">
@@ -504,6 +612,7 @@ function SessionProjectGroup({
               onOpen={onOpenSession}
               onContextMenu={onSessionContextMenu}
               onDelete={onDelete}
+              onStartRename={onStartSessionRename}
               onRenameChange={onRenameChange}
               onFinishRename={onFinishRename}
               onCancelRename={onCancelRename}
@@ -524,6 +633,7 @@ function SidebarSessionRow({
   onOpen,
   onContextMenu,
   onDelete,
+  onStartRename,
   onRenameChange,
   onFinishRename,
   onCancelRename,
@@ -536,6 +646,7 @@ function SidebarSessionRow({
   onOpen: (session: SessionListItem, displayTitle: string) => void
   onContextMenu: (event: React.MouseEvent, session: SessionRef) => void
   onDelete: (session: SessionRef) => void
+  onStartRename: (session: SessionRef, currentTitle: string) => void
   onRenameChange: (value: string) => void
   onFinishRename: () => void
   onCancelRename: () => void
@@ -552,6 +663,8 @@ function SidebarSessionRow({
         <input
           ref={renameInputRef}
           value={renameValue}
+          maxLength={80}
+          aria-label={`${t('common.rename')}: ${displayTitle}`}
           onChange={(e) => onRenameChange(e.target.value)}
           onBlur={onFinishRename}
           onKeyDown={(e) => {
@@ -565,7 +678,8 @@ function SidebarSessionRow({
           <button
             onClick={() => onOpen(session, displayTitle)}
             onContextMenu={(e) => onContextMenu(e, { id: session.id, projectPath: session.projectPath })}
-            className={`relative flex min-h-[60px] w-full items-start justify-between overflow-hidden rounded-[8px] border p-[10px] text-left transition-colors duration-100 ${
+            title={session.workDir || undefined}
+            className={`relative flex min-h-[60px] w-full items-center justify-between overflow-hidden rounded-[8px] border p-[10px] text-left transition-colors duration-100 ${
               isActive
                 ? 'border-[var(--color-border-focus)] bg-[var(--color-inverse-surface)] text-[var(--color-inverse-on-surface)] shadow-none'
                 : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] group-hover/session:border-[var(--color-border)] group-hover/session:bg-[var(--color-surface-hover)]'
@@ -578,19 +692,40 @@ function SidebarSessionRow({
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-2">
                   <span className={`min-w-0 flex-1 truncate text-[13px] font-bold leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]' : 'text-[var(--color-text-primary)]'}`}>
-                    {session.lastMessage || displayTitle}
+                    {displayTitle}
                   </span>
+                  {session.workDir && !session.workDirExists && (
+                    <span className="shrink-0 text-[9px] font-bold text-amber-500">
+                      {t('sidebar.missingDir')}
+                    </span>
+                  )}
                   <span className={`mt-0.5 shrink-0 text-[10px] font-bold ${isActive ? 'text-[var(--color-inverse-on-surface)]/45' : 'text-[var(--color-text-tertiary)]'}`}>
                     {formatRelativeTime(session.modifiedAt)}
                   </span>
                 </div>
-                <p className={`mt-[2px] line-clamp-1 pr-[24px] text-left text-[11px] font-medium leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
-                  {session.workDir
-                    ? (!session.workDirExists ? <span className="text-amber-500" title={session.workDir ?? ''}>{t('sidebar.missingDir')}</span> : compactPath(session.workDir))
-                    : '\u00A0'}
-                </p>
+                {session.lastMessage && session.lastMessage !== displayTitle && (
+                  <p className={`mt-[2px] truncate pr-[42px] text-left text-[11px] font-medium leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
+                    {session.lastMessage}
+                  </p>
+                )}
               </div>
             </div>
+          </button>
+          <button
+            type="button"
+            aria-label={`${t('common.rename')}: ${displayTitle}`}
+            title={t('common.rename')}
+            onClick={(event) => {
+              event.stopPropagation()
+              onStartRename({ id: session.id, projectPath: session.projectPath }, displayTitle)
+            }}
+            className={`absolute bottom-[8px] right-[31px] flex h-[17px] w-[17px] items-center justify-center rounded-full border opacity-0 shadow-none backdrop-blur-sm transition duration-100 group-hover/session:opacity-100 focus-visible:opacity-100 ${
+              isActive
+                ? 'border-white/10 bg-white/7 text-[var(--color-inverse-on-surface)]/45 hover:bg-white/12 hover:text-[var(--color-inverse-on-surface)]/72'
+                : 'border-[var(--color-border)]/35 bg-[var(--color-surface-container-high)]/48 text-[var(--color-text-tertiary)] hover:border-[var(--color-border)]/55 hover:bg-[var(--color-surface-container-highest)]/72 hover:text-[var(--color-text-secondary)]'
+            }`}
+          >
+            <Icon name="edit" size={9} />
           </button>
           <button
             type="button"
@@ -619,6 +754,7 @@ function buildSidebarSessionGroups({
   sessionFilterScope,
   selectedProjectPaths,
   hiddenProjectPaths,
+  projectDisplayNames,
   searchQuery,
   fallbackProjectTitle,
   temporaryTitle,
@@ -628,6 +764,7 @@ function buildSidebarSessionGroups({
   sessionFilterScope: SidebarSessionFilterScope
   selectedProjectPaths: string[]
   hiddenProjectPaths: string[]
+  projectDisplayNames: Record<string, string>
   searchQuery: string
   fallbackProjectTitle: string
   temporaryTitle: string
@@ -648,7 +785,8 @@ function buildSidebarSessionGroups({
 
   for (const session of sortedSessions) {
     const displayTitle = getDisplayTitle(session)
-    if (query && !sessionMatchesSearch(session, displayTitle, query)) continue
+    const projectDisplayName = projectDisplayNames[session.projectPath]
+    if (query && !sessionMatchesSearch(session, displayTitle, query, projectDisplayName)) continue
 
     if (isTemporarySession(session)) {
       if (isAllProjectScope || isTemporaryScope) temporarySessions.push(session)
@@ -660,16 +798,16 @@ function buildSidebarSessionGroups({
 
     const previous = projectGroups.get(session.projectPath)
     const modifiedAt = session.modifiedAt || null
-    const title = session.workDir
+    const title = projectDisplayName || (session.workDir
       ? basename(session.workDir)
-      : fallbackProjectTitleFromPath(session.projectPath, fallbackProjectTitle)
+      : fallbackProjectTitleFromPath(session.projectPath, fallbackProjectTitle))
 
     if (!previous) {
       projectGroups.set(session.projectPath, {
         key: session.projectPath,
         projectPath: session.projectPath,
         title,
-        subtitle: session.workDir ? compactPath(session.workDir) : null,
+        path: session.workDir || null,
         modifiedAt,
         isTemporary: false,
         sessions: [session],
@@ -681,7 +819,7 @@ function buildSidebarSessionGroups({
     if (modifiedAt && (!previous.modifiedAt || modifiedAt > previous.modifiedAt)) {
       previous.modifiedAt = modifiedAt
       previous.title = title
-      previous.subtitle = session.workDir ? compactPath(session.workDir) : previous.subtitle
+      previous.path = session.workDir || previous.path
     }
   }
 
@@ -689,7 +827,7 @@ function buildSidebarSessionGroups({
     ? {
         key: TEMPORARY_GROUP_KEY,
         title: temporaryTitle,
-        subtitle: null,
+        path: null,
         modifiedAt: temporarySessions[0]?.modifiedAt ?? null,
         isTemporary: true,
         sessions: temporarySessions,
@@ -709,18 +847,18 @@ function buildSidebarSessionGroups({
   }
 }
 
-function sessionMatchesSearch(session: SessionListItem, displayTitle: string, query: string) {
+function sessionMatchesSearch(
+  session: SessionListItem,
+  displayTitle: string,
+  query: string,
+  projectDisplayName?: string,
+) {
   return [
     displayTitle,
     session.lastMessage ?? '',
     session.workDir ?? '',
+    projectDisplayName ?? '',
   ].some((value) => value.toLowerCase().includes(query))
-}
-
-function compactPath(path: string) {
-  const parts = path.split('/').filter(Boolean)
-  if (parts.length <= 2) return path
-  return `.../${parts.slice(-2).join('/')}`
 }
 
 function basename(path: string) {

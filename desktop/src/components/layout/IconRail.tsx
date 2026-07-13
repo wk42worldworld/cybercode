@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowRightLeft,
   Bot,
   ChevronRight,
   Clock,
@@ -229,6 +230,12 @@ export function IconRail({ __testTopRailHeight }: IconRailProps = {}) {
       </div>
 
       <div className="mt-[24px] flex shrink-0 flex-col items-center gap-[24px]">
+        <RailButton
+          active={isPanelActive('agentMigration')}
+          label={t('agentMigration.title')}
+          onClick={() => handlePanelView('agentMigration')}
+          icon={ArrowRightLeft}
+        />
         <RailUpdateButton
           status={updateStatus}
           version={availableVersion}

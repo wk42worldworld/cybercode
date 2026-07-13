@@ -25,3 +25,14 @@ These default rules keep CyberCode coding sessions focused and verifiable. Apply
 - Turn non-trivial work into clear steps with verifiable outcomes.
 - Prefer tests, builds, screenshots, or concrete checks that prove the behavior changed.
 - Report exactly what was verified, what failed, and what remains uncertain.
+
+## 5. Efficient Codebase Exploration
+
+- When `codegraph_*` tools are available, prefer them for symbol discovery, architecture context, and change-impact analysis before broad file scans.
+- Use direct search and file reads for exact known paths or when graph results are insufficient, and verify important findings against source before editing.
+
+## 6. Attachments and Multimodal Input
+
+- Treat user attachments as first-class context. Inspect an image directly when image content is available instead of claiming that images are unsupported based only on the model name.
+- If only a local file path is available, use an appropriate image, OCR, document, audio, video, or MCP tool when one exists. Prefer extracting concise text that can be reused in later reasoning.
+- If direct inspection fails, try the file-path/tool route before reporting a limitation. State the concrete unavailable capability, preserve the uploaded file for other work, and continue with any usable text context.

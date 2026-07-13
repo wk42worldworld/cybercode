@@ -71,6 +71,7 @@ function pushAssistantHistoryText(
   if (last?.type === 'assistant_text') {
     last.content += content
     if (model && !last.model) last.model = model
+    if (serverId) last.branchServerId = serverId
     return
   }
   messages.push({
@@ -80,6 +81,7 @@ function pushAssistantHistoryText(
     timestamp,
     ...(model ? { model } : {}),
     ...(serverId ? { serverId } : {}),
+    ...(serverId ? { branchServerId: serverId } : {}),
   })
 }
 
@@ -117,6 +119,7 @@ export function mapHistoryMessages(
         timestamp,
         model: msg.model,
         serverId: msg.id,
+        branchServerId: msg.id,
       })
       continue
     }

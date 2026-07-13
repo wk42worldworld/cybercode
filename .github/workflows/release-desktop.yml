@@ -152,12 +152,25 @@ jobs:
         working-directory: adapters
         run: bun install
 
+      - name: Validate built-in tool result contracts
+        run: bun test src/tools/toolContract.test.ts
+
+      - name: Validate desktop sidecar helpers
+        working-directory: desktop
+        run: bun run test:sidecars
+
       # ── Build sidecars ───────────────────────────────────────
       - name: Build sidecars
         working-directory: desktop
         env:
           TAURI_ENV_TARGET_TRIPLE: ${{ matrix.rust_target }}
         run: bun run build:sidecars
+
+      - name: Smoke-test sidecar server startup
+        working-directory: desktop
+        env:
+          TAURI_ENV_TARGET_TRIPLE: ${{ matrix.rust_target }}
+        run: bun run ./scripts/smoke-test-sidecar.ts
 
       - name: Validate updater signing secret
         shell: bash

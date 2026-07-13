@@ -3,6 +3,9 @@ import { Virtuoso, type ScrollerProps, type VirtuosoHandle } from 'react-virtuos
 import { ApiError } from '../../api/client'
 import { sessionsApi, type SessionRewindResponse } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
+import { mapHistoryMessages } from '../../stores/historyParser'
+import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
+import { useSessionStore } from '../../stores/sessionStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useTeamStore } from '../../stores/teamStore'
 import { useUIStore } from '../../stores/uiStore'
@@ -275,6 +278,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const [rewindError, setRewindError] = useState<string | null>(null)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isExecutingRewind, setIsExecutingRewind] = useState(false)
+  const [branchingMessageId, setBranchingMessageId] = useState<string | null>(null)
 
   // Auto-load history when the component mounts for a session that hasn't
   // been loaded yet. Prevents the blank-screen scenario when switching tabs
@@ -733,6 +737,114 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     }
   }, [addToast, chatState, isExecutingRewind, projectPath, queueComposerPrefill, reloadHistory, resolvedSessionId, rewindTarget, stopGeneration, t])
 
+  const handleCreateBranch = useCallback(async (
+    message: Extract<UIMessage, { type: 'assistant_text' }>,
+    attachedToolCalls: ToolCall[] = [],
+  ) => {
+    if (!resolvedSessionId || isMemberSession || chatState !== 'idle' || branchingMessageId) return
+
+    setBranchingMessageId(message.id)
+    try {
+      let targetAssistantMessageId: string | undefined
+      let expectedContent: string | undefined
+
+      for (let index = attachedToolCalls.length - 1; index >= 0; index -= 1) {
+        const serverId = attachedToolCalls[index]?.serverId
+        if (serverId) {
+          targetAssistantMessageId = serverId
+          break
+        }
+      }
+
+      if (!targetAssistantMessageId && attachedToolCalls.length === 0) {
+        targetAssistantMessageId = message.branchServerId || message.serverId
+        expectedContent = targetAssistantMessageId ? message.content : undefined
+      }
+
+      if (!targetAssistantMessageId) {
+        const savedHistory = await sessionsApi.getMessages(resolvedSessionId, {
+          limit: 200,
+          projectPath,
+        })
+        let fallbackId = 0
+        const savedMessages = mapHistoryMessages(
+          savedHistory.messages,
+          () => `branch-history-${fallbackId += 1}`,
+        )
+
+        const attachedToolUseIds = new Set(attachedToolCalls.map((toolCall) => toolCall.toolUseId))
+        for (let index = savedMessages.length - 1; index >= 0; index -= 1) {
+          const candidate = savedMessages[index]
+          if (
+            candidate?.type === 'tool_use' &&
+            attachedToolUseIds.has(candidate.toolUseId) &&
+            candidate.serverId
+          ) {
+            targetAssistantMessageId = candidate.serverId
+            break
+          }
+        }
+
+        if (!targetAssistantMessageId && attachedToolUseIds.size === 0) {
+          const normalizedContent = message.content.replace(/\r\n/g, '\n').trim()
+          const candidates = savedMessages.filter(
+            (candidate): candidate is Extract<UIMessage, { type: 'assistant_text' }> =>
+              candidate.type === 'assistant_text' &&
+              candidate.content.replace(/\r\n/g, '\n').trim() === normalizedContent &&
+              Boolean(candidate.branchServerId || candidate.serverId),
+          )
+          candidates.sort((left, right) =>
+            Math.abs(left.timestamp - message.timestamp) - Math.abs(right.timestamp - message.timestamp),
+          )
+          const candidate = candidates[0]
+          targetAssistantMessageId = candidate?.branchServerId || candidate?.serverId
+          expectedContent = targetAssistantMessageId ? message.content : undefined
+        }
+      }
+
+      if (!targetAssistantMessageId) {
+        throw new Error(t('chat.branchResolveFailed'))
+      }
+
+      const result = await sessionsApi.branch(
+        resolvedSessionId,
+        {
+          targetAssistantMessageId,
+          ...(expectedContent ? { expectedContent } : {}),
+        },
+        { projectPath },
+      )
+
+      const sourceSelection = useSessionRuntimeStore.getState().selections[resolvedSessionId]
+      if (sourceSelection) {
+        useSessionRuntimeStore.getState().setSelection(result.sessionId, sourceSelection)
+      }
+      void useSessionStore.getState().fetchSessions()
+      useTabStore.getState().openTab(
+        result.sessionId,
+        result.session.title,
+        'session',
+        result.session.projectPath,
+      )
+    } catch (error) {
+      const messageText =
+        error instanceof ApiError
+          ? typeof error.body === 'object' && error.body && 'message' in error.body
+            ? String((error.body as { message: unknown }).message)
+            : error.message
+          : error instanceof Error ? error.message : String(error)
+      addToast({
+        type: 'error',
+        message:
+          error instanceof ApiError && error.status === 405
+            ? t('chat.branchServiceOutdated')
+            : t('chat.branchCreateFailed', { message: messageText }),
+      })
+    } finally {
+      setBranchingMessageId((current) => current === message.id ? null : current)
+    }
+  }, [addToast, branchingMessageId, chatState, isMemberSession, projectPath, resolvedSessionId, t])
+
   // Load older history when user scrolls to the TOP (startReached).
   const handleStartReached = useCallback(() => {
     if (pendingInitialBottomRef.current) return
@@ -866,6 +978,9 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
                   }
                 : undefined
             }
+            onRequestBranch={!isMemberSession ? handleCreateBranch : undefined}
+            isBranching={branchingMessageId === msg.id}
+            branchDisabled={chatState !== 'idle'}
           />
         </div>
       )
@@ -880,6 +995,8 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       activeThinkingId,
       isMemberSession,
       isToolExecutionActiveFor,
+      handleCreateBranch,
+      branchingMessageId,
     ],
   )
 
@@ -1133,6 +1250,9 @@ export const MessageBlock = memo(function MessageBlock({
   isToolExecutionActive,
   rewindableUserIndex,
   onRequestRewind,
+  onRequestBranch,
+  isBranching,
+  branchDisabled,
 }: {
   message: UIMessage
   toolCalls?: ToolCall[]
@@ -1146,6 +1266,12 @@ export const MessageBlock = memo(function MessageBlock({
     message: Extract<UIMessage, { type: 'user_text' }>,
     userMessageIndex: number,
   ) => void
+  onRequestBranch?: (
+    message: Extract<UIMessage, { type: 'assistant_text' }>,
+    attachedToolCalls?: ToolCall[],
+  ) => void
+  isBranching?: boolean
+  branchDisabled?: boolean
 }) {
   const t = useTranslation()
 
@@ -1185,6 +1311,11 @@ export const MessageBlock = memo(function MessageBlock({
           resultMap={toolResultMap}
           childToolCallsByParent={childToolCallsByParent}
           isToolExecutionActive={isToolExecutionActive}
+          onBranch={onRequestBranch ? () => onRequestBranch(message, toolCalls) : undefined}
+          branchLabel={t('chat.branchAction')}
+          branchDisabledLabel={t('chat.branchWaitForReply')}
+          isBranching={isBranching}
+          branchDisabled={branchDisabled}
         />
       )
     case 'thinking':

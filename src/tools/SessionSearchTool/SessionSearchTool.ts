@@ -1,8 +1,9 @@
 import { z } from 'zod/v4'
 import { getSessionId } from '../../bootstrap/state.js'
 import { sessionSearch } from '../../sessionSearch/search.js'
-import { buildTool } from '../../Tool.js'
+import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
 import { SESSION_SEARCH_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 
@@ -56,6 +57,7 @@ const outputSchema = lazySchema(() =>
 )
 
 type OutputSchema = ReturnType<typeof outputSchema>
+type Output = z.infer<OutputSchema>
 
 export const SessionSearchTool = buildTool({
   name: SESSION_SEARCH_TOOL_NAME,
@@ -117,4 +119,11 @@ export const SessionSearchTool = buildTool({
     }
     return { data: result }
   },
-})
+  mapToolResultToToolResultBlockParam(content, toolUseID) {
+    return {
+      tool_use_id: toolUseID,
+      type: 'tool_result',
+      content: jsonStringify(content),
+    }
+  },
+} satisfies ToolDef<InputSchema, Output>)

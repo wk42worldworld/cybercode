@@ -79,6 +79,29 @@ describe('provider model discovery', () => {
     }])
   })
 
+  test('reads image support from common input modality metadata shapes', async () => {
+    const fetchImpl = (async () => Response.json({
+      data: [
+        { id: 'array-vision', input_modalities: ['text', 'image'] },
+        { id: 'camel-vision', inputModalities: ['text', 'input_image'] },
+        { id: 'nested-vision', modalities: { input: ['text', 'vision'], output: ['text'] } },
+        { id: 'explicit-text', capabilities: { completion_chat: true, vision: false } },
+      ],
+    })) as typeof fetch
+
+    const result = await discoverProviderModels({
+      baseUrl: 'https://api.example.com/v1',
+      apiFormat: 'openai_chat',
+    }, { fetchImpl })
+
+    expect(result.models).toEqual([
+      { id: 'array-vision', supportsImages: true },
+      { id: 'camel-vision', supportsImages: true },
+      { id: 'explicit-text', supportsImages: false },
+      { id: 'nested-vision', supportsImages: true },
+    ])
+  })
+
   test('caches successful discovery briefly unless force refresh is requested', async () => {
     let calls = 0
     const fetchImpl = (async () => {

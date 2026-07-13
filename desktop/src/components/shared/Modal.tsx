@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from '../../i18n'
 import { Icon } from './Icon'
 
 type ModalProps = {
@@ -12,10 +13,15 @@ type ModalProps = {
 }
 
 export function Modal({ open, onClose, title, children, width = 560, footer }: ModalProps) {
+  const t = useTranslation()
+
   useEffect(() => {
     if (!open) return
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
     }
     document.addEventListener('keydown', handleEsc)
     return () => document.removeEventListener('keydown', handleEsc)
@@ -48,7 +54,7 @@ export function Modal({ open, onClose, title, children, width = 560, footer }: M
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close dialog"
+              aria-label={t('common.close')}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors duration-200 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
             >
               <Icon name="close" size={16} />

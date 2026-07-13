@@ -9,10 +9,10 @@ export const call: LocalCommandCall = async () => {
 
     if (currentLimits.isUsingOverage) {
       value =
-        'You are currently using your overages to power your Claude Code usage. We will automatically switch you back to your subscription rate limits when they reset'
+        'You are currently using your overages to power your CyberCode usage. We will automatically switch you back to your subscription rate limits when they reset'
     } else {
       value =
-        'You are currently using your subscription to power your Claude Code usage'
+        'You are currently using your subscription to power your CyberCode usage'
     }
 
     if (process.env.USER_TYPE === 'ant') {
