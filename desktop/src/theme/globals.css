@@ -661,15 +661,36 @@ html[data-runtime="tauri"] #root {
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
   text-rendering: auto;
-  font-feature-settings: normal;
-  font-variant-ligatures: normal;
-  font-kerning: auto;
+  font-feature-settings: 'liga' 0, 'clig' 0, 'calt' 0, 'kern' 0;
+  font-variant-ligatures: none;
+  font-kerning: none;
 }
 
 .chat-bubble-text::selection,
 .chat-bubble-text *::selection {
   background: #0A84FF;
   color: #FFFFFF;
+}
+
+.streaming-type-caret {
+  border-radius: 1px;
+  background: var(--color-brand);
+  contain: paint;
+  pointer-events: none;
+  will-change: opacity;
+  animation: streaming-caret-breathe 880ms ease-in-out infinite;
+}
+
+@keyframes streaming-caret-breathe {
+  0%, 100% { opacity: 0.42; }
+  48% { opacity: 0.92; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-type-caret {
+    animation: none;
+    opacity: 0.78;
+  }
 }
 
 .settings-ui {

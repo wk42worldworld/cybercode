@@ -17,6 +17,7 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
   return (
     <div className="group/msg flex w-full justify-center px-[24px] py-[8px]">
       <div
+        data-chat-content-column
         data-message-shell="user"
         className="flex w-full max-w-[878px] flex-col items-end gap-[8px]"
       >

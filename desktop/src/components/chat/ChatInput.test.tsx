@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatInput } from './ChatInput'
@@ -56,7 +56,12 @@ describe('ChatInput composer controls', () => {
     vi.mocked(open).mockReset()
     vi.mocked(convertFileSrc).mockClear()
     vi.mocked(invoke).mockReset()
-    vi.mocked(invoke).mockResolvedValue('data:image/png;base64,desktop-preview')
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'read_image_preview_data_url') {
+        return 'data:image/png;base64,desktop-preview'
+      }
+      return null
+    })
     delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
     delete (window as Window & { __TAURI__?: unknown }).__TAURI__
 
@@ -83,6 +88,14 @@ describe('ChatInput composer controls', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('matches the message column width in the active chat', () => {
+    const { container } = render(<ChatInput />)
+
+    const column = container.querySelector('[data-chat-content-column]')
+    expect(column).toHaveClass('w-full', 'max-w-[878px]')
+    expect(column?.parentElement).toHaveClass('p-[24px]')
   })
 
   it('shows permission mode as its own icon button outside the plus menu', () => {
@@ -273,6 +286,106 @@ describe('ChatInput composer controls', () => {
         path: '/Users/wang/Documents/report.pdf',
       }),
     ])
+  })
+
+  it('captures a selected screen region and adds it as an image attachment', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
+      configurable: true,
+    })
+    vi.mocked(invoke).mockImplementation(async (command) => {
+      if (command === 'capture_screen_region') {
+        return '/tmp/cybercode-screenshot-test.png'
+      }
+      if (command === 'read_image_preview_data_url') {
+        return 'data:image/png;base64,captured-preview'
+      }
+      return null
+    })
+
+    const onSubmit = vi.fn()
+    render(<ChatInput onSubmit={onSubmit} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Capture screen region' }))
+
+    const preview = await screen.findByRole('img', { name: 'cybercode-screenshot-test.png' })
+    expect(preview).toHaveAttribute('src', 'data:image/png;base64,captured-preview')
+    expect(invoke).toHaveBeenNthCalledWith(1, 'capture_screen_region')
+    expect(invoke).toHaveBeenNthCalledWith(2, 'read_image_preview_data_url', {
+      path: '/tmp/cybercode-screenshot-test.png',
+      mimeType: 'image/png',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }))
+    expect(onSubmit).toHaveBeenCalledWith('', [
+      expect.objectContaining({
+        type: 'image',
+        name: 'cybercode-screenshot-test.png',
+        path: '/tmp/cybercode-screenshot-test.png',
+        mimeType: 'image/png',
+      }),
+    ])
+  })
+
+  it('treats cancelling the screen region picker as a no-op', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
+      configurable: true,
+    })
+    vi.mocked(invoke).mockResolvedValueOnce(null)
+
+    render(<ChatInput onSubmit={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Capture screen region' }))
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('capture_screen_region')
+      expect(screen.getByRole('button', { name: 'Capture screen region' })).toBeEnabled()
+    })
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(useUIStore.getState().toasts).toEqual([])
+  })
+
+  it('reports region capture failures without adding an attachment', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
+      configurable: true,
+    })
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('screen recording permission denied'))
+
+    render(<ChatInput onSubmit={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Capture screen region' }))
+
+    await waitFor(() => {
+      expect(useUIStore.getState().toasts).toContainEqual(expect.objectContaining({
+        type: 'error',
+        message: expect.stringContaining('screen recording permission denied'),
+      }))
+    })
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[ChatInput] Failed to capture screen region:',
+      expect.any(Error),
+    )
+  })
+
+  it('shows actionable guidance when macOS screen recording permission is denied', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      value: {},
+      configurable: true,
+    })
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('SCREEN_CAPTURE_PERMISSION_REQUIRED'))
+
+    render(<ChatInput onSubmit={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Capture screen region' }))
+
+    await waitFor(() => {
+      expect(useUIStore.getState().toasts).toContainEqual(expect.objectContaining({
+        type: 'error',
+        message: expect.stringContaining('Allow screen recording for CyberCode'),
+      }))
+    })
   })
 
   it('shows desktop-selected image paths as image thumbnails without browser file reads', async () => {

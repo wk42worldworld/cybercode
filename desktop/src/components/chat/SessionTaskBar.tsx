@@ -56,9 +56,10 @@ export function SessionTaskBar({ sessionId }: { sessionId?: string } = {}) {
       : t('tasks.title')
 
   return (
-    <div className="shrink-0 px-8">
+    <div className="shrink-0 px-[24px]">
       <div
-        className="mx-auto max-w-[860px] overflow-hidden mb-1 rounded-[var(--radius-md)]"
+        data-chat-content-column
+        className="mx-auto w-full max-w-[878px] overflow-hidden mb-1 rounded-[var(--radius-md)]"
         style={{ backgroundColor: 'var(--color-surface-container-low)' }}
       >
         <div className="flex items-stretch">

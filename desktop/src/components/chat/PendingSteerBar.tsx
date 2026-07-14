@@ -28,8 +28,8 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
   if (visibleSteers.length === 0) return null
 
   return (
-    <div className="mx-auto w-full max-w-[896px] px-[24px] pb-[8px]">
-      <div className="flex min-w-0 flex-col gap-[6px] rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] p-[6px] shadow-[0_10px_32px_rgba(15,23,42,0.10)]">
+    <div className="w-full px-[24px] pb-[8px]">
+      <div data-chat-content-column className="mx-auto flex w-full max-w-[878px] min-w-0 flex-col gap-[6px] rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] p-[6px] shadow-[0_10px_32px_rgba(15,23,42,0.10)]">
         {visibleSteers.map((steer) => {
           const canAct = steer.status === 'draft' || steer.status === 'failed'
           const isRunning = steer.status === 'queued' || steer.status === 'processing'

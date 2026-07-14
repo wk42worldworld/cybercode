@@ -206,43 +206,45 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
 
       {isMemberSession && (
         <div className="shrink-0 border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
-          <div className="mx-auto max-w-[860px] flex items-center justify-between gap-4 px-8 py-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                {memberInfo?.status === 'running' && (
-                  <span className="flex h-2 w-2 rounded-full bg-[var(--color-brand)] animate-pulse" />
-                )}
-                {memberInfo?.status === 'completed' && (
-                  <span className="text-[14px] text-[var(--color-success)]">✓</span>
-                )}
-                <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-                  {memberInfo?.role}
-                </span>
-                {activeTeam && (
-                  <span className="text-[10px] text-[var(--color-text-tertiary)]">
-                    @ {activeTeam.name}
+          <div className="w-full px-[24px]">
+            <div data-chat-content-column className="mx-auto flex w-full max-w-[878px] items-center justify-between gap-4 py-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  {memberInfo?.status === 'running' && (
+                    <span className="flex h-2 w-2 rounded-full bg-[var(--color-brand)] animate-pulse" />
+                  )}
+                  {memberInfo?.status === 'completed' && (
+                    <span className="text-[14px] text-[var(--color-success)]">✓</span>
+                  )}
+                  <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+                    {memberInfo?.role}
                   </span>
-                )}
+                  {activeTeam && (
+                    <span className="text-[10px] text-[var(--color-text-tertiary)]">
+                      @ {activeTeam.name}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-[var(--color-text-tertiary)]">
+                  {t('teams.memberSessionHint')}
+                </p>
               </div>
-              <p className="mt-1 text-[11px] text-[var(--color-text-tertiary)]">
-                {t('teams.memberSessionHint')}
-              </p>
+              <button
+                onClick={() => {
+                  if (activeTeam?.leadSessionId) {
+                    useTabStore.getState().openTab(
+                      activeTeam.leadSessionId,
+                      t('teams.leader'),
+                      'session',
+                    )
+                  }
+                }}
+                disabled={!activeTeam?.leadSessionId}
+                className="flex shrink-0 items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
+              >
+                ← {t('teams.backToLeader')}
+              </button>
             </div>
-            <button
-              onClick={() => {
-                if (activeTeam?.leadSessionId) {
-                  useTabStore.getState().openTab(
-                    activeTeam.leadSessionId,
-                    t('teams.leader'),
-                    'session',
-                  )
-                }
-              }}
-              disabled={!activeTeam?.leadSessionId}
-              className="flex shrink-0 items-center gap-1 px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50"
-            >
-              ← {t('teams.backToLeader')}
-            </button>
           </div>
         </div>
       )}
@@ -256,12 +258,14 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
               without touching the MessageList DOM tree. */}
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {!isMemberSession && session?.workDirExists === false && (
-              <div className="mx-auto w-full max-w-[860px] shrink-0 px-8 py-2">
-                <div className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-600">
-                  <span>⚠</span>
-                  <span className="truncate">
-                    {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
-                  </span>
+              <div className="w-full shrink-0 px-[24px] py-2">
+                <div data-chat-content-column className="mx-auto w-full max-w-[878px]">
+                  <div className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-600">
+                    <span>⚠</span>
+                    <span className="truncate">
+                      {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

@@ -22,7 +22,7 @@ export function MessageExecutionLog({
   if (toolCalls.length === 0) return null
 
   return (
-    <div className="mt-1.5 min-w-full max-h-[150px] overflow-y-auto rounded-[10px] bg-[var(--color-surface-container-low)] px-2.5 py-1 mb-3"
+    <div className="mt-2.5 min-w-full max-h-[150px] overflow-y-auto rounded-[10px] bg-[var(--color-surface-container-low)] px-2.5 py-1 mb-3"
       style={{ scrollbarWidth: 'thin' }}
     >
       {toolCalls.map((tc) => (

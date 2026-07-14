@@ -41,8 +41,11 @@ describe('LongRunningNotice', () => {
       />,
     )
 
-    expect(screen.getByTestId('long-running-notice')).toHaveTextContent('Still waiting for the model')
-    expect(screen.getByTestId('long-running-notice')).toHaveTextContent('1m')
+    const notice = screen.getByTestId('long-running-notice')
+    expect(notice).toHaveTextContent('Still waiting for the model')
+    expect(notice).toHaveTextContent('1m')
+    expect(notice).toHaveClass('px-[24px]')
+    expect(notice.querySelector('[data-chat-content-column]')).toHaveClass('w-full', 'max-w-[878px]')
   })
 
   it('shows stale connection copy when the server has stopped sending events', () => {

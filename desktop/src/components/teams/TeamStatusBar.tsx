@@ -45,8 +45,8 @@ export function TeamStatusBar() {
   const allDone = runningCount === 0 && totalCount > 0
 
   return (
-    <div className="shrink-0 px-8">
-      <div className="mx-auto max-w-[860px] rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
+    <div className="shrink-0 px-[24px]">
+      <div data-chat-content-column className="mx-auto w-full max-w-[878px] rounded-[var(--radius-lg)] border-2 border-[var(--color-outline-variant)]/40 bg-[var(--color-surface-container-lowest)] overflow-hidden mb-2">
         {/* Header */}
         <button
           onClick={() => setExpanded((v) => !v)}

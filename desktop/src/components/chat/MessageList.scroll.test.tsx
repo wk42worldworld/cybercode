@@ -303,12 +303,13 @@ describe('MessageList initial bottom positioning', () => {
     render(<MessageList sessionId="session-a" projectPath="/tmp/a" />)
 
     const jumpToTop = await screen.findByRole('button', { name: 'Scroll to top' })
+    const firstItemIndex = virtuosoMock.getLatestProps().firstItemIndex
 
     virtuosoMock.scrollToIndex.mockClear()
     fireEvent.click(jumpToTop)
 
     expect(virtuosoMock.scrollToIndex).toHaveBeenCalledWith({
-      index: 0,
+      index: firstItemIndex,
       align: 'start',
       behavior: 'smooth',
     })
@@ -323,6 +324,45 @@ describe('MessageList initial bottom positioning', () => {
       align: 'end',
       behavior: 'smooth',
     })
+  })
+
+  it('keeps a non-negative virtual index when older history is prepended', async () => {
+    useChatStore.setState((state) => ({
+      sessions: {
+        ...state.sessions,
+        'session-a': makeSessionState({
+          messages: [userMessage('a-2', 'latest', 2)],
+        }),
+      },
+    }))
+
+    render(<MessageList sessionId="session-a" projectPath="/tmp/a" />)
+
+    await waitFor(() => {
+      expect(virtuosoMock.getLatestProps()).toBeTruthy()
+    })
+    const initialFirstItemIndex = virtuosoMock.getLatestProps().firstItemIndex
+    expect(initialFirstItemIndex).toBeGreaterThan(0)
+
+    act(() => {
+      useChatStore.setState((state) => ({
+        sessions: {
+          ...state.sessions,
+          'session-a': makeSessionState({
+            messages: [
+              userMessage('older-1', 'older', 0),
+              userMessage('a-1', 'old', 1),
+              userMessage('a-2', 'latest', 2),
+            ],
+          }),
+        },
+      }))
+    })
+
+    await waitFor(() => {
+      expect(virtuosoMock.getLatestProps().firstItemIndex).toBe(initialFirstItemIndex - 2)
+    })
+    expect(virtuosoMock.getLatestProps().firstItemIndex).toBeGreaterThanOrEqual(0)
   })
 
   it('scrolls to the bottom when the user sends a new message from the middle', async () => {

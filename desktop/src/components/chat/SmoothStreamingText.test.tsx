@@ -2,7 +2,9 @@ import { act, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   advanceCodePointIndex,
+  getGraphemeBoundaries,
   getStreamingRevealCount,
+  getStreamingRevealRate,
   SmoothStreamingText,
 } from './SmoothStreamingText'
 
@@ -52,7 +54,7 @@ describe('SmoothStreamingText', () => {
 
   it('reveals a network chunk progressively and catches up to the source text', () => {
     const content = 'A response arriving in one uneven chunk'
-    const { getByTestId } = render(<SmoothStreamingText content={content} />)
+    const { getByTestId, rerender } = render(<SmoothStreamingText content={content} />)
     const text = getByTestId('smooth-streaming-text')
 
     expect(text.textContent).toBe('')
@@ -60,7 +62,8 @@ describe('SmoothStreamingText', () => {
     expect(text.textContent?.length).toBeGreaterThan(0)
     expect(text.textContent).not.toBe(content)
 
-    for (let frame = 0; frame < 20 && callbacks.size > 0; frame += 1) runFrame()
+    rerender(<SmoothStreamingText content={content} onCaughtUp={() => {}} />)
+    for (let frame = 0; frame < 120 && callbacks.size > 0; frame += 1) runFrame()
     expect(text.textContent).toBe(content)
   })
 
@@ -110,9 +113,82 @@ describe('SmoothStreamingText', () => {
     expect('🚀abc'.slice(0, advanceCodePointIndex('🚀abc', 0, 1))).toBe('🚀')
   })
 
-  it('adapts reveal speed to backlog while keeping a per-frame bound', () => {
+  it('never splits a joined emoji or combining grapheme', () => {
+    const family = '👨‍👩‍👧‍👦'
+    expect(`${family}abc`.slice(0, advanceCodePointIndex(`${family}abc`, 0, 1))).toBe(family)
+    expect(getGraphemeBoundaries('éx')).toEqual([0, 2, 3])
+  })
+
+  it('holds an unfinished grapheme until a following grapheme makes it stable', () => {
+    const { getByTestId, rerender } = render(<SmoothStreamingText content="e" />)
+    const text = getByTestId('smooth-streaming-text')
+
+    expect(callbacks.size).toBe(0)
+    expect(text.textContent).toBe('')
+
+    rerender(<SmoothStreamingText content={'éx'} />)
+    runFrame()
+    expect(text.textContent).toBe('é')
+
+    rerender(<SmoothStreamingText content={'éx'} onCaughtUp={() => {}} />)
+    for (let frame = 0; frame < 20 && callbacks.size > 0; frame += 1) runFrame()
+    expect(text.textContent).toBe('éx')
+  })
+
+  it('keeps one text node alive while appending every visible suffix', () => {
+    const content = 'A stable prefix should never be replaced while this tail keeps growing.'
+    const { getByTestId } = render(
+      <SmoothStreamingText content={content} onCaughtUp={() => {}} />,
+    )
+    const text = getByTestId('smooth-streaming-text')
+
+    runFrame()
+    const stableTextNode = text.firstChild
+    expect(stableTextNode?.nodeType).toBe(Node.TEXT_NODE)
+
+    for (let frame = 0; frame < 30 && callbacks.size > 0; frame += 1) {
+      runFrame()
+      expect(text.firstChild).toBe(stableTextNode)
+    }
+  })
+
+  it('adapts reveal speed without dumping a network chunk into one frame', () => {
     expect(getStreamingRevealCount(8)).toBe(1)
     expect(getStreamingRevealCount(200)).toBeGreaterThan(getStreamingRevealCount(20))
-    expect(getStreamingRevealCount(10_000)).toBe(96)
+    expect(getStreamingRevealCount(10_000)).toBe(6)
+    expect(getStreamingRevealCount(10_000, 1000, true)).toBe(8)
+    expect(getStreamingRevealRate(200)).toBeGreaterThan(getStreamingRevealRate(20))
+  })
+
+  it('only appends a monotonic prefix even when the source arrives all at once', () => {
+    const content = '0123456789'.repeat(40)
+    const { getByTestId } = render(<SmoothStreamingText content={content} />)
+    const text = getByTestId('smooth-streaming-text')
+    let previous = ''
+
+    for (let frame = 0; frame < 18; frame += 1) {
+      runFrame()
+      const visible = text.textContent ?? ''
+      expect(content.startsWith(visible)).toBe(true)
+      expect(visible.startsWith(previous)).toBe(true)
+      expect(visible.length - previous.length).toBeLessThanOrEqual(6)
+      previous = visible
+    }
+  })
+
+  it('notifies completion only after the visible cursor reaches the target', () => {
+    const onCaughtUp = vi.fn()
+    const content = 'ordered reveal'
+    const { getByTestId } = render(
+      <SmoothStreamingText content={content} onCaughtUp={onCaughtUp} />,
+    )
+
+    runFrame()
+    expect(getByTestId('smooth-streaming-text').textContent).not.toBe(content)
+    expect(onCaughtUp).not.toHaveBeenCalled()
+
+    for (let frame = 0; frame < 60 && callbacks.size > 0; frame += 1) runFrame()
+    expect(getByTestId('smooth-streaming-text').textContent).toBe(content)
+    expect(onCaughtUp).toHaveBeenCalledTimes(1)
   })
 })

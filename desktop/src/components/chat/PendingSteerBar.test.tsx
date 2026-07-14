@@ -58,9 +58,11 @@ describe('PendingSteerBar', () => {
       },
     })
 
-    render(<PendingSteerBar sessionId="edit-session" />)
+    const { container } = render(<PendingSteerBar sessionId="edit-session" />)
 
     expect(screen.getByText('Please also check the migration')).toBeInTheDocument()
+    expect(container.querySelector('[data-chat-content-column]')).toHaveClass('w-full', 'max-w-[878px]')
+    expect(container.querySelector('[data-chat-content-column]')?.parentElement).toHaveClass('px-[24px]')
     fireEvent.click(screen.getByRole('button', { name: 'Edit saved input' }))
 
     expect(useChatStore.getState().sessions['edit-session']?.pendingSteers).toEqual([])

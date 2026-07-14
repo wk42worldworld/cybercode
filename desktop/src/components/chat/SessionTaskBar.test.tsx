@@ -35,7 +35,9 @@ describe('SessionTaskBar', () => {
   })
 
   afterEach(() => {
-    useCLITaskStore.getState().clearTasks()
+    act(() => {
+      useCLITaskStore.getState().clearTasks()
+    })
   })
 
   it('only shows the dismiss button once every task is completed', () => {
@@ -46,13 +48,12 @@ describe('SessionTaskBar', () => {
       ])
     })
 
-    act(() => {
-      render(<SessionTaskBar />)
-    })
+    const { container } = render(<SessionTaskBar />)
 
     expect(screen.getByText('second')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /隐藏已完成任务|Hide completed tasks/ })).toBeNull()
+    expect(container.querySelector('[data-chat-content-column]')).toHaveClass('w-full', 'max-w-[878px]')
   })
 
   it('hides the bar after dismissing a completed task set', async () => {

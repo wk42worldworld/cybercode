@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, memo, useState, useCallback, forwardRef, type CSSProperties } from 'react'
-import { Virtuoso, type ScrollerProps, type VirtuosoHandle } from 'react-virtuoso'
+import { Virtuoso, type ListProps, type ScrollerProps, type VirtuosoHandle } from 'react-virtuoso'
 import { ApiError } from '../../api/client'
 import { sessionsApi, type SessionRewindResponse } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
@@ -151,10 +151,10 @@ function ErrorMessageBubble({
 
   return (
     <div className="flex w-full justify-center px-[24px] py-[8px]">
-      <div data-message-shell="error" className="flex w-full max-w-[878px] flex-col items-start">
+      <div data-chat-content-column data-message-shell="error" className="flex w-full max-w-[878px] flex-col items-start">
         <div
           data-message-error
-          className="chat-bubble-text w-fit max-w-full overflow-hidden rounded-[20px] rounded-tl-[8px] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/24 px-[20px] py-[14px] text-[14px] font-normal leading-relaxed tracking-normal [overflow-wrap:anywhere]"
+          className="chat-bubble-text w-fit max-w-full overflow-hidden rounded-[20px] rounded-bl-[8px] border border-[var(--color-error)]/20 bg-[var(--color-error-container)]/24 px-[20px] py-[14px] text-[14px] font-normal leading-relaxed tracking-normal [overflow-wrap:anywhere]"
           style={{ color: 'var(--color-error)' }}
         >
           <span className="font-medium">Error:</span> {normalizedMessage}
@@ -200,8 +200,13 @@ const MessageScroller = forwardRef<HTMLDivElement, ScrollerProps>(function Messa
   )
 })
 
+const MessageListContainer = forwardRef<HTMLDivElement, ListProps>(function MessageListContainer({ style, ...props }, ref) {
+  return <div {...props} ref={ref} style={sanitizeScrollerStyle(style)} />
+})
+
 const MIN_BOTTOM_SPACER_HEIGHT = 176
 const BOTTOM_SPACER_CLEARANCE = 8
+const INITIAL_FIRST_ITEM_INDEX = 1_000_000
 
 function sanitizeScrollerStyle(style: CSSProperties | undefined): CSSProperties | undefined {
   if (!style) return undefined
@@ -237,6 +242,8 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const messages = sessionState?.messages ?? []
   const chatState = sessionState?.chatState ?? 'idle'
   const streamingText = sessionState?.streamingText ?? ''
+  const settlingAssistant = sessionState?.settlingAssistant ?? null
+  const visualStreamingText = streamingText || settlingAssistant?.content || ''
   const activeThinkingId = sessionState?.activeThinkingId ?? null
   const agentTaskNotifications = sessionState?.agentTaskNotifications ?? {}
   const historyLoadState = sessionState?.historyLoadState ?? 'idle'
@@ -313,9 +320,15 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   )
   const renderItems = useMemo(
     () => renderModel.renderItems.filter(
-      (item) => !(item.kind === 'message' && item.message.type === 'thinking'),
+      (item) => !(
+        item.kind === 'message'
+        && (
+          item.message.type === 'thinking'
+          || item.message.id === settlingAssistant?.messageId
+        )
+      ),
     ),
-    [renderModel.renderItems],
+    [renderModel.renderItems, settlingAssistant?.messageId],
   )
   const renderItemsLengthRef = useRef(renderItems.length)
   renderItemsLengthRef.current = renderItems.length
@@ -327,22 +340,24 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const latestRenderItemKeyRef = useRef(latestRenderItemKey)
 
   // Standard order: oldest at top, newest at bottom.
-  // firstItemIndex starts at 0 and DECREASES when older history is prepended at the
+  // firstItemIndex starts from a large positive anchor and DECREASES when older history is prepended at the
   // top (or INCREASES when the head is trimmed by loadMoreRecent), so Virtuoso can
-  // keep the viewport anchored without any visible jump.
+  // keep the viewport anchored without any visible jump. React Virtuoso requires
+  // this value to stay non-negative; starting at zero makes the first prepend
+  // produce invalid internal offsets (for example paddingBottom: NaN).
   //
   // IMPORTANT: firstItemIndex must be computed SYNCHRONOUSLY during render (not in a
   // useEffect). Updating it in an effect creates a one-frame gap where Virtuoso sees
   // the new data with the old index, causing a scroll jump that can pull the viewport
   // back to the bottom.
-  const firstItemIndexRef = useRef(0)
+  const firstItemIndexRef = useRef(INITIAL_FIRST_ITEM_INDEX)
   const prevRenderItemsRef = useRef<RenderItem[]>([])
   const listIdentityRef = useRef(listIdentity)
 
   if (listIdentityRef.current !== listIdentity) {
     listIdentityRef.current = listIdentity
     initialBottomKeyRef.current = listIdentity
-    firstItemIndexRef.current = 0
+    firstItemIndexRef.current = INITIAL_FIRST_ITEM_INDEX
     prevRenderItemsRef.current = []
     pendingInitialBottomRef.current = !__testInitialItemCount
     initialBottomRangeIncludesLastRef.current = false
@@ -659,7 +674,11 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
     // 2) AI is actively streaming text — keep following ONLY if the user is near
     //    the bottom. If they scrolled up to read history, respect that.
-    if (chatState !== 'idle' && streamingText && (isNearBottomRef.current || autoFollowCurrentTurnRef.current)) {
+    if (
+      (chatState !== 'idle' || settlingAssistant)
+      && visualStreamingText
+      && (isNearBottomRef.current || autoFollowCurrentTurnRef.current)
+    ) {
       if (streamingFollowRafRef.current !== null) return
       const key = initialBottomKeyRef.current
       streamingFollowRafRef.current = requestAnimationFrame(() => {
@@ -668,7 +687,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
         scrollToLatest('auto', key)
       })
     }
-  }, [streamingText, chatState, scrollToLatest])
+  }, [chatState, scrollToLatest, settlingAssistant, visualStreamingText])
 
   useEffect(() => () => {
     if (streamingFollowRafRef.current !== null) {
@@ -939,7 +958,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       if (item.kind === 'tool_group') {
         return (
           <div className="flex w-full justify-center px-[24px] py-[8px]">
-            <div className="w-full max-w-[878px]">
+            <div data-chat-content-column className="w-full max-w-[878px]">
               <ToolCallGroup
                 toolCalls={item.toolCalls}
                 resultMap={toolResultMap}
@@ -1016,7 +1035,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
   // Error / loading states are shown outside Virtuoso when there are no messages
   const showEmptyOverlay = messages.length === 0 && historyLoadState !== 'loaded'
-  const showScrollJumpButton = !showEmptyOverlay && (renderItems.length > 1 || streamingText.length > 0)
+  const showScrollJumpButton = !showEmptyOverlay && (renderItems.length > 1 || visualStreamingText.length > 0)
   const scrollJumpLabel = isAtBottom ? t('chat.scrollToTop') : t('chat.scrollToBottom')
   const footerComponent = useMemo(() => function StableListFooter() {
     return (
@@ -1086,6 +1105,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
           style={{ height: '100%' }}
           components={{
             Scroller: MessageScroller,
+            List: MessageListContainer,
             Header: () => <ListHeader isLoadingMoreHistory={isLoadingMoreHistory} />,
             Footer: footerComponent,
           }}
@@ -1241,13 +1261,23 @@ function ListFooter({
 }) {
   const sessionState = useChatStore((state) => sessionId ? state.sessions[sessionId] : undefined)
   const streamingText = sessionState?.streamingText ?? ''
-  const chatState = sessionState?.chatState ?? 'idle'
+  const settlingAssistant = sessionState?.settlingAssistant ?? null
+  const completeStreamingReveal = useChatStore((state) => state.completeStreamingReveal)
+  const visibleContent = streamingText || settlingAssistant?.content || ''
+  const handleCaughtUp = useCallback(() => {
+    if (!sessionId || !settlingAssistant) return
+    completeStreamingReveal(sessionId, settlingAssistant.messageId)
+  }, [completeStreamingReveal, sessionId, settlingAssistant])
 
   return (
     <div>
       <StreamingIndicator sessionId={sessionId ?? undefined} />
-      {streamingText && (
-        <AssistantMessage content={streamingText} isStreaming={chatState === 'streaming'} />
+      {visibleContent && (
+        <AssistantMessage
+          content={visibleContent}
+          isStreaming
+          onStreamingSettled={settlingAssistant && !streamingText ? handleCaughtUp : undefined}
+        />
       )}
       <div className="shrink-0" style={{ height: bottomSpacerHeight }} />
     </div>
@@ -1289,15 +1319,20 @@ export const MessageBlock = memo(function MessageBlock({
 }) {
   const t = useTranslation()
 
-  // Wrap non-user/assistant messages in iMessage-style assistant bubble
-  const wrapInAssistantBubble = (content: React.ReactNode) => (
+  const wrapInChatColumn = (content: React.ReactNode, className = '') => (
     <div className="flex w-full justify-center px-[24px] py-[8px]">
-      <div className="flex w-full max-w-[878px] flex-col items-start">
-        <div className="chat-bubble-text w-fit max-w-[85%] rounded-[24px] rounded-tl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
-          {content}
-        </div>
+      <div data-chat-content-column className={`w-full max-w-[878px] ${className}`}>
+        {content}
       </div>
     </div>
+  )
+
+  // Wrap non-user/assistant messages in iMessage-style assistant bubble
+  const wrapInAssistantBubble = (content: React.ReactNode) => wrapInChatColumn(
+    <div className="chat-bubble-text w-fit max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
+      {content}
+    </div>,
+    'flex flex-col items-start',
   )
 
   switch (message.type) {
@@ -1360,15 +1395,17 @@ export const MessageBlock = memo(function MessageBlock({
         />
       )
     case 'tool_result':
-      return <ToolResultBlock content={message.content} isError={message.isError} standalone />
+      return wrapInChatColumn(
+        <ToolResultBlock content={message.content} isError={message.isError} standalone />,
+      )
     case 'permission_request':
-      return (
+      return wrapInChatColumn(
         <PermissionDialog
           requestId={message.requestId}
           toolName={message.toolName}
           input={message.input}
           description={message.description}
-        />
+        />,
       )
     case 'error': {
       const errorKey = message.code ? `error.${message.code}` as TranslationKey : null
@@ -1384,12 +1421,12 @@ export const MessageBlock = memo(function MessageBlock({
       )
     }
     case 'task_summary':
-      return <InlineTaskSummary tasks={message.tasks} />
+      return wrapInChatColumn(<InlineTaskSummary tasks={message.tasks} />)
     case 'system':
-      return (
+      return wrapInChatColumn(
         <div className="mb-3 text-center text-xs text-[var(--color-text-tertiary)]">
           {message.content}
-        </div>
+        </div>,
       )
   }
 })

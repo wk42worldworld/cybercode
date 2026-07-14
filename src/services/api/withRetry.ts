@@ -44,7 +44,10 @@ import {
   checkMockRateLimitError,
   isMockRateLimitError,
 } from '../rateLimitMocking.js'
-import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
+import {
+  isPermanentProviderBillingError,
+  REPEATED_529_ERROR_MESSAGE,
+} from './errors.js'
 import { extractConnectionErrorDetails } from './errorUtils.js'
 
 const abortError = () => new APIUserAbortError()
@@ -104,6 +107,8 @@ function isPersistentRetryEnabled(): boolean {
 }
 
 function isTransientCapacityError(error: unknown): boolean {
+  if (isPermanentProviderBillingError(error)) return false
+
   return (
     is529Error(error) || (error instanceof APIError && error.status === 429)
   )
@@ -710,6 +715,13 @@ function handleGcpCredentialError(error: unknown): boolean {
 function shouldRetry(error: APIError): boolean {
   // Never retry mock errors - they're from /mock-limits command for testing
   if (isMockRateLimitError(error)) {
+    return false
+  }
+
+  // Some third-party providers encode exhausted balance/resource packages as
+  // HTTP 429. Retrying cannot recover these billing failures and otherwise
+  // leaves desktop users waiting through the full exponential backoff cycle.
+  if (isPermanentProviderBillingError(error)) {
     return false
   }
 

@@ -117,7 +117,8 @@ export function FloatingThinkingPanel({
   return (
     <div className="pointer-events-none absolute left-0 right-0 top-[20px] z-30 flex justify-center px-[24px]">
       <div
-        className={`pointer-events-auto w-full max-w-[720px] translate-y-0 overflow-hidden rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-primary)] shadow-[var(--shadow-dropdown)] transition-[opacity,transform] duration-[150ms] ease-out ${
+        data-chat-content-column
+        className={`pointer-events-auto w-full max-w-[878px] translate-y-0 overflow-hidden rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-primary)] shadow-[var(--shadow-dropdown)] transition-[opacity,transform] duration-[150ms] ease-out ${
           isShown ? 'opacity-100' : '-translate-y-1 opacity-0'
         }`}
         data-testid="floating-thinking-panel"

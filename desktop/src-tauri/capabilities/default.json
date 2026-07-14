@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/nicegui/static/tauri-capabilities-schema-v2.json",
   "identifier": "default",
   "description": "Default capabilities for CyberCode Desktop",
-  "windows": ["main"],
+  "windows": ["main", "screenshot-overlay"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

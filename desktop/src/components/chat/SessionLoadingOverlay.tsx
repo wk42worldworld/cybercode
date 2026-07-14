@@ -1,7 +1,7 @@
 export function SessionLoadingOverlay() {
   return (
-    <div className="flex-1 flex flex-col overflow-y-auto px-6 md:px-12 pt-10 pb-4 animate-fade-in">
-      <div className="w-full max-w-[860px] mx-auto flex flex-col gap-8">
+    <div className="flex-1 flex flex-col overflow-y-auto px-[24px] pt-10 pb-4 animate-fade-in">
+      <div data-chat-content-column className="w-full max-w-[878px] mx-auto flex flex-col gap-8">
 
         {/* Assistant turn */}
         <div className="flex gap-3 items-start">

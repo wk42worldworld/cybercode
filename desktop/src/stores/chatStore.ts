@@ -76,6 +76,13 @@ export type PerSessionState = {
   chatState: ChatState
   connectionState: ConnectionState
   streamingText: string
+  /** Completed assistant text that remains in the live bubble until its visual
+   *  reveal cursor catches up. The matching persisted message is temporarily
+   *  hidden by MessageList, so completion never flashes the unseen suffix. */
+  settlingAssistant?: {
+    messageId: string
+    content: string
+  } | null
   streamingToolInput: string
   activeToolUseId: string | null
   activeToolName: string | null
@@ -119,6 +126,7 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   chatState: 'idle',
   connectionState: 'disconnected',
   streamingText: '',
+  settlingAssistant: null,
   streamingToolInput: '',
   activeToolUseId: null,
   activeToolName: null,
@@ -209,6 +217,7 @@ type ChatStore = {
     prefill: { text: string; attachments?: UIAttachment[] },
   ) => void
   clearMessages: (sessionId: string) => void
+  completeStreamingReveal: (sessionId: string, messageId: string) => void
   handleServerMessage: (sessionId: string, msg: ServerMessage) => void
 }
 
@@ -392,6 +401,21 @@ function appendAssistantTextMessage(
   ]
 }
 
+function createSettlingAssistant(
+  previousMessages: UIMessage[],
+  nextMessages: UIMessage[],
+  content: string,
+): PerSessionState['settlingAssistant'] {
+  const previousMessage = previousMessages[previousMessages.length - 1]
+  if (!content.trim() || previousMessage?.type === 'assistant_text') return null
+  const completedMessage = nextMessages[nextMessages.length - 1]
+  if (completedMessage?.type !== 'assistant_text') return null
+  return {
+    messageId: completedMessage.id,
+    content,
+  }
+}
+
 /** Helper: immutably update a specific session within the sessions record */
 function updateSessionIn(
   sessions: Record<string, PerSessionState>,
@@ -442,6 +466,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           allMessagesLoaded: false,
           historyLoadState: 'idle',
           streamingText: '',
+          settlingAssistant: null,
           streamingToolInput: '',
           activeThinkingId: null,
           activeToolUseId: null,
@@ -637,6 +662,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             elapsedSeconds: 0,
             tokenUsage: { input_tokens: 0, output_tokens: 0 },
             streamingText: '',
+            settlingAssistant: null,
             dismissedThinkingPanelIdentityKey: null,
             statusVerb: isMemberSession ? '' : randomSpinnerVerb(),
             turnStartedAt: now,
@@ -1170,6 +1196,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             activeToolUseId: null,
             activeToolName: null,
             streamingText: '',
+            settlingAssistant: null,
             streamingToolInput: '',
             pendingPermission: null,
             pendingComputerUsePermission: null,
@@ -1241,6 +1268,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       sessions: updateSessionIn(s.sessions, sessionId, () => ({
         messages: [],
         streamingText: '',
+        settlingAssistant: null,
         activeThinkingId: null,
         dismissedThinkingPanelIdentityKey: null,
         chatState: 'idle',
@@ -1248,6 +1276,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         lastModelActivityAt: null,
         pendingSteers: [],
       })),
+    }))
+  },
+
+  completeStreamingReveal: (sessionId, messageId) => {
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, (session) => (
+        session.settlingAssistant?.messageId === messageId
+          ? { settlingAssistant: null }
+          : {}
+      )),
     }))
   },
 
@@ -1278,6 +1316,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           // across separate bubbles.
           const preserveStreamingTurn = hasPendingStreamText && msg.state !== 'idle'
           const shouldFlush = hasPendingStreamText && msg.state === 'idle'
+          const flushedMessages = shouldFlush
+            ? appendAssistantTextMessage(session.messages, pendingText, Date.now())
+            : null
           const tokenProgress =
             typeof msg.tokens === 'number' && msg.tokens > session.tokenUsage.output_tokens
           return {
@@ -1293,9 +1334,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               lastModelActivityAt: null,
             } : {}),
             ...(shouldFlush ? {
-              messages: appendAssistantTextMessage(session.messages, pendingText, Date.now()),
+              messages: flushedMessages!,
               streamingText: '',
+              settlingAssistant: createSettlingAssistant(
+                session.messages,
+                flushedMessages!,
+                pendingText,
+              ),
             } : pendingText !== session.streamingText ? { streamingText: pendingText } : {}),
+            ...(msg.state !== 'idle' && session.settlingAssistant
+              ? { settlingAssistant: null }
+              : {}),
           }
         })
         if (msg.state === 'idle') {
@@ -1318,12 +1367,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ...markModelActivity(),
             messages: appendAssistantTextMessage(s.messages, pendingText, Date.now()),
             streamingText: '',
+            settlingAssistant: null,
           }))
         }
         if (msg.blockType === 'text') {
           update((s) => ({
             ...markModelActivity(),
             ...(pendingText !== s.streamingText ? { streamingText: pendingText } : {}),
+            settlingAssistant: null,
             chatState: 'streaming',
             activeThinkingId: null,
           }))
@@ -1384,6 +1435,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               chatState: 'thinking',
               activeThinkingId: last.id,
               streamingText: '',
+              settlingAssistant: null,
             }
           }
           const id = nextId()
@@ -1393,6 +1445,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chatState: 'thinking',
             activeThinkingId: id,
             streamingText: '',
+            settlingAssistant: null,
           }
         })
         break
@@ -1488,11 +1541,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const shouldAutoSendPending = (session.pendingSteers ?? []).some(isPendingSteerAutoSendable)
         const text = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (text.trim()) {
-          update((s) => ({
-            ...markModelActivity(),
-            messages: appendAssistantTextMessage(s.messages, text, Date.now()),
-            streamingText: '',
-          }))
+          update((s) => {
+            const messages = appendAssistantTextMessage(s.messages, text, Date.now())
+            return {
+              ...markModelActivity(),
+              messages,
+              streamingText: '',
+              settlingAssistant: createSettlingAssistant(s.messages, messages, text),
+            }
+          })
         } else if (text !== session.streamingText) {
           update(() => ({ ...markConnectionActivity(), streamingText: text }))
         }
@@ -1553,6 +1610,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             chatState: 'idle',
             activeThinkingId: null,
             streamingText: '',
+            settlingAssistant: null,
             pendingPermission: null,
             pendingComputerUsePermission: null,
             turnStartedAt: null,
@@ -1608,6 +1666,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             // local clear when server-side state could differ.
             historyLoadState: 'idle',
             streamingText: '',
+            settlingAssistant: null,
             streamingToolInput: '',
             activeToolUseId: null,
             activeToolName: null,

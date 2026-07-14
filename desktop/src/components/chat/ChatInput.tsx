@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { ArrowUp, Folder, Paperclip, Plus, Square, UploadCloud } from 'lucide-react'
+import { ArrowUp, Folder, Paperclip, Plus, Scissors, Square, UploadCloud } from 'lucide-react'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
 import { useTranslation } from '../../i18n'
@@ -160,6 +160,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   const [modelSelectorOpenSignal, setModelSelectorOpenSignal] = useState(0)
   const [isDraggingFiles, setIsDraggingFiles] = useState(false)
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false)
   const composingRef = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -728,6 +729,42 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     }
   }
 
+  const handleCaptureScreenshot = async () => {
+    if (isMemberSession || isCapturingScreenshot) return
+
+    if (!isTauriRuntime()) {
+      useUIStore.getState().addToast({
+        type: 'info',
+        message: t('chat.captureScreenshotDesktopOnly'),
+      })
+      return
+    }
+
+    setPlusMenuOpen(false)
+    setSlashMenuOpen(false)
+    setFileSearchOpen(false)
+    setIsCapturingScreenshot(true)
+
+    try {
+      const screenshotPath = await invoke<string | null>('capture_screen_region')
+      if (screenshotPath?.trim()) {
+        await addPathAttachments([screenshotPath])
+      }
+    } catch (error) {
+      console.error('[ChatInput] Failed to capture screen region:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      useUIStore.getState().addToast({
+        type: 'error',
+        message: message.includes('SCREEN_CAPTURE_PERMISSION_REQUIRED')
+          ? t('chat.captureScreenshotPermissionRequired')
+          : t('chat.captureScreenshotFailed', { message }),
+      })
+    } finally {
+      setIsCapturingScreenshot(false)
+      requestAnimationFrame(() => textareaRef.current?.focus())
+    }
+  }
+
   const handleFiles = (files: FileList | File[]) => {
     Array.from(files).forEach((file) => {
       const filePath = getNonStandardFilePath(file)
@@ -904,6 +941,9 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
           : t('chat.placeholder')
 
   const addFilesLabel = isHeroComposer ? t('empty.addFiles') : t('chat.addFiles')
+  const captureScreenshotLabel = isCapturingScreenshot
+    ? t('chat.captureScreenshotSelecting')
+    : t('chat.captureScreenshot')
   const addProjectFolderLabel = t('dirPicker.chooseProjectFolder')
   const slashCommandsLabel = isHeroComposer ? t('empty.slashCommands') : t('chat.slashCommands')
   const showWorkDirControl = isHeroComposer && onWorkDirChange
@@ -912,7 +952,8 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   return (
     <div className={isHeroComposer ? '' : 'wechat-input-container pointer-events-none flex justify-center p-[24px]'}>
       <div
-        className={isHeroComposer ? 'relative w-full' : 'pointer-events-auto relative w-full max-w-[896px]'}
+        data-chat-content-column={isHeroComposer ? undefined : true}
+        className={isHeroComposer ? 'relative w-full' : 'pointer-events-auto relative w-full max-w-[878px]'}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -1104,6 +1145,28 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                     <Paperclip size={16} strokeWidth={2.25} />
                     <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100 whitespace-nowrap">
                       {addFilesLabel}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <div className="relative flex items-center">
+                {!isMemberSession && (
+                  <button
+                    type="button"
+                    onClick={handleCaptureScreenshot}
+                    disabled={isCapturingScreenshot}
+                    aria-label={captureScreenshotLabel}
+                    aria-busy={isCapturingScreenshot}
+                    className={`${composerToolButtonClassName} disabled:pointer-events-none disabled:opacity-50`}
+                  >
+                    <Scissors
+                      size={16}
+                      strokeWidth={2.25}
+                      className={isCapturingScreenshot ? 'animate-pulse' : undefined}
+                    />
+                    <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 whitespace-nowrap rounded-md bg-[var(--color-inverse-surface)] px-2.5 py-1 text-[12px] font-medium text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-opacity duration-100 group-hover:opacity-100">
+                      {captureScreenshotLabel}
                     </span>
                   </button>
                 )}

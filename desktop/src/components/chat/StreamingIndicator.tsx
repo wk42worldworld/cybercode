@@ -133,7 +133,7 @@ export function StreamingIndicator({ sessionId }: StreamingIndicatorProps = {}) 
       aria-label={verb}
       className="ai-response-status flex h-[56px] w-full shrink-0 justify-center overflow-hidden px-[24px] py-[8px]"
     >
-      <div className="flex h-[40px] w-full max-w-[878px] items-center gap-2 overflow-hidden px-[20px]">
+      <div data-chat-content-column className="flex h-[40px] w-full max-w-[878px] items-center gap-2 overflow-hidden px-[20px]">
         <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden="true">
           <span className="breathing-dot-ring absolute inline-flex h-full w-full rounded-full bg-[var(--color-brand)] opacity-30" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-brand)]" />

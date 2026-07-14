@@ -152,6 +152,46 @@ export function isMediaSizeErrorMessage(msg: AssistantMessage): boolean {
   )
 }
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'
+export const PROVIDER_BALANCE_EXHAUSTED_ERROR_MESSAGE =
+  'Provider balance or quota is exhausted'
+
+export function isPermanentProviderBillingError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+
+  const text = (
+    error instanceof APIError ? extractAPIErrorText(error) : error.message
+  ).toLowerCase()
+
+  return (
+    /(?:\[1113\]|(?:code|错误码)[^a-z0-9]{0,8}1113\b)/i.test(text) ||
+    text.includes('余额不足') ||
+    text.includes('无可用资源包') ||
+    text.includes('请充值') ||
+    text.includes('insufficient_quota') ||
+    text.includes('insufficient quota') ||
+    text.includes('insufficient balance') ||
+    text.includes('insufficient credit') ||
+    text.includes('credit balance is too low') ||
+    text.includes('your credit balance is too low') ||
+    text.includes('billing_hard_limit') ||
+    text.includes('billing hard limit') ||
+    text.includes('exceeded your current quota') ||
+    text.includes('payment required')
+  )
+}
+
+function getPermanentProviderBillingMessage(error: Error): string {
+  const text = error instanceof APIError ? extractAPIErrorText(error) : error.message
+  const providerCode =
+    text.match(/(?:code|错误码)[^a-z0-9]{0,8}([a-z0-9_-]+)/i)?.[1] ??
+    text.match(/\[([a-z0-9_-]+)\]/i)?.[1]
+
+  if (providerCode === '1113') {
+    return `${PROVIDER_BALANCE_EXHAUSTED_ERROR_MESSAGE} (模型服务余额不足或无可用资源包; provider code 1113). Recharge or add a resource package in the provider console, then retry.`
+  }
+
+  return `${PROVIDER_BALANCE_EXHAUSTED_ERROR_MESSAGE}. Recharge or add quota in the provider console, then retry.`
+}
 export const INVALID_API_KEY_ERROR_MESSAGE = 'Not logged in · Please run /login'
 export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
   'Invalid API key · Fix external API key'
@@ -459,6 +499,14 @@ export function getAssistantMessageFromError(
     return createAssistantAPIErrorMessage({
       content: CUSTOM_OFF_SWITCH_MESSAGE,
       error: 'rate_limit',
+    })
+  }
+
+  if (isPermanentProviderBillingError(error)) {
+    return createAssistantAPIErrorMessage({
+      content: getPermanentProviderBillingMessage(error as Error),
+      error: 'billing_error',
+      errorDetails: error instanceof Error ? error.message : String(error),
     })
   }
 

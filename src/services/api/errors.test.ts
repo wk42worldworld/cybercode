@@ -1,7 +1,10 @@
 import { APIError } from '@anthropic-ai/sdk'
 import { describe, expect, test } from 'bun:test'
 
-import { getAssistantMessageFromError } from './errors.js'
+import {
+  getAssistantMessageFromError,
+  isPermanentProviderBillingError,
+} from './errors.js'
 
 function firstText(message: ReturnType<typeof getAssistantMessageFromError>): string {
   const [block] = message.message.content
@@ -9,6 +12,47 @@ function firstText(message: ReturnType<typeof getAssistantMessageFromError>): st
 }
 
 describe('provider API error messages', () => {
+  test('turns GLM exhausted balance errors into billing guidance', () => {
+    const error = new APIError(
+      429,
+      {
+        type: 'error',
+        error: {
+          type: 'rate_limit_error',
+          code: '1113',
+          message: '[1113][余额不足或无可用资源包,请充值。][request-id]',
+        },
+      },
+      undefined,
+      new Headers(),
+    )
+
+    expect(isPermanentProviderBillingError(error)).toBe(true)
+
+    const text = firstText(getAssistantMessageFromError(error, 'glm-5.2'))
+    expect(text).toContain('Provider balance or quota is exhausted')
+    expect(text).toContain('余额不足或无可用资源包')
+    expect(text).toContain('provider code 1113')
+    expect(text).not.toContain('Request rejected (429)')
+  })
+
+  test('does not classify an ordinary temporary 429 as exhausted balance', () => {
+    const error = new APIError(
+      429,
+      {
+        type: 'error',
+        error: {
+          type: 'rate_limit_error',
+          message: 'Too many requests. Try again shortly.',
+        },
+      },
+      undefined,
+      new Headers(),
+    )
+
+    expect(isPermanentProviderBillingError(error)).toBe(false)
+  })
+
   test('turns unsupported model provider errors into actionable copy', () => {
     const message = getAssistantMessageFromError(
       new APIError(

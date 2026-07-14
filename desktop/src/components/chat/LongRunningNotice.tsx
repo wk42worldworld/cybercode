@@ -56,8 +56,8 @@ export function LongRunningNotice({
   const iconName = connectionLooksStale ? 'warning' : 'wifi'
 
   return (
-    <div className="shrink-0 px-8 pb-1" role="status" aria-live="polite" data-testid="long-running-notice">
-      <div className="mx-auto flex max-w-[860px] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-3 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="shrink-0 px-[24px] pb-1" role="status" aria-live="polite" data-testid="long-running-notice">
+      <div data-chat-content-column className="mx-auto flex w-full max-w-[878px] items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-3 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <span
           className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] ${
             connectionLooksStale

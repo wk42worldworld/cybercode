@@ -7,10 +7,10 @@ use std::{
     str,
     sync::{
         atomic::{AtomicU32, Ordering},
-        Arc, Mutex,
+        Arc, Condvar, Mutex,
     },
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use base64::{engine::general_purpose, Engine as _};
@@ -32,7 +32,14 @@ const TRAY_QUIT_ID: &str = "tray_quit";
 const CYBER_CONFIG_DIR_ENV: &str = "CYBER_CONFIG_DIR";
 const LEGACY_CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
 const IMAGE_PREVIEW_MAX_BYTES: u64 = 10 * 1024 * 1024;
+const SCREENSHOT_FILE_PREFIX: &str = "cybercode-screenshot-";
+const SCREENSHOT_SOURCE_FILE_PREFIX: &str = "cybercode-screenshot-source-";
+const SCREENSHOT_OVERLAY_LABEL: &str = "screenshot-overlay";
+const SCREENSHOT_SOURCE_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const SCREENSHOT_RESULT_MAX_BYTES: usize = 32 * 1024 * 1024;
+const SCREENSHOT_SELECTION_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const SERVER_CONNECTION_WAIT_TIMEOUT: Duration = Duration::from_secs(15);
+static SCREENSHOT_SEQUENCE: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Default)]
 struct ServerState(Arc<Mutex<ServerStatus>>);
@@ -60,6 +67,16 @@ struct ServerStatus {
 struct AppExitState {
     is_quitting: Mutex<bool>,
 }
+
+#[derive(Default)]
+struct ScreenshotCaptureSession {
+    active: bool,
+    source_path: Option<PathBuf>,
+    result: Option<Result<Option<String>, String>>,
+}
+
+#[derive(Default)]
+struct ScreenshotCaptureState(Arc<(Mutex<ScreenshotCaptureSession>, Condvar)>);
 
 /// 与 ServerState 平级的 adapter 子进程状态。
 ///
@@ -280,6 +297,485 @@ fn read_image_preview_data_url(path: String, mime_type: Option<String>) -> Resul
         "data:{mime};base64,{}",
         general_purpose::STANDARD.encode(bytes)
     ))
+}
+
+fn screenshot_path(prefix: &str) -> PathBuf {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    std::env::temp_dir().join(format!(
+        "{prefix}{}-{timestamp}-{}.png",
+        std::process::id(),
+        SCREENSHOT_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ))
+}
+
+fn screenshot_temp_path() -> PathBuf {
+    screenshot_path(SCREENSHOT_FILE_PREFIX)
+}
+
+fn screenshot_source_temp_path() -> PathBuf {
+    screenshot_path(SCREENSHOT_SOURCE_FILE_PREFIX)
+}
+
+fn completed_screenshot_path(path: &Path) -> Result<Option<String>, String> {
+    match std::fs::metadata(path) {
+        Ok(metadata) if metadata.is_file() && metadata.len() > 0 => {
+            Ok(Some(path.to_string_lossy().into_owned()))
+        }
+        Ok(_) => {
+            let _ = std::fs::remove_file(path);
+            Ok(None)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!("inspect screenshot file: {error}")),
+    }
+}
+
+fn capture_source_command_result(
+    path: &Path,
+    output: std::process::Output,
+    tool_name: &str,
+) -> Result<PathBuf, String> {
+    if let Some(captured_path) = completed_screenshot_path(path)? {
+        return Ok(PathBuf::from(captured_path));
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let detail = if stderr.is_empty() {
+        format!("exit status {}", output.status)
+    } else {
+        stderr
+    };
+    Err(format!("{tool_name} failed: {detail}"))
+}
+
+#[derive(Clone, Copy)]
+struct CaptureDisplay {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+}
+
+#[cfg(target_os = "macos")]
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    fn CGPreflightScreenCaptureAccess() -> bool;
+    fn CGRequestScreenCaptureAccess() -> bool;
+}
+
+#[cfg(target_os = "macos")]
+fn ensure_screen_capture_permission() -> Result<(), String> {
+    // SAFETY: These parameterless Core Graphics APIs are available on every
+    // macOS version supported by the Tauri desktop build.
+    unsafe {
+        if CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() {
+            return Ok(());
+        }
+    }
+    Err("SCREEN_CAPTURE_PERMISSION_REQUIRED".to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ensure_screen_capture_permission() -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn capture_screen_source_blocking(display: CaptureDisplay) -> Result<PathBuf, String> {
+    let path = screenshot_source_temp_path();
+    let scale_factor = display.scale_factor.max(1.0);
+    let rect = format!(
+        "{},{},{},{}",
+        (f64::from(display.x) / scale_factor).round() as i32,
+        (f64::from(display.y) / scale_factor).round() as i32,
+        (f64::from(display.width) / scale_factor).round().max(1.0) as u32,
+        (f64::from(display.height) / scale_factor).round().max(1.0) as u32
+    );
+    let output = StdCommand::new("/usr/sbin/screencapture")
+        .args(["-x", "-t", "png"])
+        .arg(format!("-R{rect}"))
+        .arg(&path)
+        .output()
+        .map_err(|error| format!("launch macOS screen capture: {error}"))?;
+
+    capture_source_command_result(&path, output, "macOS screen capture")
+}
+
+#[cfg(target_os = "windows")]
+fn capture_screen_source_blocking(display: CaptureDisplay) -> Result<PathBuf, String> {
+    const SCRIPT: &str = r#"
+Add-Type -AssemblyName System.Drawing
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class CyberCodeCaptureDpi {
+    [DllImport("user32.dll")]
+    public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+}
+'@
+try { [void][CyberCodeCaptureDpi]::SetProcessDpiAwarenessContext([IntPtr](-4)) } catch {}
+$width = [int]$env:CYBERCODE_SCREENSHOT_WIDTH
+$height = [int]$env:CYBERCODE_SCREENSHOT_HEIGHT
+$bitmap = New-Object System.Drawing.Bitmap($width, $height)
+$graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+try {
+    $graphics.CopyFromScreen(
+        [int]$env:CYBERCODE_SCREENSHOT_X,
+        [int]$env:CYBERCODE_SCREENSHOT_Y,
+        0,
+        0,
+        $bitmap.Size,
+        [System.Drawing.CopyPixelOperation]::SourceCopy
+    )
+    $bitmap.Save($env:CYBERCODE_SCREENSHOT_PATH, [System.Drawing.Imaging.ImageFormat]::Png)
+} finally {
+    $graphics.Dispose()
+    $bitmap.Dispose()
+}
+"#;
+
+    let path = screenshot_source_temp_path();
+    let output = StdCommand::new("powershell.exe")
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            SCRIPT,
+        ])
+        .env("CYBERCODE_SCREENSHOT_PATH", &path)
+        .env("CYBERCODE_SCREENSHOT_X", display.x.to_string())
+        .env("CYBERCODE_SCREENSHOT_Y", display.y.to_string())
+        .env("CYBERCODE_SCREENSHOT_WIDTH", display.width.to_string())
+        .env("CYBERCODE_SCREENSHOT_HEIGHT", display.height.to_string())
+        .output()
+        .map_err(|error| format!("capture the Windows display: {error}"))?;
+
+    capture_source_command_result(&path, output, "Windows display capture")
+}
+
+#[cfg(target_os = "linux")]
+fn linux_command_available(command: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|path| path.join(command).is_file()))
+        .unwrap_or(false)
+}
+
+#[cfg(target_os = "linux")]
+fn capture_screen_source_blocking(display: CaptureDisplay) -> Result<PathBuf, String> {
+    let path = screenshot_source_temp_path();
+
+    if linux_command_available("grim") {
+        let geometry = format!(
+            "{},{} {}x{}",
+            display.x, display.y, display.width, display.height
+        );
+        let output = StdCommand::new("grim")
+            .args(["-g", &geometry])
+            .arg(&path)
+            .output()
+            .map_err(|error| format!("launch grim: {error}"))?;
+        return capture_source_command_result(&path, output, "grim");
+    }
+
+    if linux_command_available("gnome-screenshot") {
+        let output = StdCommand::new("gnome-screenshot")
+            .arg("-f")
+            .arg(&path)
+            .output()
+            .map_err(|error| format!("launch GNOME Screenshot: {error}"))?;
+        return capture_source_command_result(&path, output, "GNOME Screenshot");
+    }
+
+    if linux_command_available("spectacle") {
+        let output = StdCommand::new("spectacle")
+            .args(["--current", "--background", "--nonotify", "--output"])
+            .arg(&path)
+            .output()
+            .map_err(|error| format!("launch Spectacle: {error}"))?;
+        return capture_source_command_result(&path, output, "Spectacle");
+    }
+
+    if linux_command_available("scrot") {
+        let output = StdCommand::new("scrot")
+            .arg(&path)
+            .output()
+            .map_err(|error| format!("launch scrot: {error}"))?;
+        return capture_source_command_result(&path, output, "scrot");
+    }
+
+    Err("no supported Linux screenshot tool was found (grim, gnome-screenshot, Spectacle, or scrot)".to_string())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+fn capture_screen_source_blocking(_display: CaptureDisplay) -> Result<PathBuf, String> {
+    Err("region screenshots are not supported on this platform".to_string())
+}
+
+fn begin_screen_capture(state: &ScreenshotCaptureState) -> Result<(), String> {
+    let (lock, _) = &*state.0;
+    let mut session = lock
+        .lock()
+        .map_err(|_| "screen capture state is unavailable".to_string())?;
+    if session.active {
+        return Err("a screen capture is already active".to_string());
+    }
+    session.active = true;
+    session.source_path = None;
+    session.result = None;
+    Ok(())
+}
+
+fn set_screen_capture_source(
+    state: &ScreenshotCaptureState,
+    source_path: PathBuf,
+) -> Result<(), String> {
+    let (lock, _) = &*state.0;
+    let mut session = lock
+        .lock()
+        .map_err(|_| "screen capture state is unavailable".to_string())?;
+    if !session.active {
+        return Err("screen capture is no longer active".to_string());
+    }
+    session.source_path = Some(source_path);
+    Ok(())
+}
+
+fn resolve_screen_capture(
+    state: &ScreenshotCaptureState,
+    result: Result<Option<String>, String>,
+) -> Result<(), String> {
+    let (lock, condition) = &*state.0;
+    let mut session = lock
+        .lock()
+        .map_err(|_| "screen capture state is unavailable".to_string())?;
+    if !session.active {
+        return Err("screen capture is no longer active".to_string());
+    }
+    if session.result.is_none() {
+        session.result = Some(result);
+        condition.notify_all();
+    }
+    Ok(())
+}
+
+fn wait_for_screen_capture_result(
+    capture: Arc<(Mutex<ScreenshotCaptureSession>, Condvar)>,
+) -> Result<Option<String>, String> {
+    let (lock, condition) = &*capture;
+    let mut session = lock
+        .lock()
+        .map_err(|_| "screen capture state is unavailable".to_string())?;
+    let deadline = Instant::now() + SCREENSHOT_SELECTION_TIMEOUT;
+
+    loop {
+        if let Some(result) = session.result.take() {
+            return result;
+        }
+
+        let now = Instant::now();
+        if now >= deadline {
+            return Ok(None);
+        }
+        let (next_session, timeout) = condition
+            .wait_timeout(session, deadline.saturating_duration_since(now))
+            .map_err(|_| "screen capture state is unavailable".to_string())?;
+        session = next_session;
+        if timeout.timed_out() && session.result.is_none() {
+            return Ok(None);
+        }
+    }
+}
+
+fn clear_screen_capture(state: &ScreenshotCaptureState) -> Option<PathBuf> {
+    let (lock, _) = &*state.0;
+    let Ok(mut session) = lock.lock() else {
+        return None;
+    };
+    session.active = false;
+    session.result = None;
+    session.source_path.take()
+}
+
+fn create_screenshot_overlay(app: &AppHandle, display: CaptureDisplay) -> Result<(), String> {
+    if let Some(existing) = app.get_webview_window(SCREENSHOT_OVERLAY_LABEL) {
+        let _ = existing.close();
+    }
+
+    let scale_factor = display.scale_factor.max(1.0);
+    let overlay = tauri::WebviewWindowBuilder::new(
+        app,
+        SCREENSHOT_OVERLAY_LABEL,
+        tauri::WebviewUrl::App("index.html?window=screenshot".into()),
+    )
+    .title("CyberCode Screenshot")
+    .visible(false)
+    .decorations(false)
+    .resizable(false)
+    .always_on_top(true)
+    .visible_on_all_workspaces(true)
+    .skip_taskbar(true)
+    .shadow(false)
+    .position(
+        f64::from(display.x) / scale_factor,
+        f64::from(display.y) / scale_factor,
+    )
+    .inner_size(
+        f64::from(display.width) / scale_factor,
+        f64::from(display.height) / scale_factor,
+    )
+    .build()
+    .map_err(|error| format!("create screen capture overlay: {error}"))?;
+
+    overlay
+        .set_position(tauri::PhysicalPosition::new(display.x, display.y))
+        .map_err(|error| format!("position screen capture overlay: {error}"))?;
+    overlay
+        .set_size(tauri::PhysicalSize::new(display.width, display.height))
+        .map_err(|error| format!("size screen capture overlay: {error}"))?;
+    overlay
+        .show()
+        .map_err(|error| format!("show screen capture overlay: {error}"))?;
+    overlay
+        .set_focus()
+        .map_err(|error| format!("focus screen capture overlay: {error}"))?;
+    Ok(())
+}
+
+fn decode_screenshot_png_data_url(data_url: &str) -> Result<Vec<u8>, String> {
+    let encoded = data_url
+        .strip_prefix("data:image/png;base64,")
+        .ok_or_else(|| "screen capture result is not a PNG data URL".to_string())?;
+    let bytes = general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|error| format!("decode screen capture result: {error}"))?;
+    if bytes.len() > SCREENSHOT_RESULT_MAX_BYTES {
+        return Err(format!(
+            "screen capture result is larger than {} MB",
+            SCREENSHOT_RESULT_MAX_BYTES / 1024 / 1024
+        ));
+    }
+    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Err("screen capture result has an invalid PNG signature".to_string());
+    }
+    Ok(bytes)
+}
+
+#[tauri::command]
+fn read_screen_capture_source(state: State<'_, ScreenshotCaptureState>) -> Result<String, String> {
+    let source_path = {
+        let (lock, _) = &*state.0;
+        let session = lock
+            .lock()
+            .map_err(|_| "screen capture state is unavailable".to_string())?;
+        if !session.active {
+            return Err("screen capture is no longer active".to_string());
+        }
+        session
+            .source_path
+            .clone()
+            .ok_or_else(|| "screen capture source is not ready".to_string())?
+    };
+
+    let metadata = std::fs::metadata(&source_path)
+        .map_err(|error| format!("read screen capture metadata: {error}"))?;
+    if metadata.len() > SCREENSHOT_SOURCE_MAX_BYTES {
+        return Err(format!(
+            "screen capture source is larger than {} MB",
+            SCREENSHOT_SOURCE_MAX_BYTES / 1024 / 1024
+        ));
+    }
+    let bytes = std::fs::read(&source_path)
+        .map_err(|error| format!("read screen capture source: {error}"))?;
+    Ok(format!(
+        "data:image/png;base64,{}",
+        general_purpose::STANDARD.encode(bytes)
+    ))
+}
+
+#[tauri::command]
+fn complete_screen_capture(
+    state: State<'_, ScreenshotCaptureState>,
+    png_data_url: String,
+) -> Result<(), String> {
+    let bytes = decode_screenshot_png_data_url(&png_data_url)?;
+    let path = screenshot_temp_path();
+    std::fs::write(&path, bytes).map_err(|error| format!("save screen capture: {error}"))?;
+    let result_path = path.to_string_lossy().into_owned();
+    if let Err(error) = resolve_screen_capture(&state, Ok(Some(result_path))) {
+        let _ = std::fs::remove_file(path);
+        return Err(error);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn cancel_screen_capture(state: State<'_, ScreenshotCaptureState>) -> Result<(), String> {
+    resolve_screen_capture(&state, Ok(None))
+}
+
+#[tauri::command]
+async fn capture_screen_region(
+    app: AppHandle,
+    state: State<'_, ScreenshotCaptureState>,
+) -> Result<Option<String>, String> {
+    let main_window = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or_else(|| "main window is unavailable".to_string())?;
+    let monitor = main_window
+        .current_monitor()
+        .map_err(|error| format!("read current display: {error}"))?
+        .or_else(|| app.primary_monitor().ok().flatten())
+        .ok_or_else(|| "no display is available for screen capture".to_string())?;
+    let display = CaptureDisplay {
+        x: monitor.position().x,
+        y: monitor.position().y,
+        width: monitor.size().width,
+        height: monitor.size().height,
+        scale_factor: monitor.scale_factor(),
+    };
+    begin_screen_capture(&state)?;
+
+    let operation = async {
+        ensure_screen_capture_permission()?;
+        main_window
+            .hide()
+            .map_err(|error| format!("hide CyberCode before screen capture: {error}"))?;
+
+        let source_path = tauri::async_runtime::spawn_blocking(move || {
+            thread::sleep(Duration::from_millis(140));
+            capture_screen_source_blocking(display)
+        })
+        .await
+        .map_err(|error| format!("screen capture task failed: {error}"))??;
+        set_screen_capture_source(&state, source_path)?;
+        create_screenshot_overlay(&app, display)?;
+
+        tauri::async_runtime::spawn_blocking({
+            let capture = state.0.clone();
+            move || wait_for_screen_capture_result(capture)
+        })
+        .await
+        .map_err(|error| format!("screen selection task failed: {error}"))?
+    }
+    .await;
+
+    if let Some(overlay) = app.get_webview_window(SCREENSHOT_OVERLAY_LABEL) {
+        let _ = overlay.close();
+    }
+    if let Some(source_path) = clear_screen_capture(&state) {
+        let _ = std::fs::remove_file(source_path);
+    }
+    let _ = main_window.show();
+    let _ = main_window.set_focus();
+
+    operation
 }
 
 fn mark_app_quitting(app: &AppHandle) {
@@ -1092,7 +1588,8 @@ fn kill_windows_sidecars() {
 #[cfg(test)]
 mod tests {
     use super::{
-        decode_terminal_output, default_utf8_locale, ensure_utf8_locale, parse_env_block,
+        completed_screenshot_path, decode_screenshot_png_data_url, decode_terminal_output,
+        default_utf8_locale, ensure_utf8_locale, parse_env_block, screenshot_temp_path,
         wait_for_server,
     };
     use std::collections::HashMap;
@@ -1110,6 +1607,42 @@ mod tests {
 
         assert!(error.contains("sidecar exited (code=Some(3), signal=None)"));
         assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn screenshot_temp_path_is_a_unique_png_in_the_system_temp_directory() {
+        let first = screenshot_temp_path();
+        let second = screenshot_temp_path();
+
+        assert_eq!(first.parent(), Some(std::env::temp_dir().as_path()));
+        assert_eq!(
+            first.extension().and_then(|value| value.to_str()),
+            Some("png")
+        );
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn completed_screenshot_path_rejects_empty_files() {
+        let path = screenshot_temp_path();
+        std::fs::write(&path, []).expect("create empty screenshot fixture");
+
+        assert_eq!(completed_screenshot_path(&path).unwrap(), None);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn screenshot_result_accepts_png_data_urls() {
+        assert_eq!(
+            decode_screenshot_png_data_url("data:image/png;base64,iVBORw0KGgo=").unwrap(),
+            b"\x89PNG\r\n\x1a\n"
+        );
+    }
+
+    #[test]
+    fn screenshot_result_rejects_non_png_payloads() {
+        assert!(decode_screenshot_png_data_url("data:image/png;base64,dGV4dA==").is_err());
+        assert!(decode_screenshot_png_data_url("data:image/jpeg;base64,iVBORw0KGgo=").is_err());
     }
 
     #[test]
@@ -1197,6 +1730,7 @@ pub fn run() {
         .manage(AdapterState::default())
         .manage(TerminalState::default())
         .manage(AppExitState::default())
+        .manage(ScreenshotCaptureState::default())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
@@ -1208,6 +1742,10 @@ pub fn run() {
             prepare_for_update_install,
             open_skills_config_dir,
             read_image_preview_data_url,
+            capture_screen_region,
+            read_screen_capture_source,
+            complete_screen_capture,
+            cancel_screen_capture,
             terminal_spawn,
             terminal_write,
             terminal_resize,

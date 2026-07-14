@@ -124,6 +124,91 @@ describe('ConversationService', () => {
     expect(result).toBe(false)
   })
 
+  it('should auto-approve bypass permission requests before forwarding them to the UI', () => {
+    const svc = new ConversationService()
+    const sent: any[] = []
+    const forwarded: any[] = []
+    const sessionId = 'session-bypass-permission'
+
+    ;(svc as any).sessions.set(sessionId, {
+      proc: null,
+      outputCallbacks: [(message: unknown) => forwarded.push(message)],
+      workDir: process.cwd(),
+      permissionMode: 'bypassPermissions',
+      sdkToken: 'token',
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    svc.handleSdkPayload(sessionId, JSON.stringify({
+      type: 'control_request',
+      request_id: 'exit-plan-1',
+      request: {
+        subtype: 'can_use_tool',
+        tool_name: 'ExitPlanMode',
+        input: { plan: '# Implement the plan' },
+      },
+    }))
+
+    expect(forwarded).toHaveLength(0)
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({
+      type: 'control_response',
+      response: {
+        request_id: 'exit-plan-1',
+        response: { behavior: 'allow' },
+      },
+    })
+    expect((svc as any).sessions.get(sessionId).pendingPermissionRequests.size).toBe(0)
+  })
+
+  it('should still forward AskUserQuestion in bypass mode', () => {
+    const svc = new ConversationService()
+    const sent: any[] = []
+    const forwarded: any[] = []
+    const sessionId = 'session-bypass-question'
+
+    ;(svc as any).sessions.set(sessionId, {
+      proc: null,
+      outputCallbacks: [(message: unknown) => forwarded.push(message)],
+      workDir: process.cwd(),
+      permissionMode: 'bypassPermissions',
+      sdkToken: 'token',
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    svc.handleSdkPayload(sessionId, JSON.stringify({
+      type: 'control_request',
+      request_id: 'question-1',
+      request: {
+        subtype: 'can_use_tool',
+        tool_name: 'AskUserQuestion',
+        input: { questions: [] },
+      },
+    }))
+
+    expect(sent).toHaveLength(0)
+    expect(forwarded).toHaveLength(1)
+    expect((svc as any).sessions.get(sessionId).pendingPermissionRequests.size).toBe(1)
+  })
+
   it('should forward suggested permission updates for allow-for-session decisions', () => {
     const svc = new ConversationService()
     const sent: unknown[] = []
@@ -765,6 +850,61 @@ describe('WebSocket Chat Integration', () => {
     const statusMsgs = messages.filter((m) => m.type === 'status')
     expect(statusMsgs[0].state).toBe('thinking')
   })
+
+  it('should restart once when the CLI exits before user message delivery', async () => {
+    const sessionId = `chat-send-race-${crypto.randomUUID()}`
+    const messages: any[] = []
+    const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+    const originalSendMessage = conversationService.sendMessage.bind(conversationService)
+    let sendAttempts = 0
+
+    ;(conversationService as any).sendMessage = (...args: any[]) => {
+      sendAttempts++
+      if (sendAttempts === 1) {
+        conversationService.stopSession(sessionId)
+        return false
+      }
+      return originalSendMessage(...args)
+    }
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error(`Timed out waiting for automatic CLI restart for ${sessionId}`))
+        }, 10_000)
+
+        ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data as string)
+          messages.push(msg)
+          if (msg.type === 'connected') {
+            ws.send(JSON.stringify({
+              type: 'user_message',
+              content: 'Recover this turn after the process exits',
+            }))
+          }
+          if (msg.type === 'message_complete') {
+            clearTimeout(timeout)
+            resolve()
+          }
+        }
+
+        ws.onerror = () => {
+          clearTimeout(timeout)
+          reject(new Error(`WebSocket error during automatic CLI restart for ${sessionId}`))
+        }
+      })
+
+      expect(sendAttempts).toBe(2)
+      expect(messages.some((msg) => msg.type === 'content_delta')).toBe(true)
+      expect(messages.some(
+        (msg) => msg.type === 'error' && msg.code === 'CLI_NOT_RUNNING',
+      )).toBe(false)
+    } finally {
+      ;(conversationService as any).sendMessage = originalSendMessage
+      ws.close()
+      conversationService.stopSession(sessionId)
+    }
+  }, 12_000)
 
   it('should send image attachments to text-only providers as tool file references', async () => {
     const providerService = new ProviderService()

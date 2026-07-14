@@ -152,15 +152,15 @@ function HeroEmptyLayout({
   composer: ReactNode
 }) {
   return (
-    <div className="relative flex flex-1 overflow-hidden px-[24px] md:px-[48px]">
+    <div className="relative flex flex-1 overflow-hidden px-[24px]">
       <div className="flex flex-1 items-center justify-center pb-[220px] pt-[16px]">
-        <div className="w-full max-w-[896px]">
+        <div data-chat-content-column className="w-full max-w-[878px]">
           {hero}
         </div>
       </div>
 
       <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex justify-center p-[24px]">
-        <div className="pointer-events-auto w-full max-w-[896px]">
+        <div data-chat-content-column className="pointer-events-auto w-full max-w-[878px]">
           {composer}
         </div>
       </div>

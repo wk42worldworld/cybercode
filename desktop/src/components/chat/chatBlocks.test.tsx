@@ -186,6 +186,7 @@ describe('chat blocks', () => {
 
     expect(container.textContent).toContain('Run')
     expect(container.textContent).toContain('cd /tmp/whisper_job')
+    expect(container.firstElementChild?.className).toContain('mt-2.5')
     expect(container.querySelector('[data-running="true"]')).toBeTruthy()
     expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
   })
@@ -327,5 +328,78 @@ describe('chat blocks', () => {
     // react-diff-viewer-continued uses styled-components tables that don't
     // fully render in jsdom, so we verify the DiffViewer wrapper is mounted
     expect(container.querySelector('[class*="rounded-[var(--radius-lg)]"]')).toBeTruthy()
+  })
+
+  it('renders ExitPlanMode as a compact plan confirmation instead of a tool authorization', () => {
+    useChatStore.setState({
+      sessions: {
+        'active-tab': {
+          messages: [],
+          historyBuffer: [],
+          recentBuffer: [],
+          chatState: 'permission_pending',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: {
+            requestId: 'plan-1',
+            toolName: 'ExitPlanMode',
+            input: {
+              plan: '# UI redesign\n\nTighten the layout and verify it.',
+              planFilePath: '/tmp/plan.md',
+            },
+          },
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    const { container } = render(
+      <PermissionDialog
+        requestId="plan-1"
+        toolName="ExitPlanMode"
+        input={{
+          plan: '# UI redesign\n\nTighten the layout and verify it.',
+          planFilePath: '/tmp/plan.md',
+        }}
+      />,
+    )
+
+    const card = container.querySelector<HTMLElement>('[data-permission-kind="plan"]')
+    expect(card?.getAttribute('data-permission-state')).toBe('pending')
+    expect(card?.className).toContain('max-w-[640px]')
+    expect(container.textContent).toMatch(/执行方案确认|Plan confirmation/)
+    expect(container.textContent).toMatch(/开始执行|Start implementing/)
+    expect(container.textContent).toMatch(/继续规划|Keep planning/)
+    expect(container.textContent).not.toMatch(/本次会话允许|Allow for session/)
+    expect(container.textContent).not.toMatch(/显示完整输入|Show full input/)
+    expect(container.textContent).not.toContain('ExitPlanMode')
+  })
+
+  it('collapses a handled ExitPlanMode request without retaining its raw plan', () => {
+    const { container } = render(
+      <PermissionDialog
+        requestId="handled-plan"
+        toolName="ExitPlanMode"
+        input={{ plan: 'A very long implementation plan that should not remain expanded.' }}
+      />,
+    )
+
+    const row = container.querySelector<HTMLElement>('[data-permission-kind="plan"]')
+    expect(row?.getAttribute('data-permission-state')).toBe('responded')
+    expect(row?.className).toContain('w-fit')
+    expect(container.textContent).toMatch(/执行方案确认|Plan confirmation/)
+    expect(container.textContent).toMatch(/已处理|Handled/)
+    expect(container.textContent).not.toContain('A very long implementation plan')
+    expect(container.textContent).not.toMatch(/显示完整输入|Show full input/)
   })
 })

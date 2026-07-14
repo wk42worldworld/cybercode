@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MessageList, buildRenderModel } from './MessageList'
+import { MessageBlock, MessageList, buildRenderModel } from './MessageList'
 import { ApiError } from '../../api/client'
 import { sessionsApi } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
@@ -137,6 +137,40 @@ describe('MessageList nested tool calls', () => {
       expect(screen.queryByTestId('streaming-indicator')).toBeNull()
       expect(screen.getByText('回复完成')).toBeTruthy()
     })
+  })
+
+  it('keeps one live assistant bubble while a completed reply finishes revealing', () => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1))
+    vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    const completedMessage: UIMessage = {
+      id: 'assistant-settling',
+      type: 'assistant_text',
+      content: '从第一个字开始顺序显示。',
+      timestamp: 2,
+    }
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [completedMessage],
+          settlingAssistant: {
+            messageId: completedMessage.id,
+            content: completedMessage.content,
+          },
+        }),
+      },
+    })
+
+    const { container, unmount } = render(
+      <MessageList __testInitialItemCount={100} />,
+    )
+
+    try {
+      expect(container.querySelectorAll('[data-message-bubble="assistant"]')).toHaveLength(1)
+      expect(screen.getByTestId('smooth-streaming-text')).toBeTruthy()
+    } finally {
+      unmount()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('renders an orphaned WebFetch as interrupted after reconnecting idle', () => {
@@ -977,10 +1011,84 @@ describe('MessageList nested tool calls', () => {
     expect(assistantBubble?.className).toContain('px-[24px]')
     expect(assistantBubble?.className).toContain('py-[16px]')
     expect(assistantBubble?.className).not.toContain('p-[20px]')
+    expect(assistantBubble?.className).toContain('rounded-bl-[8px]')
+    expect(assistantBubble?.className).not.toContain('rounded-tl-[8px]')
     expect(userActions?.getAttribute('data-align')).toBe('end')
     expect(assistantActions?.getAttribute('data-align')).toBe('start')
     expect(assistantActions?.parentElement?.className).toContain('ml-[16px]')
     expect(assistantActions?.parentElement?.className).toContain('mt-[8px]')
+  })
+
+  it('keeps standalone message controls inside the shared chat column', () => {
+    const messages: UIMessage[] = [
+      {
+        id: 'standalone-result',
+        type: 'tool_result',
+        toolUseId: 'missing-tool',
+        content: 'Standalone result',
+        isError: false,
+        timestamp: 1,
+      },
+      {
+        id: 'permission',
+        type: 'permission_request',
+        requestId: 'permission-1',
+        toolName: 'Bash',
+        input: { command: 'pwd' },
+        timestamp: 2,
+      },
+      {
+        id: 'summary',
+        type: 'task_summary',
+        tasks: [{ id: '1', subject: 'Finished task', status: 'completed' }],
+        timestamp: 3,
+      },
+      {
+        id: 'system',
+        type: 'system',
+        content: 'System notice',
+        timestamp: 4,
+      },
+    ]
+
+    for (const message of messages) {
+      const { container, unmount } = render(
+        <MessageBlock
+          message={message}
+          toolResultMap={new Map()}
+          childToolCallsByParent={new Map()}
+          agentTaskNotifications={{}}
+        />,
+      )
+      const column = container.querySelector<HTMLElement>('[data-chat-content-column]')
+      expect(column?.className).toContain('w-full')
+      expect(column?.className).toContain('max-w-[878px]')
+      expect(column?.parentElement?.className).toContain('px-[24px]')
+      unmount()
+    }
+  })
+
+  it('measures a short assistant bubble against the full message column', () => {
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'assistant-short',
+              type: 'assistant_text',
+              content: '测试通过。',
+              timestamp: 1,
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<MessageList __testInitialItemCount={100} />)
+
+    const bubble = screen.getByText('测试通过。').closest('[data-message-bubble="assistant"]')
+    expect(bubble?.parentElement?.className).toContain('w-full')
+    expect(bubble?.className).toContain('w-fit')
   })
 
   it('uses the document column for markdown-heavy assistant replies', () => {
@@ -1176,6 +1284,8 @@ describe('MessageList nested tool calls', () => {
       ),
     ).toBeTruthy()
     expect(container.querySelector('[data-message-shell="error"]')?.className).toContain('max-w-[878px]')
+    expect(container.querySelector('[data-message-error]')?.className).toContain('rounded-bl-[8px]')
+    expect(container.querySelector('[data-message-error]')?.className).not.toContain('rounded-tl-[8px]')
     expect(container.querySelector('[data-message-error]')?.className).toContain('[overflow-wrap:anywhere]')
     expect(container.querySelector<HTMLElement>('[data-message-error]')?.style.color).toBe('var(--color-error)')
     expect(container.querySelector<HTMLElement>('[data-message-error-detail]')?.style.color).toBe('var(--color-error)')

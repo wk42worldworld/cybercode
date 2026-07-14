@@ -1336,6 +1336,40 @@ describe('chatStore history mapping', () => {
     vi.useRealTimers()
   })
 
+  it('keeps a completed reply in the visual handoff until its reveal catches up', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          streamingText: '从第一个字开始顺序显示。',
+        }),
+      },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 4, output_tokens: 8 },
+    })
+
+    const completed = useChatStore.getState().sessions[TEST_SESSION_ID]
+    const message = completed?.messages[0]
+    expect(message).toMatchObject({
+      type: 'assistant_text',
+      content: '从第一个字开始顺序显示。',
+    })
+    expect(completed?.streamingText).toBe('')
+    expect(completed?.settlingAssistant).toEqual({
+      messageId: message?.id,
+      content: '从第一个字开始顺序显示。',
+    })
+
+    useChatStore.getState().completeStreamingReveal(
+      TEST_SESSION_ID,
+      completed!.settlingAssistant!.messageId,
+    )
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.settlingAssistant).toBeNull()
+  })
+
   it('keeps delayed text blocks from one streamed assistant turn in a single message', () => {
     vi.useFakeTimers()
 

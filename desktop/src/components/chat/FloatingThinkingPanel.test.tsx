@@ -24,6 +24,7 @@ describe('FloatingThinkingPanel', () => {
     )
 
     expect(screen.getByTestId('floating-thinking-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('floating-thinking-panel')).toHaveClass('w-full', 'max-w-[878px]')
     expect(screen.getByTestId('floating-thinking-panel-title').className).toContain('ai-shimmer-text')
     expect(screen.getByTestId('floating-thinking-panel-title').className).toContain('ai-shimmer-thinking')
     expect(screen.getByText('Reading context')).toBeInTheDocument()

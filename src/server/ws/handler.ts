@@ -372,18 +372,56 @@ async function handleUserMessage(
     message.attachments,
     imageAttachmentRoute,
   )
-  const sent = conversationService.sendMessage(
+  let sent = conversationService.sendMessage(
     sessionId,
     contentForModel,
     message.attachments,
     { imageAttachmentMode: imageAttachmentRoute.mode },
   )
+
+  // A rewind or late process exit can land between the initial startup check
+  // and this write. Recover that narrow race once instead of replacing the
+  // real turn failure with a misleading CLI_NOT_RUNNING error.
+  if (!sent) {
+    console.warn(
+      `[WS] CLI disappeared before user message delivery for ${sessionId}; restarting once`,
+    )
+    try {
+      await ensureCliSessionStarted(ws, sessionId, 'user_message')
+      rebindSessionOutput(sessionId, ws, {
+        shouldForward: (cliMsg) =>
+          userMessageSent || (cliMsg.type === 'result' && cliMsg.is_error),
+      })
+      sent = conversationService.sendMessage(
+        sessionId,
+        contentForModel,
+        message.attachments,
+        { imageAttachmentMode: imageAttachmentRoute.mode },
+      )
+    } catch (err) {
+      unregisterLastPendingImageTurn(sessionId)
+      const errMsg = err instanceof Error ? err.message : String(err)
+      const code =
+        err instanceof ConversationStartupError ? err.code : 'CLI_RESTART_FAILED'
+      sendMessage(ws, {
+        type: 'error',
+        message: errMsg,
+        code,
+        retryable:
+          err instanceof ConversationStartupError ? err.retryable : false,
+      })
+      sendMessage(ws, { type: 'status', state: 'idle' })
+      return
+    }
+  }
+
   if (!sent) {
     unregisterLastPendingImageTurn(sessionId)
     sendMessage(ws, {
       type: 'error',
-      message: 'CLI process is not running. The session may have ended or the process crashed.',
+      message: 'CLI stopped before the message could be delivered, including after one automatic restart.',
       code: 'CLI_NOT_RUNNING',
+      retryable: true,
     })
     sendMessage(ws, { type: 'status', state: 'idle' })
     return

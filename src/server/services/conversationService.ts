@@ -23,6 +23,7 @@ import {
   CYBERCODE_PROVIDER_ID_ENV,
 } from '../../utils/model/imageCapabilityRegistry.js'
 import { codeGraphService } from './codeGraphService.js'
+import { shouldAutoApproveBypassPermission } from './permissionPolicy.js'
 
 type AttachmentRef = {
   type: 'file' | 'image'
@@ -499,11 +500,12 @@ export class ConversationService {
           msg.request?.subtype === 'can_use_tool' &&
           typeof msg.request_id === 'string'
         ) {
+          const toolName =
+            typeof msg.request.tool_name === 'string'
+              ? msg.request.tool_name
+              : 'Unknown'
           session.pendingPermissionRequests.set(msg.request_id, {
-            toolName:
-              typeof msg.request.tool_name === 'string'
-                ? msg.request.tool_name
-                : 'Unknown',
+            toolName,
             input:
               msg.request.input && typeof msg.request.input === 'object'
                 ? (msg.request.input as Record<string, unknown>)
@@ -512,6 +514,16 @@ export class ConversationService {
               ? msg.request.permission_suggestions
               : undefined,
           })
+
+          if (
+            shouldAutoApproveBypassPermission(session.permissionMode, msg) &&
+            this.respondToPermission(sessionId, msg.request_id, true)
+          ) {
+            console.log(
+              `[ConversationService] Auto-approved ${toolName} request ${msg.request_id} in bypassPermissions mode`,
+            )
+            continue
+          }
         }
         for (const cb of session.outputCallbacks) {
           cb(msg)
