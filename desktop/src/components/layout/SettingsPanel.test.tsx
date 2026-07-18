@@ -40,7 +40,9 @@ vi.mock('../../pages/TerminalSettings', () => ({
 }))
 
 vi.mock('../../pages/TokenOptimization', () => ({
-  TokenOptimization: () => <div data-testid="token-optimization-panel" />,
+  TokenOptimization: ({ initialView = 'overview' }: { initialView?: string }) => (
+    <div data-initial-view={initialView} data-testid="token-optimization-panel" />
+  ),
 }))
 
 describe('SettingsPanel content routing', () => {
@@ -59,6 +61,14 @@ describe('SettingsPanel content routing', () => {
 
     expect(screen.getByTestId('settings-home')).toBeInTheDocument()
     expect(screen.getByTestId('settings-panel')).toHaveClass('z-[90]')
+    expect(screen.getByTestId('settings-panel')).toHaveClass('right-0')
+  })
+
+  it('keeps the chat-side rail clickable when opened from a project session', () => {
+    render(<SettingsPanel visible reserveRightRail />)
+
+    expect(screen.getByTestId('settings-panel')).toHaveClass('right-[var(--sidebar-rail-width)]')
+    expect(screen.getByTestId('settings-panel')).not.toHaveClass('right-0')
   })
 
   it('renders scheduled tasks inside the same floating panel shell', () => {
@@ -105,5 +115,14 @@ describe('SettingsPanel content routing', () => {
 
     expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', 'Token 优化')
     expect(screen.getByTestId('token-optimization-panel')).toBeInTheDocument()
+  })
+
+  it('routes the Code Graph rail entry directly into graph view', () => {
+    useUIStore.setState({ settingsPanelView: 'codeGraph' })
+
+    render(<SettingsPanel visible />)
+
+    expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', '代码图谱')
+    expect(screen.getByTestId('token-optimization-panel')).toHaveAttribute('data-initial-view', 'graph')
   })
 })

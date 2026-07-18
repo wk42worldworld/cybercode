@@ -526,7 +526,7 @@ describe('chatStore history mapping', () => {
       providerId: 'provider-1',
       modelId: 'kimi-k2.6',
     })
-    expect(sendMock.mock.calls.slice(0, 2)).toEqual([
+    expect(sendMock.mock.calls).toEqual([
       [
         TEST_SESSION_ID,
         {
@@ -535,12 +535,19 @@ describe('chatStore history mapping', () => {
           modelId: 'kimi-k2.6',
         },
       ],
-      [TEST_SESSION_ID, { type: 'prewarm_session' }],
     ])
   })
 
-  it('prewarms regular desktop sessions when connecting', () => {
+  it('does not start a CLI process merely to browse a session', () => {
     useChatStore.getState().connectToSession(TEST_SESSION_ID)
+
+    expect(sendMock).not.toHaveBeenCalledWith(TEST_SESSION_ID, {
+      type: 'prewarm_session',
+    })
+  })
+
+  it('prewarms a regular desktop session after explicit composer intent', () => {
+    useChatStore.getState().prewarmSession(TEST_SESSION_ID)
 
     expect(sendMock).toHaveBeenCalledWith(TEST_SESSION_ID, {
       type: 'prewarm_session',
@@ -773,12 +780,76 @@ describe('chatStore history mapping', () => {
     await useChatStore.getState().loadHistory(TEST_SESSION_ID, '-project-a')
 
     expect(sessionsApi.getMessages).toHaveBeenCalledWith(TEST_SESSION_ID, {
-      limit: 200,
+      limit: 80,
       projectPath: '-project-a',
     })
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.projectPath).toBe('-project-a')
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
       { type: 'user_text', content: 'hello from project a' },
+    ])
+  })
+
+  it('reuses a prefetched local history page when opening a session', async () => {
+    const sessionId = 'prefetched-session'
+    const getMessagesMock = vi.mocked(sessionsApi.getMessages)
+    getMessagesMock.mockReset()
+    getMessagesMock.mockResolvedValueOnce({
+      hasMore: false,
+      messages: [
+        {
+          id: 'prefetched-user',
+          type: 'user',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          content: 'ready before click',
+        },
+      ],
+    })
+
+    await useChatStore.getState().prefetchHistory(sessionId, '-project-prefetch')
+    useChatStore.getState().connectToSession(sessionId, '-project-prefetch')
+    await useChatStore.getState().loadHistory(sessionId, '-project-prefetch')
+
+    expect(getMessagesMock).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().sessions[sessionId]?.messages).toMatchObject([
+      { type: 'user_text', content: 'ready before click' },
+    ])
+    useChatStore.getState().disconnectSession(sessionId)
+  })
+
+  it('falls back to UUID lookup when a restored project locator is stale', async () => {
+    const sessionId = 'stale-locator-session'
+    const getMessagesMock = vi.mocked(sessionsApi.getMessages)
+    getMessagesMock.mockReset()
+    getMessagesMock
+      .mockRejectedValueOnce(new ApiError(404, {
+        error: 'NOT_FOUND',
+        message: 'Session not found in project',
+      }))
+      .mockResolvedValueOnce({
+        hasMore: false,
+        messages: [
+          {
+            id: 'recovered-user',
+            type: 'user',
+            timestamp: '2026-01-01T00:00:00.000Z',
+            content: 'recovered transcript',
+          },
+        ],
+      })
+
+    useChatStore.getState().connectToSession(sessionId, '-stale-project')
+    await useChatStore.getState().loadHistory(sessionId, '-stale-project')
+
+    expect(getMessagesMock).toHaveBeenNthCalledWith(1, sessionId, {
+      limit: 80,
+      projectPath: '-stale-project',
+    })
+    expect(getMessagesMock).toHaveBeenNthCalledWith(2, sessionId, {
+      limit: 80,
+      projectPath: undefined,
+    })
+    expect(useChatStore.getState().sessions[sessionId]?.messages).toMatchObject([
+      { type: 'user_text', content: 'recovered transcript' },
     ])
   })
 
@@ -806,8 +877,8 @@ describe('chatStore history mapping', () => {
       message: 'Session not found',
     }))
 
-    useChatStore.getState().connectToSession(TEST_SESSION_ID, '-project-empty')
-    await useChatStore.getState().loadHistory(TEST_SESSION_ID, '-project-empty')
+    useChatStore.getState().connectToSession(TEST_SESSION_ID)
+    await useChatStore.getState().loadHistory(TEST_SESSION_ID)
 
     const session = useChatStore.getState().sessions[TEST_SESSION_ID]
     expect(getMessagesMock).toHaveBeenCalledOnce()
@@ -823,7 +894,7 @@ describe('chatStore history mapping', () => {
       status: 'running',
     })
 
-    useChatStore.getState().connectToSession(TEST_SESSION_ID)
+    useChatStore.getState().prewarmSession(TEST_SESSION_ID)
 
     expect(sendMock).not.toHaveBeenCalledWith(TEST_SESSION_ID, {
       type: 'prewarm_session',
@@ -831,7 +902,7 @@ describe('chatStore history mapping', () => {
   })
 
   it('does not prewarm synthetic app tabs', () => {
-    useChatStore.getState().connectToSession('__settings__')
+    useChatStore.getState().prewarmSession('__settings__')
 
     expect(sendMock).not.toHaveBeenCalledWith('__settings__', {
       type: 'prewarm_session',

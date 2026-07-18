@@ -42,7 +42,13 @@ export type SettingsTab =
   | 'computerUse'
   | 'about'
 
-export type SettingsPanelView = SettingsTab | 'settings' | 'scheduled' | 'tokenOptimization' | 'agentMigration'
+export type SettingsPanelView =
+  | SettingsTab
+  | 'settings'
+  | 'scheduled'
+  | 'tokenOptimization'
+  | 'codeGraph'
+  | 'agentMigration'
 
 type ActiveView = 'code' | 'scheduled' | 'terminal' | 'history' | 'settings'
 
@@ -113,6 +119,7 @@ export const useUIStore = create<UIStore>((set) => ({
       view !== 'settings'
       && view !== 'scheduled'
       && view !== 'tokenOptimization'
+      && view !== 'codeGraph'
       && view !== 'agentMigration'
         ? view
         : null,

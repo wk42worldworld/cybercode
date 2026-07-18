@@ -17,13 +17,13 @@ describe('FileSearchMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     act(() => {
-      useSettingsStore.getState().setLocale('en')
+      useSettingsStore.setState({ locale: 'en' })
     })
   })
 
   afterEach(() => {
     act(() => {
-      useSettingsStore.getState().setLocale('zh')
+      useSettingsStore.setState({ locale: 'zh' })
     })
   })
 

@@ -18,6 +18,7 @@ import type { SessionListItem } from '../../types/session'
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 const COLLAPSED_PROJECTS_KEY = 'cybercode.sidebar.collapsedProjects.v1'
 const TEMPORARY_GROUP_KEY = '__temporary__'
+const BACKGROUND_HISTORY_PREFETCH_COUNT = 8
 
 type SessionRef = { id: string; projectPath?: string }
 type SidebarContextMenu =
@@ -80,6 +81,7 @@ export function Sidebar() {
   const activeTab = useTabStore((s) => s.tabs.find((tab) => tab.sessionId === s.activeTabId))
   const closeTab = useTabStore((s) => s.closeTab)
   const disconnectSession = useChatStore((s) => s.disconnectSession)
+  const prefetchHistory = useChatStore((s) => s.prefetchHistory)
   const t = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [pendingSessionKey, setPendingSessionKey] = useState<string | null>(null)
@@ -99,6 +101,29 @@ export function Sidebar() {
   const newSessionButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => { fetchSessions() }, [fetchSessions])
+
+  useEffect(() => {
+    if (sessions.length === 0) return
+    let cancelled = false
+    const queue = sessions.slice(0, BACKGROUND_HISTORY_PREFETCH_COUNT)
+    let cursor = 0
+    const timer = window.setTimeout(() => {
+      const worker = async () => {
+        while (!cancelled) {
+          const session = queue[cursor]
+          cursor += 1
+          if (!session) return
+          await prefetchHistory(session.id, session.projectPath)
+        }
+      }
+      void Promise.all([worker(), worker()])
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [prefetchHistory, sessions])
 
   useEffect(() => {
     const activeKey = activeTab ? sessionKey(activeTab.sessionId, activeTab.projectPath) : activeTabId
@@ -655,7 +680,6 @@ function SidebarSessionRow({
   const currentKey = sessionKey(session.id, session.projectPath)
   const isActive = currentKey === activeKey
   const displayTitle = getSessionDisplayTitle(session, t)
-  const iconStr = (displayTitle || 'U').charAt(0).toUpperCase()
 
   return (
     <div className="group/session relative">
@@ -671,24 +695,27 @@ function SidebarSessionRow({
             if (e.key === 'Enter') onFinishRename()
             if (e.key === 'Escape') onCancelRename()
           }}
-          className="h-[60px] w-full rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-[14px] py-[10px] text-[13px] leading-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+          className="h-[60px] w-full rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-[15px] py-[11px] text-[13px] leading-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
         />
       ) : (
         <>
           <button
             onClick={() => onOpen(session, displayTitle)}
+            onPointerEnter={() => {
+              void useChatStore.getState().prefetchHistory(session.id, session.projectPath)
+            }}
+            onFocus={() => {
+              void useChatStore.getState().prefetchHistory(session.id, session.projectPath)
+            }}
             onContextMenu={(e) => onContextMenu(e, { id: session.id, projectPath: session.projectPath })}
             title={session.workDir || undefined}
-            className={`relative flex min-h-[60px] w-full items-center justify-between overflow-hidden rounded-[8px] border p-[10px] text-left transition-colors duration-100 ${
+            className={`relative flex min-h-[60px] w-full items-center justify-between overflow-hidden rounded-[8px] border px-[15px] py-[11px] text-left transition-colors duration-100 ${
               isActive
                 ? 'border-[var(--color-border-focus)] bg-[var(--color-inverse-surface)] text-[var(--color-inverse-on-surface)] shadow-none'
                 : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] group-hover/session:border-[var(--color-border)] group-hover/session:bg-[var(--color-surface-hover)]'
             }`}
           >
-            <div className="flex w-full items-center gap-[9px]">
-              <div className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] text-sm font-bold transition-colors duration-100 ${isActive ? 'bg-[var(--color-background)] text-[var(--color-text-primary)]' : 'bg-[var(--color-surface-container-high)] text-[var(--color-text-tertiary)] group-hover/session:bg-[var(--color-surface-container-highest)]'}`}>
-                {iconStr}
-              </div>
+            <div className="flex w-full items-center">
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-2">
                   <span className={`min-w-0 flex-1 truncate text-[13px] font-bold leading-normal ${isActive ? 'text-[var(--color-inverse-on-surface)]' : 'text-[var(--color-text-primary)]'}`}>

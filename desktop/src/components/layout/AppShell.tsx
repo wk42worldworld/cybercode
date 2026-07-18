@@ -135,7 +135,7 @@ export function AppShell() {
         {showChatModeSidebar && (
           <ChatModeSidebar label={t('chat.programmingMode')} ariaLabel={t('chat.sideRail')} />
         )}
-        <SettingsPanel visible={settingsOpen} />
+        <SettingsPanel visible={settingsOpen} reserveRightRail={showChatModeSidebar} />
         <ToastContainer />
       </div>
     </div>

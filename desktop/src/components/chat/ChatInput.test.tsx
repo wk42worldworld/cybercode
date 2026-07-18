@@ -136,6 +136,24 @@ describe('ChatInput composer controls', () => {
     expect(tokenUsage.compareDocumentPosition(modelSelector!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('prewarms only after explicit composer interaction, not programmatic focus', () => {
+    const prewarmSession = vi
+      .spyOn(useChatStore.getState(), 'prewarmSession')
+      .mockImplementation(() => {})
+
+    render(<ChatInput sessionId="session-focus" projectPath="/tmp/project" />)
+    const textarea = screen.getByRole('textbox')
+
+    fireEvent.focus(textarea)
+    expect(prewarmSession).not.toHaveBeenCalled()
+
+    fireEvent.pointerDown(textarea)
+    fireEvent.keyDown(textarea, { key: 'a' })
+
+    expect(prewarmSession).toHaveBeenCalledOnce()
+    expect(prewarmSession).toHaveBeenCalledWith('session-focus')
+  })
+
   it('submits the highlighted slash command when send is clicked with the menu open', async () => {
     const onSubmit = vi.fn()
     render(<ChatInput onSubmit={onSubmit} />)

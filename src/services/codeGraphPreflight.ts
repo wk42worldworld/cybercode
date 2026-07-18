@@ -1,4 +1,4 @@
-import { Database } from 'bun:sqlite'
+import type { Database } from 'bun:sqlite'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { QuerySource } from '../constants/querySource.js'
@@ -11,6 +11,7 @@ import {
   formatCodeGraphArchitecture,
   getCodeGraphArchitecture,
 } from '../server/services/codeGraphAnalysis.js'
+import { openCodeGraphDatabaseForRead } from '../server/services/codeGraphDatabase.js'
 import { limitTextToTokenBudget } from './codeGraphTextBudget.js'
 
 const PREFLIGHT_TOKEN_BUDGET = 1_800
@@ -93,7 +94,7 @@ function buildSymbolContext(
   terms: string[],
   signal: AbortSignal,
 ) {
-  const db = new Database(dbPath, { readonly: true })
+  const db = openCodeGraphDatabaseForRead(dbPath)
   try {
     const seeds = searchNodes(db, terms)
     if (seeds.length === 0) return getArchitectureContext(dbPath)
@@ -369,7 +370,7 @@ function isCodeGraphEnabled() {
     if (typeof config.enabled === 'boolean') return config.enabled
     return Object.values(config.projects ?? {}).some((project) => project.enabled === true)
   } catch {
-    return false
+    return true
   }
 }
 

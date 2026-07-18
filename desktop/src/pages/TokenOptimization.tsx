@@ -9,7 +9,7 @@ import {
   Sparkles,
   Terminal,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   tokenOptimizationApi,
   type CavemanStatus,
@@ -34,7 +34,11 @@ import { useTabStore } from '../stores/tabStore'
 
 const POLL_INTERVAL_MS = 800
 
-export function TokenOptimization() {
+type TokenOptimizationProps = {
+  initialView?: 'overview' | 'graph'
+}
+
+export function TokenOptimization({ initialView = 'overview' }: TokenOptimizationProps = {}) {
   const t = useTranslation()
   const activeTabId = useTabStore((state) => state.activeTabId)
   const tabs = useTabStore((state) => state.tabs)
@@ -61,6 +65,17 @@ export function TokenOptimization() {
   const [pruningStatus, setPruningStatus] = useState<SmartPruningStatus | null>(null)
   const [pruningLoading, setPruningLoading] = useState(false)
   const [pruningError, setPruningError] = useState<string | null>(null)
+  const autoOpenedGraphProjectRef = useRef<string | null>(null)
+  const statusRequestProjectRef = useRef<string | null>(null)
+  const activeProjectPathRef = useRef<string | null>(null)
+  const projectVersionRef = useRef(0)
+  const graphLoadingProjectRef = useRef<string | null>(null)
+  const statusLoadingRequestRef = useRef<{ projectPath: string; requestId: number } | null>(null)
+  const statusRequestIdRef = useRef(0)
+  const graphRequestIdRef = useRef(0)
+  const loadingOperationIdRef = useRef(0)
+  const toggleRequestIdRef = useRef(0)
+  const projectOperationPathRef = useRef<string | null>(null)
 
   const projectPath = useMemo(() => {
     const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
@@ -72,17 +87,50 @@ export function TokenOptimization() {
     return session?.isTemporary ? null : session?.workDir || null
   }, [activeTabId, sessions, tabs])
 
+  useEffect(() => {
+    activeProjectPathRef.current = projectPath
+    projectVersionRef.current += 1
+    statusRequestIdRef.current += 1
+    statusLoadingRequestRef.current = null
+    graphRequestIdRef.current += 1
+    loadingOperationIdRef.current += 1
+    projectOperationPathRef.current = null
+  }, [projectPath])
+
   const loadStatus = useCallback(async (quiet = false) => {
-    if (!projectPath) {
+    const requestedProjectPath = projectPath
+    const requestedProjectVersion = projectVersionRef.current
+    if (quiet && projectOperationPathRef.current === requestedProjectPath) return
+    if (quiet && statusLoadingRequestRef.current?.projectPath === requestedProjectPath) return
+    const requestId = ++statusRequestIdRef.current
+    if (!requestedProjectPath) {
+      statusLoadingRequestRef.current = null
+      statusRequestProjectRef.current = null
       setStatus(null)
       return
     }
+    statusLoadingRequestRef.current = { projectPath: requestedProjectPath, requestId }
     if (!quiet) setError(null)
     try {
-      const nextStatus = await tokenOptimizationApi.status(projectPath)
+      const nextStatus = await tokenOptimizationApi.status(requestedProjectPath)
+      if (
+        activeProjectPathRef.current !== requestedProjectPath
+        || projectVersionRef.current !== requestedProjectVersion
+        || statusRequestIdRef.current !== requestId
+      ) return
+      statusRequestProjectRef.current = requestedProjectPath
       setStatus(nextStatus)
     } catch (loadError) {
+      if (
+        activeProjectPathRef.current !== requestedProjectPath
+        || projectVersionRef.current !== requestedProjectVersion
+        || statusRequestIdRef.current !== requestId
+      ) return
       if (!quiet) setError(getErrorMessage(loadError, t('tokenOptimization.loadFailed')))
+    } finally {
+      if (statusLoadingRequestRef.current?.requestId === requestId) {
+        statusLoadingRequestRef.current = null
+      }
     }
   }, [projectPath, t])
 
@@ -171,11 +219,38 @@ export function TokenOptimization() {
   }, [t])
 
   useEffect(() => {
+    autoOpenedGraphProjectRef.current = null
+    statusRequestProjectRef.current = null
+    graphLoadingProjectRef.current = null
+    projectOperationPathRef.current = null
     setGraph(null)
     setShowGraph(false)
+    setGraphLoading(false)
+    setLoading(false)
+    setError(null)
     setStatus(null)
     void loadStatus()
   }, [loadStatus])
+
+  useEffect(() => {
+    if (
+      !projectPath
+      || codeGraphGlobalEnabled !== true
+      || statusRequestProjectRef.current !== projectPath
+      || status?.enabled !== false
+    ) return
+    void loadStatus()
+  }, [codeGraphGlobalEnabled, loadStatus, projectPath, status?.enabled])
+
+  useEffect(() => {
+    if (initialView === 'graph') return
+    autoOpenedGraphProjectRef.current = null
+    graphRequestIdRef.current += 1
+    graphLoadingProjectRef.current = null
+    setGraphLoading(false)
+    setGraph(null)
+    setShowGraph(false)
+  }, [initialView])
 
   useEffect(() => {
     if (
@@ -188,68 +263,153 @@ export function TokenOptimization() {
     return () => window.clearInterval(timer)
   }, [loadStatus, status?.state])
 
+  const invalidateGraphRequest = useCallback(() => {
+    graphRequestIdRef.current += 1
+    graphLoadingProjectRef.current = null
+    setGraphLoading(false)
+    setGraph(null)
+    setShowGraph(false)
+  }, [])
+
   const toggleCodeGraph = async (enabled: boolean) => {
     if (codeGraphGlobalEnabled === null || loading) return
+    const requestedProjectPath = projectPath
+    const requestedProjectVersion = projectVersionRef.current
+    const loadingOperationId = ++loadingOperationIdRef.current
+    const toggleRequestId = ++toggleRequestIdRef.current
+    statusRequestIdRef.current += 1
+    statusLoadingRequestRef.current = null
+    projectOperationPathRef.current = requestedProjectPath
+    invalidateGraphRequest()
     setLoading(true)
     setError(null)
     try {
-      if (enabled && projectPath) {
-        const nextStatus = await tokenOptimizationApi.enable(projectPath)
-        setStatus(nextStatus)
-        setCodeGraphGlobalEnabled(true)
+      if (enabled && requestedProjectPath) {
+        const nextStatus = await tokenOptimizationApi.enable(requestedProjectPath)
+        if (toggleRequestId === toggleRequestIdRef.current) {
+          setCodeGraphGlobalEnabled(true)
+        }
+        if (
+          activeProjectPathRef.current === requestedProjectPath
+          && projectVersionRef.current === requestedProjectVersion
+          && loadingOperationIdRef.current === loadingOperationId
+        ) {
+          statusRequestProjectRef.current = requestedProjectPath
+          setStatus(nextStatus)
+        }
       } else if (enabled) {
         const nextStatus = await tokenOptimizationApi.enableCodeGraphGlobally()
-        setCodeGraphGlobalEnabled(nextStatus.enabled)
+        if (toggleRequestId === toggleRequestIdRef.current) {
+          setCodeGraphGlobalEnabled(nextStatus.enabled)
+        }
       } else {
         const nextStatus = await tokenOptimizationApi.disableCodeGraphGlobally()
-        setCodeGraphGlobalEnabled(nextStatus.enabled)
-        setStatus((current) => current ? {
-          ...current,
-          enabled: false,
-          state: 'disabled',
-          progress: null,
-          error: null,
-        } : null)
-        setGraph(null)
-        setShowGraph(false)
+        if (toggleRequestId === toggleRequestIdRef.current) {
+          setCodeGraphGlobalEnabled(nextStatus.enabled)
+          setStatus((current) => current ? {
+            ...current,
+            enabled: false,
+            state: 'disabled',
+            progress: null,
+            error: null,
+          } : null)
+        }
       }
     } catch (toggleError) {
-      setError(getErrorMessage(toggleError, t('tokenOptimization.updateFailed')))
+      if (toggleRequestId === toggleRequestIdRef.current) {
+        setError(getErrorMessage(toggleError, t('tokenOptimization.updateFailed')))
+      }
     } finally {
-      setLoading(false)
+      if (loadingOperationIdRef.current === loadingOperationId) {
+        projectOperationPathRef.current = null
+        setLoading(false)
+      }
     }
   }
 
   const rebuild = async () => {
     if (!projectPath || loading) return
+    const requestedProjectPath = projectPath
+    const requestedProjectVersion = projectVersionRef.current
+    const loadingOperationId = ++loadingOperationIdRef.current
+    statusRequestIdRef.current += 1
+    statusLoadingRequestRef.current = null
+    projectOperationPathRef.current = requestedProjectPath
+    invalidateGraphRequest()
     setLoading(true)
     setError(null)
     try {
-      const nextStatus = await tokenOptimizationApi.rebuild(projectPath)
-      setStatus(nextStatus)
-      setGraph(null)
-      setShowGraph(false)
+      const nextStatus = await tokenOptimizationApi.rebuild(requestedProjectPath)
+      if (
+        activeProjectPathRef.current === requestedProjectPath
+        && projectVersionRef.current === requestedProjectVersion
+        && loadingOperationIdRef.current === loadingOperationId
+      ) {
+        statusRequestProjectRef.current = requestedProjectPath
+        setStatus(nextStatus)
+      }
     } catch (rebuildError) {
-      setError(getErrorMessage(rebuildError, t('tokenOptimization.rebuildFailed')))
+      if (
+        activeProjectPathRef.current === requestedProjectPath
+        && projectVersionRef.current === requestedProjectVersion
+        && loadingOperationIdRef.current === loadingOperationId
+      ) {
+        setError(getErrorMessage(rebuildError, t('tokenOptimization.rebuildFailed')))
+      }
     } finally {
-      setLoading(false)
+      if (loadingOperationIdRef.current === loadingOperationId) {
+        projectOperationPathRef.current = null
+        setLoading(false)
+      }
     }
   }
 
-  const openGraph = async () => {
-    if (!projectPath || graphLoading) return
+  const openGraph = useCallback(async () => {
+    const requestedProjectPath = projectPath
+    const requestedProjectVersion = projectVersionRef.current
+    if (!requestedProjectPath || graphLoadingProjectRef.current === requestedProjectPath) return
+    const requestId = ++graphRequestIdRef.current
+    graphLoadingProjectRef.current = requestedProjectPath
     setGraphLoading(true)
     setError(null)
     try {
-      const data = await tokenOptimizationApi.graph(projectPath)
+      const data = await tokenOptimizationApi.graph(requestedProjectPath)
+      if (
+        activeProjectPathRef.current !== requestedProjectPath
+        || projectVersionRef.current !== requestedProjectVersion
+        || graphRequestIdRef.current !== requestId
+      ) return
       setGraph(data)
       setShowGraph(true)
     } catch (graphError) {
+      if (
+        activeProjectPathRef.current !== requestedProjectPath
+        || projectVersionRef.current !== requestedProjectVersion
+        || graphRequestIdRef.current !== requestId
+      ) return
       setError(getErrorMessage(graphError, t('tokenOptimization.graph.loadFailed')))
     } finally {
+      if (
+        activeProjectPathRef.current !== requestedProjectPath
+        || projectVersionRef.current !== requestedProjectVersion
+        || graphRequestIdRef.current !== requestId
+      ) return
+      graphLoadingProjectRef.current = null
       setGraphLoading(false)
     }
-  }
+  }, [projectPath, t])
+
+  useEffect(() => {
+    if (
+      initialView !== 'graph'
+      || !projectPath
+      || statusRequestProjectRef.current !== projectPath
+      || status?.state !== 'ready'
+      || autoOpenedGraphProjectRef.current === projectPath
+    ) return
+    autoOpenedGraphProjectRef.current = projectPath
+    void openGraph()
+  }, [initialView, openGraph, projectPath, status])
 
   const toggleRtk = async (enabled: boolean) => {
     if (rtkLoading) return
@@ -827,14 +987,14 @@ function getCombinedSavingsEstimate(estimates: ReturnType<typeof getOptimizerEst
     }
   }
 
-  // Compound each optimizer against the remaining token volume. This keeps
-  // the estimate below a naive sum while ensuring every enabled switch makes
-  // its own visible contribution to the total range.
+  // Add the full-cycle ranges as a best-case portfolio estimate. Individual
+  // optimizers target different token pools, and the cap avoids implying that
+  // any combination can eliminate the entire cycle.
   const cycleEstimates = Object.values(estimates)
     .filter((estimate) => estimate.enabled)
 
-  const min = combineIndependentPercentages(cycleEstimates.map((estimate) => estimate.min))
-  const max = combineIndependentPercentages(cycleEstimates.map((estimate) => estimate.max))
+  const min = combineEstimatedPercentages(cycleEstimates.map((estimate) => estimate.min))
+  const max = combineEstimatedPercentages(cycleEstimates.map((estimate) => estimate.max))
   return {
     display: min === max ? `${min}%` : `${min}–${max}%`,
     min,
@@ -844,12 +1004,16 @@ function getCombinedSavingsEstimate(estimates: ReturnType<typeof getOptimizerEst
   }
 }
 
-function combineIndependentPercentages(percentages: number[]) {
-  const remaining = percentages.reduce(
-    (ratio, percentage) => ratio * (1 - percentage / 100),
-    1,
-  )
-  return Math.max(0, Math.min(99, Math.round((1 - remaining) * 100)))
+function combineEstimatedPercentages(percentages: number[]) {
+  const total = percentages.reduce((sum, percentage) => sum + percentage, 0)
+  if (total <= 92) return Math.max(0, Math.round(total))
+
+  // Above 92%, overlap rises quickly. Compress each additional 20 points of
+  // raw estimates into one visible percentage point. The count-aware ceiling
+  // keeps every additional optimizer visible regardless of activation order:
+  // three can reach 93%, four 94%, five 95%, and all six 96%.
+  const countAwareCeiling = Math.min(96, 90 + percentages.length)
+  return Math.min(countAwareCeiling, 92 + Math.ceil((total - 92) / 20))
 }
 
 function SavingsRing({

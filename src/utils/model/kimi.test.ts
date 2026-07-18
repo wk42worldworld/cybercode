@@ -2,11 +2,32 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   isKimiAlwaysOnThinkingModel,
+  isKimiK3ModelId,
+  isKimiModel,
   shouldOmitDisabledThinkingForModel,
   shouldOmitThinkingParamForModel,
 } from './kimi.js'
 
 describe('Kimi model rules', () => {
+  test('recognizes both official K3 model ids', () => {
+    expect(isKimiModel('k3')).toBe(true)
+    expect(isKimiModel('k3[1m]')).toBe(true)
+    expect(isKimiModel('kimi-k3')).toBe(true)
+    expect(isKimiK3ModelId('k3[1m]')).toBe(true)
+    expect(isKimiK3ModelId('kimi-k3')).toBe(true)
+  })
+
+  test('treats K3 as always-on thinking only on its official endpoint', () => {
+    const kimiCode = 'https://api.kimi.com/coding/'
+    const kimiApi = 'https://api.moonshot.cn'
+
+    expect(isKimiAlwaysOnThinkingModel('k3', kimiCode)).toBe(true)
+    expect(isKimiAlwaysOnThinkingModel('k3[1m]', kimiCode)).toBe(true)
+    expect(isKimiAlwaysOnThinkingModel('kimi-k3', kimiApi)).toBe(true)
+    expect(isKimiAlwaysOnThinkingModel('k3', 'https://openrouter.ai')).toBe(false)
+    expect(isKimiAlwaysOnThinkingModel('kimi-k3', 'https://openrouter.ai')).toBe(false)
+  })
+
   test('treats Kimi K2.7 Code variants as always-on thinking models', () => {
     const kimiCode = 'https://api.kimi.com/coding/'
     const kimiApi = 'https://api.moonshot.cn'

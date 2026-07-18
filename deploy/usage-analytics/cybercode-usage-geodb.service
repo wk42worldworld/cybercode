@@ -1,0 +1,21 @@
+[Unit]
+Description=Refresh CyberCode offline GeoIP database
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=cybercode-usage
+Group=cybercode-usage
+EnvironmentFile=-/etc/cybercode-usage.env
+Environment=PYTHONPATH=/opt/cybercode-usage/vendor
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/cybercode-usage/update_geoip.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cybercode-usage
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+

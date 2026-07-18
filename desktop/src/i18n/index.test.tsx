@@ -37,6 +37,10 @@ describe('useTranslation', () => {
     expect(translate('zh', 'common.close')).toBe('关闭')
     expect(translate('ja', 'common.close')).toBe('閉じる')
     expect(translate('ko', 'common.close')).toBe('닫기')
+    expect(translate('en', 'chat.rewindAction')).toBe('Rewind to here')
+    expect(translate('zh', 'chat.rewindAction')).toBe('回滚到这里')
+    expect(translate('ja', 'chat.rewindAction')).toBe('ここまで巻き戻す')
+    expect(translate('ko', 'chat.rewindAction')).toBe('여기까지 되돌리기')
   })
 
   it('falls back to English when a partial locale is missing a key', () => {

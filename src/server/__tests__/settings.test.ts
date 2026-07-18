@@ -281,6 +281,7 @@ describe('Settings API', () => {
   it('PUT /api/settings/user should update user settings', async () => {
     const { req, url, segments } = makeRequest('PUT', '/api/settings/user', {
       model: 'claude-opus-4-7',
+      promptMemoryLanguage: 'Japanese',
     })
     const res = await handleSettingsApi(req, url, segments)
 
@@ -293,6 +294,7 @@ describe('Settings API', () => {
     const res2 = await handleSettingsApi(r2, u2, s2)
     const body2 = await res2.json()
     expect(body2.model).toBe('claude-opus-4-7')
+    expect(body2.promptMemoryLanguage).toBe('Japanese')
   })
 
   it('GET /api/settings/cli-launcher should expose bundled launcher status', async () => {

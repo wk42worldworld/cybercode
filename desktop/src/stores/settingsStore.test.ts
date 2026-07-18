@@ -46,15 +46,41 @@ describe('settingsStore locale defaults', () => {
     expect(updateSpy).toHaveBeenCalledWith({ promptMemoryLanguage: 'Japanese' })
   })
 
-  it('rolls back the UI locale when the agent language cannot be saved', async () => {
+  it('keeps the UI locale when the memory language cannot be saved', async () => {
     const { settingsApi } = await import('../api/settings')
     vi.spyOn(settingsApi, 'updateUser').mockRejectedValue(new Error('write failed'))
     const { useSettingsStore } = await import('./settingsStore')
 
     await useSettingsStore.getState().setLocale('ko')
 
-    expect(useSettingsStore.getState().locale).toBe('zh')
-    expect(window.localStorage.getItem('cybercode-locale')).toBe('zh')
+    expect(useSettingsStore.getState().locale).toBe('ko')
+    expect(window.localStorage.getItem('cybercode-locale')).toBe('ko')
+  })
+
+  it('serializes rapid language changes so the latest selection is saved last', async () => {
+    const { settingsApi } = await import('../api/settings')
+    let releaseFirst!: () => void
+    const firstWrite = new Promise<void>((resolve) => { releaseFirst = resolve })
+    const updateSpy = vi.spyOn(settingsApi, 'updateUser')
+      .mockImplementationOnce(async () => {
+        await firstWrite
+        return { ok: true }
+      })
+      .mockResolvedValue({ ok: true })
+    const { useSettingsStore } = await import('./settingsStore')
+
+    const japanese = useSettingsStore.getState().setLocale('ja')
+    const korean = useSettingsStore.getState().setLocale('ko')
+
+    await vi.waitFor(() => expect(updateSpy).toHaveBeenCalledTimes(1))
+    releaseFirst()
+    await Promise.all([japanese, korean])
+
+    expect(updateSpy.mock.calls).toEqual([
+      [{ promptMemoryLanguage: 'Japanese' }],
+      [{ promptMemoryLanguage: 'Korean' }],
+    ])
+    expect(useSettingsStore.getState().locale).toBe('ko')
   })
 
   it('syncs the current UI locale for existing users during settings load', async () => {

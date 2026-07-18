@@ -530,9 +530,10 @@ async function rewindSession(req: Request, sessionId: string, url: URL): Promise
 
   if (
     (typeof body.targetUserMessageId !== 'string' || body.targetUserMessageId.length === 0) &&
+    !Number.isInteger(body.userMessageOffsetFromEnd) &&
     !Number.isInteger(body.userMessageIndex)
   ) {
-    throw ApiError.badRequest('targetUserMessageId (string) or userMessageIndex (integer) is required')
+    throw ApiError.badRequest('targetUserMessageId (string), userMessageOffsetFromEnd (integer), or userMessageIndex (integer) is required')
   }
 
   const result = body.dryRun

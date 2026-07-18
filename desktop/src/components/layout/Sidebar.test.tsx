@@ -89,6 +89,7 @@ import { useUIStore } from '../../stores/uiStore'
 describe('Sidebar', () => {
   const connectToSession = vi.fn()
   const ensureSessionReady = vi.fn()
+  const prefetchHistory = vi.fn(async () => {})
   const disconnectSession = vi.fn()
   const fetchSessions = vi.fn()
   const createSession = vi.fn()
@@ -99,6 +100,7 @@ describe('Sidebar', () => {
   beforeEach(() => {
     connectToSession.mockReset()
     ensureSessionReady.mockReset()
+    prefetchHistory.mockReset()
     disconnectSession.mockReset()
     fetchSessions.mockReset()
     createSession.mockReset()
@@ -131,6 +133,7 @@ describe('Sidebar', () => {
     useChatStore.setState({
       connectToSession,
       ensureSessionReady,
+      prefetchHistory,
       disconnectSession,
     } as Partial<ReturnType<typeof useChatStore.getState>>)
     useUIStore.setState({
@@ -459,7 +462,10 @@ describe('Sidebar', () => {
 
     expect(screen.queryByText('/workspace/project')).not.toBeInTheDocument()
     expect(screen.getByText('project').closest('button')).toHaveAttribute('title', '/workspace/project')
-    expect(screen.getByText('Discuss release').closest('button')).toHaveAttribute('title', '/workspace/project')
+    const sessionRow = screen.getByText('Discuss release').closest('button')
+    expect(sessionRow).toHaveAttribute('title', '/workspace/project')
+    expect(sessionRow).toHaveClass('px-[15px]', 'py-[11px]')
+    expect(within(sessionRow!).queryByText('P', { exact: true })).not.toBeInTheDocument()
   })
 
   it('renames a project display name without changing its path', () => {
@@ -629,6 +635,9 @@ describe('Sidebar', () => {
 
     const betaRow = screen.getByText('beta transcript').closest('button')
     expect(betaRow).toBeInTheDocument()
+    fireEvent.pointerEnter(betaRow!)
+
+    expect(prefetchHistory).toHaveBeenCalledWith('session-dup', '-project-beta')
 
     await act(async () => {
       fireEvent.click(betaRow!)

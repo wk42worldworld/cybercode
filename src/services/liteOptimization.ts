@@ -12,7 +12,7 @@ type StoredConfig = {
   enabled: boolean
 }
 
-const DEFAULT_CONFIG: StoredConfig = { version: 1, enabled: false }
+const DEFAULT_CONFIG: StoredConfig = { version: 1, enabled: true }
 
 export class LiteOptimizationService {
   private cachedConfig: StoredConfig | null = null
@@ -54,7 +54,7 @@ export class LiteOptimizationService {
     try {
       signature = this.getFileSignature(fs.statSync(configPath))
     } catch {
-      // Missing settings use the disabled default below.
+      // Missing settings use the enabled default below.
     }
 
     if (this.cachedConfig && this.cachedConfigSignature === signature) {

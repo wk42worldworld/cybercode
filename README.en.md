@@ -100,6 +100,76 @@ Looking for the GUI? [Download the desktop app for macOS, Windows, or Linux](htt
 | A local coding agent that can keep working while you are away | Telegram / Feishu remote control, scheduled tasks, background agents, and persistent memory |
 | A playground for advanced agent features | Multi-agent orchestration, Skills, MCP, Computer Use, custom providers, and CLI/headless mode |
 
+## Core Advantages in Practice
+
+### Memory that remains visible and under your control
+
+CyberCode extracts stable communication preferences, project knowledge, and reusable working methods so a new session does not have to begin from zero. Repeated successful approaches can become Skill candidates, allowing the agent to improve how it collaborates instead of merely retaining a transcript.
+
+The desktop app shows what CyberCode believes it has learned, how each insight is categorized, and which methods it has distilled. Individual entries can be edited or deleted, while the underlying memory files and learning records remain directly accessible to the user.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-memory-evolution.png" alt="CyberCode memory and self-evolution profile" width="980">
+</p>
+
+### Context efficiency with controls, not a hidden preset
+
+Large repositories, verbose command output, duplicate system instructions, and stale tool results all compete for model context. CyberCode separates Lite cleanup, smart pruning, Lazy Programmer, Caveman response compression, RTK tool-output compression, and Code Graph into independent optimization layers with global switches.
+
+The panel explains what is active and reports a combined estimated savings range. Those numbers are presented as estimates rather than guaranteed billing reductions.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-token-optimization.png" alt="CyberCode token optimization controls" width="980">
+</p>
+
+### Repository structure before bulk file reads
+
+The local Code Graph indexes files, symbols, references, and relationships. The agent can use a compact architecture preflight to find the relevant implementation before opening large portions of an unfamiliar repository, which is especially useful for impact analysis and cross-file refactoring.
+
+The same index is inspectable in the desktop app with symbol search, architecture and file views, module zooming, and manual index rebuilds.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-code-graph.png" alt="CyberCode local code graph visualization" width="980">
+</p>
+
+### Product capabilities that do not disappear when the model changes
+
+The same tools, memory, desktop workflow, and permissions remain available across the official Claude path, Anthropic-compatible endpoints, OpenAI-compatible providers, and local models. CyberCode also includes a provider-neutral local WebSearch fallback with live search, domain filters, caching, and a direct GitHub Trending path for models whose native browsing is unavailable or unreliable.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-providers.png" alt="CyberCode provider configuration"><br><b>Provider control in the app</b><br>Configure hosted or local endpoints, test connections, and choose defaults without leaving the desktop workflow.</td>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-model-picker.png" alt="CyberCode model picker"><br><b>Model choice per session</b><br>Select a known model or enter a custom model identifier while keeping the same agent tools and interface.</td>
+  </tr>
+</table>
+
+### One agent across desktop, terminal, and remote channels
+
+The React + Tauri desktop app and Ink terminal interface share the same local agent core. File attachments, slash commands, permissions, MCP tools, Skills, plugins, background agents, Agent Teams, Git worktrees, Computer Use, and headless output stay part of one workflow instead of becoming separate products.
+
+Telegram and Feishu adapters can relay conversations and permission requests while you are away from the machine. Scheduled tasks add one-time or recurring local jobs, so repository maintenance and routine checks do not have to wait for a manually opened chat.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-gui-scheduled-tasks.png" alt="CyberCode scheduled coding tasks" width="900">
+</p>
+
+### Inspectable, editable, and portable by design
+
+CyberCode keeps the client, server, desktop shell, adapters, memory, search, provider bridge, and optimization logic open. Agent data migration tools inspect compatible Skills, memory, rules, and project data from other local agents before importing, reducing the cost of changing tools without discarding accumulated workflows.
+
+## Capability Map
+
+| Area | What is included |
+|---|---|
+| Coding workflow | File editing, terminal tools, project search, permission modes, slash commands, attachments, rewind, branching, and session resume |
+| Agent intelligence | Persistent memory, self-evolution review, reusable Skills, sub-agents, Agent Teams, background tasks, and worktrees |
+| Context efficiency | Dynamic context-window awareness, automatic compression, Lite cleanup, smart pruning, Lazy Programmer, Caveman, RTK, and Code Graph |
+| Model access | Official Claude login, Anthropic-compatible APIs, OpenAI-compatible providers, local endpoints, custom models, and per-model context metadata |
+| Web and tools | Provider-neutral WebSearch fallback, WebFetch, MCP servers, plugins, Computer Use, and environment-aware tool availability |
+| Interfaces | Cross-platform desktop app, terminal TUI, `--print` headless mode, Telegram, and Feishu |
+| Automation | One-time and recurring scheduled tasks, remote approval, background agents, and machine-readable JSON output |
+| Portability | Agent data migration, editable local memory, open adapters, and an open-source local server |
+
 ## Quick Comparison
 
 | Need | CyberCode | Claude Code | Cursor / Cline / Roo-style tools |
@@ -122,7 +192,7 @@ Looking for the GUI? [Download the desktop app for macOS, Windows, or Linux](htt
 
 ## Latest Highlights
 
-Latest stable desktop release: [CyberCode v1.0.21](https://github.com/wk42worldworld/cybercode/releases/tag/v1.0.21)
+Latest stable desktop release: [View GitHub Releases](https://github.com/wk42worldworld/cybercode/releases/latest)
 
 - **Running-turn input steering**: when an assistant response is still running, new user input is saved in a pending bar instead of disappearing or interrupting blindly. You can edit it, delete it, or add it to the current turn; otherwise queued input is sent automatically when the current turn finishes.
 - **Provider-aware model context windows**: model presets can now carry context-window metadata, and CyberCode forwards those limits into desktop sessions so third-party providers behave more predictably.

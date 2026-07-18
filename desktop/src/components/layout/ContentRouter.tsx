@@ -5,6 +5,8 @@ import { EmptySession } from '../../pages/EmptySession'
 import { ScheduledTasks } from '../../pages/ScheduledTasks'
 import { TerminalSettings } from '../../pages/TerminalSettings'
 
+const WARM_SESSION_PANEL_COUNT = 2
+
 export function ContentRouter() {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const tabs = useTabStore((s) => s.tabs)
@@ -15,7 +17,9 @@ export function ContentRouter() {
   const sessionPanelIds = [
     ...(activeTabId && activeTabType === 'session' ? [activeTabId] : []),
     ...recentSessionIds,
-  ].filter((sessionId, index, ids) => ids.indexOf(sessionId) === index)
+  ]
+    .filter((sessionId, index, ids) => ids.indexOf(sessionId) === index)
+    .slice(0, WARM_SESSION_PANEL_COUNT)
 
   // Non-session pages (ScheduledTasks)
   const nonSessionPage: ReactNode =
@@ -31,10 +35,9 @@ export function ContentRouter() {
         </div>
       )}
 
-      {/* Keep the last N session panels in the DOM for layout, but only mount
-          ActiveSession for the active panel. This avoids keeping hidden
-          MessageList trees alive, saving GPU/memory while chatStore preserves
-          the session data so re-mounting is instant. */}
+      {/* Keep the current and previous chat trees mounted. Recreating Virtuoso
+          on every switch forces it to remeasure rows and rebuild the scrollbar;
+          two warm panels remove that churn without retaining every session. */}
       {sessionPanelIds.map((sessionId) => {
         const tab = tabs.find((candidate) => candidate.sessionId === sessionId)
         const isActive = sessionId === activeTabId && activeTabType === 'session'
@@ -42,12 +45,14 @@ export function ContentRouter() {
           <div
             key={sessionId}
             aria-hidden={!isActive}
-            style={{ display: isActive ? 'flex' : 'none' }}
-            className="content-route-panel content-route-panel--active absolute inset-0 flex-col min-h-0 overflow-hidden"
+            data-session-panel={sessionId}
+            className={`content-route-panel absolute inset-0 flex min-h-0 flex-col overflow-hidden ${
+              isActive
+                ? 'content-route-panel--active visible z-10 opacity-100'
+                : 'content-route-panel--inactive invisible pointer-events-none z-0 opacity-0'
+            }`}
           >
-            {isActive ? (
-              <ActiveSession sessionId={sessionId} projectPath={tab?.projectPath} isActive={isActive} />
-            ) : null}
+            <ActiveSession sessionId={sessionId} projectPath={tab?.projectPath} isActive={isActive} />
           </div>
         )
       })}

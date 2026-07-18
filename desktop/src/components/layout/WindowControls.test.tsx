@@ -56,9 +56,19 @@ describe('WindowControls', () => {
       expect(screen.getByRole('button', { name: 'Minimize window' })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Minimize window' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Maximize window' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Close window' }))
+    const controls = screen.getByTestId('window-controls')
+    const minimizeButton = screen.getByRole('button', { name: 'Minimize window' })
+    const maximizeButton = screen.getByRole('button', { name: 'Maximize window' })
+    const closeButton = screen.getByRole('button', { name: 'Close window' })
+
+    expect(controls).toHaveClass('h-[42px]', 'rounded-[8px]')
+    expect(minimizeButton).toHaveClass('h-full', 'w-[52px]')
+    expect(maximizeButton).toHaveClass('h-full', 'w-[52px]')
+    expect(closeButton).toHaveClass('h-full', 'w-[52px]')
+
+    fireEvent.click(minimizeButton)
+    fireEvent.click(maximizeButton)
+    fireEvent.click(closeButton)
 
     await waitFor(() => {
       expect(minimize).toHaveBeenCalledTimes(1)

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { BookOpenText, Gauge } from 'lucide-react'
+import { BookOpenText, Gauge, Network } from 'lucide-react'
 import { Icon } from '../shared/Icon'
 import { useTranslation } from '../../i18n'
 import { useUIStore } from '../../stores/uiStore'
@@ -17,6 +17,7 @@ export function ChatModeSidebar({ label, ariaLabel }: ChatModeSidebarProps) {
   const t = useTranslation()
   const memoryActive = settingsOpen && settingsPanelView === 'memory'
   const tokenOptimizationActive = settingsOpen && settingsPanelView === 'tokenOptimization'
+  const codeGraphActive = settingsOpen && settingsPanelView === 'codeGraph'
 
   const handleMemoryClick = () => {
     if (memoryActive) {
@@ -34,10 +35,18 @@ export function ChatModeSidebar({ label, ariaLabel }: ChatModeSidebarProps) {
     }
   }
 
+  const handleCodeGraphClick = () => {
+    if (codeGraphActive) {
+      closeSettings()
+    } else {
+      openSettings('codeGraph')
+    }
+  }
+
   return (
     <aside
       aria-label={ariaLabel}
-      className="chat-mode-sidebar native-ui-text relative z-20 flex h-full w-[var(--sidebar-rail-width)] shrink-0 select-none flex-col items-center border-l border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] py-[20px] text-[var(--color-text-tertiary)]"
+      className="chat-mode-sidebar native-ui-text relative z-[95] flex h-full w-[var(--sidebar-rail-width)] shrink-0 select-none flex-col items-center border-l border-[var(--color-border-separator)] bg-[var(--color-surface-sidebar)] py-[20px] text-[var(--color-text-tertiary)]"
     >
       <div className="flex w-full flex-col items-center gap-[24px]">
         <SideRailButton label={label}>
@@ -56,6 +65,13 @@ export function ChatModeSidebar({ label, ariaLabel }: ChatModeSidebarProps) {
           onClick={handleTokenOptimizationClick}
         >
           <Gauge size={22} strokeWidth={1.5} />
+        </SideRailButton>
+        <SideRailButton
+          active={codeGraphActive}
+          label={t('sidebar.projectGraph')}
+          onClick={handleCodeGraphClick}
+        >
+          <Network size={22} strokeWidth={1.5} />
         </SideRailButton>
       </div>
     </aside>

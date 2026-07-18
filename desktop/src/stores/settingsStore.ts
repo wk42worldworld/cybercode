@@ -14,6 +14,16 @@ const LANGUAGE_BY_LOCALE: Record<Locale, string> = {
   ko: 'Korean',
 }
 
+let promptMemoryLanguageSync: Promise<unknown> = Promise.resolve()
+
+function syncPromptMemoryLanguage(language: string): Promise<void> {
+  const next = promptMemoryLanguageSync
+    .catch(() => {})
+    .then(() => settingsApi.updateUser({ promptMemoryLanguage: language }))
+  promptMemoryLanguageSync = next
+  return next.then(() => undefined)
+}
+
 function getStoredLocale(): Locale {
   try {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY)
@@ -69,7 +79,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       const locale = get().locale
       const selectedLanguage = LANGUAGE_BY_LOCALE[locale]
       if (userSettings.promptMemoryLanguage?.toLowerCase() !== selectedLanguage.toLowerCase()) {
-        await settingsApi.updateUser({ promptMemoryLanguage: selectedLanguage }).catch(() => {})
+        await syncPromptMemoryLanguage(selectedLanguage).catch(() => {})
       }
       useUIStore.getState().setTheme(theme)
       set({
@@ -118,15 +128,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   setLocale: async (locale) => {
-    const prev = get().locale
     set({ locale })
     try { localStorage.setItem(LOCALE_STORAGE_KEY, locale) } catch { /* noop */ }
-    try {
-      await settingsApi.updateUser({ promptMemoryLanguage: LANGUAGE_BY_LOCALE[locale] })
-    } catch {
-      set({ locale: prev })
-      try { localStorage.setItem(LOCALE_STORAGE_KEY, prev) } catch { /* noop */ }
-    }
+    await syncPromptMemoryLanguage(LANGUAGE_BY_LOCALE[locale]).catch(() => {})
   },
 
   setTheme: async (theme) => {

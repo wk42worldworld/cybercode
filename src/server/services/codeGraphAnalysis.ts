@@ -1,4 +1,4 @@
-import { Database } from 'bun:sqlite'
+import { openCodeGraphDatabaseForRead } from './codeGraphDatabase.js'
 
 const MAX_ANALYSIS_NODES = 1_200
 const MAX_ANALYSIS_EDGES_PER_NODE = 24
@@ -94,9 +94,13 @@ export function getCodeGraphVisualization(
   )
 
   for (const community of communityOrder) {
+    if (selectedIds.size >= limit) break
     const members = rankNodes(membersByCommunity.get(community.id) ?? [])
     const quota = Math.min(members.length, members.length > 8 ? 3 : 2)
-    for (const node of members.slice(0, quota)) selectedIds.add(node.id)
+    for (const node of members.slice(0, quota)) {
+      if (selectedIds.size >= limit) break
+      selectedIds.add(node.id)
+    }
   }
   for (const node of rankNodes(analyzed.nodes)) {
     if (selectedIds.size >= limit) break
@@ -181,7 +185,7 @@ export function confidenceForProvenance(
 }
 
 function readSnapshot(dbPath: string, requestedLimit: number): Snapshot {
-  const db = new Database(dbPath, { readonly: true })
+  const db = openCodeGraphDatabaseForRead(dbPath)
   try {
     const limit = clamp(requestedLimit, 20, MAX_ANALYSIS_NODES)
     const availableNodeCount = Number(db.query<{ count: number }, []>(`

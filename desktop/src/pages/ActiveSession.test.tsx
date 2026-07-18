@@ -56,6 +56,116 @@ afterEach(() => {
 })
 
 describe('ActiveSession task polling', () => {
+  it('defers session initialization while a warm panel is hidden', () => {
+    const sessionId = 'warm-hidden-session'
+    const ensureSessionReady = vi.fn().mockResolvedValue(undefined)
+    const defaultSession = useChatStore.getState().getSession(sessionId)
+
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Warm Hidden Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady,
+      sessions: {
+        [sessionId]: {
+          ...defaultSession,
+          connectionState: 'disconnected',
+          historyLoadState: 'idle',
+        },
+      },
+    })
+
+    const { rerender, unmount } = render(
+      <ActiveSession sessionId={sessionId} isActive={false} />,
+    )
+
+    expect(ensureSessionReady).not.toHaveBeenCalled()
+
+    rerender(<ActiveSession sessionId={sessionId} isActive={true} />)
+    expect(ensureSessionReady).toHaveBeenCalledTimes(1)
+    expect(ensureSessionReady).toHaveBeenCalledWith(sessionId, undefined)
+    unmount()
+  })
+
+  it('does not restart a session whose connection and history are already ready', () => {
+    const sessionId = 'ready-session'
+    const ensureSessionReady = vi.fn().mockResolvedValue(undefined)
+    const defaultSession = useChatStore.getState().getSession(sessionId)
+
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Ready Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady,
+      sessions: {
+        [sessionId]: {
+          ...defaultSession,
+          connectionState: 'connected',
+          historyLoadState: 'loaded',
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(ensureSessionReady).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('does not duplicate initialization while sidebar history loading is in flight', () => {
+    const sessionId = 'loading-session'
+    const ensureSessionReady = vi.fn().mockResolvedValue(undefined)
+    const defaultSession = useChatStore.getState().getSession(sessionId)
+
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Loading Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady,
+      sessions: {
+        [sessionId]: {
+          ...defaultSession,
+          connectionState: 'connecting',
+          historyLoadState: 'loading',
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(ensureSessionReady).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('does not loop session initialization after a history load error', () => {
+    const sessionId = 'history-error-session'
+    const ensureSessionReady = vi.fn().mockResolvedValue(undefined)
+    const defaultSession = useChatStore.getState().getSession(sessionId)
+
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'History Error', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      ensureSessionReady,
+      sessions: {
+        [sessionId]: {
+          ...defaultSession,
+          connectionState: 'connected',
+          historyLoadState: 'error',
+        },
+      },
+    })
+
+    const { unmount } = render(<ActiveSession sessionId={sessionId} isActive={true} />)
+
+    expect(ensureSessionReady).not.toHaveBeenCalled()
+    unmount()
+  })
+
   it('keeps the composer clickable above the bottom overlay', () => {
     const sessionId = 'clickable-composer-session'
 

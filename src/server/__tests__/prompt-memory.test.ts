@@ -8,6 +8,7 @@ import {
   _setConfigHomeDirHomeForTesting,
 } from '../../utils/envUtils.js'
 import { addPromptMemoryEntry, readPromptMemoryFile } from '../../promptMemory/store.js'
+import { readPromptMemoryConfig } from '../../promptMemory/config.js'
 import { handlePromptMemoryApi } from '../api/prompt-memory.js'
 
 function makeRequest(
@@ -84,6 +85,49 @@ describe('Prompt Memory API', () => {
     expect(body.insights).toContainEqual(
       expect.objectContaining({ target: 'brief', category: 'meta-method' }),
     )
+  })
+
+  test('returns and updates the global evolution-memory injection setting', async () => {
+    const statusRequest = makeRequest('/api/prompt-memory')
+    const statusResponse = await handlePromptMemoryApi(
+      statusRequest.req,
+      statusRequest.url,
+      statusRequest.segments,
+    )
+    expect(statusResponse.status).toBe(200)
+    expect(await statusResponse.json()).toMatchObject({
+      config: { injectEvolutionMemory: true },
+    })
+
+    const updateRequest = makeRequest('/api/prompt-memory/config', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ injectEvolutionMemory: false }),
+    })
+    const updateResponse = await handlePromptMemoryApi(
+      updateRequest.req,
+      updateRequest.url,
+      updateRequest.segments,
+    )
+    expect(updateResponse.status).toBe(200)
+    expect(await updateResponse.json()).toMatchObject({
+      injectEvolutionMemory: false,
+    })
+    expect((await readPromptMemoryConfig()).injectEvolutionMemory).toBe(false)
+  })
+
+  test('rejects invalid evolution-memory injection settings', async () => {
+    const request = makeRequest('/api/prompt-memory/config', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ injectEvolutionMemory: 'no' }),
+    })
+    const response = await handlePromptMemoryApi(
+      request.req,
+      request.url,
+      request.segments,
+    )
+    expect(response.status).toBe(400)
   })
 
   test('removes a profile memory through the existing entry endpoint', async () => {

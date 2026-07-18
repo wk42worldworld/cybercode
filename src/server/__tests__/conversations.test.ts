@@ -1351,6 +1351,55 @@ describe('WebSocket Chat Integration', () => {
     expect(userText).toContain(`/tmp/${memoryNeedle}/app`)
   }, 20_000)
 
+  it('should keep prompt memory out of first-turn FTS context when injection is disabled', async () => {
+    const promptMemoryDir = path.join(tmpDir, 'prompt-memory')
+    const queryNeedle = `profile-query-${crypto.randomUUID()}`
+    const privateMemory = `profile-memory-${crypto.randomUUID()}`
+    await fs.mkdir(promptMemoryDir, { recursive: true })
+    await fs.writeFile(
+      path.join(promptMemoryDir, 'USER.md'),
+      `${queryNeedle} maps to ${privateMemory}.`,
+      'utf-8',
+    )
+    await fs.writeFile(
+      path.join(promptMemoryDir, 'config.json'),
+      `${JSON.stringify({
+        version: 1,
+        injectEvolutionMemory: false,
+      })}\n`,
+      'utf-8',
+    )
+
+    try {
+      const createRes = await fetch(`${baseUrl}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temporary: true }),
+      })
+      expect(createRes.status).toBe(201)
+      const { sessionId } = await createRes.json() as { sessionId: string }
+
+      const messages = await runTurn(sessionId, `What about ${queryNeedle}?`)
+      expect(messages.some((msg) => msg.type === 'message_complete')).toBe(true)
+
+      const inbound = await readMockSdkInbound(sessionId)
+      const userPayload = inbound.find((payload) => payload.type === 'user')
+      const userText = extractSdkUserText(userPayload)
+
+      expect(userText).toContain(queryNeedle)
+      expect(userText).not.toContain(privateMemory)
+    } finally {
+      await fs.writeFile(
+        path.join(promptMemoryDir, 'config.json'),
+        `${JSON.stringify({
+          version: 1,
+          injectEvolutionMemory: true,
+        })}\n`,
+        'utf-8',
+      )
+    }
+  }, 20_000)
+
   it('should clear a desktop session without sending /clear to the CLI turn loop', async () => {
     const createRes = await fetch(`${baseUrl}/api/sessions`, {
       method: 'POST',

@@ -240,6 +240,7 @@ export const sessionsApi = {
   rewind(sessionId: string, body: {
     targetUserMessageId?: string
     userMessageIndex?: number
+    userMessageOffsetFromEnd?: number
     expectedContent?: string
     dryRun?: boolean
   }, params?: SessionLocatorParams) {

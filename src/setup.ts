@@ -20,6 +20,7 @@ import {
 } from './bootstrap/state.js'
 import { getCommands } from './commands.js'
 import { initSessionMemory } from './services/SessionMemory/sessionMemory.js'
+import { startCybercodeUsageReporter } from './services/cybercodeUsageAnalytics.js'
 import { asSessionId } from './types/ids.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
@@ -382,6 +383,7 @@ export async function setup(
     }
   }
   initSinks() // Attach error log + analytics sinks and drain queued events
+  startCybercodeUsageReporter('cli')
 
   // Session-success-rate denominator. Emit immediately after the analytics
   // sink is attached — before any parsing, fetching, or I/O that could throw.

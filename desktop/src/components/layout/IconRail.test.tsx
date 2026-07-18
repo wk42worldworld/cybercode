@@ -147,7 +147,7 @@ describe('IconRail floating panel navigation', () => {
     expect(useUIStore.getState().settingsPanelView).toBe('scheduled')
   })
 
-  it('shows a smaller blue update button above Settings only after an update is downloaded', () => {
+  it('shows a smaller blue update button above Agent migration only after an update is downloaded', () => {
     const { rerender } = renderIconRail()
 
     expect(screen.queryByTestId('rail-update-button')).not.toBeInTheDocument()
@@ -173,9 +173,13 @@ describe('IconRail floating panel navigation', () => {
     rerender(<IconRail />)
 
     const updateButton = screen.getByRole('button', { name: '更新到 v1.0.4' })
+    const migrationButton = screen.getByRole('button', { name: 'Agent 数据迁移' })
     expect(updateButton).toBeInTheDocument()
     expect(updateButton).toHaveClass('bg-[#0a84ff]')
     expect(updateButton).toHaveClass('h-[38px]', 'w-[38px]')
+    expect(Array.from(updateButton.parentElement!.children).indexOf(updateButton)).toBeLessThan(
+      Array.from(updateButton.parentElement!.children).indexOf(migrationButton),
+    )
 
     fireEvent.click(updateButton)
     expect(installUpdate).toHaveBeenCalledTimes(1)

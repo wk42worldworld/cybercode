@@ -1,4 +1,9 @@
-import { getDefaultBaseUrl, setAuthToken, setBaseUrl } from '../api/client'
+import {
+  getDefaultBaseUrl,
+  setAuthToken,
+  setBaseUrl,
+  setServerConnectionRefresher,
+} from '../api/client'
 
 export function isTauriRuntime() {
   if (typeof window === 'undefined') return false
@@ -14,6 +19,7 @@ export async function initializeDesktopServerUrl() {
   const requestedUrl = queryUrl?.trim() || fallbackUrl
 
   if (!isTauriRuntime()) {
+    setServerConnectionRefresher(null)
     setBaseUrl(requestedUrl)
     await waitForHealth(requestedUrl)
     return requestedUrl
@@ -21,10 +27,15 @@ export async function initializeDesktopServerUrl() {
 
   try {
     const { invoke } = await import(/* @vite-ignore */ '@tauri-apps/api/core')
-    const connection = await invoke<{ url: string; authToken: string }>('get_server_connection')
+    const refreshConnection = async () => {
+      const connection = await invoke<{ url: string; authToken: string }>('get_server_connection')
+      await waitForHealth(connection.url)
+      return connection
+    }
+    setServerConnectionRefresher(refreshConnection)
+    const connection = await refreshConnection()
     setBaseUrl(connection.url)
     setAuthToken(connection.authToken)
-    await waitForHealth(connection.url)
     return connection.url
   } catch (error) {
     const message =

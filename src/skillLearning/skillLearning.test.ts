@@ -9,7 +9,9 @@ import {
 import { approveSkillCandidate, rejectSkillCandidate } from './approval.js'
 import {
   evaluateSkillReviewEligibility,
+  executeSkillLearningReview,
   parseSkillCandidateResponse,
+  resetSkillLearningReviewForTesting,
   shouldAutoApproveSkillCandidate,
 } from './reviewer.js'
 import {
@@ -21,6 +23,7 @@ import {
 } from './store.js'
 import { DEFAULT_SKILL_LEARNING_CONFIG } from './types.js'
 import type { Message } from '../types/message.js'
+import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 
 function buildSkillMarkdown(name: string, body = 'Follow the verified steps.'): string {
   return [
@@ -89,6 +92,7 @@ describe('Skill Learning', () => {
     delete process.env.CYBER_CONFIG_DIR
     delete process.env.CLAUDE_CONFIG_DIR
     _setConfigHomeDirHomeForTesting(tmpHome)
+    resetSkillLearningReviewForTesting()
   })
 
   afterEach(async () => {
@@ -103,6 +107,7 @@ describe('Skill Learning', () => {
 
     _setConfigHomeDirHomeForTesting(undefined)
     _resetConfigHomeDirForTesting()
+    resetSkillLearningReviewForTesting()
     await rm(tmpRoot, { recursive: true, force: true })
   })
 
@@ -116,26 +121,46 @@ describe('Skill Learning', () => {
     expect((await readSkillLearningConfig()).mode).toBe('suggest')
   })
 
-  test('auto mode approves every candidate that passed the quality gate', () => {
+  test('auto mode only approves candidates above the configured confidence', () => {
     const variants = [
-      { action: 'create' as const, scope: 'project' as const, confidence: 0.79 },
-      { action: 'update' as const, scope: 'project' as const, confidence: 0.81 },
-      { action: 'create' as const, scope: 'global' as const, confidence: 0.83 },
+      { action: 'create' as const, scope: 'project' as const, confidence: 0.91 },
+      { action: 'update' as const, scope: 'project' as const, confidence: 0.92 },
+      { action: 'create' as const, scope: 'global' as const, confidence: 0.97 },
       {
         action: 'update' as const,
         scope: 'global' as const,
-        confidence: 0.8,
+        confidence: 0.95,
         duplicate: { skillName: 'existing', score: 0.9, decision: 'merge' as const },
       },
     ]
 
-    for (const candidate of variants) {
+    expect(shouldAutoApproveSkillCandidate(
+      DEFAULT_SKILL_LEARNING_CONFIG,
+      variants[0]!,
+    )).toBe(false)
+    for (const candidate of variants.slice(1)) {
       expect(shouldAutoApproveSkillCandidate(DEFAULT_SKILL_LEARNING_CONFIG, candidate)).toBe(true)
       expect(shouldAutoApproveSkillCandidate(
         { ...DEFAULT_SKILL_LEARNING_CONFIG, mode: 'suggest' },
         candidate,
       )).toBe(false)
     }
+  })
+
+  test('records why a completed turn did not reach the Skill review gate', async () => {
+    await executeSkillLearningReview({
+      querySource: 'sdk',
+      messages: taskMessages(1),
+      toolUseContext: { agentId: undefined },
+    } as REPLHookContext)
+
+    expect((await readSkillLearningState()).events).toContainEqual(
+      expect.objectContaining({
+        kind: 'review-skipped',
+        toolUseCount: 1,
+        message: 'Task used 1 tools; 6 required.',
+      }),
+    )
   })
 
   test('reviews complex tasks and ignores trivial turns', () => {

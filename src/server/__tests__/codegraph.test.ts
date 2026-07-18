@@ -1,10 +1,12 @@
 import { Database } from 'bun:sqlite'
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, spyOn, test } from 'bun:test'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { handleTokenOptimizationApi } from '../api/token-optimization.js'
-import { CodeGraphService } from '../services/codeGraphService.js'
+import { getCodeGraphVisualization } from '../services/codeGraphAnalysis.js'
+import { openCodeGraphDatabaseForRead } from '../services/codeGraphDatabase.js'
+import { CodeGraphService, codeGraphService } from '../services/codeGraphService.js'
 
 const originalConfigDir = process.env.CYBER_CONFIG_DIR
 const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-codegraph-test-'))
@@ -37,13 +39,93 @@ beforeAll(() => {
   }))
 })
 
-afterAll(() => {
+afterAll(async () => {
+  await codeGraphService.disableGlobal()
   if (originalConfigDir === undefined) delete process.env.CYBER_CONFIG_DIR
   else process.env.CYBER_CONFIG_DIR = originalConfigDir
   fs.rmSync(testRoot, { recursive: true, force: true })
 })
 
 describe('native Code Graph service', () => {
+  test('defaults the global graph on and preserves an explicit opt-out', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-codegraph-default-'))
+    const configPath = path.join(root, 'codegraph.json')
+    const bindConfigPath = (service: CodeGraphService) => {
+      ;(service as unknown as { getConfigPath: () => string }).getConfigPath = () => configPath
+    }
+    const service = new CodeGraphService()
+    const reader = new CodeGraphService()
+    bindConfigPath(service)
+    bindConfigPath(reader)
+
+    try {
+      expect(service.getGlobalStatus()).toEqual({ enabled: true })
+      expect(await service.disableGlobal()).toEqual({ enabled: false })
+      expect(reader.getGlobalStatus()).toEqual({ enabled: false })
+    } finally {
+      service.shutdown()
+      reader.shutdown()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test('reads a WAL index after its shared-memory file has been cleaned up', () => {
+    const dbPath = path.join(testRoot, 'wal-without-shm.db')
+    const writer = new Database(dbPath, { create: true })
+    writer.run('PRAGMA journal_mode = WAL')
+    writer.run('CREATE TABLE sample (value TEXT NOT NULL)')
+    writer.run("INSERT INTO sample VALUES ('ready')")
+    writer.run('PRAGMA wal_checkpoint(TRUNCATE)')
+    writer.close()
+    fs.rmSync(`${dbPath}-wal`, { force: true })
+    fs.rmSync(`${dbPath}-shm`, { force: true })
+
+    const reader = openCodeGraphDatabaseForRead(dbPath)
+    try {
+      expect(reader.query<{ value: string }, []>('SELECT value FROM sample').get()?.value).toBe('ready')
+      expect(() => reader.run("INSERT INTO sample VALUES ('blocked')")).toThrow()
+    } finally {
+      reader.close()
+    }
+  })
+
+  test('keeps the visualization within its hard limit when every node is a separate community', () => {
+    const dbPath = path.join(testRoot, 'many-communities.db')
+    const db = new Database(dbPath, { create: true })
+    db.run(`
+      CREATE TABLE nodes (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        name TEXT NOT NULL,
+        qualified_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        language TEXT NOT NULL,
+        start_line INTEGER NOT NULL,
+        end_line INTEGER NOT NULL
+      )
+    `)
+    db.run(`
+      CREATE TABLE edges (
+        id INTEGER PRIMARY KEY,
+        source TEXT NOT NULL,
+        target TEXT NOT NULL,
+        kind TEXT NOT NULL
+      )
+    `)
+    const insertNode = db.prepare(`
+      INSERT INTO nodes VALUES (?, 'function', ?, ?, ?, 'typescript', 1, 2)
+    `)
+    for (let index = 0; index < 36; index += 1) {
+      const name = `isolated${index}`
+      insertNode.run(name, name, name, `src/module-${index}/${name}.ts`)
+    }
+    db.close()
+
+    const graph = getCodeGraphVisualization(dbPath, 20)
+    expect(graph.nodes).toHaveLength(20)
+    expect(new Set(graph.nodes.map((node) => node.id)).size).toBe(20)
+  })
+
   test('migrates the old project switch into a global default for newly opened projects', () => {
     const service = new CodeGraphService()
     const status = service.getStatus(inheritedProjectDir)
@@ -86,6 +168,173 @@ describe('native Code Graph service', () => {
       communities: expect.any(Array),
       confidence: { extracted: 1, inferred: 1, unknown: 0 },
     })
+  })
+
+  test('keeps reporting preparation while a rebuild is waiting to start', async () => {
+    const service = new CodeGraphService()
+    const preparation = Promise.withResolvers<void>()
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() =>
+      createFakeWatchProcess(Promise.resolve(0)),
+    )
+    let pendingRun: Promise<void> | null = null
+    const internals = service as unknown as {
+      patchRunningSessions: () => Promise<void>
+      runIndex: (projectPath: string, rebuild: boolean) => Promise<void>
+    }
+    internals.patchRunningSessions = () => preparation.promise
+    const originalRunIndex = internals.runIndex.bind(service)
+    internals.runIndex = (projectPath, rebuild) => {
+      pendingRun = originalRunIndex(projectPath, rebuild)
+      return pendingRun
+    }
+
+    try {
+      service.enableGlobal()
+      const rebuildStatus = await service.rebuild(projectDir)
+
+      expect(rebuildStatus.state).toBe('preparing')
+      expect(service.getStatus(projectDir).state).toBe('preparing')
+
+      service.shutdown()
+      preparation.resolve()
+      await pendingRun
+
+      expect(spawnSpy).not.toHaveBeenCalled()
+    } finally {
+      service.shutdown()
+      preparation.resolve()
+      spawnSpy.mockRestore()
+    }
+  })
+
+  test('does not revive a pending index after Code Graph is disabled', async () => {
+    const service = new CodeGraphService()
+    const preparation = Promise.withResolvers<void>()
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() =>
+      createFakeWatchProcess(Promise.resolve(0)),
+    )
+    let patchCallCount = 0
+    let pendingRun: Promise<void> | null = null
+    const internals = service as unknown as {
+      patchRunningSessions: () => Promise<void>
+      runIndex: (projectPath: string, rebuild: boolean) => Promise<void>
+      setGlobalEnabled: (enabled: boolean) => void
+    }
+    internals.patchRunningSessions = () => {
+      patchCallCount += 1
+      return patchCallCount === 1 ? preparation.promise : Promise.resolve()
+    }
+    const originalRunIndex = internals.runIndex.bind(service)
+    internals.runIndex = (projectPath, rebuild) => {
+      pendingRun = originalRunIndex(projectPath, rebuild)
+      return pendingRun
+    }
+
+    try {
+      service.enableGlobal()
+      await service.rebuild(projectDir)
+
+      expect(service.getStatus(projectDir).state).toBe('preparing')
+      expect(await service.disableGlobal()).toEqual({ enabled: false })
+
+      preparation.resolve()
+      await pendingRun
+
+      expect(spawnSpy).not.toHaveBeenCalled()
+      expect(service.getStatus(projectDir)).toMatchObject({
+        enabled: false,
+        state: 'disabled',
+      })
+    } finally {
+      service.shutdown()
+      preparation.resolve()
+      internals.setGlobalEnabled(true)
+      spawnSpy.mockRestore()
+    }
+  })
+
+  test('keeps a newly enabled index owned when an old preparation finishes late', async () => {
+    const service = new CodeGraphService()
+    const oldPreparation = Promise.withResolvers<void>()
+    const newPreparation = Promise.withResolvers<void>()
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() =>
+      createFakeWatchProcess(Promise.resolve(0)),
+    )
+    const runs: Promise<void>[] = []
+    let patchCallCount = 0
+    const internals = service as unknown as {
+      patchRunningSessions: () => Promise<void>
+      runIndex: (projectPath: string, rebuild: boolean) => Promise<void>
+    }
+    internals.patchRunningSessions = () => {
+      patchCallCount += 1
+      if (patchCallCount === 1) return oldPreparation.promise
+      if (patchCallCount === 3) return newPreparation.promise
+      return Promise.resolve()
+    }
+    const originalRunIndex = internals.runIndex.bind(service)
+    internals.runIndex = (projectPath, rebuild) => {
+      const run = originalRunIndex(projectPath, rebuild)
+      runs.push(run)
+      return run
+    }
+
+    try {
+      service.enableGlobal()
+      await service.rebuild(projectDir)
+      expect(runs).toHaveLength(1)
+
+      await service.disableGlobal()
+      service.enableGlobal()
+      expect(runs).toHaveLength(2)
+
+      oldPreparation.resolve()
+      await runs[0]
+      service.ensureProject(projectDir)
+
+      expect(runs).toHaveLength(2)
+      expect(service.getStatus(projectDir).state).toBe('preparing')
+      expect(spawnSpy).not.toHaveBeenCalled()
+    } finally {
+      service.shutdown()
+      oldPreparation.resolve()
+      newPreparation.resolve()
+      await Promise.all(runs)
+      spawnSpy.mockRestore()
+    }
+  })
+
+  test('restarts an unexpectedly exited file watcher', async () => {
+    const service = new CodeGraphService({ watcherRestartBaseDelayMs: 1 })
+    const secondExit = Promise.withResolvers<number>()
+    let spawnCount = 0
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() => {
+      spawnCount += 1
+      return createFakeWatchProcess(
+        spawnCount === 1 ? Promise.resolve(1) : secondExit.promise,
+      )
+    })
+    const internals = service as unknown as {
+      startWatcher: (projectPath: string) => void
+    }
+
+    try {
+      service.enableGlobal()
+      internals.startWatcher(projectDir)
+      for (let attempt = 0; attempt < 20 && spawnCount < 2; attempt += 1) {
+        await Bun.sleep(2)
+      }
+
+      expect(spawnCount).toBe(2)
+      service.shutdown()
+      secondExit.resolve(0)
+      await Bun.sleep(5)
+      expect(spawnCount).toBe(2)
+    } finally {
+      service.shutdown()
+      secondExit.resolve(0)
+      spawnSpy.mockRestore()
+    }
   })
 
   test('builds an embedded sidecar MCP config without npm, npx, or Python', () => {
@@ -251,6 +500,20 @@ function createGraphDatabase(projectPath: string, withContent = true) {
   db.run("INSERT INTO edges (id, source, target, kind, line, provenance) VALUES (2, 'function:run', 'class:Agent', 'references', 5, 'heuristic')")
   db.run("INSERT INTO files (path, language, indexed_at, errors) VALUES ('src/app.ts', 'typescript', ?, '[]')", [Date.now()])
   db.close()
+}
+
+function createFakeWatchProcess(exited: Promise<number>) {
+  const emptyStream = () => new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.close()
+    },
+  })
+  return {
+    stdout: emptyStream(),
+    stderr: emptyStream(),
+    exited,
+    kill() {},
+  } as unknown as ReturnType<typeof Bun.spawn>
 }
 
 function createArchitectureGraphDatabase(projectPath: string) {

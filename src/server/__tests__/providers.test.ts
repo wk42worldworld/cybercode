@@ -264,6 +264,16 @@ describe('ProviderService', () => {
               opus: 'kimi-k2-0905-preview',
             },
           },
+          {
+            id: 'kimi-k3-custom-context',
+            presetId: 'kimi',
+            name: 'Kimi K3 Limited Context',
+            apiKey: 'sk-kimi',
+            baseUrl: 'https://api.moonshot.cn',
+            apiFormat: 'openai_chat',
+            models: { main: 'kimi-k3', haiku: 'kimi-k3', sonnet: 'kimi-k3', opus: 'kimi-k3' },
+            modelContextWindows: { main: 262144, haiku: 262144, sonnet: 262144, opus: 262144 },
+          },
         ],
       }), 'utf-8')
 
@@ -301,6 +311,7 @@ describe('ProviderService', () => {
         sonnet: 'kimi-k2.6',
         opus: 'kimi-k2.6',
       })
+      expect(byId.get('kimi-k3-custom-context')?.modelContextWindows?.main).toBe(262144)
     })
 
     test('should migrate retired Xiaomi MiMo model ids', async () => {
@@ -1141,6 +1152,42 @@ describe('ProviderService', () => {
         expect(result.connectivity.success).toBe(true)
         expect(bodies[0].thinking).toEqual({ type: 'enabled' })
         expect(bodies[0].reasoning_effort).toBeUndefined()
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should use K3 max reasoning during Kimi open-platform connectivity checks', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const bodies: Array<Record<string, unknown>> = []
+
+      globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
+        bodies.push(body)
+        return Response.json({
+          id: 'chatcmpl-kimi-k3',
+          object: 'chat.completion',
+          model: body.model,
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: 'ok' },
+            finish_reason: 'stop',
+          }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://api.moonshot.cn',
+          apiKey: 'test-key',
+          modelId: 'kimi-k3',
+          apiFormat: 'openai_chat',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(bodies[0].thinking).toBeUndefined()
+        expect(bodies[0].reasoning_effort).toBe('max')
       } finally {
         globalThis.fetch = originalFetch
       }

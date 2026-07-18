@@ -64,6 +64,7 @@ type ChatInputProps = {
   workDir?: string
   onWorkDirChange?: (dir: string) => void
   runtimeKey?: string
+  isPanelActive?: boolean
 }
 
 function isTauriRuntime() {
@@ -146,7 +147,7 @@ function hasAttachableDragData(dataTransfer: DataTransfer): boolean {
   return types.includes('Files') || types.includes('text/uri-list')
 }
 
-export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey }: ChatInputProps) {
+export function ChatInput({ variant = 'default', sessionId: sessionIdProp, projectPath, onSubmit: onSubmitProp, workDir: workDirProp, onWorkDirChange, runtimeKey, isPanelActive = true }: ChatInputProps) {
   const t = useTranslation()
   const [input, setInput] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
@@ -170,7 +171,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const wasActiveRef = useRef(false)
   const dragDepthRef = useRef(0)
   const slashItemRefs = useRef<(HTMLButtonElement | null)[]>([])
-  const { sendMessage, stopGeneration, queuePendingSteer } = useChatStore()
+  const { sendMessage, stopGeneration, queuePendingSteer, prewarmSession } = useChatStore()
   const globalActiveTabId = useTabStore((s) => s.activeTabId)
   const activeTabId = sessionIdProp ?? globalActiveTabId
   const sessionState = useChatStore((s) => activeTabId ? s.sessions[activeTabId] : undefined)
@@ -192,13 +193,38 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const canSubmit = !isWorkspaceMissing && (input.trim().length > 0 || (!isMemberSession && attachments.length > 0))
   const isHeroComposer = variant === 'hero' && !isMemberSession
   const resolvedWorkDir = workDirProp ?? (activeSession?.workDir || gitInfo?.workDir || undefined)
+  const runtimeIntentSentRef = useRef<string | null>(null)
+
+  const signalRuntimeIntent = useCallback(() => {
+    if (!isPanelActive || !activeTabId || runtimeIntentSentRef.current === activeTabId) return
+    runtimeIntentSentRef.current = activeTabId
+    prewarmSession(activeTabId)
+  }, [activeTabId, isPanelActive, prewarmSession])
 
   useEffect(() => {
+    if (runtimeIntentSentRef.current !== activeTabId) {
+      runtimeIntentSentRef.current = null
+    }
+  }, [activeTabId])
+
+  useEffect(() => {
+    if (!isPanelActive) return
     if (wasActiveRef.current && !isActive) {
       textareaRef.current?.focus()
     }
     wasActiveRef.current = isActive
-  }, [isActive])
+  }, [isActive, isPanelActive])
+
+  useEffect(() => {
+    if (isPanelActive) return
+    setPlusMenuOpen(false)
+    setSlashMenuOpen(false)
+    setFileSearchOpen(false)
+    setLocalSlashPanel(null)
+    setIsDraggingFiles(false)
+    dragDepthRef.current = 0
+    textareaRef.current?.blur()
+  }, [isPanelActive])
 
   useEffect(() => {
     if (!composerPrefill) return
@@ -264,7 +290,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   }, [input])
 
   useEffect(() => {
-    if (!plusMenuOpen) return
+    if (!isPanelActive || !plusMenuOpen) return
     const handleClick = (event: MouseEvent) => {
       if (plusMenuRef.current && !plusMenuRef.current.contains(event.target as Node)) {
         setPlusMenuOpen(false)
@@ -272,10 +298,10 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [plusMenuOpen])
+  }, [isPanelActive, plusMenuOpen])
 
   useEffect(() => {
-    if (!slashMenuOpen) return
+    if (!isPanelActive || !slashMenuOpen) return
     const handleClick = (event: MouseEvent) => {
       if (
         slashMenuRef.current &&
@@ -288,10 +314,10 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [slashMenuOpen])
+  }, [isPanelActive, slashMenuOpen])
 
   useEffect(() => {
-    if (!localSlashPanel) return
+    if (!isPanelActive || !localSlashPanel) return
     const handleClick = (event: MouseEvent) => {
       if (
         slashMenuRef.current &&
@@ -304,10 +330,10 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [localSlashPanel])
+  }, [isPanelActive, localSlashPanel])
 
   useEffect(() => {
-    if (!fileSearchOpen) return
+    if (!isPanelActive || !fileSearchOpen) return
     const handleClick = (event: MouseEvent) => {
       const menu = document.getElementById('file-search-menu')
       if (
@@ -321,7 +347,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [fileSearchOpen])
+  }, [fileSearchOpen, isPanelActive])
 
   const allSlashCommands = useMemo(
     () => mergeSlashCommands(slashCommands, FALLBACK_SLASH_COMMANDS),
@@ -666,7 +692,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   }, [])
 
   useEffect(() => {
-    if (isMemberSession || !isTauriRuntime()) return
+    if (!isPanelActive || isMemberSession || !isTauriRuntime()) return
 
     let cancelled = false
     let unlisten: (() => void) | undefined
@@ -704,7 +730,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
       cancelled = true
       unlisten?.()
     }
-  }, [addPathAttachments, isMemberSession, resetDragState])
+  }, [addPathAttachments, isMemberSession, isPanelActive, resetDragState])
 
   const handleAddFiles = async () => {
     if (isMemberSession) return
@@ -1070,11 +1096,18 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
             <textarea
               ref={textareaRef}
               value={input}
+              onPointerDown={signalRuntimeIntent}
               onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(event) => {
+                signalRuntimeIntent()
+                handleKeyDown(event)
+              }}
               onCompositionStart={() => { composingRef.current = true }}
               onCompositionEnd={() => { composingRef.current = false }}
-              onPaste={handlePaste}
+              onPaste={(event) => {
+                signalRuntimeIntent()
+                handlePaste(event)
+              }}
               placeholder={composerPlaceholder}
               disabled={isWorkspaceMissing}
               rows={1}

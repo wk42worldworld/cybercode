@@ -2,6 +2,8 @@
  * Prompt memory REST API
  *
  * GET  /api/prompt-memory
+ * GET  /api/prompt-memory/config
+ * PATCH /api/prompt-memory/config
  * GET  /api/prompt-memory/logs
  * GET  /api/prompt-memory/:target
  * PUT  /api/prompt-memory/:target
@@ -9,6 +11,10 @@
  */
 
 import { readPromptMemoryAutoReviewLogs } from '../../promptMemory/autoReview.js'
+import {
+  readPromptMemoryConfig,
+  updatePromptMemoryConfig,
+} from '../../promptMemory/config.js'
 import { buildPromptMemoryInsights } from '../../promptMemory/insights.js'
 import {
   PromptMemoryError,
@@ -52,12 +58,34 @@ export async function handlePromptMemoryApi(
       }))
     }
 
+    if (segments[2] === 'config') {
+      if (req.method === 'GET') {
+        return Response.json(await readPromptMemoryConfig())
+      }
+      if (req.method === 'PATCH' || req.method === 'PUT') {
+        const body = await parseJsonBody(req)
+        if (typeof body.injectEvolutionMemory !== 'boolean') {
+          throw ApiError.badRequest(
+            'Missing or invalid "injectEvolutionMemory"',
+          )
+        }
+        return Response.json(await updatePromptMemoryConfig({
+          injectEvolutionMemory: body.injectEvolutionMemory,
+        }))
+      }
+      throw methodNotAllowed(req.method)
+    }
+
     const target = parsePromptMemoryTarget(segments[2])
     const sub = segments[3]
 
     if (!target) {
       if (segments[2] === undefined && req.method === 'GET') {
-        return Response.json(await getPromptMemoryStatus())
+        const [status, config] = await Promise.all([
+          getPromptMemoryStatus(),
+          readPromptMemoryConfig(),
+        ])
+        return Response.json({ ...status, config })
       }
       throw ApiError.notFound(`Unknown prompt memory target: ${segments[2]}`)
     }

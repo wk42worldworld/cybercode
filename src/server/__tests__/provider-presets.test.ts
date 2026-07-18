@@ -105,9 +105,9 @@ describe('provider presets API', () => {
     expect(kimiCode?.defaultModelContextWindows?.main).toBe(262_144)
     expect(kimi?.baseUrl).toBe('https://api.moonshot.cn')
     expect(kimi?.apiFormat).toBe('openai_chat')
-    expect(kimi?.defaultModels.main).toBe('kimi-k2.7-code')
+    expect(kimi?.defaultModels.main).toBe('kimi-k3')
     expect(kimi?.defaultModels.haiku).toBe('kimi-k2.6')
-    expect(kimi?.defaultModelContextWindows?.main).toBe(262_144)
+    expect(kimi?.defaultModelContextWindows?.main).toBe(1_048_576)
     expect(minimax?.defaultModels.main).toBe('MiniMax-M3')
     expect(minimax?.defaultModelContextWindows?.main).toBe(1_000_000)
     expect(xiaomi?.defaultModels.haiku).toBe('mimo-v2.5')
@@ -163,15 +163,21 @@ describe('provider presets API', () => {
       label: 'GLM-5.2',
       contextWindow: 1_000_000,
     })
-    expect(kimiCode?.modelOptions?.[0]?.id).toBe('kimi-for-coding')
-    expect(kimiCode?.modelOptions?.[1]).toEqual({
+    expect(kimiCode?.modelOptions?.[0]).toEqual({
+      id: 'k3',
+      label: 'Kimi K3',
+      contextWindow: 1_048_576,
+      supportsImages: true,
+    })
+    expect(kimiCode?.modelOptions?.[2]).toEqual({
       id: 'kimi-for-coding-highspeed',
       label: 'Kimi for Coding HighSpeed',
       contextWindow: 262_144,
       supportsImages: true,
     })
-    expect(kimiCode?.modelOptions).toHaveLength(2)
+    expect(kimiCode?.modelOptions).toHaveLength(3)
     expect(kimi?.modelOptions?.map((option) => option.id)).toEqual([
+      'kimi-k3',
       'kimi-k2.7-code',
       'kimi-k2.7-code-highspeed',
       'kimi-k2.6',
@@ -201,6 +207,8 @@ describe('provider presets API', () => {
       'deepseek:deepseek-v4-pro',
       'deepseek:deepseek-v4-flash',
       'zhipuglm:glm-5.2',
+      'kimi-code:k3',
+      'kimi:kimi-k3',
       'minimax:MiniMax-M3',
       'xiaomimimo:mimo-v2.5-pro',
       'xiaomimimo:mimo-v2.5',

@@ -1,8 +1,8 @@
 export function isKimiModel(model: string | undefined): boolean {
-  const normalized = model?.trim().toLowerCase()
+  const normalized = model?.trim().toLowerCase().replace(/\[(?:1|2)m\]$/i, '')
   if (!normalized) return false
 
-  return normalized.includes('kimi') || normalized.includes('moonshot')
+  return normalized === 'k3' || normalized.includes('kimi') || normalized.includes('moonshot')
 }
 
 export function isKimiBaseUrl(baseUrl: string | undefined): boolean {
@@ -25,6 +25,7 @@ export function isKimiProviderTarget(model: string | undefined, baseUrl = proces
 
 export {
   isKimiAlwaysOnThinkingModel,
+  isKimiK3ModelId,
   shouldOmitDisabledThinkingForModel,
   shouldOmitThinkingParamForModel,
 } from './thinkingPolicy.js'

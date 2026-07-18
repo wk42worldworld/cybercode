@@ -384,6 +384,17 @@ describe('session search memory index', () => {
       expect(memories).toHaveLength(1)
       expect(memories[0]?.source).toBe('prompt-memory')
       expect(memories[0]?.summary).toContain('零')
+
+      expect(searchProjectMemories({
+        db,
+        query: '零',
+        includePromptMemory: false,
+      })).toHaveLength(0)
+      expect(buildProjectMemoryPromptContext({
+        db,
+        query: '零',
+        includePromptMemory: false,
+      })).toBeNull()
     } finally {
       db.close()
     }

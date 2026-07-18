@@ -10,6 +10,7 @@ import {
 } from 'fs/promises'
 import { dirname, isAbsolute, join, resolve, sep } from 'path'
 import { scanForSecrets } from '../services/teamMemorySync/secretScanner.js'
+import { logForDebugging } from '../utils/debug.js'
 import { parseFrontmatter } from '../utils/frontmatterParser.js'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
 import { getSkillLearningBackupsRoot } from './paths.js'
@@ -189,6 +190,14 @@ export async function approveSkillCandidate(
     skillName: approved.name,
     toolUseCount: approved.sourceToolUses,
   })
+  await import('../commands.js')
+    .then(({ clearCommandsCache }) => clearCommandsCache())
+    .catch(error => {
+      logForDebugging(
+        `[skill-learning] failed to refresh the Skill catalog: ${String(error)}`,
+        { level: 'debug' },
+      )
+    })
   return approved
 }
 

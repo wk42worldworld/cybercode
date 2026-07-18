@@ -90,6 +90,8 @@ describe('model image support', () => {
   test('infers common vision and text-only model ids', () => {
     expect(inferModelSupportsImages('gpt-4o')).toBe(true)
     expect(inferModelSupportsImages('qwen-vl-plus')).toBe(true)
+    expect(inferModelSupportsImages('k3')).toBe(true)
+    expect(inferModelSupportsImages('kimi-k3')).toBe(true)
     expect(inferModelSupportsImages('kimi-k2.6')).toBe(true)
     expect(inferModelSupportsImages('kimi-k2.7-code')).toBe(true)
     expect(inferModelSupportsImages('kimi-for-coding')).toBe(true)

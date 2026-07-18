@@ -1,0 +1,10 @@
+[Unit]
+Description=Monthly CyberCode offline GeoIP database refresh
+
+[Timer]
+OnCalendar=*-*-03 03:20:00
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

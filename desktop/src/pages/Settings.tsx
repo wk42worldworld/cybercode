@@ -606,6 +606,8 @@ function inferModelSupportsImages(modelId: string | undefined): boolean | undefi
     normalized.includes('gpt-4o') ||
     normalized.includes('gpt-4.1') ||
     normalized.includes('gpt-5') ||
+    normalized === 'k3' ||
+    normalized.includes('kimi-k3') ||
     normalized.includes('kimi-k2') ||
     normalized.includes('kimi-for-coding') ||
     /\bqwen3\.(?:5|6|7)(?:[:\-]|$)/.test(normalized) ||
@@ -1450,6 +1452,7 @@ export function MemorySettings() {
   const [draft, setDraft] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingInjection, setIsSavingInjection] = useState(false)
   const [removingInsightId, setRemovingInsightId] = useState<string | null>(null)
   const [pendingRemoveInsight, setPendingRemoveInsight] = useState<PromptMemoryInsight | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -1508,6 +1511,7 @@ export function MemorySettings() {
       const saved = await promptMemoryApi.write(target, draft)
       setStatus((current) => current
         ? {
+            ...current,
             files: {
               ...current.files,
               [target]: saved,
@@ -1525,6 +1529,28 @@ export function MemorySettings() {
       setError(getMemoryErrorMessage(saveError, t('settings.memory.saveFailed')))
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleInjectionChange = async (injectEvolutionMemory: boolean) => {
+    setIsSavingInjection(true)
+    setError(null)
+    try {
+      const config = await promptMemoryApi.updateConfig(injectEvolutionMemory)
+      setStatus((current) => current ? { ...current, config } : current)
+      addToast({
+        type: 'success',
+        message: t(injectEvolutionMemory
+          ? 'settings.memory.injection.enabledToast'
+          : 'settings.memory.injection.disabledToast'),
+      })
+    } catch (saveError) {
+      setError(getMemoryErrorMessage(
+        saveError,
+        t('settings.memory.injection.saveFailed'),
+      ))
+    } finally {
+      setIsSavingInjection(false)
     }
   }
 
@@ -1638,6 +1664,28 @@ export function MemorySettings() {
           </button>
         ))}
       </nav>
+
+      <section className="mb-[22px] flex min-h-[70px] items-center justify-between gap-[18px] border-y border-[var(--color-border-separator)] px-[2px] py-[12px]">
+        <div className="flex min-w-0 items-start gap-[11px]">
+          <span className="mt-[1px] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[7px] bg-[var(--color-surface-container-low)] text-[var(--color-text-secondary)]">
+            <Icon name="psychology" size={16} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-[12px] font-semibold leading-[18px] text-[var(--color-text-primary)]">
+              {t('settings.memory.injection.title')}
+            </h2>
+            <p className="mt-[2px] max-w-[760px] whitespace-normal text-[10px] leading-[16px] text-[var(--color-text-tertiary)]">
+              {t('settings.memory.injection.description')}
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={status?.config?.injectEvolutionMemory ?? true}
+          onChange={(next) => void handleInjectionChange(next)}
+          disabled={isLoading || isSavingInjection || !status}
+          ariaLabel={t('settings.memory.injection.title')}
+        />
+      </section>
 
       <AnimatePresence initial={false}>
         {activeView === 'profile' && (
@@ -2043,6 +2091,7 @@ function MetaPill({ children }: { children: ReactNode }) {
 
 export function SkillSettings() {
   const selectedSkill = useSkillStore((s) => s.selectedSkill)
+  const fetchInstalledSkills = useSkillStore((s) => s.fetchSkills)
   const t = useTranslation()
   const [config, setConfig] = useState<SkillsConfig | null>(null)
   const [openingConfig, setOpeningConfig] = useState(false)
@@ -2053,6 +2102,10 @@ export function SkillSettings() {
   const fetchLearningOverview = useSkillLearningStore((s) => s.fetchOverview)
   const activeSession = sessions.find((session) => session.id === activeSessionId)
   const currentWorkDir = activeSession?.workDir || undefined
+  const recentCandidates = overview?.recentCandidates ?? []
+  const latestApprovedCandidateAt = recentCandidates.find(
+    (candidate) => candidate.status === 'approved',
+  )?.updatedAt
 
   useEffect(() => {
     let cancelled = false
@@ -2073,6 +2126,11 @@ export function SkillSettings() {
     }, 12_000)
     return () => window.clearInterval(timer)
   }, [currentWorkDir, fetchLearningOverview])
+
+  useEffect(() => {
+    if (!latestApprovedCandidateAt) return
+    void fetchInstalledSkills(currentWorkDir)
+  }, [currentWorkDir, fetchInstalledSkills, latestApprovedCandidateAt])
 
   const openConfigDir = async () => {
     setOpeningConfig(true)
@@ -2152,7 +2210,13 @@ export function SkillSettings() {
         {([
           ['installed', t('settings.skills.learning.tab.installed'), undefined],
           ['pending', t('settings.skills.learning.tab.pending'), overview?.pendingCandidates.length],
-          ['learning', t('settings.skills.learning.tab.learning'), overview?.memories.length],
+          [
+            'learning',
+            t('settings.skills.learning.tab.learning'),
+            overview
+              ? overview.memories.length + recentCandidates.length
+              : undefined,
+          ],
         ] as const).map(([key, label, count]) => (
           <button
             key={key}

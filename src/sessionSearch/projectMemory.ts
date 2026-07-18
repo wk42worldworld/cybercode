@@ -478,6 +478,7 @@ function searchProjectMemoriesWithFts(params: {
   query: string
   limit: number
   currentSessionId?: string
+  includePromptMemory: boolean
 }): ProjectMemoryRow[] {
   const useTrigram = isCjkQuery(params.query) && params.query.trim().length >= 3
   const ftsTable = useTrigram ? 'project_memories_fts_trigram' : 'project_memories_fts'
@@ -490,6 +491,10 @@ function searchProjectMemoriesWithFts(params: {
   if (params.currentSessionId) {
     where.push('pm.session_id <> ?')
     values.push(params.currentSessionId)
+  }
+  if (!params.includePromptMemory) {
+    where.push('pm.source <> ?')
+    values.push('prompt-memory')
   }
   values.push(params.limit)
 
@@ -510,6 +515,7 @@ function searchProjectMemoriesWithLike(params: {
   query: string
   limit: number
   currentSessionId?: string
+  includePromptMemory: boolean
 }): ProjectMemoryRow[] {
   const where = [
     `(summary LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\' OR keywords LIKE ? ESCAPE '\\' OR work_dir LIKE ? ESCAPE '\\')`,
@@ -519,6 +525,10 @@ function searchProjectMemoriesWithLike(params: {
   if (params.currentSessionId) {
     where.push('session_id <> ?')
     values.push(params.currentSessionId)
+  }
+  if (!params.includePromptMemory) {
+    where.push('source <> ?')
+    values.push('prompt-memory')
   }
   values.push(params.limit)
 
@@ -537,12 +547,17 @@ function recentProjectMemoryRows(params: {
   db: Database
   limit: number
   currentSessionId?: string
+  includePromptMemory: boolean
 }): ProjectMemoryRow[] {
   const where: string[] = []
   const values: unknown[] = []
   if (params.currentSessionId) {
     where.push('session_id <> ?')
     values.push(params.currentSessionId)
+  }
+  if (!params.includePromptMemory) {
+    where.push('source <> ?')
+    values.push('prompt-memory')
   }
   values.push(params.limit)
 
@@ -562,10 +577,12 @@ export function searchProjectMemories(params: {
   limit?: number
   currentSessionId?: string
   includeRecentFallback?: boolean
+  includePromptMemory?: boolean
   db?: Database
 }): ProjectMemoryEntry[] {
   const limit = Math.max(1, Math.min(8, Math.trunc(params.limit ?? 4)))
   const query = params.query?.trim() ?? ''
+  const includePromptMemory = params.includePromptMemory !== false
   const ownDb = !params.db
   const db = params.db ?? openSessionSearchDb()
   try {
@@ -587,6 +604,7 @@ export function searchProjectMemories(params: {
           query,
           limit,
           currentSessionId: params.currentSessionId,
+          includePromptMemory,
         }))
       } catch {
         addRows(searchProjectMemoriesWithLike({
@@ -594,6 +612,7 @@ export function searchProjectMemories(params: {
           query,
           limit,
           currentSessionId: params.currentSessionId,
+          includePromptMemory,
         }))
       }
       if (rows.length === 0 && isCjkQuery(query)) {
@@ -602,6 +621,7 @@ export function searchProjectMemories(params: {
           query,
           limit,
           currentSessionId: params.currentSessionId,
+          includePromptMemory,
         }))
       }
     }
@@ -614,6 +634,7 @@ export function searchProjectMemories(params: {
         db,
         limit,
         currentSessionId: params.currentSessionId,
+        includePromptMemory,
       }))
     }
 
@@ -627,6 +648,7 @@ export function buildProjectMemoryPromptContext(params: {
   query?: string
   limit?: number
   currentSessionId?: string
+  includePromptMemory?: boolean
   db?: Database
 }): string | null {
   const memories = searchProjectMemories({
@@ -636,7 +658,9 @@ export function buildProjectMemoryPromptContext(params: {
   if (memories.length === 0) return null
 
   const chunks: string[] = [
-    'Lightweight memories from CyberCode sessions, project memory files, and prompt memory follow. Use them only if they are relevant to the current request; if they conflict with the current request, prefer the current request.',
+    params.includePromptMemory === false
+      ? 'Lightweight memories from CyberCode sessions and project memory files follow. Use them only if they are relevant to the current request; if they conflict with the current request, prefer the current request.'
+      : 'Lightweight memories from CyberCode sessions, project memory files, and prompt memory follow. Use them only if they are relevant to the current request; if they conflict with the current request, prefer the current request.',
   ]
 
   for (const [index, memory] of memories.entries()) {

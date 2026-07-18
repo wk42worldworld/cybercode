@@ -54,12 +54,19 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const memberInfo = useTeamStore((s) => sessionId ? s.getMemberBySessionId(sessionId) : null)
   const activeTeam = useTeamStore((s) => s.activeTeam)
   const isMemberSession = !!memberInfo
+  const historyNeedsLoading =
+    sessionState?.historyLoadState === undefined ||
+    sessionState.historyLoadState === 'idle'
+  const needsSessionReady =
+    !sessionState ||
+    sessionState.connectionState === 'disconnected' ||
+    historyNeedsLoading
 
   useEffect(() => {
-    if (sessionId && !isMemberSession) {
+    if (sessionId && !isMemberSession && isActive && needsSessionReady) {
       void ensureSessionReady(sessionId, resolvedProjectPath)
     }
-  }, [sessionId, resolvedProjectPath, isMemberSession, ensureSessionReady])
+  }, [sessionId, resolvedProjectPath, isActive, isMemberSession, needsSessionReady, ensureSessionReady])
 
   useEffect(() => {
     if (!sessionId || isMemberSession || !isActive) return
@@ -317,7 +324,13 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
               <TeamStatusBar />
             </div>
             <div ref={composerShellRef} className="pointer-events-auto">
-              <ChatInput sessionId={sessionId} projectPath={resolvedProjectPath} variant="default" runtimeKey={sessionId} />
+              <ChatInput
+                sessionId={sessionId}
+                projectPath={resolvedProjectPath}
+                variant="default"
+                runtimeKey={sessionId}
+                isPanelActive={isActive}
+              />
             </div>
           </div>
 

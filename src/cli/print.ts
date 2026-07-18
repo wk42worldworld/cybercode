@@ -355,6 +355,7 @@ import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
 import { drainPendingPromptMemoryAutoReview } from '../promptMemory/autoReview.js'
 import { drainPendingSessionSearchIndexRefresh } from '../sessionSearch/turnIndex.js'
+import { drainPendingSkillLearningReviews } from '../skillLearning/reviewer.js'
 
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -974,6 +975,7 @@ export async function runHeadless(
   }
   await drainPendingSessionSearchIndexRefresh()
   await drainPendingPromptMemoryAutoReview()
+  await drainPendingSkillLearningReviews()
 
   gracefulShutdownSync(
     lastMessage?.type === 'result' && lastMessage?.is_error ? 1 : 0,

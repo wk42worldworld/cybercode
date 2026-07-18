@@ -33,9 +33,15 @@ function confidencePercent(value: number): string {
 function learningEventText(
   event: SkillLearningEvent,
   t: ReturnType<typeof useTranslation>,
+  minToolUses: number,
 ): string {
   const name = event.skillName ?? ''
   switch (event.kind) {
+    case 'review-skipped':
+      return t('settings.skills.learning.event.reviewSkipped', {
+        count: event.toolUseCount ?? 0,
+        required: minToolUses,
+      })
     case 'review-started':
       return t('settings.skills.learning.event.reviewStarted')
     case 'candidate-created':
@@ -278,8 +284,90 @@ function PendingCandidates({
 
 function LearningActivity({ overview }: { overview: SkillLearningOverview }) {
   const t = useTranslation()
+  const isEnabled = overview.config.mode !== 'off'
+  const latestEvent = overview.events[0]
+  const recentCandidates = overview.recentCandidates ?? []
   return (
     <div className="space-y-5">
+      <section className="flex min-h-[68px] items-center justify-between gap-4 border-y border-[var(--color-border)] px-1 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${isEnabled ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
+          <div className="min-w-0">
+            <h3 className="text-[12px] font-semibold text-[var(--color-text-primary)]">
+              {t(isEnabled
+                ? 'settings.skills.learning.status.running'
+                : 'settings.skills.learning.status.paused')}
+            </h3>
+            <p className="mt-1 text-[10px] leading-4 text-[var(--color-text-tertiary)]">
+              {overview.config.mode === 'auto'
+                ? t('settings.skills.learning.status.autoHint', {
+                    tools: overview.config.minToolUses,
+                    confidence: confidencePercent(overview.config.autoApproveConfidence),
+                  })
+                : overview.config.mode === 'suggest'
+                  ? t('settings.skills.learning.status.suggestHint', {
+                      tools: overview.config.minToolUses,
+                    })
+                  : t('settings.skills.learning.mode.off.hint')}
+            </p>
+          </div>
+        </div>
+        {latestEvent && (
+          <span className="shrink-0 text-[10px] text-[var(--color-text-tertiary)]">
+            {t('settings.skills.learning.status.lastActivity', {
+              date: formatDate(latestEvent.createdAt),
+            })}
+          </span>
+        )}
+      </section>
+
+      {recentCandidates.length > 0 && (
+        <section>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-[12px] font-semibold text-[var(--color-text-primary)]">
+              {t('settings.skills.learning.recentTitle')}
+            </h3>
+            <span className="text-[10px] text-[var(--color-text-tertiary)]">
+              {recentCandidates.length}
+            </span>
+          </div>
+          <div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+            {recentCandidates.slice(0, 12).map((candidate) => (
+              <div key={candidate.id} className="flex items-start gap-3 px-1 py-3">
+                <Icon
+                  name={candidate.status === 'approved'
+                    ? 'check_circle'
+                    : candidate.status === 'failed'
+                      ? 'error'
+                      : 'close'}
+                  size={15}
+                  className={`mt-0.5 ${candidate.status === 'failed' ? 'text-[var(--color-error)]' : 'text-[var(--color-text-tertiary)]'}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="break-all text-[12px] font-semibold text-[var(--color-text-primary)]">
+                      /{candidate.name}
+                    </span>
+                    <span className="text-[10px] text-[var(--color-text-tertiary)]">
+                      {t(`settings.skills.learning.candidateStatus.${candidate.status}`)}
+                    </span>
+                    <span className="text-[10px] text-[var(--color-text-tertiary)]">
+                      {t(`settings.skills.learning.action.${candidate.action}`)}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--color-text-secondary)]">
+                    {candidate.description}
+                  </p>
+                  <p className="mt-1 text-[10px] text-[var(--color-text-tertiary)]">
+                    {formatDate(candidate.updatedAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-[12px] font-semibold text-[var(--color-text-primary)]">
@@ -344,7 +432,7 @@ function LearningActivity({ overview }: { overview: SkillLearningOverview }) {
               />
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] leading-4 text-[var(--color-text-secondary)]">
-                  {learningEventText(event, t)}
+                  {learningEventText(event, t, overview.config.minToolUses)}
                 </p>
                 <p className="mt-1 text-[10px] text-[var(--color-text-tertiary)]">
                   {formatDate(event.createdAt)}

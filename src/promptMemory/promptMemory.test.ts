@@ -19,6 +19,11 @@ import {
   USER_PROMPT_MEMORY_CHAR_LIMIT,
 } from './budget.js'
 import {
+  DEFAULT_PROMPT_MEMORY_CONFIG,
+  readPromptMemoryConfig,
+  updatePromptMemoryConfig,
+} from './config.js'
+import {
   clearPromptMemorySnapshotForTesting,
   loadPromptMemory,
 } from './loadPromptMemory.js'
@@ -27,6 +32,7 @@ import {
   buildPromptMemoryAutoReviewPrompt,
   extractPromptMemoryAutoReviewLogs,
   formatPromptMemoryAutoReviewNotice,
+  getConfiguredPromptMemoryLanguage,
   hasExplicitPromptMemorySignal,
   normalizePromptMemoryLanguage,
   readPromptMemoryAutoReviewLogs,
@@ -36,6 +42,7 @@ import {
 } from './autoReview.js'
 import {
   getBriefPath,
+  getPromptMemoryConfigPath,
   getPromptMemoryDir,
   getSoulPath,
   getUserPromptMemoryPath,
@@ -121,6 +128,21 @@ describe('prompt memory', () => {
     expect(getUserPromptMemoryPath()).toBe(
       join(tmpHome, '.cyber', 'prompt-memory', 'USER.md'),
     )
+    expect(getPromptMemoryConfigPath()).toBe(
+      join(tmpHome, '.cyber', 'prompt-memory', 'config.json'),
+    )
+  })
+
+  test('enables evolution-memory injection by default and persists changes', async () => {
+    expect(await readPromptMemoryConfig()).toEqual(
+      DEFAULT_PROMPT_MEMORY_CONFIG,
+    )
+
+    const updated = await updatePromptMemoryConfig({
+      injectEvolutionMemory: false,
+    })
+    expect(updated.injectEvolutionMemory).toBe(false)
+    expect((await readPromptMemoryConfig()).injectEvolutionMemory).toBe(false)
   })
 
   test('classifies tagged and legacy memories into visible evolution dimensions', () => {
@@ -232,6 +254,25 @@ describe('prompt memory', () => {
     expect(prompt).toContain('- Use Bun for this project.')
     expect(prompt).toContain('## User')
     expect(prompt).toContain('- User prefers Chinese.')
+  })
+
+  test('can pause BRIEF and USER injection without disabling SOUL or deleting memory', async () => {
+    await mkdir(getPromptMemoryDir(), { recursive: true })
+    await writeFile(getSoulPath(), 'You are CyberCode with a calm style.')
+    await writeFile(getBriefPath(), '- Use Bun for this project.')
+    await writeFile(getUserPromptMemoryPath(), '- User prefers Chinese.')
+    await updatePromptMemoryConfig({ injectEvolutionMemory: false })
+
+    const prompt = await loadPromptMemory()
+
+    expect(prompt).toContain('# CyberCode Soul')
+    expect(prompt).not.toContain('# Prompt Memory')
+    expect(prompt).not.toContain('- Use Bun for this project.')
+    expect(prompt).not.toContain('- User prefers Chinese.')
+    await expect(readFile(getBriefPath(), 'utf-8')).resolves.toContain('Use Bun')
+    await expect(readFile(getUserPromptMemoryPath(), 'utf-8')).resolves.toContain(
+      'prefers Chinese',
+    )
   })
 
   test('loads prompt memory even when a custom system prompt is set', async () => {
@@ -509,6 +550,21 @@ describe('prompt memory', () => {
     expect(normalizePromptMemoryLanguage('Japanese')).toBe('Japanese')
     expect(normalizePromptMemoryLanguage('Korean')).toBe('Korean')
     expect(normalizePromptMemoryLanguage(undefined)).toContain('recent messages')
+  })
+
+  test('reads the automatic memory language from the current settings file', async () => {
+    const configDir = join(tmpHome, '.cyber')
+    await mkdir(configDir, { recursive: true })
+    await writeFile(
+      join(configDir, 'settings.json'),
+      JSON.stringify({
+        language: 'English',
+        promptMemoryLanguage: 'Chinese',
+      }),
+      'utf-8',
+    )
+
+    expect(getConfiguredPromptMemoryLanguage()).toBe('Simplified Chinese')
   })
 
   test('PromptMemory tool guides the assistant to acknowledge naturally', async () => {

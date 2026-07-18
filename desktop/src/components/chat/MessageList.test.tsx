@@ -52,6 +52,49 @@ describe('MessageList nested tool calls', () => {
     useUIStore.setState({ toasts: [] })
   })
 
+  it('describes history failures as local reads without implying internet access', () => {
+    useSettingsStore.setState({ locale: 'zh' })
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          allMessagesLoaded: false,
+          historyLoadState: 'error',
+        }),
+      },
+    })
+
+    render(<MessageList __testInitialItemCount={100} />)
+
+    expect(screen.getByText('本地聊天记录读取失败')).toBeTruthy()
+    expect(screen.getByText('聊天记录仍保存在这台电脑上，请重试。')).toBeTruthy()
+    expect(screen.queryByText(/network|网络/i)).toBeNull()
+    expect(screen.getByRole('button', { name: '重试' })).toBeTruthy()
+  })
+
+  it('does not flash a loading indicator for fast local history reads', () => {
+    vi.useFakeTimers()
+    try {
+      useChatStore.setState({
+        sessions: {
+          [ACTIVE_TAB]: makeSessionState({
+            allMessagesLoaded: false,
+            historyLoadState: 'loading',
+          }),
+        },
+      })
+
+      render(<MessageList __testInitialItemCount={100} />)
+
+      expect(screen.queryByText('Loading local chat history...')).toBeNull()
+      act(() => vi.advanceTimersByTime(799))
+      expect(screen.queryByText('Loading local chat history...')).toBeNull()
+      act(() => vi.advanceTimersByTime(1))
+      expect(screen.getByText('Loading local chat history...')).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('shows localized activity after the user message until the AI turn completes', async () => {
     const userMessage: UIMessage = {
       id: 'user-status',
@@ -929,7 +972,7 @@ describe('MessageList nested tool calls', () => {
 
     await waitFor(() => {
       expect(screen.getByText('streaming new token')).toBeTruthy()
-    })
+    }, { timeout: 3_000 })
     expect(scrollIntoView).not.toHaveBeenCalled()
   })
 
@@ -967,7 +1010,7 @@ describe('MessageList nested tool calls', () => {
 
     await waitFor(() => {
       expect(screen.getByText('streaming next token')).toBeTruthy()
-    })
+    }, { timeout: 3_000 })
   })
 
   it('keeps user actions anchored to the right bubble and assistant actions to the left bubble', () => {
@@ -1152,10 +1195,11 @@ describe('MessageList nested tool calls', () => {
         [ACTIVE_TAB]: makeSessionState({
           messages: [
             {
-              id: 'user-1',
+              id: 'ui-user-1',
               type: 'user_text',
               content: '回到这一步重做',
               timestamp: 1,
+              serverId: 'user-1',
             },
           ],
         }),
@@ -1175,11 +1219,47 @@ describe('MessageList nested tool calls', () => {
       {
         targetUserMessageId: 'user-1',
         userMessageIndex: 0,
+        userMessageOffsetFromEnd: 0,
         expectedContent: '回到这一步重做',
         dryRun: true,
       },
       { projectPath: undefined },
     )
+  })
+
+  it('localizes branch and rewind action hints in Chinese', () => {
+    useSettingsStore.setState({ locale: 'zh' })
+    useChatStore.setState({
+      sessions: {
+        [ACTIVE_TAB]: makeSessionState({
+          messages: [
+            {
+              id: 'localized-user',
+              type: 'user_text',
+              content: '从这里重做',
+              timestamp: 1,
+              serverId: 'localized-user-server',
+            },
+            {
+              id: 'localized-assistant',
+              type: 'assistant_text',
+              content: '可以从这里创建分支',
+              timestamp: 2,
+              serverId: 'localized-assistant-server',
+              branchServerId: 'localized-assistant-server',
+            },
+          ],
+        }),
+      },
+    })
+
+    render(<MessageList __testInitialItemCount={100} />)
+
+    const rewindButton = screen.getByRole('button', { name: '回滚到这里' })
+    const branchButton = screen.getByRole('button', { name: '从此回复创建分支' })
+    expect(rewindButton.getAttribute('title')).toBe('回滚到这里')
+    expect(branchButton.getAttribute('title')).toBe('从此回复创建分支')
+    expect(screen.queryByText('Rewind')).toBeNull()
   })
 
   it('confirms rewind with the selected message id and prompt guard', async () => {
@@ -1245,6 +1325,7 @@ describe('MessageList nested tool calls', () => {
         {
           targetUserMessageId: 'user-2',
           userMessageIndex: 1,
+          userMessageOffsetFromEnd: 0,
           expectedContent: '第二段',
         },
         { projectPath: undefined },

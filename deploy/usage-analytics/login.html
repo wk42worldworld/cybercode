@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#090b0c" />
+    <title>CyberCode 统计台登录</title>
+    <style>
+      @font-face {
+        font-family: "Satoshi";
+        src: url("/cybercode-stats/assets/satoshi-regular.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Satoshi";
+        src: url("/cybercode-stats/assets/satoshi-medium.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Satoshi";
+        src: url("/cybercode-stats/assets/satoshi-bold.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+      }
+
+      :root {
+        color-scheme: dark;
+        --bg: #090b0c;
+        --surface: #111416;
+        --surface-raised: #171b1e;
+        --line: #293137;
+        --line-strong: #3a464d;
+        --text: #f2f7f4;
+        --muted: #8e9a9f;
+        --quiet: #657178;
+        --green: #70eea5;
+        --cyan: #5bc7eb;
+        --coral: #ef8178;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        min-width: 320px;
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(rgba(125, 153, 146, .04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(125, 153, 146, .04) 1px, transparent 1px);
+        background-size: 48px 48px;
+        color: var(--text);
+        font-family: "Satoshi", "PingFang SC", "Microsoft YaHei", sans-serif;
+        letter-spacing: 0;
+        -webkit-font-smoothing: antialiased;
+      }
+      button, input { font: inherit; }
+      ::selection { background: var(--green); color: #061009; }
+
+      .shell { width: min(1180px, calc(100% - 48px)); margin: 0 auto; }
+      .topbar { border-bottom: 1px solid rgba(58, 70, 77, .78); background: rgba(9, 11, 12, .9); }
+      .topbar-inner { min-height: 64px; display: flex; align-items: center; gap: 13px; }
+      .mark {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line-strong);
+        background: var(--surface-raised);
+        color: var(--green);
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .mark::after {
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 7px;
+        height: 7px;
+        border-top: 1px solid var(--bg);
+        border-left: 1px solid var(--bg);
+        background: var(--cyan);
+        content: "";
+      }
+      .brand { display: flex; align-items: baseline; gap: 9px; }
+      .brand strong { font-size: 14px; font-weight: 700; }
+      .brand span { color: var(--quiet); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+      .access-state { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
+      .access-state i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(112, 238, 165, .08); }
+
+      main { min-height: calc(100vh - 64px); }
+      .login-layout {
+        min-height: calc(100vh - 64px);
+        padding: 70px 0 46px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(340px, .8fr);
+        align-items: center;
+        gap: 88px;
+      }
+      .eyebrow { display: flex; align-items: center; gap: 10px; color: var(--green); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+      .eyebrow::before { width: 28px; height: 1px; background: currentColor; content: ""; }
+      h1 { max-width: 650px; margin: 18px 0 0; font-size: 55px; line-height: 1; font-weight: 500; }
+      h1 span { display: block; color: var(--green); }
+      .intro-copy { max-width: 540px; margin: 22px 0 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
+      .signal-row { margin-top: 48px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .signal-item { min-height: 76px; padding: 15px 14px 13px 0; border-right: 1px solid var(--line); }
+      .signal-item:not(:first-child) { padding-left: 14px; }
+      .signal-item:last-child { border-right: 0; }
+      .signal-item span { display: block; color: var(--quiet); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+      .signal-item strong { display: block; margin-top: 8px; color: var(--text); font-size: 12px; font-weight: 500; }
+
+      .login-panel { padding: 12px 0 12px 44px; border-left: 1px solid var(--line); }
+      .panel-index { color: var(--quiet); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+      h2 { margin: 12px 0 0; font-size: 28px; line-height: 1.15; font-weight: 500; }
+      .panel-copy { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+      form { margin-top: 30px; }
+      .field { margin-top: 17px; }
+      .field:first-child { margin-top: 0; }
+      label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 11px; }
+      input {
+        width: 100%;
+        height: 46px;
+        padding: 0 13px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        outline: 0;
+        background: var(--surface);
+        color: var(--text);
+        caret-color: var(--green);
+        transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+      }
+      input:hover { border-color: var(--line-strong); }
+      input:focus { border-color: var(--cyan); background: var(--surface-raised); box-shadow: 0 0 0 3px rgba(91, 199, 235, .08); }
+      .login-error {
+        display: none;
+        min-height: 38px;
+        margin-top: 14px;
+        padding: 10px 11px;
+        border-left: 2px solid var(--coral);
+        background: rgba(239, 129, 120, .08);
+        color: #ffb4ae;
+        font-size: 11px;
+      }
+      .login-error.visible { display: block; }
+      .submit {
+        width: 100%;
+        min-height: 46px;
+        margin-top: 22px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid var(--green);
+        border-radius: 4px;
+        background: var(--green);
+        color: #07110a;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      }
+      .submit:hover { background: #8af7b9; box-shadow: 0 10px 30px rgba(112, 238, 165, .12); transform: translateY(-1px); }
+      .submit:active { transform: translateY(0); }
+      .submit:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+      .session-note { margin: 13px 0 0; color: var(--quiet); font-size: 9px; line-height: 1.55; }
+      .page-foot { align-self: end; grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 20px; color: var(--quiet); font-size: 9px; }
+
+      .intro, .login-panel { animation: reveal .62s cubic-bezier(.22, 1, .36, 1) both; }
+      .login-panel { animation-delay: .09s; }
+      @keyframes reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+
+      @media (max-width: 820px) {
+        .shell { width: min(100% - 24px, 1180px); }
+        .login-layout { padding: 44px 0 28px; grid-template-columns: 1fr; gap: 46px; }
+        h1 { font-size: 42px; }
+        .signal-row { margin-top: 34px; }
+        .login-panel { padding: 30px 0 0; border-top: 1px solid var(--line); border-left: 0; }
+        .page-foot { grid-column: 1; flex-direction: column; gap: 4px; }
+      }
+      @media (max-width: 430px) {
+        .brand span { display: none; }
+        .login-layout { padding-top: 36px; }
+        h1 { font-size: 38px; }
+        .signal-item { min-height: 70px; padding-right: 8px; }
+        .signal-item:not(:first-child) { padding-left: 8px; }
+        .signal-item strong { font-size: 10px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="shell topbar-inner">
+        <div class="mark" aria-hidden="true">C</div>
+        <div class="brand"><strong>CyberCode</strong><span>Telemetry</span></div>
+        <div class="access-state"><i aria-hidden="true"></i><span>Private access</span></div>
+      </div>
+    </header>
+
+    <main>
+      <div class="shell login-layout">
+        <section class="intro" aria-labelledby="pageTitle">
+          <div class="eyebrow">Authorized workspace</div>
+          <h1 id="pageTitle">CyberCode<span>使用态势</span></h1>
+          <p class="intro-copy">进入私有统计台，查看匿名用户增长、活跃趋势、留存与地区分布。</p>
+          <div class="signal-row" aria-label="数据安全说明">
+            <div class="signal-item"><span>Identity</span><strong>匿名去重</strong></div>
+            <div class="signal-item"><span>Content</span><strong>不采集对话</strong></div>
+            <div class="signal-item"><span>Session</span><strong>12 小时失效</strong></div>
+          </div>
+        </section>
+
+        <section class="login-panel" aria-labelledby="loginTitle">
+          <div class="panel-index">01 / Secure sign in</div>
+          <h2 id="loginTitle">登录统计台</h2>
+          <p class="panel-copy">请使用服务器管理员凭据建立本次会话。</p>
+          <form method="post" action="/api/cybercode-usage/login">
+            <div class="field">
+              <label for="username">用户名</label>
+              <input id="username" name="username" type="text" autocomplete="username" required autofocus />
+            </div>
+            <div class="field">
+              <label for="password">密码</label>
+              <input id="password" name="password" type="password" autocomplete="current-password" required />
+            </div>
+            <div class="login-error __LOGIN_ERROR_CLASS__" role="alert">__LOGIN_ERROR_MESSAGE__</div>
+            <button class="submit" type="submit"><span>进入统计台</span><span aria-hidden="true">&#8594;</span></button>
+            <p class="session-note">凭据仅用于校验，成功后浏览器仅保留签名会话 Cookie。</p>
+          </form>
+        </section>
+
+        <footer class="page-foot"><span>CyberCode Anonymous Telemetry</span><span>Asia / Shanghai</span></footer>
+      </div>
+    </main>
+  </body>
+</html>

@@ -341,6 +341,11 @@ describe('SessionService', () => {
 
     const fallback = await service.getSessionMessages(sessionId)
     expect(fallback.messages[0]!.content).toBe('new transcript')
+
+    const recovered = await service.getSessionMessages(sessionId, {
+      projectPath: '-project-moved-away',
+    })
+    expect(recovered.messages[0]!.content).toBe('new transcript')
   })
 
   it('should append subagent tool calls under their parent agent tool result', async () => {
@@ -1092,6 +1097,60 @@ describe('SessionService', () => {
     expect(detail!.title).toBe('Untitled Session')
   })
 
+  it('should return the newest history page and keep older messages pageable', async () => {
+    const sessionId = '12345678-1234-4234-8234-123456789abc'
+    const projectPath = '-tmp-history-tail'
+    const messageIds: string[] = []
+    const entries: Record<string, unknown>[] = [makeSnapshotEntry()]
+
+    for (let index = 0; index < 120; index += 1) {
+      const messageId = crypto.randomUUID()
+      messageIds.push(messageId)
+      entries.push(makeUserEntry(`prompt ${index}`, messageId))
+    }
+    await writeSessionFile(projectPath, sessionId, entries)
+
+    const latest = await service.getSessionMessages(sessionId, {
+      limit: 20,
+      projectPath,
+    })
+    expect(latest.hasMore).toBe(true)
+    expect(latest.messages).toHaveLength(20)
+    expect(latest.messages.map((message) => message.id)).toEqual(messageIds.slice(100))
+    expect(latest.messages.map((message) => message.content)).toEqual(
+      Array.from({ length: 20 }, (_, index) => `prompt ${index + 100}`),
+    )
+
+    const previous = await service.getSessionMessages(sessionId, {
+      limit: 20,
+      before: messageIds[100],
+      projectPath,
+    })
+    expect(previous.hasMore).toBe(true)
+    expect(previous.messages.map((message) => message.id)).toEqual(messageIds.slice(80, 100))
+  })
+
+  it('should load a recent JSONL entry larger than one reverse-read chunk', async () => {
+    const sessionId = '87654321-4321-4321-8321-cba987654321'
+    const projectPath = '-tmp-history-large-line'
+    const largeContent = `latest:${'x'.repeat(300_000)}`
+    const latestId = crypto.randomUUID()
+    await writeSessionFile(projectPath, sessionId, [
+      makeUserEntry('older'),
+      makeUserEntry(largeContent, latestId),
+    ])
+
+    const page = await service.getSessionMessages(sessionId, {
+      limit: 1,
+      projectPath,
+    })
+
+    expect(page.hasMore).toBe(true)
+    expect(page.messages).toHaveLength(1)
+    expect(page.messages[0]?.id).toBe(latestId)
+    expect(page.messages[0]?.content).toBe(largeContent)
+  })
+
   it('should detect placeholder launch info for desktop-created sessions', async () => {
     const { sessionId } = await service.createSession(os.tmpdir())
 
@@ -1666,6 +1725,81 @@ describe('Sessions API', () => {
       firstAssistantId,
       hiddenUserId,
     ])
+  })
+
+  it('POST /api/sessions/:id/rewind should resolve targets older than the latest 200 messages', async () => {
+    const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-111111111111'
+    const targetUserId = crypto.randomUUID()
+    const entries: Record<string, unknown>[] = [makeSnapshotEntry()]
+
+    for (let index = 0; index < 120; index += 1) {
+      const userId = index === 5 ? targetUserId : crypto.randomUUID()
+      entries.push(makeUserEntry(`prompt ${index}`, userId))
+      entries.push(makeAssistantEntry(`reply ${index}`, userId))
+    }
+
+    await writeSessionFile('-tmp-api-rewind-long-session', sessionId, entries)
+
+    const previewRes = await fetch(`${baseUrl}/api/sessions/${sessionId}/rewind`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUserMessageId: targetUserId,
+        userMessageIndex: 5,
+        expectedContent: 'prompt 5',
+        dryRun: true,
+      }),
+    })
+    expect(previewRes.status).toBe(200)
+
+    const previewBody = await previewRes.json() as {
+      target: { targetUserMessageId: string; userMessageIndex: number; userMessageCount: number }
+      conversation: { messagesRemoved: number }
+    }
+    expect(previewBody.target).toEqual({
+      targetUserMessageId: targetUserId,
+      userMessageIndex: 5,
+      userMessageCount: 120,
+    })
+    expect(previewBody.conversation.messagesRemoved).toBe(230)
+  })
+
+  it('POST /api/sessions/:id/rewind should resolve a local message id from the end of a long session', async () => {
+    const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-222222222222'
+    const latestUserId = crypto.randomUUID()
+    const entries: Record<string, unknown>[] = [makeSnapshotEntry()]
+
+    for (let index = 0; index < 120; index += 1) {
+      const userId = index === 119 ? latestUserId : crypto.randomUUID()
+      entries.push(makeUserEntry(`prompt ${index}`, userId))
+      entries.push(makeAssistantEntry(`reply ${index}`, userId))
+    }
+
+    await writeSessionFile('-tmp-api-rewind-local-id', sessionId, entries)
+
+    const previewRes = await fetch(`${baseUrl}/api/sessions/${sessionId}/rewind`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUserMessageId: 'local-ui-message-id',
+        userMessageIndex: 0,
+        userMessageOffsetFromEnd: 0,
+        expectedContent: 'prompt 119',
+        dryRun: true,
+      }),
+    })
+    expect(previewRes.status).toBe(200)
+
+    const previewBody = await previewRes.json() as {
+      target: { targetUserMessageId: string; userMessageIndex: number; userMessageCount: number }
+      conversation: { messagesRemoved: number }
+    }
+    expect(previewBody.target).toEqual({
+      targetUserMessageId: latestUserId,
+      userMessageIndex: 119,
+      userMessageCount: 120,
+    })
+    expect(previewBody.conversation.messagesRemoved).toBe(2)
   })
 
   it('POST /api/sessions/:id/rewind should reject an index fallback when the selected prompt no longer matches', async () => {

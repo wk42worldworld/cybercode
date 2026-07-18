@@ -35,10 +35,12 @@ describe('skillsApi', () => {
     ))
     vi.stubGlobal('fetch', fetchMock)
 
-    await skillsApi.learning('/workspace/project')
+    const learning = await skillsApi.learning('/workspace/project')
     await skillsApi.updateLearningConfig({ mode: 'auto' })
     await skillsApi.approveCandidate('candidate-123')
     await skillsApi.rejectCandidate('candidate-123')
+
+    expect(learning.overview.recentCandidates).toEqual([])
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,

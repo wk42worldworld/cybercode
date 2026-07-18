@@ -31,7 +31,7 @@ type RtkResult = {
   stderr: string
 }
 
-const DEFAULT_CONFIG: StoredConfig = { version: 1, enabled: false }
+const DEFAULT_CONFIG: StoredConfig = { version: 1, enabled: true }
 const RTK_TIMEOUT_MS = 1_500
 
 export class RtkOptimizationService {
@@ -148,7 +148,7 @@ export class RtkOptimizationService {
     try {
       mtimeMs = fs.statSync(configPath).mtimeMs
     } catch {
-      // Missing settings use the disabled default below.
+      // Missing settings use the enabled default below.
     }
     if (this.cachedConfig && this.cachedConfigMtimeMs === mtimeMs) {
       return this.cachedConfig

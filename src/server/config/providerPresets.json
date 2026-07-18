@@ -126,6 +126,12 @@
     },
     "modelOptions": [
       {
+        "id": "k3",
+        "label": "Kimi K3",
+        "contextWindow": 1048576,
+        "supportsImages": true
+      },
+      {
         "id": "kimi-for-coding",
         "label": "Kimi for Coding",
         "contextWindow": 262144,
@@ -150,18 +156,24 @@
     "baseUrl": "https://api.moonshot.cn",
     "apiFormat": "openai_chat",
     "defaultModels": {
-      "main": "kimi-k2.7-code",
+      "main": "kimi-k3",
       "haiku": "kimi-k2.6",
-      "sonnet": "kimi-k2.7-code",
-      "opus": "kimi-k2.7-code"
+      "sonnet": "kimi-k3",
+      "opus": "kimi-k3"
     },
     "defaultModelContextWindows": {
-      "main": 262144,
+      "main": 1048576,
       "haiku": 262144,
-      "sonnet": 262144,
-      "opus": 262144
+      "sonnet": 1048576,
+      "opus": 1048576
     },
     "modelOptions": [
+      {
+        "id": "kimi-k3",
+        "label": "Kimi K3",
+        "contextWindow": 1048576,
+        "supportsImages": true
+      },
       {
         "id": "kimi-k2.7-code",
         "label": "Kimi K2.7 Code",

@@ -1,9 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../pages/ActiveSession', () => ({
-  ActiveSession: () => <div data-testid="active-session" />,
+  ActiveSession: ({ sessionId, isActive }: { sessionId: string; isActive: boolean }) => (
+    <div
+      data-testid="active-session"
+      data-session-id={sessionId}
+      data-active={isActive ? 'true' : 'false'}
+    />
+  ),
 }))
 
 vi.mock('../../pages/EmptySession', () => ({
@@ -75,6 +81,41 @@ describe('ContentRouter terminal tabs', () => {
 
     expect(screen.getByTestId('terminal-host-__terminal__1')).toHaveAttribute('data-active', 'false')
     expect(screen.getByTestId('active-session')).toBeInTheDocument()
+  })
+
+  it('keeps only the current and previous chat panels warm across switches', () => {
+    useTabStore.setState({
+      tabs: [
+        { sessionId: 'session-1', title: 'One', type: 'session', status: 'idle' },
+        { sessionId: 'session-2', title: 'Two', type: 'session', status: 'idle' },
+        { sessionId: 'session-3', title: 'Three', type: 'session', status: 'idle' },
+      ],
+      activeTabId: 'session-1',
+      recentSessionIds: ['session-1', 'session-2', 'session-3'],
+    })
+
+    render(<ContentRouter />)
+
+    const sessionOne = document.querySelector('[data-session-panel="session-1"]')
+    const sessionTwo = document.querySelector('[data-session-panel="session-2"]')
+    expect(sessionOne).toBeInTheDocument()
+    expect(sessionTwo).toBeInTheDocument()
+    expect(document.querySelector('[data-session-panel="session-3"]')).toBeNull()
+    expect(sessionOne).not.toHaveClass('invisible')
+    expect(sessionOne).not.toHaveAttribute('aria-hidden', 'true')
+    expect(sessionTwo).toHaveClass('invisible', 'pointer-events-none')
+    expect(sessionTwo).toHaveAttribute('aria-hidden', 'true')
+
+    act(() => {
+      useTabStore.getState().switchToSession('session-2', 'Two')
+    })
+
+    expect(document.querySelector('[data-session-panel="session-1"]')).toBe(sessionOne)
+    expect(document.querySelector('[data-session-panel="session-2"]')).toBe(sessionTwo)
+    expect(sessionOne).toHaveClass('invisible', 'pointer-events-none')
+    expect(sessionOne).toHaveAttribute('aria-hidden', 'true')
+    expect(sessionTwo).not.toHaveClass('invisible')
+    expect(sessionTwo).not.toHaveAttribute('aria-hidden', 'true')
   })
 
   it('can open another terminal tab from a terminal page', () => {

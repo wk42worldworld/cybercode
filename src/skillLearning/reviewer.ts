@@ -38,10 +38,13 @@ import type {
 
 const REVIEW_EXCERPT_LIMIT = 14_000
 const REVIEW_MESSAGE_LIMIT = 18
+const REVIEWED_TURN_LIMIT = 500
 const SKILL_LEARNING_NOTICE_TOOL_USE_ID = 'skill_learning_review'
 
-const reviewedTurns = new Set<string>()
+const reviewedTurns = new Map<string, true>()
 const inFlightReviews = new Set<string>()
+const pendingReviews = new Map<string, REPLHookContext>()
+const inFlightReviewPromises = new Set<Promise<void>>()
 
 type RawSkillCandidate = {
   name: string
@@ -66,9 +69,20 @@ export type SkillReviewEligibility = {
 
 export function shouldAutoApproveSkillCandidate(
   config: SkillLearningConfig,
-  _candidate: Pick<SkillCandidate, 'action' | 'scope' | 'confidence' | 'duplicate'>,
+  candidate: Pick<SkillCandidate, 'action' | 'scope' | 'confidence' | 'duplicate'>,
 ): boolean {
-  return config.mode === 'auto'
+  return config.mode === 'auto' &&
+    candidate.confidence >= config.autoApproveConfidence
+}
+
+function rememberReviewedTurn(fingerprint: string): boolean {
+  if (reviewedTurns.has(fingerprint)) return false
+  reviewedTurns.set(fingerprint, true)
+  if (reviewedTurns.size > REVIEWED_TURN_LIMIT) {
+    const oldest = reviewedTurns.keys().next().value
+    if (oldest) reviewedTurns.delete(oldest)
+  }
+  return true
 }
 
 function getMessageText(message: Message): string {
@@ -470,14 +484,9 @@ async function mergeWithExistingSkill(params: {
   return `${updated}\n`
 }
 
-export async function executeSkillLearningReview(
+async function reviewSkillLearningContext(
   context: REPLHookContext,
 ): Promise<void> {
-  if (context.querySource !== 'repl_main_thread' && context.querySource !== 'sdk') {
-    return
-  }
-  if (context.toolUseContext.agentId) return
-
   const config = await readSkillLearningConfig()
   const projectRoot = getProjectRoot()
   const sessionId = getSessionId()
@@ -485,11 +494,24 @@ export async function executeSkillLearningReview(
     projectRoot,
     sessionId,
   })
-  if (!eligibility.eligible) return
-  if (reviewedTurns.has(eligibility.fingerprint)) return
-  if (inFlightReviews.has(sessionId)) return
-  reviewedTurns.add(eligibility.fingerprint)
-  inFlightReviews.add(sessionId)
+  if (!eligibility.eligible) {
+    if (
+      config.mode !== 'off' &&
+      eligibility.excerpt &&
+      (eligibility.toolUseCount > 0 || eligibility.correctionSignal) &&
+      rememberReviewedTurn(eligibility.fingerprint)
+    ) {
+      await recordSkillLearningEvent({
+        kind: 'review-skipped',
+        message: eligibility.reason,
+        projectRoot,
+        sessionId,
+        toolUseCount: eligibility.toolUseCount,
+      }).catch(() => {})
+    }
+    return
+  }
+  if (!rememberReviewedTurn(eligibility.fingerprint)) return
 
   await recordSkillLearningEvent({
     kind: 'review-started',
@@ -648,6 +670,7 @@ export async function executeSkillLearningReview(
       )
     }
   } catch (error) {
+    reviewedTurns.delete(eligibility.fingerprint)
     await recordSkillLearningEvent({
       kind: 'review-failed',
       message: errorMessage(error),
@@ -659,12 +682,62 @@ export async function executeSkillLearningReview(
       `[skill-learning] review failed: ${errorMessage(error)}`,
       { level: 'debug' },
     )
+  }
+}
+
+async function executeSkillLearningReviewImpl(
+  context: REPLHookContext,
+): Promise<void> {
+  if (context.querySource !== 'repl_main_thread' && context.querySource !== 'sdk') {
+    return
+  }
+  if (context.toolUseContext.agentId) return
+
+  const sessionId = getSessionId()
+  if (inFlightReviews.has(sessionId)) {
+    pendingReviews.set(sessionId, context)
+    return
+  }
+
+  inFlightReviews.add(sessionId)
+  let nextContext: REPLHookContext | undefined = context
+  try {
+    while (nextContext) {
+      await reviewSkillLearningContext(nextContext)
+      nextContext = pendingReviews.get(sessionId)
+      pendingReviews.delete(sessionId)
+    }
   } finally {
     inFlightReviews.delete(sessionId)
   }
 }
 
+export async function executeSkillLearningReview(
+  context: REPLHookContext,
+): Promise<void> {
+  const review = executeSkillLearningReviewImpl(context)
+  inFlightReviewPromises.add(review)
+  try {
+    await review
+  } finally {
+    inFlightReviewPromises.delete(review)
+  }
+}
+
+export async function drainPendingSkillLearningReviews(
+  timeoutMs = 60_000,
+): Promise<void> {
+  if (inFlightReviewPromises.size === 0) return
+  await Promise.race([
+    Promise.all(inFlightReviewPromises).catch(() => {}),
+    // eslint-disable-next-line no-restricted-syntax -- the timer must not keep the process alive
+    new Promise<void>(resolve => setTimeout(resolve, timeoutMs).unref()),
+  ])
+}
+
 export function resetSkillLearningReviewForTesting(): void {
   reviewedTurns.clear()
   inFlightReviews.clear()
+  pendingReviews.clear()
+  inFlightReviewPromises.clear()
 }

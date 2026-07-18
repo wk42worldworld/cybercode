@@ -54,6 +54,7 @@ export type SkillCandidate = {
 }
 
 export type SkillLearningEventKind =
+  | 'review-skipped'
   | 'review-started'
   | 'candidate-created'
   | 'candidate-auto-approved'

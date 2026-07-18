@@ -1,4 +1,3 @@
-import { Database } from 'bun:sqlite'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -7,6 +6,7 @@ import {
   getCodeGraphVisualization,
   type CodeGraphVisualization as CodeGraphVisualizationData,
 } from './codeGraphAnalysis.js'
+import { openCodeGraphDatabaseForRead } from './codeGraphDatabase.js'
 
 export type {
   CodeGraphArchitecture,
@@ -79,6 +79,7 @@ type StoredConfig = {
 
 type RuntimeState = {
   status: CodeGraphStatus
+  indexGeneration: number | null
   indexStarting: boolean
   indexProcess: ReturnType<typeof Bun.spawn> | null
   watchProcess: ReturnType<typeof Bun.spawn> | null
@@ -89,6 +90,10 @@ type CodeGraphProcessConfig = {
   command: string
   args: string[]
   env: Record<string, string>
+}
+
+type CodeGraphServiceOptions = {
+  watcherRestartBaseDelayMs?: number
 }
 
 class CodeGraphProjectScopeError extends Error {
@@ -103,7 +108,14 @@ class CodeGraphProjectScopeError extends Error {
 
 export class CodeGraphService {
   private runtimes = new Map<string, RuntimeState>()
-  private restoreTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private watcherRestartTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private watcherRestartAttempts = new Map<string, number>()
+  private watcherRestartBaseDelayMs: number
+  private lifecycleGeneration = 0
+
+  constructor(options: CodeGraphServiceOptions = {}) {
+    this.watcherRestartBaseDelayMs = Math.max(0, options.watcherRestartBaseDelayMs ?? 1_000)
+  }
 
   getGlobalStatus(): CodeGraphGlobalStatus {
     return { enabled: this.readConfig().enabled }
@@ -136,9 +148,11 @@ export class CodeGraphService {
   }
 
   private async disableEverywhere(projectPath?: string) {
+    this.lifecycleGeneration += 1
     this.setGlobalEnabled(false, projectPath)
-    for (const timer of this.restoreTimers.values()) clearTimeout(timer)
-    this.restoreTimers.clear()
+    for (const timer of this.watcherRestartTimers.values()) clearTimeout(timer)
+    this.watcherRestartTimers.clear()
+    this.watcherRestartAttempts.clear()
 
     const projectsToDetach = new Set<string>(projectPath ? [projectPath] : [])
     for (const [runtimePath, runtime] of this.runtimes) {
@@ -164,11 +178,11 @@ export class CodeGraphService {
     if (primaryProjectPath) projects.add(primaryProjectPath)
 
     for (const projectPath of projects) {
-      this.cancelRestoredIndex(projectPath)
+      this.cancelWatcherRestart(projectPath)
       const runtime = this.getOrCreateRuntime(projectPath, true)
       runtime.status.enabled = true
       runtime.status.error = null
-      if (!runtime.indexProcess && !runtime.indexStarting) {
+      if (runtime.indexGeneration === null) {
         void this.runIndex(projectPath, false)
       }
     }
@@ -187,7 +201,7 @@ export class CodeGraphService {
     this.markProjectUsed(canonicalPath)
     runtime.status.enabled = true
     runtime.status.error = null
-    if (!runtime.indexProcess && !runtime.indexStarting && !runtime.watchProcess) {
+    if (runtime.indexGeneration === null && !runtime.watchProcess) {
       void this.runIndex(canonicalPath, false)
     }
     return this.cloneStatus(runtime.status)
@@ -195,14 +209,14 @@ export class CodeGraphService {
 
   async rebuild(projectPath: string): Promise<CodeGraphStatus> {
     const canonicalPath = this.resolveProjectPath(projectPath)
-    this.cancelRestoredIndex(canonicalPath)
+    this.cancelWatcherRestart(canonicalPath)
     if (!this.isProjectEnabled(canonicalPath)) {
       throw new Error('Enable Code Graph before rebuilding the index')
     }
     const runtime = this.getOrCreateRuntime(canonicalPath, true)
     runtime.watchProcess?.kill()
     runtime.watchProcess = null
-    if (!runtime.indexProcess && !runtime.indexStarting) {
+    if (runtime.indexGeneration === null) {
       void this.runIndex(canonicalPath, true)
     }
     return this.cloneStatus(runtime.status)
@@ -230,7 +244,7 @@ export class CodeGraphService {
     const enabled = this.isProjectEnabled(canonicalPath)
     const runtime = this.getOrCreateRuntime(canonicalPath, enabled)
     runtime.status.enabled = enabled
-    if (!runtime.indexProcess && runtime.status.state !== 'error') {
+    if (runtime.indexGeneration === null && runtime.status.state !== 'error') {
       runtime.status.stats = this.readStats(canonicalPath)
       runtime.status.state = enabled
         ? this.stateForStats(runtime.status.stats)
@@ -238,8 +252,7 @@ export class CodeGraphService {
     }
     if (
       enabled
-      && !runtime.indexProcess
-      && !runtime.indexStarting
+      && runtime.indexGeneration === null
       && !runtime.watchProcess
       && !runtime.status.stats
     ) {
@@ -282,8 +295,10 @@ export class CodeGraphService {
   }
 
   shutdown(): void {
-    for (const timer of this.restoreTimers.values()) clearTimeout(timer)
-    this.restoreTimers.clear()
+    this.lifecycleGeneration += 1
+    for (const timer of this.watcherRestartTimers.values()) clearTimeout(timer)
+    this.watcherRestartTimers.clear()
+    this.watcherRestartAttempts.clear()
     for (const runtime of this.runtimes.values()) {
       this.stopRuntimeProcesses(runtime)
     }
@@ -291,7 +306,9 @@ export class CodeGraphService {
 
   private async runIndex(projectPath: string, rebuild: boolean) {
     const runtime = this.getOrCreateRuntime(projectPath, true)
-    if (runtime.indexProcess || runtime.indexStarting) return
+    if (runtime.indexGeneration !== null) return
+    const lifecycleGeneration = this.lifecycleGeneration
+    runtime.indexGeneration = lifecycleGeneration
     runtime.indexStarting = true
 
     runtime.status = {
@@ -304,8 +321,13 @@ export class CodeGraphService {
 
     try {
       await this.patchRunningSessions(projectPath, null)
-      if (!this.isProjectEnabled(projectPath)) {
+      if (runtime.indexGeneration !== lifecycleGeneration) return
+      if (
+        lifecycleGeneration !== this.lifecycleGeneration
+        || !this.isProjectEnabled(projectPath)
+      ) {
         runtime.indexStarting = false
+        runtime.indexGeneration = null
         return
       }
       this.assertAssetsAvailable()
@@ -322,6 +344,11 @@ export class CodeGraphService {
 
       const stderrPromise = new Response(proc.stderr).text()
       await this.consumeJsonLines(proc.stdout, (event) => {
+        if (
+          runtime.indexGeneration !== lifecycleGeneration
+          || runtime.indexProcess !== proc
+          || lifecycleGeneration !== this.lifecycleGeneration
+        ) return
         if (event.type === 'progress') {
           runtime.status.state = 'indexing'
           runtime.status.progress = {
@@ -339,8 +366,15 @@ export class CodeGraphService {
 
       const exitCode = await proc.exited
       const stderr = (await stderrPromise).trim()
+      if (runtime.indexGeneration !== lifecycleGeneration) return
       if (runtime.indexProcess === proc) runtime.indexProcess = null
-      if (!this.isProjectEnabled(projectPath)) return
+      if (
+        lifecycleGeneration !== this.lifecycleGeneration
+        || !this.isProjectEnabled(projectPath)
+      ) {
+        runtime.indexGeneration = null
+        return
+      }
       if (exitCode !== 0) {
         throw new Error(runtime.status.error || stderr || `Code Graph exited with code ${exitCode}`)
       }
@@ -358,9 +392,15 @@ export class CodeGraphService {
         projectPath,
         this.buildMcpServerConfig(projectPath),
       )
+      if (runtime.indexGeneration === lifecycleGeneration) {
+        runtime.indexGeneration = null
+      }
     } catch (error) {
+      if (runtime.indexGeneration !== lifecycleGeneration) return
       runtime.indexStarting = false
       runtime.indexProcess = null
+      runtime.indexGeneration = null
+      if (lifecycleGeneration !== this.lifecycleGeneration) return
       if (!this.isProjectEnabled(projectPath)) {
         runtime.status = {
           ...runtime.status,
@@ -395,6 +435,11 @@ export class CodeGraphService {
     runtime.watchProcess = proc
 
     void this.consumeJsonLines(proc.stdout, (event) => {
+      if (runtime.watchProcess !== proc || !this.isProjectEnabled(projectPath)) return
+      if (event.type === 'watching') {
+        this.watcherRestartAttempts.delete(projectPath)
+        return
+      }
       if (event.type === 'sync') {
         const previousState = runtime.status.state
         const nextStats = this.readStats(projectPath)
@@ -415,9 +460,11 @@ export class CodeGraphService {
     void proc.exited.then((exitCode) => {
       if (runtime.watchProcess !== proc) return
       runtime.watchProcess = null
-      if (exitCode !== 0 && this.isProjectEnabled(projectPath)) {
+      if (!this.isProjectEnabled(projectPath)) return
+      if (exitCode !== 0) {
         console.warn(`[CodeGraph] watcher exited with code ${exitCode}: ${projectPath}`)
       }
+      this.scheduleWatcherRestart(projectPath)
     })
   }
 
@@ -477,6 +524,7 @@ export class CodeGraphService {
         error: null,
         bundledLanguages: CODEGRAPH_BUNDLED_LANGUAGES,
       },
+      indexGeneration: null,
       indexStarting: false,
       indexProcess: null,
       watchProcess: null,
@@ -489,15 +537,45 @@ export class CodeGraphService {
     runtime.indexProcess?.kill()
     runtime.watchProcess?.kill()
     runtime.indexProcess = null
+    runtime.indexGeneration = null
     runtime.indexStarting = false
     runtime.watchProcess = null
   }
 
-  private cancelRestoredIndex(projectPath: string) {
-    const timer = this.restoreTimers.get(projectPath)
-    if (!timer) return
-    clearTimeout(timer)
-    this.restoreTimers.delete(projectPath)
+  private scheduleWatcherRestart(projectPath: string) {
+    if (this.watcherRestartTimers.has(projectPath) || !this.isProjectEnabled(projectPath)) return
+    const attempt = (this.watcherRestartAttempts.get(projectPath) ?? 0) + 1
+    this.watcherRestartAttempts.set(projectPath, attempt)
+    const delayMs = Math.min(
+      30_000,
+      this.watcherRestartBaseDelayMs * (2 ** Math.min(attempt - 1, 5)),
+    )
+    const timer = setTimeout(() => {
+      this.watcherRestartTimers.delete(projectPath)
+      if (!this.isProjectEnabled(projectPath)) return
+      const runtime = this.getOrCreateRuntime(projectPath, true)
+      if (runtime.indexProcess || runtime.indexStarting || runtime.watchProcess) return
+      try {
+        this.startWatcher(projectPath)
+      } catch (error) {
+        console.warn(
+          `[CodeGraph] watcher restart failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+        this.scheduleWatcherRestart(projectPath)
+      }
+    }, delayMs)
+    this.watcherRestartTimers.set(projectPath, timer)
+  }
+
+  private cancelWatcherRestart(projectPath: string) {
+    const timer = this.watcherRestartTimers.get(projectPath)
+    if (timer) {
+      clearTimeout(timer)
+      this.watcherRestartTimers.delete(projectPath)
+    }
+    this.watcherRestartAttempts.delete(projectPath)
   }
 
   private buildMcpServerConfig(projectPath: string): CodeGraphProcessConfig {
@@ -544,7 +622,7 @@ export class CodeGraphService {
   private readStats(projectPath: string): CodeGraphStats | null {
     const dbPath = this.getDatabasePath(projectPath)
     if (!fs.existsSync(dbPath)) return null
-    const db = new Database(dbPath, { readonly: true })
+    const db = openCodeGraphDatabaseForRead(dbPath)
     try {
       const counts = db.query<{
         file_count: number
@@ -699,7 +777,7 @@ export class CodeGraphService {
         ])),
       }
     } catch {
-      return { version: CONFIG_VERSION, enabled: false, projects: {} }
+      return { version: CONFIG_VERSION, enabled: true, projects: {} }
     }
   }
 

@@ -47,9 +47,11 @@ export type PendingSteer = {
 /** How many messages to request when loading older history via loadMoreHistory. */
 export const HISTORY_PAGE_SIZE = 50
 /** How many messages to request on initial history load (loadHistory / reloadHistory). */
-export const HISTORY_LOAD_LIMIT = 200
+export const HISTORY_LOAD_LIMIT = 80
 /** Max messages kept in the visible window. Sliding window trims beyond this. */
 export const WINDOW_SIZE = 200
+const HISTORY_PREFETCH_CACHE_LIMIT = 12
+const HISTORY_PREFETCH_TTL_MS = 60_000
 
 export type PerSessionState = {
   projectPath?: string
@@ -171,6 +173,8 @@ type ChatStore = {
 
   getSession: (sessionId: string) => PerSessionState
   connectToSession: (sessionId: string, projectPath?: string) => void
+  prewarmSession: (sessionId: string) => void
+  prefetchHistory: (sessionId: string, projectPath?: string) => Promise<void>
   disconnectSession: (sessionId: string) => void
   ensureSessionReady: (sessionId: string, projectPath?: string) => Promise<void>
   sendMessage: (
@@ -431,15 +435,103 @@ async function fetchAndMapSessionHistory(
   sessionId: string,
   params?: { limit?: number; before?: string; after?: string; projectPath?: string },
 ) {
-  const { messages, hasMore } = await sessionsApi.getMessages(sessionId, params)
+  let response: Awaited<ReturnType<typeof sessionsApi.getMessages>>
+  try {
+    response = await sessionsApi.getMessages(sessionId, params)
+  } catch (error) {
+    // Restored tabs can retain an old project locator after a session moves.
+    // This is a read-only request, so locating the UUID globally is safe.
+    if (!params?.projectPath || !isNotFoundError(error)) throw error
+    response = await sessionsApi.getMessages(sessionId, {
+      ...params,
+      projectPath: undefined,
+    })
+  }
+
+  const { messages, hasMore } = response
   const parsed = parseHistory(messages, nextId)
   return {
-    rawMessages: messages,
     uiMessages: parsed.uiMessages,
     restoredNotifications: parsed.restoredNotifications,
     lastTodos: parsed.lastTodos,
     hasMessagesAfterTaskCompletion: parsed.hasMessagesAfterTaskCompletion,
     hasMore,
+  }
+}
+
+type SessionHistorySnapshot = Awaited<ReturnType<typeof fetchAndMapSessionHistory>>
+type SessionHistoryCacheEntry = {
+  value: SessionHistorySnapshot
+  cachedAt: number
+}
+
+const historyPrefetchCache = new Map<string, SessionHistoryCacheEntry>()
+const historyPrefetchRequests = new Map<string, Promise<SessionHistorySnapshot | null>>()
+
+function historyPrefetchKey(sessionId: string, projectPath?: string) {
+  return `${sessionId}\u0000${projectPath ?? ''}`
+}
+
+function cachePrefetchedHistory(key: string, value: SessionHistorySnapshot) {
+  historyPrefetchCache.delete(key)
+  historyPrefetchCache.set(key, { value, cachedAt: Date.now() })
+  while (historyPrefetchCache.size > HISTORY_PREFETCH_CACHE_LIMIT) {
+    const oldestKey = historyPrefetchCache.keys().next().value
+    if (typeof oldestKey !== 'string') break
+    historyPrefetchCache.delete(oldestKey)
+  }
+}
+
+function startHistoryPrefetch(sessionId: string, projectPath?: string) {
+  const key = historyPrefetchKey(sessionId, projectPath)
+  const cached = historyPrefetchCache.get(key)
+  if (cached && Date.now() - cached.cachedAt <= HISTORY_PREFETCH_TTL_MS) {
+    return Promise.resolve(cached.value)
+  }
+  if (cached) historyPrefetchCache.delete(key)
+
+  const existing = historyPrefetchRequests.get(key)
+  if (existing) return existing
+
+  const request = fetchAndMapSessionHistory(sessionId, {
+    limit: HISTORY_LOAD_LIMIT,
+    projectPath,
+  })
+    .then((value) => {
+      cachePrefetchedHistory(key, value)
+      return value
+    })
+    .catch(() => null)
+    .finally(() => {
+      if (historyPrefetchRequests.get(key) === request) {
+        historyPrefetchRequests.delete(key)
+      }
+    })
+
+  historyPrefetchRequests.set(key, request)
+  return request
+}
+
+async function takePrefetchedHistory(sessionId: string, projectPath?: string) {
+  const key = historyPrefetchKey(sessionId, projectPath)
+  const cached = historyPrefetchCache.get(key)
+  if (cached && Date.now() - cached.cachedAt <= HISTORY_PREFETCH_TTL_MS) {
+    historyPrefetchCache.delete(key)
+    return cached.value
+  }
+  if (cached) historyPrefetchCache.delete(key)
+
+  const pending = historyPrefetchRequests.get(key)
+  if (!pending) return null
+  const result = await pending
+  historyPrefetchCache.delete(key)
+  return result
+}
+
+function clearPrefetchedHistory(sessionId: string) {
+  const prefix = `${sessionId}\u0000`
+  for (const key of historyPrefetchCache.keys()) {
+    if (key.startsWith(prefix)) historyPrefetchCache.delete(key)
   }
 }
 
@@ -540,9 +632,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (runtimeSelection) {
         wsManager.send(sessionId, { type: 'set_runtime_config', ...runtimeSelection })
       }
-      if (!sessionId.startsWith('__') && !useTeamStore.getState().getMemberBySessionId(sessionId)) {
-        wsManager.send(sessionId, { type: 'prewarm_session' })
-      }
     }
 
     // 2) History layer — driven by AppShell bootstrap (explicit await before
@@ -565,6 +654,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
+  prewarmSession: (sessionId) => {
+    if (sessionId.startsWith('__')) return
+    if (useTeamStore.getState().getMemberBySessionId(sessionId)) return
+    wsManager.send(sessionId, { type: 'prewarm_session' })
+  },
+
+  prefetchHistory: async (sessionId, projectPath) => {
+    const session = get().sessions[sessionId]
+    if (
+      session &&
+      (!projectPath || !session.projectPath || session.projectPath === projectPath) &&
+      (session.historyLoadState === 'loading' || session.historyLoadState === 'loaded')
+    ) {
+      return
+    }
+    await startHistoryPrefetch(sessionId, projectPath)
+  },
+
   ensureSessionReady: async (sessionId, projectPath) => {
     get().connectToSession(sessionId, projectPath)
     await get().loadHistory(sessionId, projectPath)
@@ -581,6 +688,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       clearPendingDelta(sessionId)
     }
     historyLoadTokens.delete(sessionId)
+    clearPrefetchedHistory(sessionId)
     wsManager.disconnect(sessionId)
     set((s) => {
       const { [sessionId]: _, ...rest } = s.sessions
@@ -589,6 +697,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendMessage: (sessionId, content, attachments, options) => {
+    clearPrefetchedHistory(sessionId)
     const userFacingContent =
       options?.displayContent?.trim() || content.trim()
     const isMemberSession = !!useTeamStore.getState().getMemberBySessionId(sessionId)
@@ -1048,13 +1157,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }))
 
     try {
+      const prefetched = await takePrefetchedHistory(sessionId, effectiveProjectPath)
       const {
         uiMessages,
         restoredNotifications,
         lastTodos,
         hasMessagesAfterTaskCompletion,
         hasMore,
-      } = await fetchAndMapSessionHistory(sessionId, { limit: HISTORY_LOAD_LIMIT, projectPath: effectiveProjectPath })
+      } = prefetched ?? await fetchAndMapSessionHistory(sessionId, {
+        limit: HISTORY_LOAD_LIMIT,
+        projectPath: effectiveProjectPath,
+      })
       if (!isCurrentHistoryLoad(sessionId, historyToken)) return
 
       set((state) => {
@@ -1149,6 +1262,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   reloadHistory: async (sessionId, projectPath) => {
+    clearPrefetchedHistory(sessionId)
     const effectiveProjectPath = projectPath ?? get().sessions[sessionId]?.projectPath
     const historyToken = beginHistoryLoad(sessionId)
     set((s) => ({

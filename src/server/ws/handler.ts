@@ -32,6 +32,7 @@ import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
 import { buildPastSessionPromptContext } from '../../sessionSearch/promptContext.js'
 import { buildProjectMemoryPromptContext } from '../../sessionSearch/projectMemory.js'
 import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
+import { readPromptMemoryConfig } from '../../promptMemory/config.js'
 import {
   isImageInputUnsupportedError,
   resolveProviderImageSupportDynamically,
@@ -453,12 +454,14 @@ async function buildContentWithInitialProjectMemory(
     const db = openSessionSearchDb()
     try {
       await ensureSessionSearchIndexFresh({ db })
+      const promptMemoryConfig = await readPromptMemoryConfig()
       const contexts: string[] = []
       const memoryContext = buildProjectMemoryPromptContext({
         db,
         query,
         currentSessionId: sessionId,
         limit: 4,
+        includePromptMemory: promptMemoryConfig.injectEvolutionMemory,
       })
       if (memoryContext) contexts.push(memoryContext)
       const pastSessionContext = await buildPastSessionPromptContext({

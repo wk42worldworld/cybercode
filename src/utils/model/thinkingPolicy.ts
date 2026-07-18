@@ -37,12 +37,23 @@ function isKimiCodeEndpoint(baseUrl?: string): boolean {
   }
 }
 
+export function isKimiK3ModelId(model: string | undefined): boolean {
+  const normalized = normalizeThinkingPolicyModel(model)
+  return normalized === 'k3' || normalized === 'kimi-k3'
+}
+
 export function isKimiAlwaysOnThinkingModel(
   model: string | undefined,
   baseUrl?: string,
 ): boolean {
   const normalized = normalizeThinkingPolicyModel(model)
   if (!normalized) return false
+
+  if (isKimiK3ModelId(normalized)) {
+    return normalized === 'k3'
+      ? isKimiCodeEndpoint(baseUrl)
+      : matchesHost(baseUrl, /(?:^|\.)moonshot\.cn$/)
+  }
 
   if (normalized === 'kimi-for-coding' || normalized === 'kimi-for-coding-highspeed') {
     return isKimiCodeEndpoint(baseUrl)

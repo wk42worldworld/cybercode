@@ -254,6 +254,56 @@ describe('Settings > Skills tab', () => {
     })
   })
 
+  it('shows recent generated Skills and explains skipped reviews', async () => {
+    useSkillLearningStore.setState((state) => ({
+      ...state,
+      overview: {
+        ...state.overview!,
+        recentCandidates: [
+          {
+            version: 1,
+            id: 'candidate-recent',
+            status: 'approved',
+            action: 'create',
+            scope: 'project',
+            projectRoot: '/workspace/project',
+            name: 'release-check',
+            description: 'Verify release artifacts consistently',
+            whenToUse: 'Use before publishing a release.',
+            reason: 'Repeated and verified workflow',
+            evidence: ['Four platforms passed'],
+            confidence: 0.95,
+            markdown: '# Release Check',
+            sourceSessionId: 'session-1',
+            sourceFingerprint: 'fingerprint-recent',
+            sourceToolUses: 8,
+            createdAt: '2026-07-11T08:00:00.000Z',
+            updatedAt: '2026-07-11T08:01:00.000Z',
+          },
+        ],
+        events: [
+          {
+            id: 'event-skipped',
+            kind: 'review-skipped',
+            createdAt: '2026-07-11T09:00:00.000Z',
+            message: 'Task used 2 tools; 6 required.',
+            toolUseCount: 2,
+          },
+        ],
+      },
+    }))
+
+    render(<SkillSettings />)
+    fireEvent.click(screen.getByRole('button', { name: /Learning history/ }))
+
+    expect(screen.getByText('/release-check')).toBeInTheDocument()
+    expect(screen.getByText('Verify release artifacts consistently')).toBeInTheDocument()
+    expect(screen.getByText('Not reviewed this turn: 2 tool calls, 6 required')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(MOCK_FETCH_SKILLS).toHaveBeenCalledWith('/workspace/project')
+    })
+  })
+
   it('uses the active session workDir when settings drawer is opened', () => {
     const fetchSkills = vi.fn()
     useSkillStore.setState({

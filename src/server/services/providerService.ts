@@ -43,7 +43,11 @@ import {
   CYBERCODE_PROVIDER_ID_ENV,
 } from '../../utils/model/imageCapabilityRegistry.js'
 import { isKimiBaseUrl, isKimiProviderTarget } from '../../utils/model/kimi.js'
-import { requiresEnabledThinkingParamForModel } from '../../utils/model/thinkingPolicy.js'
+import {
+  isKimiAlwaysOnThinkingModel,
+  isKimiK3ModelId,
+  requiresEnabledThinkingParamForModel,
+} from '../../utils/model/thinkingPolicy.js'
 
 const MANAGED_ENV_KEYS = [
   'ANTHROPIC_BASE_URL',
@@ -366,6 +370,8 @@ function migrateStalePresetContextWindows(provider: SavedProvider): SavedProvide
   for (const role of MODEL_ROLES) {
     const current = parseContextWindowTokenValue(next[role])
     if (!current || !staleValues.has(current)) continue
+    // K3 can be deliberately capped below 1M by the user or their Kimi plan.
+    if (isKimiK3ModelId(provider.models[role])) continue
     const official = getPresetModelContextWindow(provider.presetId, provider.models[role])
     if (!official || official === current) continue
     next[role] = official
@@ -1259,6 +1265,17 @@ function withProviderSpecificTestDefaults(
   format: ApiFormat,
   body: Record<string, unknown>,
 ): Record<string, unknown> {
+  if (
+    format === 'openai_chat' &&
+    isKimiK3ModelId(modelId) &&
+    isKimiAlwaysOnThinkingModel(modelId, base)
+  ) {
+    return {
+      ...body,
+      reasoning_effort: 'max',
+    }
+  }
+
   if (
     format !== 'openai_responses' &&
     requiresEnabledThinkingParamForModel(modelId, base)

@@ -42,20 +42,23 @@ describe('Lite deterministic token optimization', () => {
     ])
   })
 
-  test('persists the global switch and only cleans when enabled', () => {
+  test('defaults on and preserves an explicit global opt-out', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-lite-test-'))
     testRoots.push(root)
     process.env.CYBER_CONFIG_DIR = root
     _resetConfigHomeDirForTesting()
 
     const service = new LiteOptimizationService()
-    expect(service.getStatus()).toEqual({ enabled: false, mode: 'deterministic' })
-    expect(service.cleanSystemPrompt(['Rule  \n\n\nNext'])).toEqual(['Rule  \n\n\nNext'])
+    expect(service.getStatus()).toEqual({ enabled: true, mode: 'deterministic' })
+    expect(service.cleanSystemPrompt(['Rule  \n\n\nNext'])).toEqual(['Rule\n\nNext'])
 
     const writer = new LiteOptimizationService()
+    writer.setEnabled(false)
+    expect(service.getStatus().enabled).toBe(false)
+    expect(service.cleanSystemPrompt(['Rule  \n\n\nNext'])).toEqual(['Rule  \n\n\nNext'])
+
     writer.setEnabled(true)
     expect(service.getStatus().enabled).toBe(true)
-    expect(service.cleanSystemPrompt(['Rule  \n\n\nNext'])).toEqual(['Rule\n\nNext'])
   })
 
   test('serves the global switch through the token optimization API', async () => {

@@ -7,6 +7,7 @@ import {
   boundPromptMemoryPair,
   boundPromptMemoryText,
 } from './budget.js'
+import { readPromptMemoryConfig } from './config.js'
 import {
   getBriefPath,
   getSoulPath,
@@ -43,7 +44,8 @@ export async function buildPromptMemorySnapshot(): Promise<string | null> {
     })
   }
 
-  const [soulRaw, briefRaw, userRaw] = await Promise.all([
+  const [config, soulRaw, briefRaw, userRaw] = await Promise.all([
+    readPromptMemoryConfig(),
     readOptionalText(getSoulPath()),
     readOptionalText(getBriefPath()),
     readOptionalText(getUserPromptMemoryPath()),
@@ -62,10 +64,10 @@ export async function buildPromptMemorySnapshot(): Promise<string | null> {
   }
 
   const promptMemoryBlocks: string[] = []
-  if (brief.content) {
+  if (config.injectEvolutionMemory && brief.content) {
     promptMemoryBlocks.push(`## Brief\n\n${brief.content}`)
   }
-  if (user.content) {
+  if (config.injectEvolutionMemory && user.content) {
     promptMemoryBlocks.push(`## User\n\n${user.content}`)
   }
 

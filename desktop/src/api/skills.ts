@@ -43,12 +43,24 @@ export const skillsApi = {
     )
   },
 
-  learning: (cwd?: string) => {
+  learning: async (cwd?: string) => {
     const query = cwd ? `?cwd=${encodeURIComponent(cwd)}` : ''
-    return api.get<{ overview: SkillLearningOverview }>(
+    const { overview } = await api.get<{
+      overview: Omit<SkillLearningOverview, 'recentCandidates'> & {
+        recentCandidates?: SkillCandidate[]
+      }
+    }>(
       `/api/skills/learning${query}`,
       { timeout: 120_000 },
     )
+    return {
+      overview: {
+        ...overview,
+        recentCandidates: Array.isArray(overview.recentCandidates)
+          ? overview.recentCandidates
+          : [],
+      },
+    }
   },
 
   updateLearningConfig: (update: {

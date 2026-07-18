@@ -31,10 +31,12 @@ function memoryFile(target: 'soul' | 'brief' | 'user', content = '') {
 
 describe('MemorySettings evolution profile', () => {
   let removed: boolean
+  let injectionEnabled: boolean
   let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     removed = false
+    injectionEnabled = true
     useSettingsStore.setState({ locale: 'en' })
     useUIStore.setState({ toasts: [] })
     fetchMock = vi.fn().mockImplementation((input: string, init?: RequestInit) => {
@@ -70,8 +72,22 @@ describe('MemorySettings evolution profile', () => {
         removed = true
         return Promise.resolve(jsonResponse({ changed: true }))
       }
+      if (
+        url.pathname === '/api/prompt-memory/config' &&
+        init?.method === 'PATCH'
+      ) {
+        injectionEnabled = JSON.parse(String(init.body)).injectEvolutionMemory
+        return Promise.resolve(jsonResponse({
+          version: 1,
+          injectEvolutionMemory: injectionEnabled,
+        }))
+      }
       if (url.pathname === '/api/prompt-memory') {
         return Promise.resolve(jsonResponse({
+          config: {
+            version: 1,
+            injectEvolutionMemory: injectionEnabled,
+          },
           files: {
             soul: memoryFile('soul', 'You are CyberCode.'),
             brief: memoryFile('brief'),
@@ -116,5 +132,28 @@ describe('MemorySettings evolution profile', () => {
     await waitFor(() => {
       expect(screen.queryByText(userEntry)).not.toBeInTheDocument()
     })
+  })
+
+  it('can pause self-evolution memory injection without removing the profile', async () => {
+    render(<MemorySettings />)
+    await screen.findByText(userEntry)
+
+    const toggle = screen.getByRole('switch', {
+      name: 'Use self-evolution memory in new conversations',
+    })
+    expect(toggle).toBeChecked()
+    fireEvent.click(toggle)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://127.0.0.1:3456/api/prompt-memory/config',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ injectEvolutionMemory: false }),
+        }),
+      )
+    })
+    await waitFor(() => expect(toggle).not.toBeChecked())
+    expect(screen.getByText(userEntry)).toBeInTheDocument()
   })
 })

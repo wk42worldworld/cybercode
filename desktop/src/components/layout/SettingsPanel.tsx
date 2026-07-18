@@ -25,9 +25,10 @@ const MemoSettings = memo(Settings)
 
 type Props = {
   visible: boolean
+  reserveRightRail?: boolean
 }
 
-export function SettingsPanel({ visible }: Props) {
+export function SettingsPanel({ visible, reserveRightRail = false }: Props) {
   const closeSettings = useUIStore((s) => s.closeSettings)
   const panelView = useUIStore((s) => s.settingsPanelView)
   const t = useTranslation()
@@ -52,7 +53,7 @@ export function SettingsPanel({ visible }: Props) {
       role="region"
       aria-label={getPanelLabel(panelView, t)}
       data-testid="settings-panel"
-      className="settings-ui settings-panel-overlay native-ui-text absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black/10 p-[16px] dark:bg-black/45"
+      className={`settings-ui settings-panel-overlay native-ui-text absolute bottom-0 left-0 top-0 z-[90] flex flex-col items-center justify-center bg-black/10 p-[16px] dark:bg-black/45 ${reserveRightRail ? 'right-[var(--sidebar-rail-width)]' : 'right-0'}`}
     >
       <div className="settings-panel-card flex h-[88vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)]">
         <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
@@ -137,6 +138,8 @@ function renderPanelContent(view: SettingsPanelView): ReactNode {
       return <ScheduledTasks />
     case 'tokenOptimization':
       return <TokenOptimization />
+    case 'codeGraph':
+      return <TokenOptimization initialView="graph" />
     case 'agentMigration':
       return <AgentMigration />
     case 'settings':
@@ -149,6 +152,7 @@ function getPanelLabel(view: SettingsPanelView, t: ReturnType<typeof useTranslat
   if (view === 'settings') return t('sidebar.settings')
   if (view === 'scheduled') return t('sidebar.scheduled')
   if (view === 'tokenOptimization') return t('tokenOptimization.title')
+  if (view === 'codeGraph') return t('tokenOptimization.graph.title')
   if (view === 'agentMigration') return t('agentMigration.title')
   return t(`settings.tab.${view}` as never)
 }

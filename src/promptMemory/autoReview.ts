@@ -92,7 +92,7 @@ export function normalizePromptMemoryLanguage(
     ?? normalized.slice(0, 80)
 }
 
-function getPromptMemoryLanguage(): string {
+export function getConfiguredPromptMemoryLanguage(): string {
   try {
     const settings = getSettingsWithSources().effective
     return normalizePromptMemoryLanguage(
@@ -548,7 +548,7 @@ async function runPromptMemoryAutoReview({
       trigger,
       briefEntries: brief.entries,
       userEntries: user.entries,
-      preferredLanguage: getPromptMemoryLanguage(),
+      preferredLanguage: getConfiguredPromptMemoryLanguage(),
     })
 
     const result = await runForkedAgent({

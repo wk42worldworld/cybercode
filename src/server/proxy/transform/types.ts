@@ -48,7 +48,7 @@ export type OpenAIChatRequest = {
   stream?: boolean
   tools?: OpenAITool[]
   tool_choice?: unknown
-  reasoning_effort?: 'low' | 'medium' | 'high'
+  reasoning_effort?: 'low' | 'medium' | 'high' | 'max'
   thinking?: { type: 'enabled' | 'disabled' }
 }
 

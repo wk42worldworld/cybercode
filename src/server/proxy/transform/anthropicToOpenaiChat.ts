@@ -14,6 +14,7 @@ import type {
   OpenAIToolCall,
   OpenAITool,
 } from './types.js'
+import { isKimiK3ModelId } from '../../../utils/model/thinkingPolicy.js'
 
 export type OpenAIChatTransformOptions = {
   kimiThinking?: boolean
@@ -81,9 +82,10 @@ export function anthropicToOpenaiChat(
     result.tool_choice = convertToolChoice(body.tool_choice)
   }
 
-  // Kimi uses its own thinking object. Other compatible APIs commonly use
-  // reasoning_effort instead.
-  if (body.thinking) {
+  // Kimi K3 uses reasoning_effort, while K2.x uses Kimi's thinking object.
+  if (options.kimiThinking && isKimiK3ModelId(body.model)) {
+    result.reasoning_effort = 'max'
+  } else if (body.thinking) {
     if (options.kimiThinking) {
       const alwaysThinking = body.model.toLowerCase().includes('kimi-k2.7-code')
       result.thinking = {

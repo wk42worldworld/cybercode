@@ -5,14 +5,22 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {
   buildCodeGraphPreflight,
+  startCodeGraphPreflight,
   shouldRunCodeGraphPreflight,
 } from './codeGraphPreflight.js'
 import { estimateCodeGraphTokens } from './codeGraphTextBudget.js'
+import { runWithCwdOverride } from '../utils/cwd.js'
 
 const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-preflight-test-'))
+const configDir = path.join(projectDir, 'config')
+const originalConfigDir = process.env.CYBER_CONFIG_DIR
 createPreflightFixture(projectDir)
 
-afterAll(() => fs.rmSync(projectDir, { recursive: true, force: true }))
+afterAll(() => {
+  if (originalConfigDir === undefined) delete process.env.CYBER_CONFIG_DIR
+  else process.env.CYBER_CONFIG_DIR = originalConfigDir
+  fs.rmSync(projectDir, { recursive: true, force: true })
+})
 
 describe('Code Graph automatic preflight gate', () => {
   test('runs for structural questions in Chinese and English', () => {
@@ -60,6 +68,42 @@ describe('Code Graph automatic preflight gate', () => {
       new AbortController().signal,
     )
     expect(english).toContain('# Code Graph Architecture')
+  })
+
+  test('stops and resumes automatic context injection with the global switch', async () => {
+    process.env.CYBER_CONFIG_DIR = configDir
+    const configPath = path.join(configDir, 'cybercode', 'codegraph.json')
+    fs.mkdirSync(path.dirname(configPath), { recursive: true })
+    const messages = [{
+      type: 'user',
+      isMeta: false,
+      message: { role: 'user', content: '修改 createSession 的调用链并分析影响' },
+    }] as any
+
+    fs.rmSync(configPath, { force: true })
+    const enabledByDefault = await runWithCwdOverride(projectDir, () => startCodeGraphPreflight(
+      messages,
+      'sdk' as any,
+      new AbortController().signal,
+    ))
+    expect(enabledByDefault).toContain('<codegraph_context')
+
+    fs.writeFileSync(configPath, JSON.stringify({ enabled: false, projects: {} }))
+    const disabled = runWithCwdOverride(projectDir, () => startCodeGraphPreflight(
+      messages,
+      'sdk' as any,
+      new AbortController().signal,
+    ))
+    expect(disabled).toBeNull()
+
+    fs.writeFileSync(configPath, JSON.stringify({ enabled: true, projects: {} }))
+    const enabled = await runWithCwdOverride(projectDir, () => startCodeGraphPreflight(
+      messages,
+      'sdk' as any,
+      new AbortController().signal,
+    ))
+    expect(enabled).toContain('<codegraph_context')
+    expect(enabled).toContain('auth.createSession')
   })
 })
 

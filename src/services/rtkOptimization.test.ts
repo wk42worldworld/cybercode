@@ -28,7 +28,7 @@ afterEach(() => {
 })
 
 describe('RTK token optimization', () => {
-  test('persists a global opt-in and defaults to disabled', async () => {
+  test('defaults on and preserves an explicit global opt-out', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-rtk-test-'))
     testRoots.push(root)
     process.env.CYBER_CONFIG_DIR = root
@@ -36,17 +36,16 @@ describe('RTK token optimization', () => {
     _resetConfigHomeDirForTesting()
 
     const service = new RtkOptimizationService()
-    expect(service.isEnabled()).toBe(false)
-
-    const writer = new RtkOptimizationService()
-    const status = await writer.setEnabled(true)
-    expect(status.enabled).toBe(true)
-
     expect(service.isEnabled()).toBe(true)
 
+    const writer = new RtkOptimizationService()
     await writer.setEnabled(false)
     expect(service.isEnabled()).toBe(false)
     expect(await service.rewriteCommand('git status', 'bash')).toBe('git status')
+
+    const status = await writer.setEnabled(true)
+    expect(status.enabled).toBe(true)
+    expect(service.isEnabled()).toBe(true)
   })
 
   test('builds shell-specific commands without changing unsupported rewrites', () => {

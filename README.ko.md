@@ -100,6 +100,76 @@ GUI가 필요하면 [macOS, Windows, Linux용 데스크톱 앱](https://github.c
 | 자리를 비워도 로컬 Agent가 계속 작업하기를 원함 | Telegram / Feishu 원격 제어, 예약 작업, 백그라운드 Agent, 지속 메모리 |
 | 고급 Agent 기능을 실험할 오픈소스 프로젝트가 필요함 | Multi-Agent, Skills, MCP, Computer Use, 사용자 지정 공급자, CLI 헤드리스 모드 |
 
+## 실제로 체감할 수 있는 핵심 장점
+
+### 사용자가 확인하고 관리할 수 있는 장기 기억
+
+CyberCode는 안정적인 대화 선호도, 프로젝트 지식, 재사용 가능한 작업 방식을 추출하여 새 세션이 매번 처음부터 시작하지 않도록 합니다. 반복해서 성공한 접근 방식은 Skill 후보로 정리할 수 있으므로 단순히 대화 기록을 보관하는 것을 넘어 협업 방식 자체가 발전합니다.
+
+데스크톱 앱에서 CyberCode가 이해한 내용, 각 항목의 분류, 추출된 작업 방식을 직접 확인할 수 있습니다. 항목별 편집과 삭제가 가능하며 원본 메모리 파일과 학습 기록도 사용자가 직접 관리합니다.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-memory-evolution.png" alt="CyberCode 기억 및 자기 진화 프로필" width="980">
+</p>
+
+### 숨겨진 프리셋이 아닌 제어 가능한 컨텍스트 최적화
+
+대규모 저장소, 긴 명령 출력, 중복 시스템 지시, 오래된 도구 결과는 모델 컨텍스트를 빠르게 소모합니다. CyberCode는 Lite 정리, 스마트 가지치기, Lazy Programmer, Caveman 응답 압축, RTK 도구 출력 압축, Code Graph를 독립적인 최적화 계층으로 제공하며 각각 전역 스위치로 제어할 수 있습니다.
+
+패널은 활성화된 계층과 조합된 예상 절감 범위를 표시합니다. 이 수치는 청구 비용 감소를 보장하는 값이 아니라 투명하게 표시된 추정치입니다.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-token-optimization.png" alt="CyberCode Token 최적화 설정" width="980">
+</p>
+
+### 파일을 대량으로 읽기 전에 저장소 구조부터 파악
+
+로컬 Code Graph는 파일, 심볼, 참조, 관계를 인덱싱합니다. Agent는 압축된 아키텍처 정보를 통해 관련 구현을 먼저 찾을 수 있으므로 익숙하지 않은 대규모 저장소를 무작정 읽는 일을 줄입니다. 영향도 분석과 여러 파일에 걸친 리팩터링에도 유용합니다.
+
+동일한 인덱스를 데스크톱 앱에서 확인할 수 있으며 심볼 검색, 아키텍처 / 파일 보기, 모듈 확대, 수동 인덱스 재구축을 지원합니다.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-code-graph.png" alt="CyberCode 로컬 Code Graph" width="980">
+</p>
+
+### 모델을 바꿔도 유지되는 제품 기능
+
+Claude 공식 경로, Anthropic 호환 API, OpenAI 호환 공급자, 로컬 모델 어디에서든 동일한 도구, 기억, 데스크톱 워크플로, 권한 제어를 사용할 수 있습니다. 기본 검색 기능이 불안정한 모델을 위해 실시간 검색, 도메인 필터, 캐시, GitHub Trending 직접 조회를 제공하는 공급자 독립형 WebSearch 폴백도 포함됩니다.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-providers.png" alt="CyberCode 공급자 설정"><br><b>앱 안에서 공급자 관리</b><br>클라우드 또는 로컬 엔드포인트를 설정하고 연결을 테스트하며 데스크톱 워크플로 안에서 기본값을 선택합니다.</td>
+    <td width="50%"><img src="docs/images/gui/cybercode-gui-model-picker.png" alt="CyberCode 모델 선택기"><br><b>세션별 모델 선택</b><br>알려진 모델을 선택하거나 사용자 지정 모델 이름을 입력해도 동일한 Agent 도구와 인터페이스를 유지합니다.</td>
+  </tr>
+</table>
+
+### 데스크톱, 터미널, 원격 채널을 잇는 하나의 Agent
+
+React + Tauri 데스크톱 앱과 Ink 터미널 인터페이스는 동일한 로컬 Agent 코어를 공유합니다. 파일 첨부, 슬래시 명령, 권한 제어, MCP, Skills, 플러그인, 백그라운드 Agent, Agent Teams, Git worktree, Computer Use, 헤드리스 출력이 분리된 제품이 아니라 하나의 워크플로로 동작합니다.
+
+Telegram과 Feishu adapter는 컴퓨터에서 떨어져 있을 때도 대화와 권한 요청을 전달할 수 있습니다. 예약 작업은 일회성 또는 반복 로컬 작업을 지원하므로 저장소 유지보수와 정기 점검을 위해 매번 채팅을 직접 열 필요가 없습니다.
+
+<p align="center">
+  <img src="docs/images/gui/cybercode-gui-scheduled-tasks.png" alt="CyberCode 예약 코딩 작업" width="900">
+</p>
+
+### 확인, 편집, 이전이 가능한 설계
+
+CyberCode는 클라이언트, 서버, 데스크톱 셸, adapter, 기억, 검색, 공급자 bridge, 최적화 로직을 공개합니다. Agent 데이터 이전 도구는 다른 로컬 Agent의 호환 Skills, 기억, 규칙, 프로젝트 데이터를 가져오기 전에 확인하여 축적된 워크플로를 버리지 않고 도구를 변경하기 쉽게 합니다.
+
+## 기능 지도
+
+| 영역 | 포함된 기능 |
+|---|---|
+| 코딩 워크플로 | 파일 편집, 터미널 도구, 프로젝트 검색, 권한 모드, 슬래시 명령, 첨부, rewind, branch, 세션 재개 |
+| Agent 지능 | 영구 기억, 자기 진화 검토, 재사용 가능한 Skills, 하위 Agent, Agent Teams, 백그라운드 작업, worktree |
+| 컨텍스트 효율 | 동적 컨텍스트 윈도우, 자동 압축, Lite 정리, 스마트 가지치기, Lazy Programmer, Caveman, RTK, Code Graph |
+| 모델 연결 | Claude 공식 로그인, Anthropic 호환 API, OpenAI 호환 공급자, 로컬 endpoint, 사용자 지정 모델, 모델별 컨텍스트 정보 |
+| Web 및 도구 | 공급자 독립형 WebSearch, WebFetch, MCP, 플러그인, Computer Use, 환경 기반 도구 가용성 |
+| 인터페이스 | 크로스플랫폼 데스크톱 앱, 터미널 TUI, `--print` 헤드리스 모드, Telegram, Feishu |
+| 자동화 | 일회성 / 반복 예약 작업, 원격 승인, 백그라운드 Agent, 기계 판독형 JSON 출력 |
+| 이전성 | Agent 데이터 이전, 편집 가능한 로컬 기억, 공개 adapter, 오픈소스 로컬 서버 |
+
 ## 빠른 비교
 
 | 필요 | CyberCode | Claude Code | Cursor / Cline / Roo 계열 |

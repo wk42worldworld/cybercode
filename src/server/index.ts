@@ -16,6 +16,7 @@ import { ProviderService } from './services/providerService.js'
 import { handleCybercodeOAuthCallback } from './api/cybercode-oauth.js'
 import { ensureDesktopCliLauncherInstalled } from './services/desktopCliLauncherService.js'
 import { codeGraphService } from './services/codeGraphService.js'
+import { startCybercodeUsageReporter } from '../services/cybercodeUsageAnalytics.js'
 
 function readArgValue(flag: string): string | undefined {
   const args = process.argv.slice(2)
@@ -229,6 +230,7 @@ export function startServer(port = PORT, host = HOST) {
   })
 
   codeGraphService.restoreEnabledProjects()
+  startCybercodeUsageReporter('desktop')
 
   console.log(`[Server] CyberCode API server running at http://${host}:${port}`)
   return server

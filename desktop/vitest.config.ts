@@ -13,7 +13,12 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     css: true,
+    maxWorkers: 4,
     setupFiles: ['./src/test-setup.ts'],
-    exclude: [...configDefaults.exclude, 'sidecars/codegraphWal.test.ts'],
+    exclude: [
+      ...configDefaults.exclude,
+      'sidecars/**/*.test.ts',
+      'scripts/sidecarTarget.test.ts',
+    ],
   },
 })

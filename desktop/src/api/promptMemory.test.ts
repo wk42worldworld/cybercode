@@ -20,6 +20,7 @@ describe('promptMemoryApi', () => {
       'user',
       '[communication] User prefers concise replies.',
     )
+    await promptMemoryApi.updateConfig(false)
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -37,5 +38,29 @@ describe('promptMemoryApi', () => {
         }),
       }),
     )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:3456/api/prompt-memory/config',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ injectEvolutionMemory: false }),
+      }),
+    )
+  })
+
+  it('supplies a safe default when an older backend omits memory config', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ files: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ))
+
+    const status = await promptMemoryApi.status()
+
+    expect(status.config).toEqual({
+      version: 1,
+      injectEvolutionMemory: true,
+    })
   })
 })

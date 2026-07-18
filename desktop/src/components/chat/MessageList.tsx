@@ -206,6 +206,7 @@ const MessageListContainer = forwardRef<HTMLDivElement, ListProps>(function Mess
 
 const MIN_BOTTOM_SPACER_HEIGHT = 176
 const BOTTOM_SPACER_CLEARANCE = 8
+const HISTORY_LOADING_INDICATOR_DELAY_MS = 800
 const INITIAL_FIRST_ITEM_INDEX = 1_000_000
 
 function sanitizeScrollerStyle(style: CSSProperties | undefined): CSSProperties | undefined {
@@ -224,7 +225,7 @@ function sanitizeScrollerStyle(style: CSSProperties | undefined): CSSProperties 
   return hasInvalidValue ? sanitized : style
 }
 
-export function MessageList({ sessionId, projectPath, isActive: _isActive = true, bottomOverlayHeight = 0, __testInitialItemCount }: MessageListProps = {}) {
+export function MessageList({ sessionId, projectPath, isActive = true, bottomOverlayHeight = 0, __testInitialItemCount }: MessageListProps = {}) {
   const activeTabId = useTabStore((s) => s.activeTabId)
   const resolvedSessionId = sessionId ?? activeTabId
   const sessionState = useChatStore((s) =>
@@ -279,6 +280,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   const [rewindTarget, setRewindTarget] = useState<{
     messageId: string
     userMessageIndex: number
+    userMessageOffsetFromEnd: number
     content: string
     attachments?: Extract<UIMessage, { type: 'user_text' }>['attachments']
   } | null>(null)
@@ -292,10 +294,10 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
   // been loaded yet. Prevents the blank-screen scenario when switching tabs
   // or on first render before AppShell's bootstrap loadHistory completes.
   useEffect(() => {
-    if (resolvedSessionId && historyLoadState === 'idle') {
+    if (isActive && resolvedSessionId && historyLoadState === 'idle') {
       void loadHistory(resolvedSessionId, projectPath)
     }
-  }, [resolvedSessionId, projectPath, historyLoadState, loadHistory])
+  }, [isActive, resolvedSessionId, projectPath, historyLoadState, loadHistory])
 
   const renderModel = useMemo(
     () => buildRenderModel(messages),
@@ -707,6 +709,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       .rewind(resolvedSessionId, {
         targetUserMessageId: rewindTarget.messageId,
         userMessageIndex: rewindTarget.userMessageIndex,
+        userMessageOffsetFromEnd: rewindTarget.userMessageOffsetFromEnd,
         expectedContent: rewindTarget.content,
         dryRun: true,
       }, { projectPath })
@@ -742,6 +745,7 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
       const result = await sessionsApi.rewind(resolvedSessionId, {
         targetUserMessageId: rewindTarget.messageId,
         userMessageIndex: rewindTarget.userMessageIndex,
+        userMessageOffsetFromEnd: rewindTarget.userMessageOffsetFromEnd,
         expectedContent: rewindTarget.content,
       }, { projectPath })
       await reloadHistory(resolvedSessionId, projectPath)
@@ -978,6 +982,12 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
         .filter((i) => i.kind === 'message' && i.message.type === 'user_text' && !i.message.pending)
         .length
       const rewindableUserIndex = msg.type === 'user_text' && !msg.pending ? userMsgCount : null
+      const rewindableUserOffsetFromEnd = msg.type === 'user_text' && !msg.pending
+        ? renderItems
+            .slice(dataIndex + 1)
+            .filter((i) => i.kind === 'message' && i.message.type === 'user_text' && !i.message.pending)
+            .length
+        : null
 
       return (
         <div className="px-0 py-0">
@@ -999,12 +1009,14 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
                 : null
             }
             rewindableUserIndex={rewindableUserIndex}
+            rewindableUserOffsetFromEnd={rewindableUserOffsetFromEnd}
             onRequestRewind={
               !isMemberSession
-                ? (message, userMessageIndex) => {
+                ? (message, userMessageIndex, userMessageOffsetFromEnd) => {
                     setRewindTarget({
-                      messageId: message.id,
+                      messageId: message.serverId || message.id,
                       userMessageIndex,
+                      userMessageOffsetFromEnd,
                       content: message.content,
                       attachments: message.attachments,
                     })
@@ -1035,6 +1047,19 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
 
   // Error / loading states are shown outside Virtuoso when there are no messages
   const showEmptyOverlay = messages.length === 0 && historyLoadState !== 'loaded'
+  const isHistoryPending = showEmptyOverlay && (
+    historyLoadState === 'idle' || historyLoadState === 'loading'
+  )
+  const [showHistoryPendingIndicator, setShowHistoryPendingIndicator] = useState(false)
+  useEffect(() => {
+    setShowHistoryPendingIndicator(false)
+    if (!isHistoryPending) return
+
+    const timer = window.setTimeout(() => {
+      setShowHistoryPendingIndicator(true)
+    }, HISTORY_LOADING_INDICATOR_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [isHistoryPending, listIdentity])
   const showScrollJumpButton = !showEmptyOverlay && (renderItems.length > 1 || visualStreamingText.length > 0)
   const scrollJumpLabel = isAtBottom ? t('chat.scrollToTop') : t('chat.scrollToBottom')
   const footerComponent = useMemo(() => function StableListFooter() {
@@ -1050,29 +1075,24 @@ export function MessageList({ sessionId, projectPath, isActive: _isActive = true
     <div className="wechat-chat-bg scrollbar-no-track relative flex flex-1 flex-col overflow-hidden">
       {showEmptyOverlay && historyLoadState === 'error' && (
         <div className="mx-auto my-6 flex max-w-[420px] flex-col items-center gap-3 rounded-[10px] border-2 border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-5 py-5 text-center">
-          <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">聊天记录加载失败</div>
-          <div className="text-[12px] text-[var(--color-text-tertiary)]">网络或服务可能短暂不可用，可以重试。</div>
+          <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">{t('chat.historyLoadFailedTitle')}</div>
+          <div className="text-[12px] text-[var(--color-text-tertiary)]">{t('chat.historyLoadFailedDetail')}</div>
           <button
             type="button"
             onClick={() => resolvedSessionId && void loadHistory(resolvedSessionId, projectPath)}
             className="px-4 py-1.5 text-[12px] font-bold tracking-tight text-white bg-[#FE2C55] rounded-[6px] shadow-[0_2px_8px_rgba(254,44,85,0.25)] hover:bg-[#E91E45] transition-colors"
           >
-            重新加载
+            {t('common.retry')}
           </button>
         </div>
       )}
 
-      {showEmptyOverlay && historyLoadState === 'idle' && (
+      {showHistoryPendingIndicator && (
         <div className="mx-auto my-6 flex max-w-[420px] flex-col items-center gap-2 text-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-text-secondary)]" />
-          <div className="text-[12px] text-[var(--color-text-tertiary)]">准备加载聊天记录…</div>
-        </div>
-      )}
-
-      {showEmptyOverlay && historyLoadState === 'loading' && (
-        <div className="mx-auto my-6 flex max-w-[420px] flex-col items-center gap-2 text-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-text-secondary)]" />
-          <div className="text-[12px] text-[var(--color-text-tertiary)]">加载会话历史…</div>
+          <div className="text-[12px] text-[var(--color-text-tertiary)]">
+            {historyLoadState === 'idle' ? t('chat.historyPreparing') : t('chat.historyLoading')}
+          </div>
         </div>
       )}
 
@@ -1293,6 +1313,7 @@ export const MessageBlock = memo(function MessageBlock({
   toolResult,
   isToolExecutionActive,
   rewindableUserIndex,
+  rewindableUserOffsetFromEnd,
   onRequestRewind,
   onRequestBranch,
   isBranching,
@@ -1306,9 +1327,11 @@ export const MessageBlock = memo(function MessageBlock({
   toolResult?: { content: unknown; isError: boolean } | null
   isToolExecutionActive?: boolean
   rewindableUserIndex?: number | null
+  rewindableUserOffsetFromEnd?: number | null
   onRequestRewind?: (
     message: Extract<UIMessage, { type: 'user_text' }>,
     userMessageIndex: number,
+    userMessageOffsetFromEnd: number,
   ) => void
   onRequestBranch?: (
     message: Extract<UIMessage, { type: 'assistant_text' }>,
@@ -1343,7 +1366,11 @@ export const MessageBlock = memo(function MessageBlock({
           attachments={message.attachments}
           onRewind={
             typeof rewindableUserIndex === 'number' && onRequestRewind
-              ? () => onRequestRewind(message, rewindableUserIndex)
+              ? () => onRequestRewind(
+                  message,
+                  rewindableUserIndex,
+                  rewindableUserOffsetFromEnd ?? 0,
+                )
               : undefined
           }
           rewindLabel={t('chat.rewindAction')}

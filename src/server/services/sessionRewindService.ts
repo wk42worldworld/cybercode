@@ -28,6 +28,7 @@ type RewindCodePreview = {
 export type RewindTargetSelector = {
   targetUserMessageId?: string
   userMessageIndex?: number
+  userMessageOffsetFromEnd?: number
   expectedContent?: string
 }
 
@@ -103,10 +104,13 @@ async function resolveRewindTarget(
   selector: RewindTargetSelector,
   locator?: RewindLocator,
 ): Promise<RewindTarget> {
-  const { messages: activeMessages } = await sessionService.getSessionMessages(sessionId, {
-    limit: 200,
+  const session = await sessionService.getSession(sessionId, {
     projectPath: locator?.projectPath,
   })
+  if (!session) {
+    throw ApiError.notFound(`Session not found: ${sessionId}`)
+  }
+  const activeMessages = session.messages
   const userMessages = activeMessages.filter((message) => message.type === 'user')
 
   if (userMessages.length === 0) {
@@ -131,6 +135,13 @@ async function resolveRewindTarget(
     }
   }
 
+  if (!targetUserMessage && Number.isInteger(selector.userMessageOffsetFromEnd)) {
+    userMessageIndex = userMessages.length - 1 - selector.userMessageOffsetFromEnd!
+    if (userMessageIndex >= 0 && userMessageIndex < userMessages.length) {
+      targetUserMessage = userMessages[userMessageIndex]!
+    }
+  }
+
   if (!targetUserMessage && Number.isInteger(selector.userMessageIndex)) {
     userMessageIndex = selector.userMessageIndex!
     if (userMessageIndex >= 0 && userMessageIndex < userMessages.length) {
@@ -144,7 +155,7 @@ async function resolveRewindTarget(
     userMessageIndex >= userMessages.length
   ) {
     throw ApiError.badRequest(
-      `Invalid rewind target. Expected targetUserMessageId or userMessageIndex 0-${userMessages.length - 1}.`,
+      `Invalid rewind target. Expected targetUserMessageId, userMessageOffsetFromEnd, or userMessageIndex 0-${userMessages.length - 1}.`,
     )
   }
 

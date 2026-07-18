@@ -156,6 +156,13 @@ describe('anthropicToOpenaiChat', () => {
     }, { kimiThinking: true })
     expect(alwaysThinking.thinking).toEqual({ type: 'enabled' })
 
+    const kimiK3 = anthropicToOpenaiChat({
+      ...disabled,
+      model: 'kimi-k3',
+    }, { kimiThinking: true })
+    expect(kimiK3.thinking).toBeUndefined()
+    expect(kimiK3.reasoning_effort).toBe('max')
+
     const generic = anthropicToOpenaiChat(disabled)
     expect(generic.thinking).toBeUndefined()
     expect(generic.reasoning_effort).toBeUndefined()

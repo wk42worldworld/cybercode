@@ -204,6 +204,8 @@ const USER_INTERRUPTION_TEXTS = new Set([
 ])
 
 const NO_RESPONSE_REQUESTED_TEXT = 'No response requested.'
+const RECENT_HISTORY_CHUNK_BYTES = 256 * 1024
+const RECENT_HISTORY_LOOKBACK_MESSAGES = 32
 
 // ============================================================================
 // Service
@@ -256,6 +258,86 @@ export class SessionService {
       }
     }
     return entries
+  }
+
+  /**
+   * Read only the newest transcript entries without parsing the whole JSONL file.
+   * Session files can contain multi-megabyte tool results, so a normal readFile()
+   * makes a simple tab switch pay for every old screenshot and command output.
+   */
+  private async readRecentJsonlEntries(
+    filePath: string,
+    targetMessageCount: number,
+  ): Promise<{ entries: RawEntry[]; hasEarlierEntries: boolean }> {
+    let file: fs.FileHandle
+    try {
+      file = await fs.open(filePath, 'r')
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { entries: [], hasEarlierEntries: false }
+      }
+      throw err
+    }
+
+    try {
+      const { size } = await file.stat()
+      if (size === 0) return { entries: [], hasEarlierEntries: false }
+
+      const reversedEntries: RawEntry[] = []
+      let visibleMessageCount = 0
+      let position = size
+      let partialLine = Buffer.alloc(0)
+
+      while (position > 0) {
+        const start = Math.max(0, position - RECENT_HISTORY_CHUNK_BYTES)
+        const length = position - start
+        const chunk = Buffer.allocUnsafe(length)
+        const { bytesRead } = await file.read(chunk, 0, length, start)
+        const combined = Buffer.concat([chunk.subarray(0, bytesRead), partialLine])
+
+        let completeLines: Buffer
+        if (start === 0) {
+          completeLines = combined
+          partialLine = Buffer.alloc(0)
+        } else {
+          const firstNewline = combined.indexOf(0x0a)
+          if (firstNewline < 0) {
+            // A single JSONL record can be larger than a chunk (for example a
+            // screenshot tool result). Keep collecting until its start arrives.
+            partialLine = combined
+            position = start
+            continue
+          }
+          partialLine = Buffer.from(combined.subarray(0, firstNewline))
+          completeLines = combined.subarray(firstNewline + 1)
+        }
+
+        const lines = completeLines.toString('utf-8').split('\n')
+        for (let index = lines.length - 1; index >= 0; index -= 1) {
+          const trimmed = lines[index]?.trim()
+          if (!trimmed) continue
+          try {
+            const entry = JSON.parse(trimmed) as RawEntry
+            reversedEntries.push(entry)
+            if (this.isVisibleTranscriptEntry(entry)) {
+              visibleMessageCount += 1
+            }
+          } catch {
+            // Match readJsonlFile(): incomplete or malformed records are ignored.
+          }
+        }
+
+        position = start
+        if (visibleMessageCount >= targetMessageCount) break
+      }
+
+      return {
+        entries: reversedEntries.reverse(),
+        hasEarlierEntries: position > 0,
+      }
+    } finally {
+      await file.close()
+    }
   }
 
   private async appendJsonlEntry(filePath: string, entry: Record<string, unknown>): Promise<void> {
@@ -494,6 +576,12 @@ export class SessionService {
     }
 
     return false
+  }
+
+  private isVisibleTranscriptEntry(entry: RawEntry): boolean {
+    if (!entry.message?.role || entry.isMeta) return false
+    if (this.shouldHideTranscriptEntry(entry)) return false
+    return entry.type === 'user' || entry.type === 'assistant' || entry.type === 'system'
   }
 
   private extractAgentToolUseId(entry: RawEntry): string | undefined {
@@ -1399,7 +1487,7 @@ export class SessionService {
    * Get messages for a session with optional cursor-based pagination.
    *
    * @param sessionId  Session UUID
-   * @param options.limit  Max messages to return (default 50, capped at 200)
+   * @param options.limit  Max messages to return (default 50, capped at 1000)
    * @param options.before  Return messages older than this message ID (cursor)
    * @param options.after   Return messages newer than this message ID (cursor)
    *
@@ -1413,18 +1501,35 @@ export class SessionService {
     sessionId: string,
     options?: { limit?: number; before?: string; after?: string; projectPath?: string },
   ): Promise<{ messages: MessageEntry[]; hasMore: boolean }> {
-    const found = await this.findSessionFile(sessionId, { projectPath: options?.projectPath })
+    let found = await this.findSessionFile(sessionId, { projectPath: options?.projectPath })
+    if (!found && options?.projectPath) {
+      // Session tabs can outlive project renames or moves. Reading history is
+      // safe to recover by UUID; mutating operations keep their strict locator.
+      found = await this.findSessionFile(sessionId)
+    }
     if (!found) {
       throw ApiError.notFound(`Session not found: ${sessionId}`)
     }
 
-    const entries = await this.readJsonlFile(found.filePath)
+    const limit = Math.min(Math.max(options?.limit ?? 50, 1), 1000)
+    const isInitialPage = !options?.before && !options?.after
+    const recentHistory = isInitialPage
+      ? await this.readRecentJsonlEntries(
+          found.filePath,
+          limit + RECENT_HISTORY_LOOKBACK_MESSAGES,
+        )
+      : null
+    const entries = recentHistory?.entries ?? await this.readJsonlFile(found.filePath)
     const allMessages = await this.appendSubagentToolMessages(
       found.projectDir,
       sessionId,
       this.entriesToMessages(entries),
     )
-    return this.paginateMessages(allMessages, options)
+    const page = this.paginateMessages(allMessages, options)
+    return {
+      ...page,
+      hasMore: page.hasMore || recentHistory?.hasEarlierEntries === true,
+    }
   }
 
   async createProjectFolder(
@@ -2089,23 +2194,7 @@ export class SessionService {
     }
 
     for (const entry of entries) {
-      // Only process transcript entries (user / assistant / system with messages)
-      if (!entry.message?.role) continue
-
-      // Skip meta entries (CLI internal bookkeeping)
-      if (entry.isMeta) continue
-
-      if (this.shouldHideTranscriptEntry(entry)) continue
-
-      // Skip non-transcript entry types
-      const entryType = entry.type
-      if (
-        entryType !== 'user' &&
-        entryType !== 'assistant' &&
-        entryType !== 'system'
-      ) {
-        continue
-      }
+      if (!this.isVisibleTranscriptEntry(entry)) continue
 
       const parentToolUseId = this.resolveParentToolUseId(
         entry,

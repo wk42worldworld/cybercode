@@ -16,8 +16,24 @@ export type PromptMemoryFile = {
   overLimit: boolean
 }
 
+export type PromptMemoryConfig = {
+  version: 1
+  injectEvolutionMemory: boolean
+  updatedAt?: string
+}
+
 export type PromptMemoryStatus = {
   files: Record<PromptMemoryTarget, PromptMemoryFile>
+  config: PromptMemoryConfig
+}
+
+type PromptMemoryStatusResponse = Omit<PromptMemoryStatus, 'config'> & {
+  config?: PromptMemoryConfig
+}
+
+const DEFAULT_PROMPT_MEMORY_CONFIG: PromptMemoryConfig = {
+  version: 1,
+  injectEvolutionMemory: true,
 }
 
 export type PromptMemoryAutoReviewLogEntry = {
@@ -68,13 +84,24 @@ export type PromptMemoryInsights = {
 }
 
 export const promptMemoryApi = {
-  status: () => api.get<PromptMemoryStatus>('/api/prompt-memory'),
+  status: async (): Promise<PromptMemoryStatus> => {
+    const status = await api.get<PromptMemoryStatusResponse>('/api/prompt-memory')
+    return {
+      ...status,
+      config: status.config ?? DEFAULT_PROMPT_MEMORY_CONFIG,
+    }
+  },
 
   logs: (limit = 20) =>
     api.get<PromptMemoryAutoReviewLogEntry[]>(`/api/prompt-memory/logs?limit=${limit}`),
 
   insights: () =>
     api.get<PromptMemoryInsights>('/api/prompt-memory/insights'),
+
+  updateConfig: (injectEvolutionMemory: boolean) =>
+    api.patch<PromptMemoryConfig>('/api/prompt-memory/config', {
+      injectEvolutionMemory,
+    }),
 
   read: (target: PromptMemoryTarget) =>
     api.get<PromptMemoryFile>(`/api/prompt-memory/${target}`),
