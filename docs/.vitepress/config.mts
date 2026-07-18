@@ -224,7 +224,7 @@ export default withMermaid(defineConfig({
       themeConfig: {
         nav: [
           { text: '首页', link: '/' },
-          { text: '快速开始', link: '/guide/quick-start' },
+          { text: '教程文档', link: '/guide/quick-start' },
         ],
         sidebar: zhSidebar,
         outline: { label: '页面导航' },
@@ -246,7 +246,7 @@ export default withMermaid(defineConfig({
         },
         nav: [
           { text: 'Home', link: '/en/' },
-          { text: 'Quick Start', link: '/en/guide/quick-start' },
+          { text: 'Documentation', link: '/en/guide/quick-start' },
         ],
         sidebar: enSidebar,
       },
@@ -262,7 +262,7 @@ export default withMermaid(defineConfig({
         },
         nav: [
           { text: 'ホーム', link: '/ja/' },
-          { text: 'クイックスタート', link: '/ja/guide/quick-start' },
+          { text: 'ドキュメント', link: '/ja/guide/quick-start' },
         ],
         sidebar: jaSidebar,
         outline: { label: 'ページ内ナビゲーション' },
@@ -284,7 +284,7 @@ export default withMermaid(defineConfig({
         },
         nav: [
           { text: '홈', link: '/ko/' },
-          { text: '빠른 시작', link: '/ko/guide/quick-start' },
+          { text: '문서', link: '/ko/guide/quick-start' },
         ],
         sidebar: koSidebar,
         outline: { label: '페이지 목차' },
