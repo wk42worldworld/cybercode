@@ -103,7 +103,11 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
     if (!container) return
     const updateSize = () => {
       const width = Math.max(320, container.clientWidth)
-      const height = Math.max(440, Math.min(690, Math.round(width * 0.64)))
+      const availableHeight = container.clientHeight
+      const height = Math.max(
+        440,
+        Math.min(900, availableHeight > 440 ? availableHeight : Math.round(width * 0.64)),
+      )
       setCanvasSize({ width, height })
     }
     updateSize()

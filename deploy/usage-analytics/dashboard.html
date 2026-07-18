@@ -547,6 +547,93 @@
       .attribution a { color: #768288; text-decoration: none; }
       .attribution a:hover { color: var(--text); }
 
+      .china-province-panel { margin-top: 38px; border-top: 1px solid var(--line-strong); }
+      .china-province-head {
+        min-height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .china-province-head h3 { margin: 0; font-size: 13px; font-weight: 500; }
+      .china-province-head span { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; text-align: right; }
+      .china-province-map {
+        min-height: 476px;
+        padding: 18px 6px;
+        display: grid;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        grid-template-rows: repeat(7, 58px);
+        gap: 7px;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(rgba(57, 67, 72, .12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(57, 67, 72, .12) 1px, transparent 1px);
+        background-size: 28px 28px;
+      }
+      .province-tile {
+        min-width: 0;
+        padding: 6px 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: #171b1d;
+        color: var(--quiet);
+        font-variant-numeric: tabular-nums;
+        transition: transform .18s ease, border-color .18s ease, background-color .28s ease;
+      }
+      .province-tile.has-users { color: var(--text); border-color: rgba(112, 238, 165, .42); }
+      .province-tile.has-users:hover { z-index: 1; transform: translateY(-2px); border-color: var(--green); }
+      .province-tile span { max-width: 100%; overflow: hidden; font-size: 9px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+      .province-tile strong { font-size: 12px; line-height: 1; font-weight: 500; }
+      .province-map-legend {
+        min-height: 34px;
+        padding: 0 2px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        color: var(--quiet);
+        font-size: 9px;
+      }
+      .province-map-legend i { width: 56px; height: 4px; background: linear-gradient(90deg, #20282b, #226e64, #70eea5); }
+      .province-ranking {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 1px solid var(--line);
+      }
+      .province-rank-row {
+        position: relative;
+        min-height: 45px;
+        padding: 8px 11px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        font-size: 10px;
+      }
+      .province-rank-row:nth-child(3n) { border-right: 0; }
+      .province-rank-row::after {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: var(--province-fill, 0%);
+        height: 1px;
+        background: var(--green);
+        content: "";
+      }
+      .province-rank-row .rank { width: 18px; flex-basis: 18px; }
+      .province-rank-row span:not(.rank) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .province-rank-row strong { margin-left: auto; font-weight: 500; font-variant-numeric: tabular-nums; }
+      .province-ranking > .empty { grid-column: 1 / -1; padding: 20px 0; font-size: 12px; }
+
       .legend { display: flex; gap: 16px; color: var(--muted); font-size: 10px; }
       .legend span { display: flex; align-items: center; gap: 6px; }
       .legend i { width: 16px; height: 2px; background: var(--cyan); }
@@ -750,6 +837,10 @@
         .geo-map { height: 348px; }
         .region-grid { grid-template-columns: 1fr; }
         .region-row { border-right: 0; }
+        .china-province-map { min-height: 424px; grid-template-rows: repeat(7, 51px); gap: 5px; padding: 14px 2px; }
+        .province-ranking { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .province-rank-row:nth-child(3n) { border-right: 1px solid var(--line); }
+        .province-rank-row:nth-child(2n) { border-right: 0; }
         .trend-panel { height: 270px; padding: 24px 10px 14px; }
         .chart { gap: 2px; }
         .day-label { display: none; }
@@ -774,6 +865,14 @@
         .growth-value { font-size: 26px; }
         .growth-method { align-items: flex-start; flex-direction: column; gap: 4px; }
         .masthead-date { font-size: 18px; }
+        .china-province-head { align-items: flex-start; flex-direction: column; gap: 5px; padding: 12px 0; }
+        .china-province-head span { text-align: left; }
+        .china-province-map { min-height: 366px; grid-template-rows: repeat(7, 45px); gap: 3px; padding: 12px 0; }
+        .province-tile { padding: 4px 1px; gap: 2px; }
+        .province-tile span { font-size: 8px; }
+        .province-tile strong { font-size: 10px; }
+        .province-ranking { grid-template-columns: 1fr; }
+        .province-rank-row, .province-rank-row:nth-child(3n) { border-right: 0; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -943,6 +1042,15 @@
                 <a href="https://db-ip.com" rel="noreferrer">IP Geolocation by DB-IP</a>
                 · Map data: <a href="https://www.naturalearthdata.com" rel="noreferrer">Natural Earth</a>
               </div>
+              <div class="china-province-panel">
+                <div class="china-province-head">
+                  <h3>中国省份分布</h3>
+                  <span id="chinaProvinceMeta">正在读取省份数据</span>
+                </div>
+                <div class="china-province-map" id="chinaProvinceMap" role="img" aria-label="CyberCode 中国省份用户热力分布"></div>
+                <div class="province-map-legend"><span>用户密度</span><i aria-hidden="true"></i><span>高</span></div>
+                <div class="province-ranking" id="chinaProvinces"><div class="empty">暂无省份数据</div></div>
+              </div>
             </div>
           </div>
         </section>
@@ -1002,6 +1110,42 @@
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       let geoChart
       let worldMapPromise
+      const chinaProvinceLayout = [
+        { name: '黑龙江省', label: '黑龙江', column: 9, row: 1 },
+        { name: '内蒙古自治区', label: '内蒙古', column: 6, row: 2 },
+        { name: '吉林省', label: '吉林', column: 8, row: 2 },
+        { name: '新疆维吾尔自治区', label: '新疆', column: 1, row: 3 },
+        { name: '甘肃省', label: '甘肃', column: 3, row: 3 },
+        { name: '宁夏回族自治区', label: '宁夏', column: 4, row: 3 },
+        { name: '陕西省', label: '陕西', column: 5, row: 3 },
+        { name: '山西省', label: '山西', column: 6, row: 3 },
+        { name: '河北省', label: '河北', column: 7, row: 3 },
+        { name: '北京市', label: '北京', column: 8, row: 3 },
+        { name: '辽宁省', label: '辽宁', column: 9, row: 3 },
+        { name: '西藏自治区', label: '西藏', column: 1, row: 4 },
+        { name: '青海省', label: '青海', column: 2, row: 4 },
+        { name: '四川省', label: '四川', column: 3, row: 4 },
+        { name: '重庆市', label: '重庆', column: 4, row: 4 },
+        { name: '河南省', label: '河南', column: 5, row: 4 },
+        { name: '山东省', label: '山东', column: 6, row: 4 },
+        { name: '天津市', label: '天津', column: 7, row: 4 },
+        { name: '云南省', label: '云南', column: 2, row: 5 },
+        { name: '贵州省', label: '贵州', column: 3, row: 5 },
+        { name: '湖南省', label: '湖南', column: 4, row: 5 },
+        { name: '湖北省', label: '湖北', column: 5, row: 5 },
+        { name: '安徽省', label: '安徽', column: 6, row: 5 },
+        { name: '江苏省', label: '江苏', column: 7, row: 5 },
+        { name: '上海市', label: '上海', column: 8, row: 5 },
+        { name: '广西壮族自治区', label: '广西', column: 2, row: 6 },
+        { name: '广东省', label: '广东', column: 3, row: 6 },
+        { name: '江西省', label: '江西', column: 4, row: 6 },
+        { name: '福建省', label: '福建', column: 5, row: 6 },
+        { name: '浙江省', label: '浙江', column: 6, row: 6 },
+        { name: '台湾省', label: '台湾', column: 8, row: 6 },
+        { name: '海南省', label: '海南', column: 3, row: 7 },
+        { name: '香港特别行政区', label: '香港', column: 4, row: 7 },
+        { name: '澳门特别行政区', label: '澳门', column: 5, row: 7 },
+      ]
       let insights = []
       let insightIndex = 0
       let previousSummary
@@ -1310,6 +1454,59 @@
         }
       }
 
+      function setChinaProvinces(rows, animate = false) {
+        const counts = new Map(rows.map(item => [item.provinceName, Number(item.count || 0)]))
+        const maximum = Math.max(1, ...counts.values())
+        const map = document.getElementById('chinaProvinceMap')
+        map.replaceChildren()
+        for (const province of chinaProvinceLayout) {
+          const count = counts.get(province.name) || 0
+          const intensity = count ? .12 + count / maximum * .48 : 0
+          const tile = document.createElement('div')
+          tile.className = `province-tile${count ? ' has-users' : ''}`
+          tile.style.gridColumn = String(province.column)
+          tile.style.gridRow = String(province.row)
+          if (count) tile.style.backgroundColor = `rgba(112, 238, 165, ${intensity})`
+          tile.title = `${province.name}：${formatter.format(count)} 位用户`
+          tile.setAttribute('aria-label', tile.title)
+          const label = document.createElement('span')
+          label.textContent = province.label
+          const value = document.createElement('strong')
+          value.textContent = formatter.format(count)
+          tile.append(label, value)
+          map.append(tile)
+        }
+
+        const ranking = document.getElementById('chinaProvinces')
+        ranking.replaceChildren()
+        if (!rows.length) {
+          const empty = document.createElement('div')
+          empty.className = 'empty'
+          empty.textContent = '中国区用户下次活跃后将补充省份数据'
+          ranking.append(empty)
+        } else {
+          rows.forEach((item, index) => {
+            const row = document.createElement('div')
+            row.className = 'province-rank-row'
+            row.style.setProperty('--province-fill', `${Math.max(2, Number(item.count || 0) / maximum * 100)}%`)
+            const rank = document.createElement('span')
+            rank.className = 'rank'
+            rank.textContent = String(index + 1).padStart(2, '0')
+            const label = document.createElement('span')
+            label.textContent = item.provinceName
+            label.title = item.provinceName
+            const count = document.createElement('strong')
+            count.textContent = formatter.format(item.count)
+            row.append(rank, label, count)
+            ranking.append(row)
+          })
+        }
+        if (animate && !reducedMotion && window.gsap) {
+          window.gsap.from(map.children, { scale: .92, opacity: .45, duration: .28, stagger: .012, ease: 'power2.out' })
+          window.gsap.from(ranking.children, { y: 6, opacity: 0, duration: .3, stagger: .025, ease: 'power2.out' })
+        }
+      }
+
       async function ensureWorldMap() {
         if (worldMapPromise) return worldMapPromise
         worldMapPromise = fetch('/cybercode-stats/assets/world.geojson', { cache: 'force-cache' })
@@ -1415,10 +1612,13 @@
       function setGeo(data, animate = false) {
         const regions = data.regions || []
         const countries = data.countries || []
+        const chinaProvinces = data.chinaProvinces || []
         if (signatureChanged('regions', regions)) setRegions(regions, animate)
+        if (signatureChanged('chinaProvinces', chinaProvinces)) setChinaProvinces(chinaProvinces, animate)
         const located = data.locatedUsers || 0
         const unlocated = data.unlocatedUsers || 0
         document.getElementById('geoMeta').textContent = `已定位 ${formatter.format(located)} · 未定位 ${formatter.format(unlocated)}`
+        document.getElementById('chinaProvinceMeta').textContent = `中国区 ${formatter.format(data.chinaUsers || 0)} · 已定位 ${formatter.format(data.chinaLocatedUsers || 0)} · 待更新 ${formatter.format(data.chinaUnlocatedUsers || 0)}`
         const countriesChanged = signatureChanged('countries', countries)
         if (!geoChart || countriesChanged) setGeoMap(countries)
       }

@@ -45,6 +45,10 @@ vi.mock('../../pages/TokenOptimization', () => ({
   ),
 }))
 
+vi.mock('../../pages/KnowledgeSpace', () => ({
+  KnowledgeSpace: () => <div data-testid="knowledge-space-panel" />,
+}))
+
 describe('SettingsPanel content routing', () => {
   beforeEach(() => {
     useSettingsStore.setState({ locale: 'zh' })
@@ -122,7 +126,8 @@ describe('SettingsPanel content routing', () => {
 
     render(<SettingsPanel visible />)
 
-    expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', '代码图谱')
-    expect(screen.getByTestId('token-optimization-panel')).toHaveAttribute('data-initial-view', 'graph')
+    expect(screen.getByTestId('settings-panel')).toHaveAttribute('aria-label', '知识空间')
+    expect(screen.getByTestId('knowledge-space-panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('token-optimization-panel')).not.toBeInTheDocument()
   })
 })

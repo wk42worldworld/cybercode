@@ -16,6 +16,7 @@ import { McpSettings } from '../../pages/McpSettings'
 import { ScheduledTasks } from '../../pages/ScheduledTasks'
 import { TerminalSettings } from '../../pages/TerminalSettings'
 import { TokenOptimization } from '../../pages/TokenOptimization'
+import { KnowledgeSpace } from '../../pages/KnowledgeSpace'
 import { AgentMigration } from '../../pages/AgentMigration'
 import { useUIStore, type SettingsPanelView } from '../../stores/uiStore'
 import { useTranslation } from '../../i18n'
@@ -47,6 +48,7 @@ export function SettingsPanel({ visible, reserveRightRail = false }: Props) {
 
   if (!visible) return null
   const isSettingsHome = panelView === 'settings'
+  const isKnowledgeSpace = panelView === 'codeGraph'
 
   return (
     <section
@@ -55,7 +57,7 @@ export function SettingsPanel({ visible, reserveRightRail = false }: Props) {
       data-testid="settings-panel"
       className={`settings-ui settings-panel-overlay native-ui-text absolute bottom-0 left-0 top-0 z-[90] flex flex-col items-center justify-center bg-black/10 p-[16px] dark:bg-black/45 ${reserveRightRail ? 'right-[var(--sidebar-rail-width)]' : 'right-0'}`}
     >
-      <div className="settings-panel-card flex h-[88vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)]">
+      <div className={`settings-panel-card flex w-full flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-background)] shadow-[var(--shadow-window)] ${isKnowledgeSpace ? 'h-[92vh] max-w-[1480px]' : 'h-[88vh] max-w-[1100px]'}`}>
         <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
           {isSettingsHome ? (
             <div key="settings-home" className="settings-panel-content min-h-0 flex flex-1 flex-col overflow-hidden">
@@ -63,7 +65,7 @@ export function SettingsPanel({ visible, reserveRightRail = false }: Props) {
             </div>
           ) : (
             <>
-              <PanelHeader onClose={closeSettings} />
+              <PanelHeader compact={isKnowledgeSpace} onClose={closeSettings} />
               <PanelBody key={panelView} view={panelView}>
                 {renderPanelContent(panelView)}
               </PanelBody>
@@ -75,11 +77,11 @@ export function SettingsPanel({ visible, reserveRightRail = false }: Props) {
   )
 }
 
-function PanelHeader({ onClose }: { onClose: () => void }) {
+function PanelHeader({ compact = false, onClose }: { compact?: boolean; onClose: () => void }) {
   const t = useTranslation()
 
   return (
-    <header className="flex h-[76px] shrink-0 items-center justify-end bg-[var(--color-background)] px-[24px] md:px-[32px]">
+    <header className={`flex shrink-0 items-center justify-end bg-[var(--color-background)] px-[16px] ${compact ? 'h-[48px]' : 'h-[76px] md:px-[32px]'}`}>
       <button
         onClick={onClose}
         className="flex h-[36px] w-[36px] items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
@@ -93,6 +95,14 @@ function PanelHeader({ onClose }: { onClose: () => void }) {
 }
 
 function PanelBody({ view, children }: { view: SettingsPanelView; children: ReactNode }) {
+  if (view === 'codeGraph') {
+    return (
+      <div className="settings-panel-content min-h-0 flex flex-1 overflow-hidden bg-[var(--color-background)]">
+        {children}
+      </div>
+    )
+  }
+
   if (view === 'terminal' || view === 'scheduled') {
     return (
       <div className="settings-panel-content min-h-0 flex-1 flex flex-col overflow-hidden bg-[var(--color-background)] pt-[10px]">
@@ -139,7 +149,7 @@ function renderPanelContent(view: SettingsPanelView): ReactNode {
     case 'tokenOptimization':
       return <TokenOptimization />
     case 'codeGraph':
-      return <TokenOptimization initialView="graph" />
+      return <KnowledgeSpace />
     case 'agentMigration':
       return <AgentMigration />
     case 'settings':
@@ -152,7 +162,7 @@ function getPanelLabel(view: SettingsPanelView, t: ReturnType<typeof useTranslat
   if (view === 'settings') return t('sidebar.settings')
   if (view === 'scheduled') return t('sidebar.scheduled')
   if (view === 'tokenOptimization') return t('tokenOptimization.title')
-  if (view === 'codeGraph') return t('tokenOptimization.graph.title')
+  if (view === 'codeGraph') return t('knowledgeSpace.title')
   if (view === 'agentMigration') return t('agentMigration.title')
   return t(`settings.tab.${view}` as never)
 }

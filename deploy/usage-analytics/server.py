@@ -80,6 +80,39 @@ CHINA_REGION_NAMES = {
     "Yunnan": "云南省",
     "Zhejiang": "浙江省",
 }
+CHINA_REGION_CODES = {
+    "11": "北京市",
+    "12": "天津市",
+    "13": "河北省",
+    "14": "山西省",
+    "15": "内蒙古自治区",
+    "21": "辽宁省",
+    "22": "吉林省",
+    "23": "黑龙江省",
+    "31": "上海市",
+    "32": "江苏省",
+    "33": "浙江省",
+    "34": "安徽省",
+    "35": "福建省",
+    "36": "江西省",
+    "37": "山东省",
+    "41": "河南省",
+    "42": "湖北省",
+    "43": "湖南省",
+    "44": "广东省",
+    "45": "广西壮族自治区",
+    "46": "海南省",
+    "50": "重庆市",
+    "51": "四川省",
+    "52": "贵州省",
+    "53": "云南省",
+    "54": "西藏自治区",
+    "61": "陕西省",
+    "62": "甘肃省",
+    "63": "青海省",
+    "64": "宁夏回族自治区",
+    "65": "新疆维吾尔自治区",
+}
 
 
 class PayloadError(ValueError):
@@ -180,9 +213,21 @@ class GeoResolver:
         region_name = ""
         subdivisions = record.get("subdivisions")
         if isinstance(subdivisions, list) and subdivisions:
-            region_name = localized_name(subdivisions[0])
+            subdivision = subdivisions[0]
+            region_name = localized_name(subdivision)
+            region_code = (
+                str(subdivision.get("iso_code", "")).upper()
+                if isinstance(subdivision, dict)
+                else ""
+            )
+            region_code = region_code.rsplit("-", 1)[-1]
+        else:
+            region_code = ""
         if country_code == "CN":
-            region_name = CHINA_REGION_NAMES.get(region_name, region_name)
+            region_name = CHINA_REGION_CODES.get(
+                region_code,
+                CHINA_REGION_NAMES.get(region_name, region_name),
+            )
         return GeoLocation(country_code, country_name, region_name)
 
     def close(self) -> None:
@@ -636,6 +681,39 @@ class AnalyticsStore:
                 LIMIT 20
                 """
             ).fetchall()
+            china_users = scalar(
+                connection,
+                """
+                SELECT COUNT(*) FROM installations
+                WHERE country_code IN ('CN', 'HK', 'MO', 'TW')
+                """,
+            )
+            china_located_users = scalar(
+                connection,
+                """
+                SELECT COUNT(*) FROM installations
+                WHERE country_code IN ('HK', 'MO', 'TW')
+                   OR (country_code = 'CN' AND TRIM(region_name) != '')
+                """,
+            )
+            china_province_rows = connection.execute(
+                """
+                SELECT province_name, COUNT(*) AS count
+                FROM (
+                    SELECT CASE country_code
+                        WHEN 'HK' THEN '香港特别行政区'
+                        WHEN 'MO' THEN '澳门特别行政区'
+                        WHEN 'TW' THEN '台湾省'
+                        ELSE TRIM(region_name)
+                    END AS province_name
+                    FROM installations
+                    WHERE country_code IN ('CN', 'HK', 'MO', 'TW')
+                )
+                WHERE province_name != ''
+                GROUP BY province_name
+                ORDER BY count DESC, province_name ASC
+                """
+            ).fetchall()
 
         activity_by_day = {row["day"]: row["count"] for row in activity_rows}
         new_by_day = {row["day"]: row["count"] for row in new_rows}
@@ -696,6 +774,16 @@ class AnalyticsStore:
             "surfaces": surfaces,
             "locatedUsers": located_users,
             "unlocatedUsers": max(0, total_users - located_users),
+            "chinaUsers": china_users,
+            "chinaLocatedUsers": china_located_users,
+            "chinaUnlocatedUsers": max(0, china_users - china_located_users),
+            "chinaProvinces": [
+                {
+                    "provinceName": row["province_name"],
+                    "count": row["count"],
+                }
+                for row in china_province_rows
+            ],
             "countries": [
                 {
                     "countryCode": row["country_code"],

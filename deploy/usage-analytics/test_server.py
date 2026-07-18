@@ -154,6 +154,48 @@ class UsageAnalyticsTest(unittest.TestCase):
         )
         self.assertEqual(result["regions"][0]["regionName"], "广东省")
         self.assertEqual(result["regions"][0]["count"], 2)
+        self.assertEqual(result["chinaUsers"], 2)
+        self.assertEqual(result["chinaLocatedUsers"], 2)
+        self.assertEqual(result["chinaUnlocatedUsers"], 0)
+        self.assertEqual(
+            result["chinaProvinces"],
+            [{"provinceName": "广东省", "count": 2}],
+        )
+
+    def test_china_province_summary_covers_mainland_hong_kong_macao_and_taiwan(self):
+        now = datetime(2026, 7, 18, 8, 0, tzinfo=timezone.utc)
+        locations = [
+            GeoLocation("CN", "中国", "广东省"),
+            GeoLocation("CN", "中国", "广东省"),
+            GeoLocation("CN", "中国", "北京市"),
+            GeoLocation("CN", "中国", ""),
+            GeoLocation("HK", "中国香港", ""),
+            GeoLocation("MO", "中国澳门", ""),
+            GeoLocation("TW", "中国台湾", ""),
+            GeoLocation("US", "美国", "California"),
+        ]
+        for index, location in enumerate(locations):
+            installation_id = format(index + 16, "x") * 64
+            self.store.record(
+                validate_payload(payload(installation_id[:64])),
+                now,
+                location,
+            )
+
+        result = self.store.summary(now)
+        self.assertEqual(result["chinaUsers"], 7)
+        self.assertEqual(result["chinaLocatedUsers"], 6)
+        self.assertEqual(result["chinaUnlocatedUsers"], 1)
+        self.assertEqual(
+            result["chinaProvinces"],
+            [
+                {"provinceName": "广东省", "count": 2},
+                {"provinceName": "北京市", "count": 1},
+                {"provinceName": "台湾省", "count": 1},
+                {"provinceName": "澳门特别行政区", "count": 1},
+                {"provinceName": "香港特别行政区", "count": 1},
+            ],
+        )
 
     def test_existing_database_is_migrated_without_losing_users(self):
         legacy_path = os.path.join(self.temp.name, "legacy.sqlite3")
@@ -367,7 +409,7 @@ class UsageAnalyticsTest(unittest.TestCase):
                         "names": {"zh-CN": "中国", "en": "China"},
                     },
                     "subdivisions": [
-                        {"names": {"en": "Guangdong"}}
+                        {"iso_code": "44", "names": {"en": "Unknown alias"}}
                     ],
                     "city": {"names": {"zh-CN": "深圳市"}},
                     "location": {"latitude": 22.5, "longitude": 114.0},

@@ -23,15 +23,15 @@ describe('ChatModeSidebar', () => {
     expect(screen.getByRole('button', { name: '编程模式' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '记忆与进化' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Token 优化' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '项目图谱' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '知识空间' })).toBeInTheDocument()
   })
 
   it.each([
-    ['zh', '项目图谱'],
-    ['en', 'Project Graph'],
-    ['ja', 'プロジェクトグラフ'],
-    ['ko', '프로젝트 그래프'],
-  ] as const)('localizes the Project Graph action for %s', (locale, graphLabel) => {
+    ['zh', '知识空间'],
+    ['en', 'Knowledge Space'],
+    ['ja', 'ナレッジスペース'],
+    ['ko', '지식 공간'],
+  ] as const)('localizes the Knowledge Space action for %s', (locale, graphLabel) => {
     useSettingsStore.setState({ locale })
 
     render(<ChatModeSidebar label="编程模式" ariaLabel="聊天侧边栏" />)
@@ -67,10 +67,10 @@ describe('ChatModeSidebar', () => {
     expect(useUIStore.getState().settingsOpen).toBe(false)
   })
 
-  it('opens and closes the current Project Graph from the right rail', () => {
+  it('opens and closes Knowledge Space from the right rail', () => {
     render(<ChatModeSidebar label="编程模式" ariaLabel="聊天侧边栏" />)
 
-    const graphButton = screen.getByRole('button', { name: '项目图谱' })
+    const graphButton = screen.getByRole('button', { name: '知识空间' })
     fireEvent.click(graphButton)
 
     expect(useUIStore.getState().settingsOpen).toBe(true)
