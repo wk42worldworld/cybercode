@@ -507,7 +507,7 @@ export const ko = {
   'tokenOptimization.rebuildFailed': '코드 그래프 색인을 다시 만들지 못했습니다.',
   'tokenOptimization.codeGraph.title': '코드 그래프',
   'tokenOptimization.codeGraph.active': '전역으로 사용 중',
-  'tokenOptimization.codeGraph.description': '심볼과 관계를 인덱싱하여 모델이 전체 파일을 읽기 전에 구조를 파악하도록 합니다.',
+  'tokenOptimization.codeGraph.description': '광범위한 파일 읽기 전에 간결한 심볼 및 관계 컨텍스트를 자동으로 제공합니다.',
   'tokenOptimization.codeGraph.toggle': '코드 그래프를 전역으로 사용',
   'tokenOptimization.codeGraph.automaticHint': '현재 프로젝트와 이후에 여는 프로젝트를 자동으로 인덱싱합니다',
   'tokenOptimization.state.disabled': '꺼짐',

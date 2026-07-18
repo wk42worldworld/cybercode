@@ -1366,7 +1366,7 @@ export const zh: Record<TranslationKey, string> = {
   'tokenOptimization.rebuildFailed': '无法重建代码图谱索引。',
   'tokenOptimization.codeGraph.title': '代码图谱',
   'tokenOptimization.codeGraph.active': '全局已启用',
-  'tokenOptimization.codeGraph.description': '先索引代码符号与关系，让模型了解结构后再按需读取具体文件。',
+  'tokenOptimization.codeGraph.description': '在大范围读取文件前，自动提供精简的符号与关系上下文。',
   'tokenOptimization.codeGraph.toggle': '全局启用代码图谱',
   'tokenOptimization.codeGraph.automaticHint': '开启后，当前及之后打开的项目都会自动建立图谱',
   'tokenOptimization.state.disabled': '已关闭',

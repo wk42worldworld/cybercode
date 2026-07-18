@@ -1340,7 +1340,7 @@ export const en = {
   'tokenOptimization.rebuildFailed': 'Could not rebuild the Code Graph index.',
   'tokenOptimization.codeGraph.title': 'Code Graph',
   'tokenOptimization.codeGraph.active': 'Enabled globally',
-  'tokenOptimization.codeGraph.description': 'Indexes symbols and relationships so the model can inspect structure before reading entire files.',
+  'tokenOptimization.codeGraph.description': 'Automatically supplies compact symbol and relationship context before broad file reads.',
   'tokenOptimization.codeGraph.toggle': 'Enable Code Graph globally',
   'tokenOptimization.codeGraph.automaticHint': 'Automatically indexes this project and projects opened later',
   'tokenOptimization.state.disabled': 'Off',

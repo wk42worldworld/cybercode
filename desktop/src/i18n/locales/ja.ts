@@ -507,7 +507,7 @@ export const ja = {
   'tokenOptimization.rebuildFailed': 'コードグラフを再構築できません。',
   'tokenOptimization.codeGraph.title': 'コードグラフ',
   'tokenOptimization.codeGraph.active': 'グローバルに有効',
-  'tokenOptimization.codeGraph.description': 'シンボルと関係を索引化し、モデルがファイル全体を読む前に構造を把握できます。',
+  'tokenOptimization.codeGraph.description': '広範なファイル読み込みの前に、簡潔なシンボルと関係のコンテキストを自動提供します。',
   'tokenOptimization.codeGraph.toggle': 'コードグラフをグローバルに有効化',
   'tokenOptimization.codeGraph.automaticHint': '現在のプロジェクトと今後開くプロジェクトを自動的にインデックスします',
   'tokenOptimization.state.disabled': 'オフ',
