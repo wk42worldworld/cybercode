@@ -122,11 +122,13 @@ The panel explains what is active and reports a combined estimated savings range
   <img src="docs/images/gui/cybercode-token-optimization.png" alt="CyberCode token optimization controls" width="980">
 </p>
 
-### Repository structure before bulk file reads
+### Code structure and local knowledge in one workspace
 
-The local Code Graph indexes files, symbols, references, and relationships. The agent can use a compact architecture preflight to find the relevant implementation before opening large portions of an unfamiliar repository, which is especially useful for impact analysis and cross-file refactoring.
+The local Code Graph indexes files, symbols, references, calls, and containment relationships. For structural coding requests, CyberCode automatically selects a compact, graph-ranked preflight before broad file reads and exposes deeper graph tools to the running agent. This helps with unfamiliar repositories, implementation discovery, impact analysis, and cross-file refactoring without flooding the model with entire files.
 
-The same index is inspectable in the desktop app with symbol search, architecture and file views, module zooming, and manual index rebuilds.
+Click the graph icon in the desktop rail to open **Knowledge Space** directly. Its Graph view supports symbol search, architecture and file layouts, node inspection, panning, zooming, and index rebuilds. The Files and Search views can also index local files or folders as user-managed knowledge sources, with drag-and-drop, full-text search, and metadata-only handling for binary files. Removing a source removes only CyberCode's derived index, never the original file.
+
+Code Graph is local and cross-platform. Once its global switch is enabled, current and future projects are indexed automatically, changes are watched in the background, and ordinary non-coding conversation does not trigger graph context. [Read the Knowledge Space and Code Graph guide](https://wk42worldworld.github.io/cybercode/en/guide/code-graph).
 
 <p align="center">
   <img src="docs/images/gui/cybercode-code-graph.png" alt="CyberCode local code graph visualization" width="980">
@@ -825,6 +827,7 @@ Verify it: you can tell whether the problem is provider configuration, context p
 |------|------|
 | [Environment Variables](docs/en/guide/env-vars.md) | Full env var reference and configuration methods |
 | [Third-Party Models](docs/en/guide/third-party-models.md) | Using OpenAI / DeepSeek / Ollama and other non-Anthropic models |
+| [Knowledge Space and Code Graph](docs/en/guide/code-graph.md) | Automatic graph context, visualization, and local file/folder knowledge sources |
 | [Memory System](docs/memory/01-usage-guide.md) | Cross-session persistent memory usage and implementation |
 | [Multi-Agent System](docs/agent/01-usage-guide.md) | Agent orchestration, parallel tasks and Teams collaboration |
 | [Skills System](docs/skills/01-usage-guide.md) | Extensible capability plugins, custom workflows and conditional activation |

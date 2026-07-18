@@ -24,6 +24,9 @@ features:
     link: /ja/guide/slash-commands
   - title: 永続メモリ
     details: セッションをまたぐ記憶、自動抽出、検索、AutoDream による統合
+  - title: Knowledge Space / Code Graph
+    details: ローカルのシンボルと関係を索引化し、Agent 向けのコンパクトなグラフ情報、可視化、ファイル検索を提供
+    link: /ja/guide/code-graph
   - title: Multi-Agent
     details: Agent の編成、並列タスク、Teams 連携、Worktree 分離
   - title: Skills と MCP

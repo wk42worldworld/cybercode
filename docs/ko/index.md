@@ -24,6 +24,9 @@ features:
     link: /ko/guide/slash-commands
   - title: 영구 기억
     details: 세션 간 기억, 자동 추출, 검색, AutoDream 통합
+  - title: Knowledge Space / Code Graph
+    details: 로컬 심볼과 관계 인덱스, Agent용 압축 그래프 컨텍스트, 시각화, 파일 검색
+    link: /ko/guide/code-graph
   - title: Multi-Agent
     details: Agent 오케스트레이션, 병렬 작업, Teams 협업, Worktree 격리
   - title: Skills와 MCP

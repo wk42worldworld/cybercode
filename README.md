@@ -89,11 +89,13 @@ The panel reports which layers are active and presents a combined estimated savi
   <img src="docs/images/gui/cybercode-token-optimization.png" alt="CyberCode token optimization controls" width="980">
 </p>
 
-### It understands repository structure before reading everything
+### It maps code and organizes local knowledge
 
-The local Code Graph indexes files, symbols, references, and relationships. The agent can use that structure to locate the right implementation, follow dependencies, and prepare a compact architecture preflight before opening large amounts of source code. This is especially useful for unfamiliar repositories, impact analysis, and cross-file refactoring.
+The local Code Graph indexes files, symbols, references, calls, and containment relationships. For structural coding requests, CyberCode automatically selects a compact, graph-ranked preflight before broad file reads and exposes deeper graph tools to the running agent. This helps with unfamiliar repositories, implementation discovery, impact analysis, and cross-file refactoring without flooding the model with entire files.
 
-The desktop visualization makes the same index inspectable: search symbols, switch between architecture and file views, zoom into modules, and rebuild the project index when needed.
+Click the graph icon in the desktop rail to open **Knowledge Space** directly. Its Graph view supports symbol search, architecture and file layouts, node inspection, panning, zooming, and index rebuilds. The Files and Search views can also index local files or folders as user-managed knowledge sources, with drag-and-drop, full-text search, and metadata-only handling for binary files. Removing a source removes only CyberCode's derived index, never the original file.
+
+Code Graph is local and cross-platform. Once its global switch is enabled, current and future projects are indexed automatically, changes are watched in the background, and ordinary non-coding conversation does not trigger graph context. [Read the Knowledge Space and Code Graph guide](https://wk42worldworld.github.io/cybercode/en/guide/code-graph).
 
 <p align="center">
   <img src="docs/images/gui/cybercode-code-graph.png" alt="CyberCode local code graph visualization" width="980">
@@ -132,7 +134,8 @@ CyberCode keeps the product stack open: client, server, desktop shell, adapters,
 |---|---|
 | Coding workflow | File editing, terminal tools, project search, permission modes, slash commands, attachments, rewind, branching, and session resume |
 | Agent intelligence | Persistent memory, self-evolution review, reusable Skills, sub-agents, Agent Teams, background tasks, and worktrees |
-| Context efficiency | Dynamic context-window awareness, automatic compression, Lite cleanup, smart pruning, Lazy Programmer, Caveman, RTK, and Code Graph |
+| Context efficiency | Dynamic context-window awareness, automatic compression, Lite cleanup, smart pruning, Lazy Programmer, Caveman, RTK, and automatic Code Graph preflight |
+| Local knowledge | Knowledge Space with project graphs, file/folder sources, local full-text search, source management, and graph visualization |
 | Model access | Official Claude login, Anthropic-compatible APIs, OpenAI-compatible providers, local endpoints, custom models, and per-model context metadata |
 | Web and tools | Provider-neutral WebSearch fallback, WebFetch, MCP servers, plugins, Computer Use, and environment-aware tool availability |
 | Interfaces | Cross-platform desktop app, terminal TUI, `--print` headless mode, Telegram, and Feishu |
@@ -163,6 +166,7 @@ The desktop composer also supports slash commands for session control, memory, m
 - [English user guide](https://wk42worldworld.github.io/cybercode/en/)
 - [CLI quick start](https://wk42worldworld.github.io/cybercode/en/guide/quick-start)
 - [Third-party model setup](https://wk42worldworld.github.io/cybercode/en/guide/third-party-models)
+- [Knowledge Space and Code Graph](https://wk42worldworld.github.io/cybercode/en/guide/code-graph)
 - [Memory system](https://wk42worldworld.github.io/cybercode/en/memory/)
 - [Agent framework](https://wk42worldworld.github.io/cybercode/en/agent/)
 - [Contributing](CONTRIBUTING.md)

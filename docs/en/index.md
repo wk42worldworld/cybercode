@@ -24,6 +24,9 @@ features:
     link: /en/guide/slash-commands
   - title: Memory System
     details: Cross-session persistent memory with auto-extraction, smart retrieval, and AutoDream consolidation
+  - title: Knowledge Space and Code Graph
+    details: Local symbol and relationship indexing, automatic compact graph context for the agent, visualization, and searchable file sources
+    link: /en/guide/code-graph
   - title: Multi-Agent System
     details: Agent orchestration, parallel tasks, Teams collaboration, Worktree isolation
   - title: Skills System

@@ -25,6 +25,9 @@ features:
   - title: 记忆系统
     details: 跨会话持久化记忆，自动提取、智能检索、AutoDream 做梦整合
     link: /memory/
+  - title: 知识空间与代码图谱
+    details: 本地索引符号和调用关系，为 Agent 自动提供精简图谱上下文，并管理可搜索的文件知识来源
+    link: /guide/code-graph
   - title: 多 Agent 系统
     details: 多代理编排、并行任务执行、Teams 协作、Worktree 隔离
     link: /agent/

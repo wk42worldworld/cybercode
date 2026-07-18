@@ -30,6 +30,13 @@ const zhSidebar = [
     ],
   },
   {
+    text: '知识空间',
+    collapsed: false,
+    items: [
+      { text: '代码图谱与知识来源', link: '/guide/code-graph' },
+    ],
+  },
+  {
     text: '记忆系统',
     collapsed: false,
     items: [
@@ -116,6 +123,13 @@ const enSidebar = [
     ],
   },
   {
+    text: 'Knowledge Space',
+    collapsed: false,
+    items: [
+      { text: 'Code Graph and Sources', link: '/en/guide/code-graph' },
+    ],
+  },
+  {
     text: 'Memory System',
     collapsed: false,
     items: [
@@ -186,6 +200,7 @@ const jaSidebar = [
     items: [
       { text: 'インストールと CLI コマンド', link: '/ja/guide/quick-start' },
       { text: 'スラッシュコマンド', link: '/ja/guide/slash-commands' },
+      { text: 'Knowledge Space / Code Graph', link: '/ja/guide/code-graph' },
     ],
   },
 ]
@@ -196,6 +211,7 @@ const koSidebar = [
     items: [
       { text: '설치 및 CLI 명령', link: '/ko/guide/quick-start' },
       { text: '슬래시 명령', link: '/ko/guide/slash-commands' },
+      { text: 'Knowledge Space / Code Graph', link: '/ko/guide/code-graph' },
     ],
   },
 ]
