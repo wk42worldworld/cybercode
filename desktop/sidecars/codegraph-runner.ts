@@ -21,8 +21,6 @@ import {
   limitTextToTokenBudget,
 } from '../../src/services/codeGraphTextBudget'
 
-export { estimateCodeGraphTokens, limitTextToTokenBudget }
-
 type CodeGraphInstance = {
   close(): void
   getStats(): Record<string, unknown>

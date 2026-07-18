@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   estimateCodeGraphTokens,
   limitTextToTokenBudget,
-} from './codegraph-runner'
+} from '../../src/services/codeGraphTextBudget'
 
 describe('Code Graph MCP output budgets', () => {
   test('preserves context that already fits', () => {
