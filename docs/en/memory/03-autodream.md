@@ -1,6 +1,6 @@
-# Claude Code Memory System — AutoDream Memory Consolidation
+# CyberCode Memory System — AutoDream Memory Consolidation
 
-> Claude "dreams" -- silently reviewing recent sessions in the background to consolidate, update, and prune memories, much like the human brain organizes memories during sleep.
+> CyberCode "dreams" -- silently reviewing recent sessions in the background to consolidate, update, and prune memories, much like the human brain organizes memories during sleep.
 
 <p align="center">
 <a href="#1-what-is-autodream">AutoDream</a> · <a href="#2-trigger-conditions">Trigger Conditions</a> · <a href="#3-four-phase-consolidation-process">Consolidation Process</a> · <a href="#4-security-restrictions">Security</a> · <a href="#5-ui-presentation">UI</a> · <a href="#6-configuration-and-toggles">Configuration</a> · <a href="#7-relationship-with-extractmemories">Comparison</a> · <a href="#8-source-code-navigation">Source Code</a>
@@ -12,16 +12,16 @@
 
 ## 1. What Is AutoDream?
 
-AutoDream is Claude Code's **background memory consolidation mechanism**, internally codenamed **"Dream: Memory Consolidation"**.
+AutoDream is CyberCode's **background memory consolidation mechanism**, internally codenamed **"Dream: Memory Consolidation"**.
 
 Core metaphor:
 
-| Human | Claude Code |
+| Human | CyberCode |
 |-------|-------------|
 | Jotting down notes throughout the day | `extractMemories` -- extracts new memories after each conversation |
 | Organizing the notebook while sleeping | `autoDream` -- periodically reviews multiple sessions to consolidate all memories |
 
-When you're inactive (default interval: 24 hours with 5 accumulated sessions), Claude silently launches a **"dreaming" sub-agent** (forked subagent) in the background. It reviews all recent session transcripts and consolidates scattered memories into structured, deduplicated, up-to-date persistent knowledge.
+When you're inactive (default interval: 24 hours with 5 accumulated sessions), CyberCode silently launches a **"dreaming" sub-agent** (forked subagent) in the background. It reviews all recent session transcripts and consolidates scattered memories into structured, deduplicated, up-to-date persistent knowledge.
 
 **Key source**: `src/services/autoDream/autoDream.ts`
 

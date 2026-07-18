@@ -68,6 +68,9 @@ describe('StreamingIndicator', () => {
   it('provides a distinct Chinese translation for every built-in playful verb', () => {
     const missing = SPINNER_VERBS.filter((verb) => !getSpinnerVerbTranslation(verb, 'zh'))
     expect(missing).toEqual([])
+    expect(SPINNER_VERBS).toContain('Cybercoding')
+    expect(SPINNER_VERBS).not.toContain('Clauding')
+    expect(getSpinnerVerbTranslation('Cybercoding', 'zh')).toBe('正在赛博编码')
     expect(getSpinnerVerbTranslation('Baking', 'zh')).toBe('正在烘焙灵感')
     expect(getSpinnerVerbTranslation('Moonwalking', 'zh')).toBe('正在月球漫步式思考')
     expect(getSpinnerVerbTranslation('Razzle-dazzling', 'zh')).toBe('正在大显身手')

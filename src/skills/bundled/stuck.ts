@@ -1,6 +1,6 @@
 import { registerBundledSkill } from '../bundledSkills.js'
 
-// Prompt text contains `ps` commands as instructions for Claude to run,
+// Prompt text contains `ps` commands as instructions for CyberCode to run,
 // not commands this file executes.
 // eslint-disable-next-line custom-rules/no-direct-ps-commands
 const STUCK_PROMPT = `# /stuck — diagnose frozen/slow CyberCode sessions

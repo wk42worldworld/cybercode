@@ -9,7 +9,7 @@ export function getWebSearchPrompt(): string {
 - Provides up-to-date information for current events and recent data
 - Returns search result information formatted as search result blocks, including links as markdown hyperlinks
 - Use this tool for accessing information beyond the model's knowledge cutoff
-- Cybercode selects an available native or local search backend automatically
+- CyberCode selects an available native or local search backend automatically
 
 CRITICAL REQUIREMENT - You MUST follow this:
   - After answering the user's question, you MUST include a "Sources:" section at the end of your response

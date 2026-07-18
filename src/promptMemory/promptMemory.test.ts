@@ -28,6 +28,7 @@ import {
   extractPromptMemoryAutoReviewLogs,
   formatPromptMemoryAutoReviewNotice,
   hasExplicitPromptMemorySignal,
+  normalizePromptMemoryLanguage,
   readPromptMemoryAutoReviewLogs,
   resetPromptMemoryAutoReviewForTesting,
   shouldRunPromptMemoryAutoReview,
@@ -485,6 +486,7 @@ describe('prompt memory', () => {
       trigger: 'explicit',
       briefEntries: ['Use Bun for local scripts.'],
       userEntries: ['User prefers Chinese.'],
+      preferredLanguage: 'Chinese',
     })
 
     expect(prompt).toContain('PromptMemory tool')
@@ -496,6 +498,17 @@ describe('prompt memory', () => {
     expect(prompt).toContain('at least two consistent examples')
     expect(prompt).toContain('Do not infer personality')
     expect(prompt).toContain('User prefers Chinese.')
+    expect(prompt).toContain('human-readable body')
+    expect(prompt).toContain('Simplified Chinese')
+    expect(prompt).toContain('semantic category tag in English')
+  })
+
+  test('normalizes supported UI languages for automatic memory writing', () => {
+    expect(normalizePromptMemoryLanguage('English')).toBe('English')
+    expect(normalizePromptMemoryLanguage('Chinese')).toBe('Simplified Chinese')
+    expect(normalizePromptMemoryLanguage('Japanese')).toBe('Japanese')
+    expect(normalizePromptMemoryLanguage('Korean')).toBe('Korean')
+    expect(normalizePromptMemoryLanguage(undefined)).toContain('recent messages')
   })
 
   test('PromptMemory tool guides the assistant to acknowledge naturally', async () => {

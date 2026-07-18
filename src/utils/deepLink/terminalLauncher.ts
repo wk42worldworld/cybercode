@@ -194,7 +194,7 @@ export async function detectTerminal(): Promise<TerminalInfo | null> {
 }
 
 /**
- * Launch Claude Code in the detected terminal emulator.
+ * Launch CyberCode in the detected terminal emulator.
  *
  * Pure argv paths (no shell, user input never touches an interpreter):
  *   macOS — Ghostty, Alacritty, Kitty, WezTerm (via open -na --args)

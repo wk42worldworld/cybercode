@@ -1,4 +1,4 @@
-# Claude Code 记忆系统 — 实现原理
+# CyberCode 记忆系统 — 实现原理
 
 > 从系统提示词注入到后台自动提取，拆解记忆系统的每一个技术细节。
 
@@ -75,7 +75,7 @@ export const getAutoMemPath = memoize(
 | `\\server\share` | UNC 网络路径 |
 | 含 `\0` | 空字节，可在系统调用中截断 |
 
-**安全限制**：项目级 `.claude/settings.json` **不允许**设置 `autoMemoryDirectory`，防止恶意仓库通过此项获取对 `~/.ssh` 等敏感目录的写权限。
+**安全限制**：项目级 `.cyber/settings.json` **不允许**设置 `autoMemoryDirectory`，防止恶意仓库通过此项获取对 `~/.ssh` 等敏感目录的写权限。
 
 ### 启用条件
 
@@ -270,7 +270,7 @@ function hasMemoryWritesSince(messages, sinceUuid): boolean {
 ### Sonnet 选择器的提示词
 
 ```
-你正在选择对 Claude Code 处理用户查询有用的记忆。
+你正在选择对 CyberCode 处理用户查询有用的记忆。
 你将收到用户查询和可用记忆文件列表（含文件名和描述）。
 
 返回最多 5 个明确有用的记忆文件名。
@@ -340,9 +340,9 @@ async function scanMemoryFiles(memoryDir, signal): Promise<MemoryHeader[]> {
 
 | 作用域 | 路径 | 说明 |
 |--------|------|------|
-| **user** | `~/.claude/agent-memory/{agentType}/` | 全局用户级 |
-| **project** | `.claude/agent-memory/{agentType}/` | 项目级（提交到 VCS） |
-| **local** | `.claude/agent-memory-local/{agentType}/` | 本地级（不提交） |
+| **user** | `~/.cyber/agent-memory/{agentType}/` | 全局用户级 |
+| **project** | `.cyber/agent-memory/{agentType}/` | 项目级（提交到 VCS） |
+| **local** | `.cyber/agent-memory-local/{agentType}/` | 本地级（不提交） |
 
 代理记忆与主记忆的差异：
 - 无 MEMORY.md 索引步骤（`skipIndex = true`）
@@ -358,7 +358,7 @@ async function scanMemoryFiles(memoryDir, signal): Promise<MemoryHeader[]> {
 ### 目录结构
 
 ```
-~/.claude/projects/{hash}/memory/
+~/.cyber/projects/{hash}/memory/
 ├── MEMORY.md           ← 个人记忆索引
 ├── user_*.md           ← 个人记忆
 └── team/               ← 团队共享目录
@@ -439,7 +439,7 @@ maxTurns = 5  // 分叉代理最多 5 个 turn
 └────────────────────────┬────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────┐
-│                   Claude 回复                        │
+│                 CyberCode 回复                       │
 │                                                      │
 │  模型可能直接写记忆（遵循系统提示词指导）              │
 │  或者不写 → 触发后台提取                              │

@@ -5,6 +5,7 @@ import {
   Minimize2,
   Network,
   RefreshCw,
+  Scissors,
   Sparkles,
   Terminal,
 } from 'lucide-react'
@@ -18,6 +19,8 @@ import {
   type LiteOptimizationStatus,
   type PonytailStatus,
   type RtkStatus,
+  type SmartPruningLevel,
+  type SmartPruningStatus,
 } from '../api/tokenOptimization'
 import { CodeGraphVisualization } from '../components/codegraph/CodeGraphVisualization'
 import {
@@ -37,6 +40,7 @@ export function TokenOptimization() {
   const tabs = useTabStore((state) => state.tabs)
   const sessions = useSessionStore((state) => state.sessions)
   const [status, setStatus] = useState<CodeGraphStatus | null>(null)
+  const [codeGraphGlobalEnabled, setCodeGraphGlobalEnabled] = useState<boolean | null>(null)
   const [graph, setGraph] = useState<CodeGraphData | null>(null)
   const [showGraph, setShowGraph] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -54,6 +58,9 @@ export function TokenOptimization() {
   const [ponytailStatus, setPonytailStatus] = useState<PonytailStatus | null>(null)
   const [ponytailLoading, setPonytailLoading] = useState(false)
   const [ponytailError, setPonytailError] = useState<string | null>(null)
+  const [pruningStatus, setPruningStatus] = useState<SmartPruningStatus | null>(null)
+  const [pruningLoading, setPruningLoading] = useState(false)
+  const [pruningError, setPruningError] = useState<string | null>(null)
 
   const projectPath = useMemo(() => {
     const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
@@ -81,6 +88,20 @@ export function TokenOptimization() {
 
   useEffect(() => {
     let active = true
+    void tokenOptimizationApi.codeGraphGlobalStatus()
+      .then((nextStatus) => {
+        if (active) setCodeGraphGlobalEnabled(nextStatus.enabled)
+      })
+      .catch((loadError) => {
+        if (active) setError(getErrorMessage(loadError, t('tokenOptimization.loadFailed')))
+      })
+    return () => {
+      active = false
+    }
+  }, [t])
+
+  useEffect(() => {
+    let active = true
     void tokenOptimizationApi.rtkStatus()
       .then((nextStatus) => {
         if (active) setRtkStatus(nextStatus)
@@ -101,6 +122,20 @@ export function TokenOptimization() {
       })
       .catch((loadError) => {
         if (active) setLiteError(getErrorMessage(loadError, t('tokenOptimization.lite.loadFailed')))
+      })
+    return () => {
+      active = false
+    }
+  }, [t])
+
+  useEffect(() => {
+    let active = true
+    void tokenOptimizationApi.pruningStatus()
+      .then((nextStatus) => {
+        if (active) setPruningStatus(nextStatus)
+      })
+      .catch((loadError) => {
+        if (active) setPruningError(getErrorMessage(loadError, t('tokenOptimization.pruning.loadFailed')))
       })
     return () => {
       active = false
@@ -154,15 +189,27 @@ export function TokenOptimization() {
   }, [loadStatus, status?.state])
 
   const toggleCodeGraph = async (enabled: boolean) => {
-    if (!projectPath || loading) return
+    if (codeGraphGlobalEnabled === null || loading) return
     setLoading(true)
     setError(null)
     try {
-      const nextStatus = enabled
-        ? await tokenOptimizationApi.enable(projectPath)
-        : await tokenOptimizationApi.disable(projectPath)
-      setStatus(nextStatus)
-      if (!enabled) {
+      if (enabled && projectPath) {
+        const nextStatus = await tokenOptimizationApi.enable(projectPath)
+        setStatus(nextStatus)
+        setCodeGraphGlobalEnabled(true)
+      } else if (enabled) {
+        const nextStatus = await tokenOptimizationApi.enableCodeGraphGlobally()
+        setCodeGraphGlobalEnabled(nextStatus.enabled)
+      } else {
+        const nextStatus = await tokenOptimizationApi.disableCodeGraphGlobally()
+        setCodeGraphGlobalEnabled(nextStatus.enabled)
+        setStatus((current) => current ? {
+          ...current,
+          enabled: false,
+          state: 'disabled',
+          progress: null,
+          error: null,
+        } : null)
         setGraph(null)
         setShowGraph(false)
       }
@@ -268,20 +315,51 @@ export function TokenOptimization() {
     }
   }
 
+  const togglePruning = async (enabled: boolean) => {
+    if (pruningLoading) return
+    setPruningLoading(true)
+    setPruningError(null)
+    try {
+      const nextStatus = enabled
+        ? await tokenOptimizationApi.enablePruning()
+        : await tokenOptimizationApi.disablePruning()
+      setPruningStatus(nextStatus)
+    } catch (toggleError) {
+      setPruningError(getErrorMessage(toggleError, t('tokenOptimization.pruning.updateFailed')))
+    } finally {
+      setPruningLoading(false)
+    }
+  }
+
+  const updatePruningLevel = async (level: SmartPruningLevel) => {
+    if (!pruningStatus || pruningLoading || pruningStatus.level === level) return
+    setPruningLoading(true)
+    setPruningError(null)
+    try {
+      setPruningStatus(await tokenOptimizationApi.setPruningLevel(level))
+    } catch (updateError) {
+      setPruningError(getErrorMessage(updateError, t('tokenOptimization.pruning.updateFailed')))
+    } finally {
+      setPruningLoading(false)
+    }
+  }
+
   const optimizerEstimates = getOptimizerEstimates(
     liteStatus,
+    pruningStatus,
     ponytailStatus,
     cavemanStatus,
     rtkStatus,
-    status,
+    codeGraphGlobalEnabled ?? false,
   )
   const savingsEstimate = getCombinedSavingsEstimate(optimizerEstimates)
   const activeOptimizerCount = [
     liteStatus?.enabled,
+    pruningStatus?.enabled,
     ponytailStatus?.enabled,
     cavemanStatus?.enabled,
     rtkStatus?.enabled,
-    status?.enabled,
+    codeGraphGlobalEnabled,
   ].filter(Boolean).length
 
   if (showGraph && graph) {
@@ -340,7 +418,7 @@ export function TokenOptimization() {
               </span>
             </div>
             <div className="mt-[14px] flex items-center gap-[8px] text-[11px] text-[var(--color-text-tertiary)]">
-              <span className="font-bold text-[var(--color-text-primary)] tabular-nums">{activeOptimizerCount}/5</span>
+              <span className="font-bold text-[var(--color-text-primary)] tabular-nums">{activeOptimizerCount}/6</span>
               {t('tokenOptimization.savings.active')}
             </div>
           </div>
@@ -384,6 +462,39 @@ export function TokenOptimization() {
               disabled={liteStatus === null || liteLoading}
               onChange={(enabled) => void toggleLite(enabled)}
               ariaLabel={t('tokenOptimization.lite.toggle')}
+            />
+          )}
+        />
+
+        <OptimizerRow
+          testId="pruning-toolbar"
+          icon={<Scissors size={17} />}
+          title={t('tokenOptimization.pruning.title')}
+          description={t('tokenOptimization.pruning.description')}
+          active={pruningStatus?.enabled ?? false}
+          status={pruningStatus?.enabled
+            ? t('tokenOptimization.pruning.active')
+            : t('tokenOptimization.pruning.inactive')}
+          estimate={(
+            <SavingsEstimateLabel
+              estimate={optimizerEstimates.pruning}
+              scope={t('tokenOptimization.savings.scope.fullCycle')}
+              estimatedLabel={t('tokenOptimization.savings.estimatedShort')}
+            />
+          )}
+          metrics={(
+            <PruningLevelControl
+              level={pruningStatus?.level ?? 'balanced'}
+              disabled={pruningStatus === null || pruningLoading}
+              onChange={(level) => void updatePruningLevel(level)}
+            />
+          )}
+          control={(
+            <Switch
+              checked={pruningStatus?.enabled ?? false}
+              disabled={pruningStatus === null || pruningLoading}
+              onChange={(enabled) => void togglePruning(enabled)}
+              ariaLabel={t('tokenOptimization.pruning.toggle')}
             />
           )}
         />
@@ -466,7 +577,7 @@ export function TokenOptimization() {
           control={(
             <Switch
               checked={rtkStatus?.enabled ?? false}
-              disabled={rtkStatus === null || rtkLoading || !rtkStatus.available}
+              disabled={rtkStatus === null || rtkLoading || (!rtkStatus.available && !rtkStatus.enabled)}
               onChange={(enabled) => void toggleRtk(enabled)}
               ariaLabel={t('tokenOptimization.rtk.toggle')}
             />
@@ -480,8 +591,10 @@ export function TokenOptimization() {
           description={!projectPath || status?.indexable === false
             ? t('tokenOptimization.noProject')
             : t('tokenOptimization.codeGraph.description')}
-          active={status?.enabled ?? false}
-          status={<StatusLabel state={status?.state ?? 'disabled'} />}
+          active={codeGraphGlobalEnabled ?? false}
+          status={!projectPath && codeGraphGlobalEnabled
+            ? t('tokenOptimization.codeGraph.active')
+            : <StatusLabel state={status?.state ?? 'disabled'} />}
           estimate={(
             <SavingsEstimateLabel
               estimate={optimizerEstimates.codeGraph}
@@ -530,8 +643,8 @@ export function TokenOptimization() {
           )}
           control={(
             <Switch
-              checked={status?.enabled ?? false}
-              disabled={!projectPath || status === null || status.indexable === false || loading}
+              checked={codeGraphGlobalEnabled ?? false}
+              disabled={codeGraphGlobalEnabled === null || loading}
               onChange={(enabled) => void toggleCodeGraph(enabled)}
               ariaLabel={t('tokenOptimization.codeGraph.toggle')}
             />
@@ -539,7 +652,7 @@ export function TokenOptimization() {
         />
       </section>
 
-      {[liteError, ponytailError, cavemanError, rtkError, error].filter(Boolean).map((message) => (
+      {[liteError, pruningError, ponytailError, cavemanError, rtkError, error].filter(Boolean).map((message) => (
         <div
           key={message}
           role="alert"
@@ -631,13 +744,19 @@ type OptimizerEstimate = {
 
 function getOptimizerEstimates(
   lite: LiteOptimizationStatus | null,
+  pruning: SmartPruningStatus | null,
   ponytail: PonytailStatus | null,
   caveman: CavemanStatus | null,
   rtk: RtkStatus | null,
-  codeGraph: CodeGraphStatus | null,
+  codeGraphGlobalEnabled: boolean,
 ) {
   return {
     lite: createEstimate(2, 8, lite?.enabled ?? false),
+    pruning: createEstimate(
+      pruning?.level === 'conservative' ? 4 : pruning?.level === 'aggressive' ? 15 : 8,
+      pruning?.level === 'conservative' ? 12 : pruning?.level === 'aggressive' ? 40 : 24,
+      pruning?.enabled ?? false,
+    ),
     // Ponytail's fair agentic benchmark measured up to 22% fewer tokens, but
     // irreducible tasks and some reasoning models can land near zero savings.
     ponytail: createEstimate(0, 22, ponytail?.enabled ?? false),
@@ -645,8 +764,46 @@ function getOptimizerEstimates(
     // RTK reports 60–90% command-output reduction. At an estimated 30% share
     // of a coding-agent cycle, that contributes roughly 18–27% end to end.
     rtk: createEstimate(18, 27, rtk?.enabled ?? false),
-    codeGraph: createEstimate(23, 64, codeGraph?.enabled ?? false),
+    codeGraph: createEstimate(23, 64, codeGraphGlobalEnabled),
   }
+}
+
+function PruningLevelControl({
+  level,
+  disabled,
+  onChange,
+}: {
+  level: SmartPruningLevel
+  disabled: boolean
+  onChange: (level: SmartPruningLevel) => void
+}) {
+  const t = useTranslation()
+  const levels: SmartPruningLevel[] = ['conservative', 'balanced', 'aggressive']
+
+  return (
+    <div
+      role="group"
+      aria-label={t('tokenOptimization.pruning.level')}
+      className="inline-grid h-[28px] grid-cols-3 overflow-hidden rounded-[6px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-[2px]"
+    >
+      {levels.map((candidate) => (
+        <button
+          key={candidate}
+          type="button"
+          aria-pressed={candidate === level}
+          disabled={disabled}
+          onClick={() => onChange(candidate)}
+          className={`min-w-[48px] rounded-[4px] px-[7px] text-[9px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+            candidate === level
+              ? 'bg-[var(--color-surface-container)] text-[var(--color-text-primary)] shadow-sm'
+              : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]'
+          }`}
+        >
+          {t(`tokenOptimization.pruning.level.${candidate}`)}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function createEstimate(min: number, max: number, enabled: boolean): OptimizerEstimate {

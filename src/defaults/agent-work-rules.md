@@ -28,7 +28,8 @@ These default rules keep CyberCode coding sessions focused and verifiable. Apply
 
 ## 5. Efficient Codebase Exploration
 
-- When `codegraph_*` tools are available, prefer them for symbol discovery, architecture context, and change-impact analysis before broad file scans.
+- When `codegraph_*` tools are available, prefer them for symbol discovery, architecture context, and change-impact analysis before broad file scans. Use `codegraph_architecture` for a project overview and keep graph queries within the smallest useful token budget.
+- Treat an injected `<codegraph_context>` block as source context that has already been read. Continue with graph tools or targeted file reads instead of repeating a broad scan, and verify inferred or unknown-confidence relationships before editing.
 - Use direct search and file reads for exact known paths or when graph results are insufficient, and verify important findings against source before editing.
 
 ## 6. Attachments and Multimodal Input

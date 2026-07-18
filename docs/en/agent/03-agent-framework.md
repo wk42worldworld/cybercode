@@ -1,5 +1,7 @@
 # Claude Code Agent Framework Deep Dive
 
+> This is an upstream architecture research reference retained by CyberCode. Mentions of Claude Code, `.claude`, and `CLAUDE.md` identify the real compatibility target rather than CyberCode product branding.
+
 > Deconstructing the architecture behind the world's most popular AI code editor — from source code to design philosophy.
 
 <p align="center">

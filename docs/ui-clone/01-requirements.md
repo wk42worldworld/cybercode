@@ -1,10 +1,10 @@
-# Claude Code Desktop App — 产品需求文档 (PRD)
+# CyberCode Desktop App — 产品需求文档 (PRD)
 
 ## 一、项目概述
 
 ### 1.1 目标
 
-复刻 Claude Code Desktop App 的桌面端 GUI 核心功能。聚焦于 **AI 对话交互**、**会话管理**、**定时任务** 和 **Agent Teams 可视化** 四大模块。
+CyberCode Desktop App 的桌面端 GUI 核心功能设计。聚焦于 **AI 对话交互**、**会话管理**、**定时任务** 和 **Agent Teams 可视化** 四大模块。
 
 ### 1.2 复刻技术栈
 

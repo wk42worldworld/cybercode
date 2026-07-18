@@ -35,14 +35,14 @@ export function renderToolResultMessage(output: Output, _progressMessages: Progr
       </Box>;
   }
 
-  // Brief-only (chat) view: "Claude" label + 2-col indent, matching the "You"
+  // Brief-only (chat) view: "CyberCode" label + 2-col indent, matching the "You"
   // label UserPromptMessage applies to user input (#20889). The "N in background"
   // spinner status lives in BriefSpinner (Spinner.tsx) — stateless label here.
   if (options?.isBriefOnly) {
     const ts = output.sentAt ? formatBriefTimestamp(output.sentAt) : '';
     return <Box flexDirection="column" marginTop={1} paddingLeft={2}>
         <Box flexDirection="row">
-          <Text color="briefLabelClaude">Claude</Text>
+          <Text color="briefLabelClaude">CyberCode</Text>
           {ts ? <Text dimColor> {ts}</Text> : null}
         </Box>
         <Box flexDirection="column">

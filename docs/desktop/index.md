@@ -53,5 +53,5 @@
 | **Session** | 一次对话会话，绑定工作目录，通过 WebSocket 通信 |
 | **Tab** | 标签页，对应一个 Session 或特殊页面 |
 | **Provider** | AI 模型提供商，支持 Anthropic/OpenAI 兼容接口 |
-| **Adapter** | IM 适配器，Telegram/飞书接入 Claude Code |
+| **Adapter** | IM 适配器，Telegram/飞书接入 CyberCode |
 | **Store** | Zustand 状态容器，按领域拆分管理 |

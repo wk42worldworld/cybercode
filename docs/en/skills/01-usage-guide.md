@@ -1,6 +1,6 @@
-# Claude Code Skills System -- Usage Guide
+# CyberCode Skills System -- Usage Guide
 
-> Skills are the extensible capability engine of Claude Code, allowing you to define custom automated workflows using Markdown files.
+> Skills are CyberCode's extensible capability engine, allowing you to define custom automated workflows using Markdown files.
 
 <p align="center">
 <a href="#1-what-are-skills">What Are Skills</a> · <a href="#2-six-skill-sources">Six Sources</a> · <a href="#3-skill-definition-format">Definition Format</a> · <a href="#4-invocation-methods">Invocation</a> · <a href="#5-execution-context">Execution Context</a> · <a href="#6-conditional-activation">Conditional Activation</a> · <a href="#7-permission-control">Permissions</a> · <a href="#8-quick-reference">Quick Reference</a>
@@ -12,7 +12,7 @@
 
 ## 1. What Are Skills?
 
-Skills are Claude Code's **extensible capability plugin system**. Each Skill is a Markdown file (with YAML frontmatter) that defines a specialized prompt and behavioral configuration, enabling Claude to execute professional workflows in specific scenarios.
+Skills are CyberCode's **extensible capability plugin system**. Each Skill is a Markdown file (with YAML frontmatter) that defines a specialized prompt and behavioral configuration, enabling the agent to execute professional workflows in specific scenarios.
 
 Core capabilities:
 
@@ -31,7 +31,7 @@ Core capabilities:
 
 ![Skill Source Types](./images/02-skill-sources.png)
 
-Claude Code loads Skills from 6 different sources, ordered by priority from highest to lowest:
+CyberCode loads Skills from 6 different sources, ordered by priority from highest to lowest:
 
 ### 1. Bundled (Built-in Skills)
 
@@ -60,10 +60,10 @@ Controlled by organizational policies, stored in `<managed-path>/.claude/skills/
 
 ### 3. User (User Skills)
 
-Defined by individual users, stored in `~/.claude/skills/`.
+Defined by individual users, stored in `~/.cyber/skills/` by default. Existing `~/.claude/skills/` directories remain compatible.
 
 ```
-~/.claude/skills/
+~/.cyber/skills/
 ├── my-review/
 │   └── SKILL.md          ← Main Skill file
 ├── deploy-check/
@@ -73,11 +73,11 @@ Defined by individual users, stored in `~/.claude/skills/`.
 
 ### 4. Project (Project Skills)
 
-Defined at the project level, stored in `.claude/skills/`. Can be committed to version control.
+Defined at the project level, stored in `.cyber/skills/` by default. Existing `.claude/skills/` directories remain compatible.
 
 ```
 your-project/
-└── .claude/
+└── .cyber/
     └── skills/
         ├── lint-fix/
         │   └── SKILL.md
@@ -151,7 +151,7 @@ hooks:
 
 # Skill Body Content
 
-This is the Markdown-formatted prompt that Claude sees when this Skill is invoked.
+This is the Markdown-formatted prompt that the agent sees when this Skill is invoked.
 
 Supported special syntax:
 - `${CLAUDE_SKILL_DIR}` — Expands to the Skill's directory
@@ -200,11 +200,11 @@ Type `/skill-name` directly in the terminal:
 
 ### Method 2: Automatic Model Invocation
 
-When Claude identifies a suitable Skill during conversation, it automatically invokes it via SkillTool:
+When CyberCode identifies a suitable Skill during conversation, it automatically invokes it via SkillTool:
 
 ```
 User: Please review this code for me
-Claude: [Invokes superpowers:code-reviewer via SkillTool]
+CyberCode: [Invokes superpowers:code-reviewer via SkillTool]
 ```
 
 **Prerequisite**: The Skill's `disable-model-invocation` must not be `true`.
@@ -239,7 +239,7 @@ When Skills with the same name exist in multiple sources, they are resolved in t
 
 ### Inline Mode (Default)
 
-Skill content is **expanded into the current conversation**. Claude directly sees the prompt and executes within the same context.
+Skill content is **expanded into the current conversation**. The agent directly sees the prompt and executes within the same context.
 
 ```yaml
 context: inline   # Default value, can be omitted
@@ -311,7 +311,7 @@ In addition to conditional activation, Skills also support **runtime discovery**
 ```
 1. User operates on a file in a deeply nested directory
 2. discoverSkillDirsForPaths() traverses upward from the file path
-3. Looks for .claude/skills/ directories (not beyond cwd)
+3. Looks for `.cyber/skills/` first and keeps `.claude/skills/` compatibility (not beyond cwd)
 4. Skips directories ignored by .gitignore
 5. New directory found → addSkillDirectories() → load and register
 ```
@@ -352,10 +352,10 @@ Allow? (y)es / (n)o / (a)lways allow / (d)eny
 
 ```bash
 # 1. Create directory
-mkdir -p ~/.claude/skills/my-skill
+mkdir -p ~/.cyber/skills/my-skill
 
 # 2. Create SKILL.md
-cat > ~/.claude/skills/my-skill/SKILL.md << 'EOF'
+cat > ~/.cyber/skills/my-skill/SKILL.md << 'EOF'
 ---
 name: My Skill
 description: An example Skill
@@ -372,8 +372,8 @@ EOF
 
 | Operation | Method |
 |-----------|--------|
-| Create a Skill | `~/.claude/skills/<name>/SKILL.md` |
-| Project-level Skill | `.claude/skills/<name>/SKILL.md` |
+| Create a Skill | `~/.cyber/skills/<name>/SKILL.md` |
+| Project-level Skill | `.cyber/skills/<name>/SKILL.md` |
 | Invoke a Skill | Type `/skill-name` in terminal |
 | View available Skills | Type `/skills` in terminal |
 | Create Skill with AI | `/skillify` |

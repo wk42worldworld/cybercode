@@ -361,13 +361,13 @@ export const SettingsSchema = lazySchema(() =>
         .optional()
         .describe(
           'Deprecated: Use attribution instead. ' +
-            "Whether to include Claude's co-authored by attribution in commits and PRs (defaults to true)",
+            "Whether to include the model's co-authored-by attribution in commits and PRs (defaults to true)",
         ),
       includeGitInstructions: z
         .boolean()
         .optional()
         .describe(
-          "Include built-in commit and PR workflow instructions in Claude's system prompt (default: true)",
+          "Include built-in commit and PR workflow instructions in CyberCode's system prompt (default: true)",
         ),
       permissions: PermissionsSchema()
         .optional()
@@ -650,7 +650,13 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe(
-          'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
+          'Preferred language for CyberCode responses and voice dictation (e.g., "japanese", "spanish")',
+        ),
+      promptMemoryLanguage: z
+        .string()
+        .optional()
+        .describe(
+          'Preferred language for newly generated automatic prompt-memory entries',
         ),
       skipWebFetchPreflight: z
         .boolean()
@@ -881,7 +887,7 @@ export const SettingsSchema = lazySchema(() =>
               .boolean()
               .optional()
               .describe(
-                'Start Claude in assistant mode (custom system prompt, brief view, scheduled check-in skills)',
+                'Start CyberCode in assistant mode (custom system prompt, brief view, scheduled check-in skills)',
               ),
             assistantName: z
               .string()

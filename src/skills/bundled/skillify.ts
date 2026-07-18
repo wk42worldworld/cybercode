@@ -100,7 +100,7 @@ name: {{skill-name}}
 description: {{one-line description}}
 allowed-tools:
   {{list of tool permission patterns observed during session}}
-when_to_use: {{detailed description of when Claude should automatically invoke this skill, including trigger phrases and example user messages}}
+when_to_use: {{detailed description of when CyberCode should automatically invoke this skill, including trigger phrases and example user messages}}
 argument-hint: "{{hint showing argument placeholders}}"
 arguments:
   {{list of argument names}}

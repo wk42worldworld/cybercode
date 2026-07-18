@@ -1,6 +1,6 @@
-# Claude Code Multi-Agent System — Usage Guide
+# CyberCode Multi-Agent System — Usage Guide
 
-> Let Claude Code orchestrate multiple specialized agents to handle complex tasks in parallel.
+> Let CyberCode orchestrate multiple specialized agents to handle complex tasks in parallel.
 
 <p align="center">
 <a href="#1-what-is-the-multi-agent-system">Multi-Agent System</a> · <a href="#2-six-built-in-agents">Six Built-in Agents</a> · <a href="#3-how-to-spawn-agents">Spawning Agents</a> · <a href="#4-background-task-management">Background Tasks</a> · <a href="#5-agent-teams--multi-agent-collaboration">Agent Teams</a> · <a href="#6-custom-agents">Custom Agents</a> · <a href="#7-permission-modes">Permission Modes</a> · <a href="#8-quick-reference">Quick Reference</a>
@@ -12,7 +12,7 @@
 
 ## 1. What Is the Multi-Agent System?
 
-Claude Code's multi-agent system is an **intelligent task orchestration framework** that enables the primary agent to spawn multiple specialized subagents, each executing different tasks independently, then aggregating results for the user.
+CyberCode's multi-agent system is an **intelligent task orchestration framework** that enables the primary agent to spawn multiple specialized subagents, each executing different tasks independently, then aggregating results for the user.
 
 Core philosophy: **Break large tasks into specialized subtasks, execute them in parallel, and boost efficiency.**
 
@@ -29,7 +29,7 @@ Core philosophy: **Break large tasks into specialized subtasks, execute them in 
 
 ![Six Built-in Agents](./images/02-agent-types.png)
 
-Claude Code ships with 6 specialized agent types, each with a specific tool pool and intended use case:
+CyberCode ships with 6 specialized agent types, each with a specific tool pool and intended use case:
 
 ### 2.1 general-purpose (General Agent)
 
@@ -97,7 +97,7 @@ Agent({
 
 ### 2.5 claude-code-guide (Guide Agent)
 
-**Use case**: Answer questions about Claude Code, Agent SDK, or the Claude API.
+**Use case**: Answer questions about CyberCode, Claude Code compatibility, the Agent SDK, or the Claude API.
 
 ```
 Agent({
@@ -113,7 +113,7 @@ Agent({
 
 ### 2.6 statusline-setup (Status Bar Configuration Agent)
 
-**Use case**: Configure the Claude Code status bar display.
+**Use case**: Configure the CyberCode status bar display.
 
 - **Tool pool**: Read + Edit only
 - **Model**: Sonnet
@@ -243,7 +243,7 @@ When a background agent finishes, the primary agent receives an XML-formatted no
   <task-id>abc123</task-id>
   <status>completed</status>
   <summary>Agent "Explore frontend" completed</summary>
-  <output-file>~/.claude/temp/.../tasks/abc123.output</output-file>
+  <output-file>~/.cyber/temp/.../tasks/abc123.output</output-file>
 </task-notification>
 ```
 
@@ -269,8 +269,8 @@ TeamCreate({
 ```
 
 After team creation:
-- A team configuration file is generated: `~/.claude/teams/{team_name}/config.json`
-- A shared task directory is created: `~/.claude/tasks/{team_name}/`
+- A team configuration file is generated: `~/.cyber/teams/{team_name}/config.json`
+- A shared task directory is created: `~/.cyber/tasks/{team_name}/`
 - The current agent automatically becomes the **Team Lead**
 
 ### Adding Team Members
@@ -352,7 +352,7 @@ In addition to built-in agents, you can create your own specialized agents.
 
 ### Definition Format
 
-Create a `.md` file in the `.claude/agents/` directory:
+Create a `.md` file in the `.cyber/agents/` directory (existing `.claude/agents/` directories remain compatible):
 
 ```markdown
 ---
@@ -400,8 +400,8 @@ Custom agents are loaded according to the following priority:
 
 1. **Built-in agents** (built-in) — System predefined
 2. **Plugin agents** (plugin) — Registered via plugins
-3. **User agents** (user) — `~/.claude/agents/`
-4. **Project agents** (project) — `.claude/agents/` (project-level)
+3. **User agents** (user) — `~/.cyber/agents/`
+4. **Project agents** (project) — `.cyber/agents/` (project-level)
 5. **Flag agents** (flag) — Registered via API
 6. **Policy agents** (policy) — Organization policies
 
@@ -438,6 +438,6 @@ Each agent can be configured with a different permission mode:
 | Broadcast a message | `SendMessage({ to: "*", message: "..." })` |
 | Request shutdown | `SendMessage({ to: "name", message: { type: "shutdown_request" } })` |
 | Delete a team | `TeamDelete()` |
-| Custom agent | Create a definition file in `.claude/agents/*.md` |
+| Custom agent | Create a definition file in `.cyber/agents/*.md` |
 | Specify a model | `Agent({ ..., model: "haiku" })` |
 | Name an agent | `Agent({ ..., name: "researcher" })` |

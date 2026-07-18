@@ -305,7 +305,7 @@ export async function launchRemoteReview(
   logEvent('tengu_review_remote_launched', {})
   const sessionUrl = getRemoteTaskSessionUrl(session.id)
   // Concise — the tool-output block is visible to the user, so the model
-  // shouldn't echo the same info. Just enough for Claude to acknowledge the
+  // shouldn't echo the same info. Just enough for CyberCode to acknowledge the
   // launch without restating the target/URL (both already printed above).
   return [
     {

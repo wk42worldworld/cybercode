@@ -28,7 +28,7 @@ export function getFormatDescription(
 }
 
 /**
- * Generates instruction text for Claude to read from a saved output file.
+ * Generates instruction text for CyberCode to read from a saved output file.
  *
  * @param rawOutputPath - Path to the saved output file
  * @param contentLength - Length of the content in characters

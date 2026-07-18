@@ -177,7 +177,7 @@ export class ConversationService {
 
     // IMPORTANT (Bug#5): 必须覆盖子进程继承的 CALLER_DIR / PWD。
     // preload.ts 顶层读 process.env.CALLER_DIR 并调用 process.chdir(CALLER_DIR)。
-    // 在 bundled 桌面端里，server sidecar 被 Tauri 从 cwd=/ 启动，claude-sidecar.ts
+    // 在 bundled 桌面端里，server sidecar 被 Tauri 从 cwd=/ 启动，cybercode-sidecar.ts
     // 在 server/cli 模式入口把 CALLER_DIR 默认设成 process.cwd()（即 '/'），
     // 随后这个 env 被完整继承到 Bun.spawn 的 CLI 子进程；即使这里显式传了
     // cwd: workDir，CLI 子进程里 preload.ts 还是会 chdir('/')，结果把
@@ -930,7 +930,7 @@ export class ConversationService {
       )
     ) {
       return new ConversationStartupError(
-        'Desktop chat could not start because Claude CLI is not authenticated. Run `./bin/cybercode /login` or provide valid API credentials, then retry.',
+        'Desktop chat could not start because CyberCode CLI is not authenticated. Run `./bin/cybercode /login` or provide valid API credentials, then retry.',
         'CLI_AUTH_REQUIRED',
       )
     }

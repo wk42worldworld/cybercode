@@ -1,4 +1,4 @@
-# Claude Code Memory System — Implementation Details
+# CyberCode Memory System — Implementation Details
 
 > From system prompt injection to background auto-extraction, dissecting every technical detail of the memory system.
 
@@ -75,7 +75,7 @@ export const getAutoMemPath = memoize(
 | `\\server\share` | UNC network path |
 | Contains `\0` | Null byte, can truncate in system calls |
 
-**Security restriction**: Project-level `.claude/settings.json` is **not allowed** to set `autoMemoryDirectory`, preventing malicious repositories from gaining write access to sensitive directories like `~/.ssh`.
+**Security restriction**: Project-level `.cyber/settings.json` is **not allowed** to set `autoMemoryDirectory`, preventing malicious repositories from gaining write access to sensitive directories like `~/.ssh`.
 
 ### Enable Conditions
 
@@ -270,7 +270,7 @@ Each time the user sends a query, `findRelevantMemories()` is triggered:
 ### Sonnet Selector Prompt
 
 ```
-You are selecting memories useful for Claude Code to handle the user's query.
+You are selecting memories useful for CyberCode to handle the user's query.
 You'll receive the user's query and a list of available memory files (with filenames and descriptions).
 
 Return at most 5 memory filenames that are clearly useful.
@@ -340,9 +340,9 @@ Sub-agents (launched via the Agent tool) have an independent three-level memory 
 
 | Scope | Path | Description |
 |-------|------|-------------|
-| **user** | `~/.claude/agent-memory/{agentType}/` | Global user-level |
-| **project** | `.claude/agent-memory/{agentType}/` | Project-level (committed to VCS) |
-| **local** | `.claude/agent-memory-local/{agentType}/` | Local-level (not committed) |
+| **user** | `~/.cyber/agent-memory/{agentType}/` | Global user-level |
+| **project** | `.cyber/agent-memory/{agentType}/` | Project-level (committed to VCS) |
+| **local** | `.cyber/agent-memory-local/{agentType}/` | Local-level (not committed) |
 
 Differences from main memory:
 - No MEMORY.md index step (`skipIndex = true`)
@@ -358,7 +358,7 @@ When the `TEAMMEM` feature flag is enabled:
 ### Directory Structure
 
 ```
-~/.claude/projects/{hash}/memory/
+~/.cyber/projects/{hash}/memory/
 ├── MEMORY.md           <- Personal memory index
 ├── user_*.md           <- Personal memories
 └── team/               <- Team shared directory
@@ -440,7 +440,7 @@ Max 5 relevant memories returned
 └────────────────────────┬────────────────────────────┘
                          |
 ┌─────────────────────────────────────────────────────┐
-│                  Claude's Response                    │
+│                CyberCode's Response                   │
 │                                                      │
 │  Model may write memories directly                   │
 │  (following system prompt guidance)                  │

@@ -5,7 +5,7 @@ import { c as _c } from "react/compiler-runtime";
  * Users can drill into each hook event, see configured matchers and hooks
  * (of any type: command, prompt, agent, http), and view individual hook
  * details. To add or modify hooks, users should edit settings.json directly
- * or ask Claude — the menu directs them there.
+ * or ask CyberCode — the menu directs them there.
  *
  * The menu is read-only because the old editing UI only supported
  * command-type hooks and duplicating the settings.json editing surface
@@ -351,7 +351,7 @@ export function HooksConfigMenu(t0) {
     }
     let t32;
     if ($[53] !== disabledByPolicy) {
-      t32 = !disabledByPolicy && <Text dimColor={true}>To re-enable hooks, remove "disableAllHooks" from settings.json or ask Claude.</Text>;
+      t32 = !disabledByPolicy && <Text dimColor={true}>To re-enable hooks, remove "disableAllHooks" from settings.json or ask CyberCode.</Text>;
       $[53] = disabledByPolicy;
       $[54] = t32;
     } else {

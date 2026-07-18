@@ -80,7 +80,7 @@ struct ScreenshotCaptureState(Arc<(Mutex<ScreenshotCaptureSession>, Condvar)>);
 
 /// 与 ServerState 平级的 adapter 子进程状态。
 ///
-/// adapter sidecar（claude-sidecar adapters --feishu --telegram）的生命周期
+/// adapter sidecar（cybercode-sidecar adapters --feishu --telegram）的生命周期
 /// 跟 server 不同：它没有 HTTP 端口可探活，没配凭据时会自己干净退出，
 /// 而且需要支持运行时热重启 —— 用户在设置页保存飞书 / Telegram 凭据后，
 /// 前端会通过 invoke('restart_adapters_sidecar') 来重启它，让新凭据生效。
@@ -1349,7 +1349,7 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     // 单一合并 sidecar：第一个参数选 server / cli / adapters 模式。
     let mut sidecar = app
         .shell()
-        .sidecar("claude-sidecar")
+        .sidecar("cybercode-sidecar")
         .map_err(|err| format!("resolve sidecar: {err}"))?;
     for (key, value) in terminal_environment(&default_shell()) {
         sidecar = sidecar.env(key, value);
@@ -1384,13 +1384,13 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
                 CommandEvent::Stdout(line) => {
                     let line = String::from_utf8_lossy(&line);
                     let line = line.trim_end();
-                    println!("[claude-server] {line}");
+                    println!("[cybercode-server] {line}");
                     push_server_startup_log(&logs_for_task, format!("[stdout] {line}"));
                 }
                 CommandEvent::Stderr(line) => {
                     let line = String::from_utf8_lossy(&line);
                     let line = line.trim_end();
-                    eprintln!("[claude-server] {line}");
+                    eprintln!("[cybercode-server] {line}");
                     push_server_startup_log(&logs_for_task, format!("[stderr] {line}"));
                 }
                 CommandEvent::Terminated(payload) => {
@@ -1398,7 +1398,7 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
                         "sidecar exited (code={:?}, signal={:?})",
                         payload.code, payload.signal
                     );
-                    eprintln!("[claude-server] {line}");
+                    eprintln!("[cybercode-server] {line}");
                     push_server_startup_log(&logs_for_task, format!("[exit] {line}"));
                     if let Ok(mut guard) = exit_for_task.lock() {
                         *guard = Some(line);
@@ -1490,7 +1490,7 @@ fn start_adapters_sidecar(app: &AppHandle) -> Result<CommandChild, String> {
 
     let mut sidecar = app
         .shell()
-        .sidecar("claude-sidecar")
+        .sidecar("cybercode-sidecar")
         .map_err(|err| format!("resolve sidecar: {err}"))?;
     for (key, value) in terminal_environment(&default_shell()) {
         sidecar = sidecar.env(key, value);
@@ -1518,18 +1518,18 @@ fn start_adapters_sidecar(app: &AppHandle) -> Result<CommandChild, String> {
             match event {
                 CommandEvent::Stdout(line) => {
                     let line = String::from_utf8_lossy(&line);
-                    println!("[claude-adapters] {}", line.trim_end());
+                    println!("[cybercode-adapters] {}", line.trim_end());
                 }
                 CommandEvent::Stderr(line) => {
                     let line = String::from_utf8_lossy(&line);
-                    eprintln!("[claude-adapters] {}", line.trim_end());
+                    eprintln!("[cybercode-adapters] {}", line.trim_end());
                 }
                 CommandEvent::Terminated(payload) => {
                     // exit code != 0 是常态：用户没配凭据时 sidecar 内部会
                     // warn + skip + process.exit(1)。这里只 info 一行，
                     // 不要当错误冒泡。
                     println!(
-                        "[claude-adapters] sidecar exited (code={:?}, signal={:?})",
+                        "[cybercode-adapters] sidecar exited (code={:?}, signal={:?})",
                         payload.code, payload.signal
                     );
                 }
@@ -1573,6 +1573,10 @@ fn stop_adapters_sidecar(app: &AppHandle) {
 #[cfg(target_os = "windows")]
 fn kill_windows_sidecars() {
     for image_name in [
+        "cybercode-sidecar-x86_64-pc-windows-msvc.exe",
+        "cybercode-sidecar-aarch64-pc-windows-msvc.exe",
+        "cybercode-sidecar.exe",
+        // Clean up processes left by CyberCode releases before v1.1.2.
         "claude-sidecar-x86_64-pc-windows-msvc.exe",
         "claude-sidecar-aarch64-pc-windows-msvc.exe",
         "claude-sidecar.exe",

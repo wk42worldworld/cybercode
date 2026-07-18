@@ -362,7 +362,7 @@ export default function SessionControls() {
         >
           <textarea
             className="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none font-body text-on-surface placeholder:text-outline"
-            placeholder="Reply to Claude..."
+            placeholder="Reply to CyberCode..."
             rows={2}
           />
           <div className="flex justify-between items-center">

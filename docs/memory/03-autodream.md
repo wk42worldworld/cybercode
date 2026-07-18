@@ -1,6 +1,6 @@
-# Claude Code 记忆系统 — AutoDream 记忆整合
+# CyberCode 记忆系统 — AutoDream 记忆整合
 
-> Claude 会"做梦"——在后台静默回顾近期会话，整合、更新、修剪记忆，就像人类睡眠中整理白天的记忆一样。
+> CyberCode 会"做梦"——在后台静默回顾近期会话，整合、更新、修剪记忆，就像人类睡眠中整理白天的记忆一样。
 
 <p align="center">
 <a href="#一什么是-autodream">AutoDream</a> · <a href="#二触发条件">触发条件</a> · <a href="#三四阶段整合流程">整合流程</a> · <a href="#四安全限制">安全限制</a> · <a href="#五ui-展示">UI 展示</a> · <a href="#六配置与开关">配置开关</a> · <a href="#七与-extractmemories-的关系">对比</a> · <a href="#八源码导航">源码导航</a>
@@ -12,16 +12,16 @@
 
 ## 一、什么是 AutoDream？
 
-AutoDream 是 Claude Code 的 **后台记忆整合机制**，内部代号 **"Dream: Memory Consolidation"**。
+AutoDream 是 CyberCode 的 **后台记忆整合机制**，内部代号 **"Dream: Memory Consolidation"**。
 
 核心隐喻：
 
-| 人类 | Claude Code |
+| 人类 | CyberCode |
 |------|-------------|
 | 白天随手记笔记 | `extractMemories` — 每次对话后提取新记忆 |
 | 晚上睡觉时整理笔记本 | `autoDream` — 定期回顾多个会话，整合全部记忆 |
 
-当你不活跃时（默认间隔 24 小时、积累 5 个会话后），Claude 会在后台静默启动一个 **"做梦"子智能体**（forked subagent），回顾所有近期会话记录，将零散的记忆整合为结构化的、去重的、去过时的持久化知识。
+当你不活跃时（默认间隔 24 小时、积累 5 个会话后），CyberCode 会在后台静默启动一个 **"做梦"子智能体**（forked subagent），回顾所有近期会话记录，将零散的记忆整合为结构化的、去重的、去过时的持久化知识。
 
 **关键源码**：`src/services/autoDream/autoDream.ts`
 

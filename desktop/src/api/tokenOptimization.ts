@@ -28,6 +28,13 @@ export type CodeGraphStatus = {
   bundledLanguages: string[]
 }
 
+export type CodeGraphGlobalStatus = {
+  enabled: boolean
+}
+
+export type CodeGraphConfidence = 'extracted' | 'inferred' | 'unknown'
+export type CodeGraphNodeRole = 'hub' | 'bridge' | 'member'
+
 export type CodeGraphNode = {
   id: string
   kind: string
@@ -38,11 +45,40 @@ export type CodeGraphNode = {
   startLine: number
   endLine: number
   degree: number
+  communityId: string
+  communityLabel: string
+  role: CodeGraphNodeRole
 }
 
 export type CodeGraphData = {
   nodes: CodeGraphNode[]
-  edges: Array<{ source: string; target: string; kind: string }>
+  edges: Array<{
+    source: string
+    target: string
+    kind: string
+    line: number | null
+    provenance: string | null
+    confidence: CodeGraphConfidence
+    crossCommunity: boolean
+  }>
+  architecture: {
+    analyzedNodeCount: number
+    analyzedEdgeCount: number
+    availableNodeCount: number
+    truncated: boolean
+    communities: Array<{
+      id: string
+      label: string
+      nodeCount: number
+      edgeCount: number
+      cohesion: number
+      hubNodeIds: string[]
+      bridgeNodeIds: string[]
+    }>
+    hubNodeIds: string[]
+    bridgeNodeIds: string[]
+    confidence: Record<CodeGraphConfidence, number>
+  }
 }
 
 export type RtkStatus = {
@@ -74,6 +110,14 @@ export type PonytailStatus = {
   mode: 'full'
 }
 
+export type SmartPruningLevel = 'conservative' | 'balanced' | 'aggressive'
+
+export type SmartPruningStatus = {
+  enabled: boolean
+  level: SmartPruningLevel
+  mode: 'deterministic'
+}
+
 const projectQuery = (projectPath: string) =>
   `projectPath=${encodeURIComponent(projectPath)}`
 
@@ -85,6 +129,27 @@ export const tokenOptimizationApi = {
 
   disableLite: () =>
     api.post<LiteOptimizationStatus>('/api/token-optimization/lite/disable', {}),
+
+  pruningStatus: () =>
+    api.get<SmartPruningStatus>('/api/token-optimization/pruning'),
+
+  enablePruning: () =>
+    api.post<SmartPruningStatus>('/api/token-optimization/pruning/enable', {}),
+
+  disablePruning: () =>
+    api.post<SmartPruningStatus>('/api/token-optimization/pruning/disable', {}),
+
+  setPruningLevel: (level: SmartPruningLevel) =>
+    api.post<SmartPruningStatus>('/api/token-optimization/pruning/level', { level }),
+
+  codeGraphGlobalStatus: () =>
+    api.get<CodeGraphGlobalStatus>('/api/token-optimization/codegraph/global'),
+
+  enableCodeGraphGlobally: () =>
+    api.post<CodeGraphGlobalStatus>('/api/token-optimization/codegraph/global/enable', {}),
+
+  disableCodeGraphGlobally: () =>
+    api.post<CodeGraphGlobalStatus>('/api/token-optimization/codegraph/global/disable', {}),
 
   ponytailStatus: () => api.get<PonytailStatus>('/api/token-optimization/ponytail'),
 

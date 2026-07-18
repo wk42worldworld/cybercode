@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest",
-    "test:sidecars": "bun test ./scripts/sidecarTarget.test.ts ./sidecars/codegraphWal.test.ts ./sidecars/htmlScriptExtraction.test.ts ./sidecars/launcherRouting.test.ts",
+    "test:sidecars": "bun test ./scripts/sidecarTarget.test.ts ./sidecars/codegraphWal.test.ts ./sidecars/codegraph-runner.test.ts ./sidecars/htmlScriptExtraction.test.ts ./sidecars/launcherRouting.test.ts",
     "test:ui": "vitest --ui",
     "lint": "tsc --noEmit"
   },

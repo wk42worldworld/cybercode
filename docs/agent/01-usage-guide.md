@@ -1,6 +1,6 @@
-# Claude Code 多 Agent 系统 — 使用指南
+# CyberCode 多 Agent 系统 — 使用指南
 
-> 让 Claude Code 同时调度多个专业代理，并行处理复杂任务。
+> 让 CyberCode 同时调度多个专业代理，并行处理复杂任务。
 
 <p align="center">
 <a href="#一什么是多-agent-系统">多 Agent 系统</a> · <a href="#二六种内置-agent">六种内置 Agent</a> · <a href="#三如何生成-agent">如何生成 Agent</a> · <a href="#四后台任务管理">后台任务管理</a> · <a href="#五agent-teams--多代理协作">Agent Teams</a> · <a href="#六自定义-agent">自定义 Agent</a> · <a href="#七权限模式">权限模式</a> · <a href="#八快速参考">快速参考</a>
@@ -12,7 +12,7 @@
 
 ## 一、什么是多 Agent 系统？
 
-Claude Code 的多 Agent 系统是一套**智能任务编排框架**，让主代理能够生成多个专业化的子代理（Subagent），各自独立执行不同的任务，最终将结果汇总给用户。
+CyberCode 的多 Agent 系统是一套**智能任务编排框架**，让主代理能够生成多个专业化的子代理（Subagent），各自独立执行不同的任务，最终将结果汇总给用户。
 
 核心理念：**把大任务拆分为多个专业小任务，并行执行，提高效率。**
 
@@ -29,7 +29,7 @@ Claude Code 的多 Agent 系统是一套**智能任务编排框架**，让主代
 
 ![六种内置 Agent](./images/02-agent-types.png)
 
-Claude Code 内置了 6 种专业代理，每种都有特定的工具池和适用场景：
+CyberCode 内置了 6 种专业代理，每种都有特定的工具池和适用场景：
 
 ### 1. general-purpose（通用代理）
 
@@ -97,7 +97,7 @@ Agent({
 
 ### 5. claude-code-guide（指南代理）
 
-**适用场景**：回答关于 Claude Code、Agent SDK、Claude API 的问题。
+**适用场景**：回答关于 CyberCode、Claude Code 兼容能力、Agent SDK 或 Claude API 的问题。
 
 ```
 Agent({
@@ -113,7 +113,7 @@ Agent({
 
 ### 6. statusline-setup（状态栏配置代理）
 
-**适用场景**：配置 Claude Code 状态栏显示。
+**适用场景**：配置 CyberCode 状态栏显示。
 
 - **工具池**：仅 Read + Edit
 - **模型**：Sonnet
@@ -243,7 +243,7 @@ Agent({
   <task-id>abc123</task-id>
   <status>completed</status>
   <summary>Agent "探索前端" completed</summary>
-  <output-file>~/.claude/temp/.../tasks/abc123.output</output-file>
+  <output-file>~/.cyber/temp/.../tasks/abc123.output</output-file>
 </task-notification>
 ```
 
@@ -269,8 +269,8 @@ TeamCreate({
 ```
 
 团队创建后：
-- 生成团队配置文件：`~/.claude/teams/{team_name}/config.json`
-- 创建共享任务目录：`~/.claude/tasks/{team_name}/`
+- 生成团队配置文件：`~/.cyber/teams/{team_name}/config.json`
+- 创建共享任务目录：`~/.cyber/tasks/{team_name}/`
 - 当前代理自动成为 **Team Lead**（团队负责人）
 
 ### 添加团队成员
@@ -352,7 +352,7 @@ Agent Teams 支持两种执行后端：
 
 ### 定义格式
 
-在 `.claude/agents/` 目录下创建 `.md` 文件：
+在 `.cyber/agents/` 目录下创建 `.md` 文件（已有 `.claude/agents/` 仍兼容读取）：
 
 ```markdown
 ---
@@ -400,8 +400,8 @@ maxTurns: 10
 
 1. **内置 Agent**（built-in）— 系统预定义
 2. **插件 Agent**（plugin）— 通过插件注册
-3. **用户 Agent**（user）— `~/.claude/agents/`
-4. **项目 Agent**（project）— `.claude/agents/`（项目级）
+3. **用户 Agent**（user）— `~/.cyber/agents/`
+4. **项目 Agent**（project）— `.cyber/agents/`（项目级）
 5. **标记 Agent**（flag）— 通过 API 注册
 6. **策略 Agent**（policy）— 组织策略
 
@@ -438,6 +438,6 @@ maxTurns: 10
 | 广播消息 | `SendMessage({ to: "*", message: "..." })` |
 | 请求关停 | `SendMessage({ to: "name", message: { type: "shutdown_request" } })` |
 | 删除团队 | `TeamDelete()` |
-| 自定义 Agent | 在 `.claude/agents/*.md` 创建定义文件 |
+| 自定义 Agent | 在 `.cyber/agents/*.md` 创建定义文件 |
 | 指定模型 | `Agent({ ..., model: "haiku" })` |
 | 命名 Agent | `Agent({ ..., name: "researcher" })` |

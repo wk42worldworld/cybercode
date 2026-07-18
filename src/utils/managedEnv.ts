@@ -93,7 +93,7 @@ function filterSettingsEnv(
 }
 
 /**
- * Read env vars from ~/.cyber/cybercode/settings.json (Cybercode-specific provider
+ * Read env vars from ~/.cyber/cybercode/settings.json (CyberCode-specific provider
  * config). This file is written by ProviderService.syncToSettings() and
  * contains ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN, model defaults, etc.
  * Returns an empty object if the file doesn't exist or is invalid.
@@ -168,8 +168,8 @@ export function applySafeConfigEnvironmentVariables(): void {
   }
 
   // cybercode provider isolation: apply env from ~/.cyber/cybercode/settings.json
-  // AFTER userSettings so Cybercode-specific provider config takes priority over
-  // the original Claude Code's settings. This prevents Cybercode from polluting
+  // AFTER userSettings so CyberCode-specific provider config takes priority over
+  // the original Claude Code settings. This prevents CyberCode from polluting
   // ~/.cyber/settings.json while still allowing it to override provider vars.
   Object.assign(process.env, filterSettingsEnv(getCybercodeSettingsEnv()))
 
@@ -215,7 +215,7 @@ export function applyConfigEnvironmentVariables(): void {
   Object.assign(process.env, filterSettingsEnv(getSettings_DEPRECATED()?.env))
 
   // cybercode provider isolation: same as in applySafeConfigEnvironmentVariables,
-  // apply Cybercode-specific env last so it overrides the original settings.
+  // apply CyberCode-specific env last so it overrides the original settings.
   Object.assign(process.env, filterSettingsEnv(getCybercodeSettingsEnv()))
 
   // Clear caches so agents are rebuilt with the new env vars

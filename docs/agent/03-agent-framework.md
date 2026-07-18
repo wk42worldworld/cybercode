@@ -1,5 +1,7 @@
 # Claude Code Agent 框架深度解析
 
+> 本章是 CyberCode 保留的上游架构研究资料。文中的 Claude Code、`.claude` 和 `CLAUDE.md` 均指真实的上游兼容对象，并非 CyberCode 产品品牌。
+
 > 从源码视角剖析全球最流行 AI Code Editor 背后的 Agent 架构设计哲学。
 
 <p align="center">

@@ -1,4 +1,4 @@
-# Claude Code 多 Agent 系统 — 实现原理
+# CyberCode 多 Agent 系统 — 实现原理
 
 > 深入剖析多 Agent 编排的架构设计、生成流程、上下文传递和协作机制。
 
@@ -12,7 +12,7 @@
 
 ## 一、架构总览
 
-Claude Code 的多 Agent 系统由以下核心模块组成：
+CyberCode 的多 Agent 系统由以下核心模块组成：
 
 ### 5 大核心模块
 
@@ -279,7 +279,7 @@ function resolveAgentTools(agentDef, availableTools) {
 // src/utils/forkedAgent.ts
 export type CacheSafeParams = {
   systemPrompt: SystemPrompt       // 系统提示词
-  userContext: { [k: string]: string }  // 目录结构、CLAUDE.md 等
+  userContext: { [k: string]: string }  // 目录结构、CYBER.md 等
   systemContext: { [k: string]: string } // git status、环境信息
   toolUseContext: ToolUseContext    // 工具配置、模型、选项
   forkContextMessages: Message[]   // Fork 上下文消息（用于缓存共享）
@@ -323,7 +323,7 @@ Agent System Prompt        ← agentDefinition.getSystemPrompt()
   ↓                          - 其他：替换默认
 Custom System Prompt       ← --system-prompt 参数
   ↓
-Default System Prompt      ← Claude Code 标准提示词
+Default System Prompt      ← CyberCode 标准提示词
   ↓
 Append System Prompt       ← 追加到末尾
 ```
@@ -396,7 +396,7 @@ agentDefinition.model               ← Agent 定义
 ### TeamFile 结构
 
 ```typescript
-// 存储路径：~/.claude/teams/{team_name}/config.json
+// 存储路径：~/.cyber/teams/{team_name}/config.json
 {
   name: string                        // 团队名称
   description?: string                // 团队描述
@@ -430,7 +430,7 @@ agentDefinition.model               ← Agent 定义
 
 ![Teams 邮箱系统](./images/09-teams-mailbox.png)
 
-**存储路径**：`~/.claude/teams/{team_name}/inboxes/{agent_name}.json`
+**存储路径**：`~/.cyber/teams/{team_name}/inboxes/{agent_name}.json`
 
 ```typescript
 // src/utils/teammateMailbox.ts
@@ -603,7 +603,7 @@ function enqueuePendingNotification(taskId, result) {
 
 ### 输出管理
 
-**存储路径**：`~/.claude/temp/{sessionId}/tasks/{taskId}.output`
+**存储路径**：`~/.cyber/temp/{sessionId}/tasks/{taskId}.output`
 
 | 参数 | 值 |
 |------|----|

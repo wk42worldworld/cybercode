@@ -162,9 +162,12 @@ export async function setup(
   setOriginalCwd(cwd)
   setProjectRoot(cwd)
 
-  // Local recovery mode: when CLAUDE_CODE_LOCAL_RECOVERY=1 is explicitly set,
-  // trim startup to minimum. Otherwise run full setup for the Ink TUI.
-  if (process.env.CLAUDE_CODE_LOCAL_RECOVERY === '1') {
+  // Local recovery mode: prefer the CyberCode variable while retaining the
+  // inherited name for existing launchers and scripts.
+  if (
+    process.env.CYBERCODE_LOCAL_RECOVERY === '1' ||
+    process.env.CLAUDE_CODE_LOCAL_RECOVERY === '1'
+  ) {
     process.stderr.write('[local-recovery] setup early return\n')
     profileCheckpoint('setup_local_recovery_early_return')
     return

@@ -21,6 +21,7 @@ afterEach(() => {
   if (originalRtkPath === undefined) delete process.env.CYBER_RTK_PATH
   else process.env.CYBER_RTK_PATH = originalRtkPath
   _resetConfigHomeDirForTesting()
+  rtkOptimizationService.resetForTesting()
   for (const root of testRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true })
   }
@@ -42,6 +43,10 @@ describe('RTK token optimization', () => {
     expect(status.enabled).toBe(true)
 
     expect(service.isEnabled()).toBe(true)
+
+    await writer.setEnabled(false)
+    expect(service.isEnabled()).toBe(false)
+    expect(await service.rewriteCommand('git status', 'bash')).toBe('git status')
   })
 
   test('builds shell-specific commands without changing unsupported rewrites', () => {
@@ -95,5 +100,16 @@ describe('RTK token optimization', () => {
     )
     expect(statusResponse.status).toBe(200)
     expect((await statusResponse.json()).enabled).toBe(true)
+
+    const disableUrl = new URL('http://localhost/api/token-optimization/rtk/disable')
+    const disableResponse = await handleTokenOptimizationApi(
+      new Request(disableUrl, { method: 'POST' }),
+      disableUrl,
+      ['api', 'token-optimization', 'rtk', 'disable'],
+    )
+    expect(disableResponse.status).toBe(200)
+    expect((await disableResponse.json()).enabled).toBe(false)
+    expect(await rtkOptimizationService.rewriteCommand('git status', 'powershell'))
+      .toBe('git status')
   })
 })

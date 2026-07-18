@@ -15,7 +15,7 @@ import {
 } from '../../utils/file.js'
 import type { EditInput, FileEdit } from './types.js'
 
-// Claude can't output curly quotes, so we define them as constants here for Claude to use
+// The model cannot reliably output curly quotes, so define them as constants here.
 // in the code. We do this because we normalize curly quotes to straight quotes
 // when applying edits.
 export const LEFT_SINGLE_CURLY_QUOTE = '‘'
@@ -525,7 +525,7 @@ export function getEditsForPatch(patch: StructuredPatchHunk[]): FileEdit[] {
 
 /**
  * Contains replacements to de-sanitize strings from Claude
- * Since Claude can't see any of these strings (sanitized in the API)
+ * Since the model cannot see any of these strings (sanitized in the API)
  * It'll output the sanitized versions in the edit response
  */
 const DESANITIZATIONS: Record<string, string> = {

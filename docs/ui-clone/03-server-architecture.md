@@ -1,4 +1,4 @@
-# Claude Code Desktop App — 服务端架构设计
+# CyberCode Desktop App — 服务端架构设计
 
 ## 一、设计原则
 

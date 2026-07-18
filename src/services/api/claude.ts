@@ -106,6 +106,7 @@ import {
 } from '../claudeAiLimits.js'
 import { getAPIContextManagement } from '../compact/apiMicrocompact.js'
 import { liteOptimizationService } from '../liteOptimization.js'
+import { smartPruningOptimizationService } from '../smartPruningOptimization.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const autoModeStateModule = feature('TRANSCRIPT_CLASSIFIER')
@@ -1386,6 +1387,10 @@ async function* queryModel(
     messagesForAPI = replaceImagesForTextOnlyModel(messagesForAPI)
   }
 
+  // Smart pruning only changes this request-local API payload. The persisted
+  // transcript remains complete, so disabling it restores full context next turn.
+  messagesForAPI = smartPruningOptimizationService.optimizeMessages(messagesForAPI).messages
+
   // Instrumentation: Track message count after normalization
   logEvent('tengu_api_after_normalize', {
     postNormalizedMessageCount: messagesForAPI.length,
@@ -2352,7 +2357,7 @@ async function* queryModel(
                 max_tokens: maxOutputTokens,
               })
               yield createAssistantAPIErrorMessage({
-                content: `${API_ERROR_MESSAGE_PREFIX}: Claude's response exceeded the ${
+                content: `${API_ERROR_MESSAGE_PREFIX}: The model response exceeded the ${
                   maxOutputTokens
                 } output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.`,
                 apiError: 'max_output_tokens',

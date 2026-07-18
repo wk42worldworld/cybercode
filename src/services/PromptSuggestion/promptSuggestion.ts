@@ -266,8 +266,8 @@ THE TEST: Would they think "I was just about to type that"?
 EXAMPLES:
 User asked "fix the bug and run tests", bug is fixed → "run the tests"
 After code written → "try it out"
-Claude offers options → suggest the one the user would likely pick, based on conversation
-Claude asks to continue → "yes" or "go ahead"
+CyberCode offers options → suggest the one the user would likely pick, based on conversation
+CyberCode asks to continue → "yes" or "go ahead"
 Task complete, obvious follow-up → "commit this" or "push it"
 After error or misunderstanding → silence (let them assess/correct)
 
@@ -276,7 +276,7 @@ Be specific: "run the tests" beats "continue".
 NEVER SUGGEST:
 - Evaluative ("looks good", "thanks")
 - Questions ("what about...?")
-- Claude-voice ("Let me...", "I'll...", "Here's...")
+- CyberCode-voice ("Let me...", "I'll...", "Here's...")
 - New ideas they didn't ask about
 - Multiple sentences
 

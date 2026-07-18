@@ -1,4 +1,4 @@
-# Claude Code Multi-Agent System — Implementation Details
+# CyberCode Multi-Agent System — Implementation Details
 
 > A deep dive into the architecture, spawn flow, context passing, and collaboration mechanisms of multi-agent orchestration.
 
@@ -12,7 +12,7 @@
 
 ## 1. Architecture Overview
 
-Claude Code's multi-agent system consists of the following core modules:
+CyberCode's multi-agent system consists of the following core modules:
 
 ### 5 Core Modules
 
@@ -283,7 +283,7 @@ All available tools
 // src/utils/forkedAgent.ts
 export type CacheSafeParams = {
   systemPrompt: SystemPrompt       // System prompt
-  userContext: { [k: string]: string }  // Directory structure, CLAUDE.md, etc.
+  userContext: { [k: string]: string }  // Directory structure, CYBER.md, etc.
   systemContext: { [k: string]: string } // Git status, environment info
   toolUseContext: ToolUseContext    // Tool configuration, model, options
   forkContextMessages: Message[]   // Fork context messages (for cache sharing)
@@ -327,7 +327,7 @@ Agent System Prompt        ← agentDefinition.getSystemPrompt()
   ↓                          - otherwise: replaces default
 Custom System Prompt       ← --system-prompt argument
   ↓
-Default System Prompt      ← Standard Claude Code prompt
+Default System Prompt      ← Standard CyberCode prompt
   ↓
 Append System Prompt       ← Appended to the end
 ```
@@ -400,7 +400,7 @@ agentDefinition.model               ← Agent definition
 ### TeamFile Structure
 
 ```typescript
-// Storage path: ~/.claude/teams/{team_name}/config.json
+// Storage path: ~/.cyber/teams/{team_name}/config.json
 {
   name: string                        // Team name
   description?: string                // Team description
@@ -434,7 +434,7 @@ agentDefinition.model               ← Agent definition
 
 ![Teams Mailbox System](./images/09-teams-mailbox.png)
 
-**Storage path**: `~/.claude/teams/{team_name}/inboxes/{agent_name}.json`
+**Storage path**: `~/.cyber/teams/{team_name}/inboxes/{agent_name}.json`
 
 ```typescript
 // src/utils/teammateMailbox.ts
@@ -607,7 +607,7 @@ function enqueuePendingNotification(taskId, result) {
 
 ### Output Management
 
-**Storage path**: `~/.claude/temp/{sessionId}/tasks/{taskId}.output`
+**Storage path**: `~/.cyber/temp/{sessionId}/tasks/{taskId}.output`
 
 | Parameter | Value |
 |-----------|-------|

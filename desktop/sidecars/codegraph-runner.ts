@@ -10,6 +10,18 @@ import {
   silentLogger,
 } from './generated/codegraph-runtime'
 import { compactCodeGraphWal } from './codegraphWal'
+import * as path from 'node:path'
+import {
+  confidenceForProvenance,
+  formatCodeGraphArchitecture,
+  getCodeGraphArchitecture,
+} from '../../src/server/services/codeGraphAnalysis'
+import {
+  estimateCodeGraphTokens,
+  limitTextToTokenBudget,
+} from '../../src/services/codeGraphTextBudget'
+
+export { estimateCodeGraphTokens, limitTextToTokenBudget }
 
 type CodeGraphInstance = {
   close(): void
@@ -48,6 +60,10 @@ type CodeGraphEdge = {
   source: string
   target: string
   kind: string
+  metadata?: Record<string, unknown>
+  line?: number
+  column?: number
+  provenance?: 'tree-sitter' | 'scip' | 'heuristic'
 }
 
 type IndexProgress = {
@@ -67,7 +83,7 @@ type RuntimeClass = {
 const Runtime = CodeGraph as unknown as RuntimeClass
 
 export async function runCodeGraphMode(rawArgs: string[]): Promise<void> {
-  const { command, projectPath, rebuild } = parseArgs(rawArgs)
+  const { command, projectPath, rebuild, tokenBudget } = parseArgs(rawArgs)
   process.env.CALLER_DIR = projectPath
   process.env.PWD = projectPath
   setLogger(silentLogger)
@@ -81,6 +97,9 @@ export async function runCodeGraphMode(rawArgs: string[]): Promise<void> {
       return
     case 'mcp':
       await runMcpServer(projectPath)
+      return
+    case 'preflight':
+      await runPreflight(projectPath, tokenBudget)
       return
   }
 }
@@ -248,6 +267,13 @@ async function runMcpServer(projectPath: string) {
           properties: {
             query: { type: 'string', description: 'Symbol, file, or code concept to find.' },
             limit: { type: 'number', minimum: 1, maximum: 30, default: 12 },
+            tokenBudget: {
+              type: 'number',
+              minimum: 300,
+              maximum: 4_000,
+              default: 1_800,
+              description: 'Maximum estimated tokens returned by this tool.',
+            },
           },
           required: ['query'],
         },
@@ -260,6 +286,13 @@ async function runMcpServer(projectPath: string) {
           properties: {
             query: { type: 'string', description: 'Question or task to explore in the codebase.' },
             maxNodes: { type: 'number', minimum: 5, maximum: 80, default: 30 },
+            tokenBudget: {
+              type: 'number',
+              minimum: 500,
+              maximum: 8_000,
+              default: 2_500,
+              description: 'Hard estimated-token budget for graph context.',
+            },
           },
           required: ['query'],
         },
@@ -272,8 +305,31 @@ async function runMcpServer(projectPath: string) {
           properties: {
             symbol: { type: 'string', description: 'Function, class, method, or qualified symbol name.' },
             depth: { type: 'number', minimum: 1, maximum: 5, default: 3 },
+            tokenBudget: {
+              type: 'number',
+              minimum: 400,
+              maximum: 6_000,
+              default: 2_500,
+              description: 'Maximum estimated tokens returned by this tool.',
+            },
           },
           required: ['symbol'],
+        },
+      },
+      {
+        name: 'codegraph_architecture',
+        description: 'Summarize modules, central symbols, cross-module bridges, and relationship confidence.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            tokenBudget: {
+              type: 'number',
+              minimum: 500,
+              maximum: 6_000,
+              default: 2_500,
+              description: 'Maximum estimated tokens returned by this tool.',
+            },
+          },
         },
       },
       {
@@ -291,6 +347,7 @@ async function runMcpServer(projectPath: string) {
         const graph = await getGraph()
         const query = requiredString(args.query, 'query')
         const limit = boundedNumber(args.limit, 12, 1, 30)
+        const tokenBudget = boundedNumber(args.tokenBudget, 1_800, 300, 4_000)
         const results = graph.searchNodes(query, { limit })
         const items = await Promise.all(results.map(async ({ node, score, highlights }) => ({
           ...compactNode(node),
@@ -298,34 +355,47 @@ async function runMcpServer(projectPath: string) {
           highlights,
           code: await graph.getCode(node.id),
         })))
-        return textResult(JSON.stringify(items, null, 2))
+        return textResult(JSON.stringify(items, null, 2), false, tokenBudget)
       }
       case 'codegraph_explore': {
         const graph = await getGraph()
         const query = requiredString(args.query, 'query')
         const maxNodes = boundedNumber(args.maxNodes, 30, 5, 80)
+        const tokenBudget = boundedNumber(args.tokenBudget, 2_500, 500, 8_000)
         const result = await graph.buildContext(query, {
-          maxNodes,
-          maxCodeBlocks: 8,
-          maxCodeBlockSize: 1_600,
+          maxNodes: Math.min(maxNodes, Math.max(8, Math.floor(tokenBudget / 65))),
+          maxCodeBlocks: Math.min(8, Math.max(2, Math.floor(tokenBudget / 350))),
+          maxCodeBlockSize: Math.min(1_600, Math.max(480, tokenBudget * 2)),
           includeCode: true,
           format: 'markdown',
           traversalDepth: 2,
         })
-        return textResult(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
+        return textResult(
+          typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+          false,
+          tokenBudget,
+        )
       }
       case 'codegraph_impact': {
         const graph = await getGraph()
         const symbol = requiredString(args.symbol, 'symbol')
         const depth = boundedNumber(args.depth, 3, 1, 5)
+        const tokenBudget = boundedNumber(args.tokenBudget, 2_500, 400, 6_000)
         const match = graph.searchNodes(symbol, { limit: 1 })[0]?.node
         if (!match) return textResult(`No indexed symbol matched: ${symbol}`, true)
         const impact = graph.getImpactRadius(match.id, depth)
         return textResult(JSON.stringify({
           focal: compactNode(match),
           nodes: impact.nodes.map(compactNode),
-          edges: impact.edges,
-        }, null, 2))
+          edges: impact.edges.map(compactEdge),
+        }, null, 2), false, tokenBudget)
+      }
+      case 'codegraph_architecture': {
+        const tokenBudget = boundedNumber(args.tokenBudget, 2_500, 500, 6_000)
+        const report = formatCodeGraphArchitecture(getCodeGraphArchitecture(
+          path.join(projectPath, '.codegraph', 'codegraph.db'),
+        ))
+        return textResult(report, false, tokenBudget)
       }
       case 'codegraph_status': {
         if (!Runtime.isInitialized(projectPath)) {
@@ -363,6 +433,30 @@ async function runMcpServer(projectPath: string) {
   process.once('SIGTERM', shutdown)
   transport.onclose = closeGraph
   await server.connect(transport)
+}
+
+async function runPreflight(projectPath: string, tokenBudget: number) {
+  if (!Runtime.isInitialized(projectPath) || process.stdin.isTTY) return
+  const prompt = await readStdinText()
+  if (!prompt.trim()) return
+  let graph: CodeGraphInstance | null = null
+  try {
+    graph = await Runtime.open(projectPath)
+    const result = await graph.buildContext(prompt.trim(), {
+      maxNodes: Math.max(8, Math.min(32, Math.floor(tokenBudget / 70))),
+      maxCodeBlocks: Math.min(6, Math.max(2, Math.floor(tokenBudget / 360))),
+      maxCodeBlockSize: Math.min(1_400, Math.max(480, tokenBudget * 2)),
+      includeCode: true,
+      format: 'markdown',
+      traversalDepth: 2,
+    })
+    const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+    if (text.trim()) process.stdout.write(limitTextToTokenBudget(text, tokenBudget))
+  } catch {
+    // Automatic preflight is additive. A stale/busy index must never block chat.
+  } finally {
+    graph?.close()
+  }
 }
 
 async function openGraphWhenReady(
@@ -411,8 +505,20 @@ function compactNode(node: CodeGraphNode) {
   }
 }
 
-function textResult(text: string, isError = false) {
-  return { content: [{ type: 'text' as const, text }], ...(isError ? { isError: true } : {}) }
+function compactEdge(edge: CodeGraphEdge) {
+  return {
+    source: edge.source,
+    target: edge.target,
+    kind: edge.kind,
+    line: edge.line ?? null,
+    provenance: edge.provenance ?? null,
+    confidence: confidenceForProvenance(edge.provenance),
+  }
+}
+
+function textResult(text: string, isError = false, tokenBudget?: number) {
+  const boundedText = tokenBudget ? limitTextToTokenBudget(text, tokenBudget) : text
+  return { content: [{ type: 'text' as const, text: boundedText }], ...(isError ? { isError: true } : {}) }
 }
 
 function requiredString(value: unknown, field: string) {
@@ -429,13 +535,27 @@ function emit(payload: Record<string, unknown>) {
   process.stdout.write(`${JSON.stringify(payload)}\n`)
 }
 
+async function readStdinText() {
+  const chunks: Uint8Array[] = []
+  for await (const chunk of Bun.stdin.stream()) chunks.push(chunk)
+  const totalLength = chunks.reduce((total, chunk) => total + chunk.byteLength, 0)
+  const joined = new Uint8Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    joined.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder().decode(joined)
+}
+
 function parseArgs(rawArgs: string[]) {
   const command = rawArgs[0]
-  if (command !== 'index' && command !== 'watch' && command !== 'mcp') {
-    throw new Error('codegraph mode requires index, watch, or mcp')
+  if (command !== 'index' && command !== 'watch' && command !== 'mcp' && command !== 'preflight') {
+    throw new Error('codegraph mode requires index, watch, mcp, or preflight')
   }
   let projectPath = ''
   let rebuild = false
+  let tokenBudget = 1_800
   for (let index = 1; index < rawArgs.length; index += 1) {
     const arg = rawArgs[index]
     if (arg === '--project') {
@@ -443,8 +563,11 @@ function parseArgs(rawArgs: string[]) {
       index += 1
     } else if (arg === '--rebuild') {
       rebuild = true
+    } else if (arg === '--token-budget') {
+      tokenBudget = boundedNumber(Number(rawArgs[index + 1]), 1_800, 500, 8_000)
+      index += 1
     }
   }
   if (!projectPath) throw new Error('--project is required')
-  return { command, projectPath, rebuild }
+  return { command, projectPath, rebuild, tokenBudget }
 }

@@ -74,15 +74,17 @@ fi
 #      避免 sidecar 被重复编译浪费 ~10s
 # 任一步失败,整个脚本立即退出(set -e)。
 echo "[build-macos-arm64] Cleaning stale sidecar binaries and bundle output..."
+rm -rf "${DESKTOP_DIR}/src-tauri/binaries/cybercode-sidecar-"*
+# Remove pre-v1.1.2 sidecar outputs so they cannot leak into a fresh bundle.
 rm -rf "${DESKTOP_DIR}/src-tauri/binaries/claude-sidecar-"*
 rm -rf "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/bundle"
 rm -rf "${DESKTOP_DIR}/src-tauri/target/release/bundle"
 rm -rf "${DESKTOP_DIR}/dist"
 rm -f "${DESKTOP_DIR}/tsconfig.tsbuildinfo"
-rm -rf "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/build/claude-code-desktop-"*
-rm -rf "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/.fingerprint/claude-code-desktop-"*
-rm -f "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/deps/claude_code_desktop-"*
-rm -f "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/deps/libclaude_code_desktop-"*
+rm -rf "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/build/cybercode-desktop-"*
+rm -rf "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/.fingerprint/cybercode-desktop-"*
+rm -f "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/deps/cybercode_desktop-"*
+rm -f "${DESKTOP_DIR}/src-tauri/target/${TARGET_TRIPLE}/release/deps/libcybercode_desktop-"*
 
 echo "[build-macos-arm64] Rebuilding frontend (tsc + vite)..."
 (cd "${DESKTOP_DIR}" && bun run build)
@@ -230,7 +232,7 @@ codesign_cdhash() {
 
 sign_canonical_app_bundle() {
   local app_bundle="$1"
-  local sidecar="${app_bundle}/Contents/MacOS/claude-sidecar"
+  local sidecar="${app_bundle}/Contents/MacOS/cybercode-sidecar"
   local sidecar_cdhash_before=""
   local sidecar_cdhash_after=""
 
@@ -240,7 +242,7 @@ sign_canonical_app_bundle() {
 
   # Tauri --no-sign leaves the outer .app with no sealed resources, which
   # fails strict bundle validation once Resources/icon.icns exists. Sign only
-  # the outer bundle: do not pass --deep, because re-signing claude-sidecar
+  # the outer bundle: do not pass --deep, because re-signing cybercode-sidecar
   # changes its code-signature hash and breaks existing macOS Keychain ACLs.
   codesign --force --sign - --timestamp=none "${app_bundle}"
 

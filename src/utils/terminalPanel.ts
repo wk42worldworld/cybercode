@@ -109,7 +109,7 @@ class TerminalPanel {
       return false
     }
 
-    // Bind Meta+J (toggles back to Claude Code from inside the terminal)
+    // Bind Meta+J (toggles back to CyberCode from inside the terminal)
     // and configure the status bar hint. Chained with ';' to collapse
     // 5 spawnSync calls into 1.
     // biome-ignore format: one tmux command per line
@@ -118,7 +118,7 @@ class TerminalPanel {
       'bind-key', '-n', 'M-j', 'detach-client', ';',
       'set-option', '-g', 'status-style', 'bg=default', ';',
       'set-option', '-g', 'status-left', '', ';',
-      'set-option', '-g', 'status-right', ' Alt+J to return to Claude ', ';',
+      'set-option', '-g', 'status-right', ' Alt+J to return to CyberCode ', ';',
       'set-option', '-g', 'status-right-style', 'fg=brightblack',
     ])
 

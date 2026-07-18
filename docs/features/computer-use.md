@@ -155,7 +155,7 @@ open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapt
 
 ## 使用方式
 
-首次使用 Computer Use 时，系统会弹出**应用授权对话框**，你需要选择允许 Claude 操作的应用。
+首次使用 Computer Use 时，系统会弹出**应用授权对话框**，你需要选择允许 CyberCode 操作的应用。
 
 - 模型会先调用 `request_access` 请求权限
 - 你在终端中确认允许哪些应用
@@ -168,7 +168,7 @@ open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapt
 | 机制 | 说明 |
 |------|------|
 | **应用白名单** | 每次会话需要明确授权允许操作的应用 |
-| **并发保护** | 同一时间只有一个 Claude 会话可使用 Computer Use（文件锁机制） |
+| **并发保护** | 同一时间只有一个 CyberCode 会话可使用 Computer Use（文件锁机制） |
 | **剪贴板保护** | 通过剪贴板输入文本时会自动保存和恢复原始剪贴板内容 |
 | **操作确认** | 敏感操作（如系统快捷键）需要额外授权 |
 

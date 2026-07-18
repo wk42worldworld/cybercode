@@ -1,4 +1,4 @@
-# Claude Code Multi-Agent System Documentation
+# CyberCode Multi-Agent System Documentation
 
 > Complete guide and technical reference for multi-agent orchestration
 
@@ -17,7 +17,7 @@ A comprehensive user-facing manual covering:
 - **Worktree Isolation**: Independent environments, branch management, secure contexts
 - **Custom Agents**: Definition format, tool pool configuration, system prompts
 
-**Target Audience**: All Claude Code users
+**Target Audience**: All CyberCode users
 
 ---
 
@@ -58,7 +58,7 @@ Deconstructing the architecture behind Claude Code's agent framework from source
 
 ## Illustration Notes
 
-All diagrams use a dark background (#1a1a2e) with Anthropic brand copper-orange (#D97757), consistent with Claude Code's official documentation style.
+All diagrams use a dark background (#1a1a2e) with CyberCode's copper-orange (#D97757) brand color.
 
 | Image | Description | Document |
 |-------|-------------|----------|

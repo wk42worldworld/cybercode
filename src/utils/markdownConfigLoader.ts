@@ -29,7 +29,7 @@ import {
 import { getManagedFilePath } from './settings/managedPath.js'
 import { isRestrictedToPluginOnly } from './settings/pluginOnlyPolicy.js'
 
-// Claude configuration directory names
+// CyberCode configuration directory names, including inherited aliases.
 export const CLAUDE_CONFIG_DIRECTORIES = [
   'commands',
   'agents',

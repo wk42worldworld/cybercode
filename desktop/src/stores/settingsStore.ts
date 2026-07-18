@@ -7,6 +7,13 @@ import { useUIStore } from './uiStore'
 
 const LOCALE_STORAGE_KEY = 'cybercode-locale'
 
+const LANGUAGE_BY_LOCALE: Record<Locale, string> = {
+  en: 'English',
+  zh: 'Chinese',
+  ja: 'Japanese',
+  ko: 'Korean',
+}
+
 function getStoredLocale(): Locale {
   try {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY)
@@ -31,7 +38,7 @@ type SettingsStore = {
   setPermissionMode: (mode: PermissionMode) => Promise<void>
   setModel: (modelId: string) => Promise<void>
   setEffort: (level: EffortLevel) => Promise<void>
-  setLocale: (locale: Locale) => void
+  setLocale: (locale: Locale) => Promise<void>
   setTheme: (theme: ThemeMode) => Promise<void>
   setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
 }
@@ -59,6 +66,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         settingsApi.getUser(),
       ])
       const theme = userSettings.theme === 'dark' ? 'dark' : 'light'
+      const locale = get().locale
+      const selectedLanguage = LANGUAGE_BY_LOCALE[locale]
+      if (userSettings.promptMemoryLanguage?.toLowerCase() !== selectedLanguage.toLowerCase()) {
+        await settingsApi.updateUser({ promptMemoryLanguage: selectedLanguage }).catch(() => {})
+      }
       useUIStore.getState().setTheme(theme)
       set({
         permissionMode: mode,
@@ -105,9 +117,16 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
   },
 
-  setLocale: (locale) => {
+  setLocale: async (locale) => {
+    const prev = get().locale
     set({ locale })
     try { localStorage.setItem(LOCALE_STORAGE_KEY, locale) } catch { /* noop */ }
+    try {
+      await settingsApi.updateUser({ promptMemoryLanguage: LANGUAGE_BY_LOCALE[locale] })
+    } catch {
+      set({ locale: prev })
+      try { localStorage.setItem(LOCALE_STORAGE_KEY, prev) } catch { /* noop */ }
+    }
   },
 
   setTheme: async (theme) => {

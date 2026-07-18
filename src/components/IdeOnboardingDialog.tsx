@@ -86,7 +86,7 @@ export function IdeOnboardingDialog(t0) {
   }
   let t9;
   if ($[11] === Symbol.for("react.memo_cache_sentinel")) {
-    t9 = <Text>• Claude has context of {t8}{" "}and <Text color="suggestion">⧉ selected lines</Text></Text>;
+    t9 = <Text>• CyberCode has context of {t8}{" "}and <Text color="suggestion">⧉ selected lines</Text></Text>;
     $[11] = t9;
   } else {
     t9 = $[11];

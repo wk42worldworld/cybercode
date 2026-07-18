@@ -229,7 +229,7 @@ await tryAcquireComputerUseLock(sessionId)
 // 文件锁: ~/.claude/computer-use.lock
 // JSON: { sessionId, pid, acquiredAt }
 ```
-确保同一时间只有一个 Claude 会话可以控制电脑。支持 stale PID 恢复。
+确保同一时间只有一个 CyberCode 会话可以控制电脑。支持 stale PID 恢复。
 
 #### Gate 4：隐藏非白名单应用
 ```typescript

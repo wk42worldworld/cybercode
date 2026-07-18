@@ -1,6 +1,6 @@
 # IM Gateway 方案设计 `[历史设计稿]`
 
-> 像 OpenClaw 一样，让 Claude Code Desktop 快速接入任意 IM 平台
+> 像 OpenClaw 一样，让 CyberCode Desktop 快速接入任意 IM 平台
 >
 > 状态更新：当前实际可用的接入方式请看 [`docs/im/`](../im/)。
 > 本文保留为方案演进记录，不再作为接入说明。
@@ -37,7 +37,7 @@ Claude Code 源码中已有完整的 **Channel 系统**（详见 [01-channel-sys
 
 ### 目标
 
-参考 [OpenClaw](https://github.com/openclaw/openclaw) 的 IM Gateway 架构，在现有桌面端服务器基础上，以**最小改动量**实现 IM 平台接入，让用户可以从 Telegram、飞书、Slack、Discord 等 IM 直接与 Claude 对话并审批权限请求。
+参考 [OpenClaw](https://github.com/openclaw/openclaw) 的 IM Gateway 架构，在现有桌面端服务器基础上，以**最小改动量**实现 IM 平台接入，让用户可以从 Telegram、飞书、Slack、Discord 等 IM 直接与 CyberCode 对话并审批权限请求。
 
 ### 核心策略
 
@@ -468,7 +468,7 @@ wscat -c ws://localhost:3456/im/test-adapter
 ### 10.1 安全性
 
 - Adapter 连接到 Gateway 时是否需要认证？（shared secret / API key）
-- 如何防止未授权的 IM 用户与 Claude 对话？（allowedUsers 白名单是否足够？）
+- 如何防止未授权的 IM 用户与 CyberCode 对话？（allowedUsers 白名单是否足够？）
 - 是否需要 IP 白名单或 Tailscale 等网络层隔离？
 
 ### 10.2 多用户 / 多项目

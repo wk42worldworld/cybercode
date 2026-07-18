@@ -88,5 +88,7 @@ describe('Lite deterministic token optimization', () => {
       ['api', 'token-optimization', 'lite', 'disable'],
     )
     expect(await disableResponse.json()).toEqual({ enabled: false, mode: 'deterministic' })
+    expect(liteOptimizationService.cleanSystemPrompt(['Rule  \n\n\nNext']))
+      .toEqual(['Rule  \n\n\nNext'])
   })
 })

@@ -15,7 +15,7 @@ const executableBase = path.join(
   desktopRoot,
   'src-tauri',
   'binaries',
-  `claude-sidecar-${targetTriple}`,
+  `cybercode-sidecar-${targetTriple}`,
 )
 const executable = [executableBase, `${executableBase}.exe`].find(existsSync)
 

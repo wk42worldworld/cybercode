@@ -20,7 +20,7 @@ afterEach(() => {
 
 describe('createBashShellProvider', () => {
   test('injects a bundled claude wrapper for desktop sidecars', async () => {
-    process.env.CLAUDE_CLI_PATH = '/tmp/claude-sidecar'
+    process.env.CLAUDE_CLI_PATH = '/tmp/cybercode-sidecar'
     process.env.CLAUDE_APP_ROOT = '/tmp/claude-desktop-app'
 
     const provider = await createBashShellProvider('/bin/bash', {
@@ -36,6 +36,6 @@ describe('createBashShellProvider', () => {
     )
 
     expect(commandString).toContain('claude() {')
-    expect(commandString).toContain('/tmp/claude-sidecar cli --app-root "$CLAUDE_APP_ROOT" "$@"')
+    expect(commandString).toContain('/tmp/cybercode-sidecar cli --app-root "$CLAUDE_APP_ROOT" "$@"')
   })
 })

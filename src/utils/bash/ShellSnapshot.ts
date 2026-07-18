@@ -384,7 +384,7 @@ async function getSnapshotScript(
 /**
  * Creates and saves the shell environment snapshot by loading the user's shell configuration
  *
- * This function is a critical part of Claude CLI's shell integration strategy. It:
+ * This function is a critical part of CyberCode's shell integration strategy. It:
  *
  * 1. Identifies the user's shell config file (.zshrc, .bashrc, etc.)
  * 2. Creates a temporary script that sources this configuration file
@@ -396,7 +396,7 @@ async function getSnapshotScript(
  * The snapshot is saved to a temporary file that can be sourced by subsequent shell
  * commands, ensuring they run with the user's expected environment, aliases, and functions.
  *
- * This approach allows Claude CLI to execute commands as if they were run in the user's
+ * This approach allows CyberCode to execute commands as if they were run in the user's
  * interactive shell, while avoiding the overhead of creating a new login shell for each command.
  * It handles both Bash and Zsh shells with their different syntax for functions, options, and aliases.
  *
@@ -481,7 +481,7 @@ export const createAndSaveSnapshot = async (
             logForDebugging(`  - Config file: ${getConfigFile(binShell)}`)
             logForDebugging(`  - Config file exists: ${configFileExists}`)
             logForDebugging(`  - Working directory: ${getCwd()}`)
-            logForDebugging(`  - Claude home: ${getClaudeConfigHomeDir()}`)
+            logForDebugging(`  - CyberCode home: ${getClaudeConfigHomeDir()}`)
             logForDebugging(`Full snapshot script:\n${snapshotScript}`)
             if (stdout) {
               logForDebugging(

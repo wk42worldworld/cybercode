@@ -3,7 +3,7 @@
  *
  * Storage: ~/.cyber/cybercode/providers.json (lightweight index)
  * Active provider env vars written to ~/.cyber/cybercode/settings.json
- * (isolated from the original Claude Code's ~/.cyber/settings.json)
+ * (isolated from the original Claude Code settings in ~/.cyber/settings.json)
  */
 
 import * as fs from 'fs/promises'

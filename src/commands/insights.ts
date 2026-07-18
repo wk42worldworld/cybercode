@@ -377,7 +377,7 @@ const LABEL_MAP: Record<string, string> = {
   wrong_approach: 'Wrong Approach',
   buggy_code: 'Buggy Code',
   user_rejected_action: 'User Rejected Action',
-  claude_got_blocked: 'Claude Got Blocked',
+  claude_got_blocked: 'CyberCode Got Blocked',
   user_stopped_early: 'User Stopped Early',
   wrong_file_or_location: 'Wrong File/Location',
   excessive_changes: 'Excessive Changes',
@@ -432,8 +432,8 @@ const FACET_EXTRACTION_PROMPT = `Analyze this CyberCode session and extract stru
 CRITICAL GUIDELINES:
 
 1. **goal_categories**: Count ONLY what the USER explicitly asked for.
-   - DO NOT count Claude's autonomous codebase exploration
-   - DO NOT count work Claude decided to do on its own
+   - DO NOT count CyberCode's autonomous codebase exploration
+   - DO NOT count work CyberCode decided to do on its own
    - ONLY count when user says "can you...", "please...", "I need...", "let's..."
 
 2. **user_satisfaction_counts**: Base ONLY on explicit user signals.
@@ -444,7 +444,7 @@ CRITICAL GUIDELINES:
    - "this is broken", "I give up" → frustrated
 
 3. **friction_counts**: Be specific about what went wrong.
-   - misunderstood_request: Claude interpreted incorrectly
+   - misunderstood_request: CyberCode interpreted incorrectly
    - wrong_approach: Right goal, wrong solution method
    - buggy_code: Code didn't work correctly
    - user_rejected_action: User said no/stop to a tool call
@@ -869,7 +869,7 @@ function formatTranscriptForFacets(log: LogOption): string {
 
 const SUMMARIZE_CHUNK_PROMPT = `Summarize this portion of a CyberCode session transcript. Focus on:
 1. What the user asked for
-2. What Claude did (tools used, files modified)
+2. What CyberCode did (tools used, files modified)
 3. Any friction or issues
 4. The outcome
 
@@ -1055,11 +1055,11 @@ RESPOND WITH ONLY A VALID JSON OBJECT matching this schema:
 }
 
 /**
- * Detects multi-clauding (using multiple Claude sessions concurrently).
+ * Detects concurrent CyberCode session usage.
  * Uses a sliding window to find the pattern: session1 -> session2 -> session1
  * within a 30-minute window.
  */
-export function detectMultiClauding(
+export function detectParallelSessions(
   sessions: Array<{
     session_id: string
     user_message_timestamps: string[]
@@ -1317,7 +1317,8 @@ function aggregateData(
   // Store message hours for time-of-day chart
   result.message_hours = allMessageHours
 
-  result.multi_clauding = detectMultiClauding(sessions)
+  // Keep the serialized key for compatibility with previously generated reports.
+  result.multi_clauding = detectParallelSessions(sessions)
 
   return result
 }
@@ -1345,7 +1346,7 @@ RESPOND WITH ONLY A VALID JSON OBJECT:
   ]
 }
 
-Include 4-5 areas. Skip internal CC operations.`,
+Include 4-5 areas. Skip internal CyberCode operations.`,
     maxTokens: 8192,
   },
   {
@@ -1393,8 +1394,8 @@ Include 3 friction categories with 2 examples each.`,
     name: 'suggestions',
     prompt: `Analyze this CyberCode usage data and suggest improvements.
 
-## CC FEATURES REFERENCE (pick from these for features_to_try):
-1. **MCP Servers**: Connect Claude to external tools, databases, and APIs via Model Context Protocol.
+## CYBERCODE FEATURES REFERENCE (pick from these for features_to_try):
+1. **MCP Servers**: Connect CyberCode to external tools, databases, and APIs via Model Context Protocol.
    - How to use: Run \`claude mcp add <server-name> -- <command>\`
    - Good for: database queries, Slack integration, GitHub issue lookup, connecting to internal APIs
 
@@ -1406,12 +1407,12 @@ Include 3 friction categories with 2 examples each.`,
    - How to use: Add to \`.cyber/settings.json\` under "hooks" key.
    - Good for: auto-formatting code, running type checks, enforcing conventions
 
-4. **Headless Mode**: Run Claude non-interactively from scripts and CI/CD.
+4. **Headless Mode**: Run CyberCode non-interactively from scripts and CI/CD.
    - How to use: \`claude -p "fix lint errors" --allowedTools "Edit,Read,Bash"\`
    - Good for: CI/CD integration, batch code fixes, automated reviews
 
-5. **Task Agents**: Claude spawns focused sub-agents for complex exploration or parallel work.
-   - How to use: Claude auto-invokes when helpful, or ask "use an agent to explore X"
+5. **Task Agents**: CyberCode spawns focused sub-agents for complex exploration or parallel work.
+   - How to use: CyberCode auto-invokes when helpful, or ask "use an agent to explore X"
    - Good for: codebase exploration, understanding complex systems
 
 RESPOND WITH ONLY A VALID JSON OBJECT:
@@ -1420,16 +1421,16 @@ RESPOND WITH ONLY A VALID JSON OBJECT:
     {"addition": "A specific line or block to add to CYBER.md based on workflow patterns. E.g., 'Always run tests after modifying auth-related files'", "why": "1 sentence explaining why this would help based on actual sessions", "prompt_scaffold": "Instructions for where to add this in CYBER.md. E.g., 'Add under ## Testing section'"}
   ],
   "features_to_try": [
-    {"feature": "Feature name from CC FEATURES REFERENCE above", "one_liner": "What it does", "why_for_you": "Why this would help YOU based on your sessions", "example_code": "Actual command or config to copy"}
+    {"feature": "Feature name from CYBERCODE FEATURES REFERENCE above", "one_liner": "What it does", "why_for_you": "Why this would help YOU based on your sessions", "example_code": "Actual command or config to copy"}
   ],
   "usage_patterns": [
     {"title": "Short title", "suggestion": "1-2 sentence summary", "detail": "3-4 sentences explaining how this applies to YOUR work", "copyable_prompt": "A specific prompt to copy and try"}
   ]
 }
 
-IMPORTANT for claude_md_additions: PRIORITIZE instructions that appear MULTIPLE TIMES in the user data. If user told Claude the same thing in 2+ sessions (e.g., 'always run tests', 'use TypeScript'), that's a PRIME candidate - they shouldn't have to repeat themselves.
+IMPORTANT for claude_md_additions: PRIORITIZE instructions that appear MULTIPLE TIMES in the user data. If the user told CyberCode the same thing in 2+ sessions (e.g., 'always run tests', 'use TypeScript'), that's a PRIME candidate - they shouldn't have to repeat themselves.
 
-IMPORTANT for features_to_try: Pick 2-3 from the CC FEATURES REFERENCE above. Include 2-3 items for each category.`,
+IMPORTANT for features_to_try: Pick 2-3 from the CYBERCODE FEATURES REFERENCE above. Include 2-3 items for each category.`,
     maxTokens: 8192,
   },
   {
@@ -1661,7 +1662,7 @@ async function generateParallelInsights(
     facetSummaries +
     '\n\nFRICTION DETAILS:\n' +
     frictionDetails +
-    '\n\nUSER INSTRUCTIONS TO CLAUDE:\n' +
+    '\n\nUSER INSTRUCTIONS TO CYBERCODE:\n' +
     (userInstructions || 'None captured')
 
   // Run sections in parallel first (excluding at_a_glance)
@@ -1739,9 +1740,9 @@ async function generateParallelInsights(
 
 Use this 4-part structure:
 
-1. **What's working** - What is the user's unique style of interacting with Claude and what are some impactful things they've done? You can include one or two details, but keep it high level since things might not be fresh in the user's memory. Don't be fluffy or overly complimentary. Also, don't focus on the tool calls they use.
+1. **What's working** - What is the user's unique style of interacting with CyberCode and what are some impactful things they've done? You can include one or two details, but keep it high level since things might not be fresh in the user's memory. Don't be fluffy or overly complimentary. Also, don't focus on the tool calls they use.
 
-2. **What's hindering you** - Split into (a) Claude's fault (misunderstandings, wrong approaches, bugs) and (b) user-side friction (not providing enough context, environment issues -- ideally more general than just one project). Be honest but constructive.
+2. **What's hindering you** - Split into (a) CyberCode's fault (misunderstandings, wrong approaches, bugs) and (b) user-side friction (not providing enough context, environment issues -- ideally more general than just one project). Be honest but constructive.
 
 3. **Quick wins to try** - Specific CyberCode features they could try from the examples below, or a workflow technique if you think it's really compelling. (Avoid stuff like "Ask the model to confirm before taking actions" or "Type out more context up front" which are less compelling.)
 
@@ -2067,7 +2068,7 @@ function generateHtmlReport(
       suggestions.claude_md_additions &&
       suggestions.claude_md_additions.length > 0
         ? `
-    <h2 id="section-features">Existing CC Features to Try</h2>
+    <h2 id="section-features">Existing CyberCode Features to Try</h2>
     <div class="claude-md-section">
       <h3>Suggested CYBER.md Additions</h3>
       <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">Just copy this into CyberCode to add it to your CYBER.md.</p>
@@ -2200,14 +2201,14 @@ function generateHtmlReport(
     ccImprovements.length > 0 || modelImprovements.length > 0
       ? `
     <h2 id="section-feedback" class="feedback-header">Closing the Loop: Feedback for Other Teams</h2>
-    <p class="feedback-intro">Suggestions for the CC product and model teams based on your usage patterns. Click to expand.</p>
+    <p class="feedback-intro">Suggestions for the CyberCode product and model teams based on your usage patterns. Click to expand.</p>
     ${
       ccImprovements.length > 0
         ? `
     <div class="collapsible-section">
       <div class="collapsible-header" onclick="toggleCollapsible(this)">
         <span class="collapsible-arrow">▶</span>
-        <h3>Product Improvements for CC Team</h3>
+        <h3>Product Improvements for the CyberCode Team</h3>
       </div>
       <div class="collapsible-content">
         <div class="suggestions-section">
@@ -2498,7 +2499,7 @@ function generateHtmlReport(
 
     <nav class="nav-toc">
       <a href="#section-work">What You Work On</a>
-      <a href="#section-usage">How You Use CC</a>
+      <a href="#section-usage">How You Use CyberCode</a>
       <a href="#section-wins">Impressive Things</a>
       <a href="#section-friction">Where Things Go Wrong</a>
       <a href="#section-features">Features to Try</a>
@@ -2550,9 +2551,9 @@ function generateHtmlReport(
       </div>
     </div>
 
-    <!-- Multi-clauding Section (matching Python reference) -->
+    <!-- Parallel session section (serialized key retained for compatibility) -->
     <div class="chart-card" style="margin: 24px 0;">
-      <div class="chart-title">Multi-Clauding (Parallel Sessions)</div>
+      <div class="chart-title">Parallel CyberCode Sessions</div>
       ${
         data.multi_clauding.overlap_events === 0
           ? `
@@ -2610,7 +2611,7 @@ function generateHtmlReport(
 
     <div class="charts-row">
       <div class="chart-card">
-        <div class="chart-title">What Helped Most (Claude's Capabilities)</div>
+        <div class="chart-title">What Helped Most (CyberCode Capabilities)</div>
         ${generateBarChart(data.success, '#16a34a')}
       </div>
       <div class="chart-card">
@@ -2994,7 +2995,7 @@ export async function generateUsageReport(options?: {
   const aggregated = aggregateData(substantiveSessions, substantiveFacets)
   aggregated.total_sessions_scanned = totalSessionsScanned
 
-  // Generate parallel insights from Claude (6 sections)
+  // Generate six CyberCode insight sections in parallel.
   const insights = await generateParallelInsights(aggregated, facets)
 
   // Generate HTML report
@@ -3152,7 +3153,7 @@ ${remoteInfo}
 
 Your full shareable insights report is ready: ${reportUrl}${uploadHint}`
 
-    // Return prompt for Claude to respond to
+    // Return a prompt for CyberCode to respond to.
     return [
       {
         type: 'text',

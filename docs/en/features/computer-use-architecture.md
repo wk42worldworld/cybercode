@@ -229,7 +229,7 @@ await tryAcquireComputerUseLock(sessionId)
 // File lock: ~/.claude/computer-use.lock
 // JSON: { sessionId, pid, acquiredAt }
 ```
-Ensures only one Claude session can control the computer at a time. Supports stale PID recovery.
+Ensures only one CyberCode session can control the computer at a time. Supports stale PID recovery.
 
 #### Gate 4: Hide Non-Allowlisted Apps
 ```typescript

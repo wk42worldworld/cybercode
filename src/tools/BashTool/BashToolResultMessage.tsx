@@ -100,7 +100,7 @@ export default function BashToolResultMessage(t0) {
       if (isImage) {
         let t8;
         if ($[11] === Symbol.for("react.memo_cache_sentinel")) {
-          t8 = <MessageResponse height={1}><Text dimColor={true}>[Image data detected and sent to Claude]</Text></MessageResponse>;
+          t8 = <MessageResponse height={1}><Text dimColor={true}>[Image data detected and sent to the model]</Text></MessageResponse>;
           $[11] = t8;
         } else {
           t8 = $[11];

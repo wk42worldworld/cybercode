@@ -3,10 +3,20 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
+import {
+  getCodeGraphVisualization,
+  type CodeGraphVisualization as CodeGraphVisualizationData,
+} from './codeGraphAnalysis.js'
+
+export type {
+  CodeGraphArchitecture,
+  CodeGraphConfidence,
+  CodeGraphNodeRole,
+  CodeGraphVisualization,
+} from './codeGraphAnalysis.js'
 
 const CODEGRAPH_SERVER_NAME = 'cybercode_codegraph'
 const CONFIG_VERSION = 2
-const MAX_GRAPH_NODES = 220
 
 export const CODEGRAPH_BUNDLED_LANGUAGES = [
   'HTML (embedded JavaScript)',
@@ -57,23 +67,8 @@ export type CodeGraphStatus = {
   bundledLanguages: readonly string[]
 }
 
-export type CodeGraphVisualization = {
-  nodes: Array<{
-    id: string
-    kind: string
-    name: string
-    qualifiedName: string
-    filePath: string
-    language: string
-    startLine: number
-    endLine: number
-    degree: number
-  }>
-  edges: Array<{
-    source: string
-    target: string
-    kind: string
-  }>
+export type CodeGraphGlobalStatus = {
+  enabled: boolean
 }
 
 type StoredConfig = {
@@ -110,27 +105,42 @@ export class CodeGraphService {
   private runtimes = new Map<string, RuntimeState>()
   private restoreTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
+  getGlobalStatus(): CodeGraphGlobalStatus {
+    return { enabled: this.readConfig().enabled }
+  }
+
+  enableGlobal(): CodeGraphGlobalStatus {
+    this.setGlobalEnabled(true)
+    this.activateKnownProjects()
+    return this.getGlobalStatus()
+  }
+
+  async disableGlobal(): Promise<CodeGraphGlobalStatus> {
+    await this.disableEverywhere()
+    return this.getGlobalStatus()
+  }
+
   async enable(projectPath: string): Promise<CodeGraphStatus> {
     const canonicalPath = this.resolveProjectPath(projectPath)
-    this.cancelRestoredIndex(canonicalPath)
     this.setGlobalEnabled(true, canonicalPath)
+    this.activateKnownProjects(canonicalPath)
     const runtime = this.getOrCreateRuntime(canonicalPath, true)
-    runtime.status.enabled = true
-    runtime.status.error = null
-
-    if (!runtime.indexProcess && !runtime.indexStarting) {
-      void this.runIndex(canonicalPath, false)
-    }
     return this.cloneStatus(runtime.status)
   }
 
   async disable(projectPath: string): Promise<CodeGraphStatus> {
     const canonicalPath = this.resolveProjectPath(projectPath)
-    this.setGlobalEnabled(false, canonicalPath)
+    await this.disableEverywhere(canonicalPath)
+    const runtime = this.getOrCreateRuntime(canonicalPath, false)
+    return this.cloneStatus(runtime.status)
+  }
+
+  private async disableEverywhere(projectPath?: string) {
+    this.setGlobalEnabled(false, projectPath)
     for (const timer of this.restoreTimers.values()) clearTimeout(timer)
     this.restoreTimers.clear()
 
-    const projectsToDetach = new Set<string>([canonicalPath])
+    const projectsToDetach = new Set<string>(projectPath ? [projectPath] : [])
     for (const [runtimePath, runtime] of this.runtimes) {
       projectsToDetach.add(runtimePath)
       this.stopRuntimeProcesses(runtime)
@@ -147,8 +157,21 @@ export class CodeGraphService {
     await Promise.all([...projectsToDetach].map((runtimePath) =>
       this.patchRunningSessions(runtimePath, null),
     ))
-    const runtime = this.getOrCreateRuntime(canonicalPath, false)
-    return this.cloneStatus(runtime.status)
+  }
+
+  private activateKnownProjects(primaryProjectPath?: string) {
+    const projects = new Set(this.runtimes.keys())
+    if (primaryProjectPath) projects.add(primaryProjectPath)
+
+    for (const projectPath of projects) {
+      this.cancelRestoredIndex(projectPath)
+      const runtime = this.getOrCreateRuntime(projectPath, true)
+      runtime.status.enabled = true
+      runtime.status.error = null
+      if (!runtime.indexProcess && !runtime.indexStarting) {
+        void this.runIndex(projectPath, false)
+      }
+    }
   }
 
   ensureProject(projectPath: string): CodeGraphStatus {
@@ -226,118 +249,13 @@ export class CodeGraphService {
     return this.cloneStatus(runtime.status)
   }
 
-  getVisualization(projectPath: string, requestedLimit = 120): CodeGraphVisualization {
+  getVisualization(projectPath: string, requestedLimit = 120): CodeGraphVisualizationData {
     const canonicalPath = this.resolveProjectPath(projectPath)
     const dbPath = this.getDatabasePath(canonicalPath)
     if (!fs.existsSync(dbPath)) {
       throw new Error('Code Graph index is not ready')
     }
-
-    const limit = Math.max(20, Math.min(MAX_GRAPH_NODES, Math.round(requestedLimit)))
-    const db = new Database(dbPath, { readonly: true })
-    try {
-      const nodes = db.query<{
-        id: string
-        kind: string
-        name: string
-        qualified_name: string
-        file_path: string
-        language: string
-        start_line: number
-        end_line: number
-        degree: number
-      }, [number]>(`
-        WITH endpoint_degrees AS (
-          SELECT source AS id, COUNT(*) AS degree FROM edges GROUP BY source
-          UNION ALL
-          SELECT target AS id, COUNT(*) AS degree FROM edges GROUP BY target
-        ), degrees AS (
-          SELECT id, SUM(degree) AS degree FROM endpoint_degrees GROUP BY id
-        )
-        SELECT
-          n.id,
-          n.kind,
-          n.name,
-          n.qualified_name,
-          n.file_path,
-          n.language,
-          n.start_line,
-          n.end_line,
-          COALESCE(d.degree, 0) AS degree
-        FROM nodes n
-        LEFT JOIN degrees d ON d.id = n.id
-        WHERE n.kind NOT IN ('import', 'property', 'parameter')
-        ORDER BY degree DESC, n.name COLLATE NOCASE
-        LIMIT ?
-      `).all(limit)
-
-      const selected = nodes.length > 0
-        ? nodes
-        : db.query<{
-            id: string
-            kind: string
-            name: string
-            qualified_name: string
-            file_path: string
-            language: string
-            start_line: number
-            end_line: number
-            degree: number
-          }, [number]>(`
-            WITH endpoint_degrees AS (
-              SELECT source AS id, COUNT(*) AS degree FROM edges GROUP BY source
-              UNION ALL
-              SELECT target AS id, COUNT(*) AS degree FROM edges GROUP BY target
-            ), degrees AS (
-              SELECT id, SUM(degree) AS degree FROM endpoint_degrees GROUP BY id
-            )
-            SELECT
-              n.id,
-              n.kind,
-              n.name,
-              n.qualified_name,
-              n.file_path,
-              n.language,
-              n.start_line,
-              n.end_line,
-              COALESCE(d.degree, 0) AS degree
-            FROM nodes n
-            LEFT JOIN degrees d ON d.id = n.id
-            ORDER BY degree DESC, n.name COLLATE NOCASE
-            LIMIT ?
-          `).all(limit)
-
-      const ids = selected.map((node) => node.id)
-      if (ids.length === 0) return { nodes: [], edges: [] }
-      const placeholders = ids.map(() => '?').join(', ')
-      const edges = db.query<{
-        source: string
-        target: string
-        kind: string
-      }, string[]>(`
-        SELECT source, target, kind
-        FROM edges
-        WHERE source IN (${placeholders}) AND target IN (${placeholders})
-        LIMIT 1200
-      `).all(...ids, ...ids)
-
-      return {
-        nodes: selected.map((node) => ({
-          id: node.id,
-          kind: node.kind,
-          name: node.name,
-          qualifiedName: node.qualified_name,
-          filePath: node.file_path,
-          language: node.language,
-          startLine: node.start_line,
-          endLine: node.end_line,
-          degree: Number(node.degree),
-        })),
-        edges,
-      }
-    } finally {
-      db.close()
-    }
+    return getCodeGraphVisualization(dbPath, requestedLimit)
   }
 
   getMcpConfig(projectPath: string): { mcpServers: Record<string, CodeGraphProcessConfig> } | null {
@@ -595,9 +513,10 @@ export class CodeGraphService {
   private buildInvocation(mode: 'index' | 'watch' | 'mcp', projectPath: string, rebuild: boolean) {
     const sidecarName = path.basename(process.execPath).toLowerCase()
     const modeArgs = ['codegraph', mode, '--project', projectPath, ...(rebuild ? ['--rebuild'] : [])]
-    const args = sidecarName.startsWith('claude-sidecar')
+    const isBundledSidecar = sidecarName.startsWith('cybercode-sidecar') || sidecarName.startsWith('claude-sidecar')
+    const args = isBundledSidecar
       ? modeArgs
-      : ['run', path.join(this.getRepoRoot(), 'desktop', 'sidecars', 'claude-sidecar.ts'), ...modeArgs]
+      : ['run', path.join(this.getRepoRoot(), 'desktop', 'sidecars', 'cybercode-sidecar.ts'), ...modeArgs]
     return {
       command: process.execPath,
       args,
@@ -748,10 +667,10 @@ export class CodeGraphService {
     return this.readConfig().enabled
   }
 
-  private setGlobalEnabled(enabled: boolean, projectPath: string) {
+  private setGlobalEnabled(enabled: boolean, projectPath?: string) {
     const config = this.readConfig()
     config.enabled = enabled
-    config.projects[projectPath] = { updatedAt: Date.now() }
+    if (projectPath) config.projects[projectPath] = { updatedAt: Date.now() }
     this.writeConfig(config)
   }
 

@@ -1,4 +1,4 @@
-# Claude Code Memory System Documentation
+# CyberCode Memory System Documentation
 
 > Complete usage guide and technical implementation documentation for the memory system
 
@@ -16,7 +16,7 @@ A comprehensive user-facing manual covering:
 - **Management operations**: Forgetting, ignoring, manual editing, disabling, custom directories
 - **Lifecycle**: From learning to injection, freshness management
 
-**Target audience**: All Claude Code users
+**Target audience**: All CyberCode users
 
 ---
 
@@ -39,7 +39,7 @@ A deep technical analysis for developers, covering:
 
 ### [03-autodream.md](./03-autodream.md) — AutoDream Memory Consolidation
 
-Claude's "dreaming" mechanism -- a deep dive into background silent memory consolidation, covering:
+CyberCode's "dreaming" mechanism -- a deep dive into background silent memory consolidation, covering:
 
 - **Core concept**: Like how the human brain organizes memories during sleep, periodically reviewing multiple sessions to consolidate knowledge
 - **Five-gate check**: Feature toggle -> Time gate (24h) -> Scan throttle (10min) -> Session gate (5 sessions) -> Lock gate
@@ -49,13 +49,13 @@ Claude's "dreaming" mechanism -- a deep dive into background silent memory conso
 - **Configuration control**: settings.json local toggle + GrowthBook remote feature flag
 - **Comparison with extractMemories**: Taking notes during the day vs. organizing the notebook while sleeping
 
-**Target audience**: Contributors, architects, developers interested in Claude's automated memory management
+**Target audience**: Contributors, architects, developers interested in CyberCode's automated memory management
 
 ---
 
 ## Illustrations
 
-All illustrations use a dark background (#1a1a2e) + Anthropic brand copper-orange (#D97757) style, consistent with the official Claude Code documentation.
+All illustrations use a dark background (#1a1a2e) with CyberCode's copper-orange (#D97757) brand color.
 
 | Image | Description | Size |
 |-------|-------------|------|

@@ -24,6 +24,13 @@ vi.mock('../api/tokenOptimization', () => ({
     liteStatus: vi.fn(),
     enableLite: vi.fn(),
     disableLite: vi.fn(),
+    pruningStatus: vi.fn(),
+    enablePruning: vi.fn(),
+    disablePruning: vi.fn(),
+    setPruningLevel: vi.fn(),
+    codeGraphGlobalStatus: vi.fn(),
+    enableCodeGraphGlobally: vi.fn(),
+    disableCodeGraphGlobally: vi.fn(),
     ponytailStatus: vi.fn(),
     enablePonytail: vi.fn(),
     disablePonytail: vi.fn(),
@@ -109,6 +116,12 @@ describe('TokenOptimization', () => {
       enabled: false,
       mode: 'full',
     })
+    vi.mocked(tokenOptimizationApi.pruningStatus).mockResolvedValue({
+      enabled: false,
+      level: 'balanced',
+      mode: 'deterministic',
+    })
+    vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: false })
   })
 
   it('enables Lite deterministic cleanup globally without requiring a project', async () => {
@@ -141,6 +154,41 @@ describe('TokenOptimization', () => {
     await waitFor(() => expect(tokenOptimizationApi.enableCaveman).toHaveBeenCalledOnce())
     expect(screen.getByTestId('caveman-toolbar')).toHaveTextContent('Caveman 响应压缩')
     expect(tokenOptimizationApi.status).not.toHaveBeenCalled()
+  })
+
+  it('enables smart pruning globally without requiring a project', async () => {
+    useTabStore.setState({ tabs: [], activeTabId: null })
+    vi.mocked(tokenOptimizationApi.enablePruning).mockResolvedValue({
+      enabled: true,
+      level: 'balanced',
+      mode: 'deterministic',
+    })
+
+    render(<TokenOptimization />)
+    const toggle = await screen.findByRole('switch', { name: '全局启用智能裁剪' })
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(tokenOptimizationApi.enablePruning).toHaveBeenCalledOnce())
+    expect(screen.getByTestId('pruning-toolbar')).toHaveTextContent('智能裁剪')
+    expect(tokenOptimizationApi.status).not.toHaveBeenCalled()
+  })
+
+  it('updates the global pruning strength while the switch is off', async () => {
+    vi.mocked(tokenOptimizationApi.setPruningLevel).mockResolvedValue({
+      enabled: false,
+      level: 'aggressive',
+      mode: 'deterministic',
+    })
+
+    render(<TokenOptimization />)
+    const strongButton = await screen.findByRole('button', { name: '强力' })
+    fireEvent.click(strongButton)
+
+    await waitFor(() => {
+      expect(tokenOptimizationApi.setPruningLevel).toHaveBeenCalledWith('aggressive')
+      expect(strongButton).toHaveAttribute('aria-pressed', 'true')
+    })
+    expect(screen.getByRole('switch', { name: '全局启用智能裁剪' })).not.toBeChecked()
   })
 
   it('starts Caveman and Ponytail disabled by default', async () => {
@@ -211,6 +259,30 @@ describe('TokenOptimization', () => {
     expect(tokenOptimizationApi.status).not.toHaveBeenCalled()
   })
 
+  it('allows an unavailable RTK runtime to be switched off globally', async () => {
+    vi.mocked(tokenOptimizationApi.rtkStatus).mockResolvedValue({
+      enabled: true,
+      available: false,
+      version: null,
+      stats: null,
+      error: 'Runtime missing',
+    })
+    vi.mocked(tokenOptimizationApi.disableRtk).mockResolvedValue({
+      enabled: false,
+      available: false,
+      version: null,
+      stats: null,
+      error: 'Runtime missing',
+    })
+
+    render(<TokenOptimization />)
+    const toggle = await screen.findByRole('switch', { name: '启用 RTK 命令输出压缩' })
+    await waitFor(() => expect(toggle).toBeEnabled())
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(tokenOptimizationApi.disableRtk).toHaveBeenCalledOnce())
+  })
+
   it('converts RTK command-output savings into a full-cycle estimate', async () => {
     vi.mocked(tokenOptimizationApi.rtkStatus).mockResolvedValue({
       enabled: true,
@@ -254,6 +326,7 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     expect(await screen.findByTestId('lite-toolbar')).toHaveTextContent('全周期 预计2–8%')
+    expect(await screen.findByTestId('pruning-toolbar')).toHaveTextContent('全周期 预计8–24%')
     expect(await screen.findByTestId('ponytail-toolbar')).toHaveTextContent('全周期 预计0–22%')
     expect(await screen.findByTestId('caveman-toolbar')).toHaveTextContent('全周期 预计14–21%')
     expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计18–27%')
@@ -290,19 +363,26 @@ describe('TokenOptimization', () => {
       enabled: true,
       state: 'ready',
     }))
+    vi.mocked(tokenOptimizationApi.pruningStatus).mockResolvedValue({
+      enabled: true,
+      level: 'balanced',
+      mode: 'deterministic',
+    })
+    vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
 
     const { container } = render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('47–85%')
+    expect(overview).toHaveTextContent('51–89%')
     expect(overview).toHaveTextContent('根据当前已启用方案的全周期预估复合计算')
-    expect(overview).toHaveTextContent('5/5')
-    expect(screen.getByLabelText('最低预估 47%')).toBeInTheDocument()
-    expect(screen.getByLabelText('最高预估 85%')).toBeInTheDocument()
+    expect(overview).toHaveTextContent('6/6')
+    expect(screen.getByLabelText('最低预估 51%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 89%')).toBeInTheDocument()
     expect(container.querySelectorAll('.token-savings-ring')).toHaveLength(2)
   })
 
   it('keeps the previous four-optimizer estimate unchanged when Ponytail is off', async () => {
+    vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
     vi.mocked(tokenOptimizationApi.liteStatus).mockResolvedValue({
       enabled: true,
       mode: 'deterministic',
@@ -327,7 +407,7 @@ describe('TokenOptimization', () => {
 
     const overview = await screen.findByTestId('savings-overview')
     expect(overview).toHaveTextContent('47–81%')
-    expect(overview).toHaveTextContent('4/5')
+    expect(overview).toHaveTextContent('4/6')
     expect(screen.getByLabelText('最低预估 47%')).toBeInTheDocument()
     expect(screen.getByLabelText('最高预估 81%')).toBeInTheDocument()
   })
@@ -342,7 +422,7 @@ describe('TokenOptimization', () => {
 
     const overview = await screen.findByTestId('savings-overview')
     expect(overview).toHaveTextContent('0–22%')
-    expect(overview).toHaveTextContent('1/5')
+    expect(overview).toHaveTextContent('1/6')
     expect(screen.getByLabelText('最低预估 0%')).toBeInTheDocument()
     expect(screen.getByLabelText('最高预估 22%')).toBeInTheDocument()
     expect(screen.getByTestId('ponytail-toolbar')).toHaveTextContent('全周期 预计0–22%')
@@ -364,7 +444,7 @@ describe('TokenOptimization', () => {
     expect(overview).toHaveTextContent('14–38%')
     expect(screen.getByLabelText('最低预估 14%')).toBeInTheDocument()
     expect(screen.getByLabelText('最高预估 38%')).toBeInTheDocument()
-    expect(overview).toHaveTextContent('2/5')
+    expect(overview).toHaveTextContent('2/6')
   })
 
   it('keeps the Caveman row and full-cycle rings on the same official range', async () => {
@@ -391,7 +471,7 @@ describe('TokenOptimization', () => {
     vi.mocked(tokenOptimizationApi.enable).mockResolvedValue(preparingStatus)
 
     render(<TokenOptimization />)
-    const toggle = await screen.findByRole('switch', { name: '为项目启用代码图谱' })
+    const toggle = await screen.findByRole('switch', { name: '全局启用代码图谱' })
     vi.mocked(tokenOptimizationApi.status).mockResolvedValue(preparingStatus)
     fireEvent.click(toggle)
 
@@ -401,6 +481,33 @@ describe('TokenOptimization', () => {
     expect((await screen.findAllByText('正在准备')).length).toBeGreaterThan(0)
   })
 
+  it('enables Code Graph globally even when no project is open', async () => {
+    useTabStore.setState({ tabs: [], activeTabId: null })
+    vi.mocked(tokenOptimizationApi.enableCodeGraphGlobally).mockResolvedValue({ enabled: true })
+
+    render(<TokenOptimization />)
+    const toggle = await screen.findByRole('switch', { name: '全局启用代码图谱' })
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(tokenOptimizationApi.enableCodeGraphGlobally).toHaveBeenCalledOnce())
+    expect(toggle).toBeChecked()
+    expect(tokenOptimizationApi.status).not.toHaveBeenCalled()
+  })
+
+  it('disables Code Graph globally without requiring a current project', async () => {
+    useTabStore.setState({ tabs: [], activeTabId: null })
+    vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
+    vi.mocked(tokenOptimizationApi.disableCodeGraphGlobally).mockResolvedValue({ enabled: false })
+
+    render(<TokenOptimization />)
+    const toggle = await screen.findByRole('switch', { name: '全局启用代码图谱' })
+    await waitFor(() => expect(toggle).toBeChecked())
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(tokenOptimizationApi.disableCodeGraphGlobally).toHaveBeenCalledOnce())
+    expect(toggle).not.toBeChecked()
+  })
+
   it('does not index the home-directory workspace used by temporary sessions', async () => {
     useSessionStore.setState((state) => ({
       sessions: state.sessions.map((session) => ({ ...session, isTemporary: true })),
@@ -408,7 +515,7 @@ describe('TokenOptimization', () => {
 
     render(<TokenOptimization />)
 
-    expect(await screen.findByText('请打开一个项目会话；代码图谱会自动为项目启用。')).toBeInTheDocument()
+    expect(await screen.findByText('当前没有项目；开启后，之后打开的项目会自动建立图谱。')).toBeInTheDocument()
     expect(tokenOptimizationApi.status).not.toHaveBeenCalled()
   })
 
@@ -421,7 +528,7 @@ describe('TokenOptimization', () => {
 
     render(<TokenOptimization />)
 
-    expect(await screen.findByText('请打开一个项目会话；代码图谱会自动为项目启用。')).toBeInTheDocument()
+    expect(await screen.findByText('当前没有项目；开启后，之后打开的项目会自动建立图谱。')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -450,8 +557,29 @@ describe('TokenOptimization', () => {
         startLine: 1,
         endLine: 3,
         degree: 2,
+        communityId: 'module:src',
+        communityLabel: 'src',
+        role: 'hub',
       }],
       edges: [],
+      architecture: {
+        analyzedNodeCount: 1,
+        analyzedEdgeCount: 0,
+        availableNodeCount: 1,
+        truncated: false,
+        communities: [{
+          id: 'module:src',
+          label: 'src',
+          nodeCount: 1,
+          edgeCount: 0,
+          cohesion: 1,
+          hubNodeIds: ['node-1'],
+          bridgeNodeIds: [],
+        }],
+        hubNodeIds: ['node-1'],
+        bridgeNodeIds: [],
+        confidence: { extracted: 0, inferred: 0, unknown: 0 },
+      },
     })
 
     render(<TokenOptimization />)
@@ -493,7 +621,7 @@ describe('TokenOptimization', () => {
 
     render(<TokenOptimization />)
 
-    expect(await screen.findByText('请打开一个项目会话；代码图谱会自动为项目启用。')).toBeInTheDocument()
+    expect(await screen.findByText('当前没有项目；开启后，之后打开的项目会自动建立图谱。')).toBeInTheDocument()
     expect(tokenOptimizationApi.status).not.toHaveBeenCalled()
   })
 })

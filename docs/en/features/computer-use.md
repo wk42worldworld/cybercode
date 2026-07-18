@@ -150,8 +150,8 @@ Just ask in natural language:
 
 | Mechanism | Description |
 |-----------|-------------|
-| **App allowlist** | Each session requires explicit authorization for which apps Claude can interact with |
-| **Concurrency lock** | Only one Claude session can use Computer Use at a time (file lock) |
+| **App allowlist** | Each session requires explicit authorization for which apps CyberCode can interact with |
+| **Concurrency lock** | Only one CyberCode session can use Computer Use at a time (file lock) |
 | **Clipboard guard** | Original clipboard content is saved and restored when typing via clipboard |
 | **Sensitive action gates** | System keyboard shortcuts require additional authorization |
 

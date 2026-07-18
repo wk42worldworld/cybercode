@@ -298,7 +298,7 @@ describe('Settings API', () => {
   it('GET /api/settings/cli-launcher should expose bundled launcher status', async () => {
     if (process.platform === 'win32') return
 
-    const sidecarPath = path.join(tmpDir, 'claude-sidecar')
+    const sidecarPath = path.join(tmpDir, 'cybercode-sidecar')
     await fs.writeFile(sidecarPath, '#!/bin/sh\necho desktop-sidecar\n', {
       encoding: 'utf8',
       mode: 0o755,

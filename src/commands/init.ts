@@ -38,7 +38,7 @@ Use AskUserQuestion to find out what the user wants:
 
 - "Also set up skills and hooks?"
   Options: "Skills + hooks" | "Skills only" | "Hooks only" | "Neither, just CYBER.md"
-  Description for skills: "On-demand capabilities you or Claude invoke with \`/skill-name\` — good for repeatable workflows and reference knowledge."
+  Description for skills: "On-demand capabilities you or CyberCode invoke with \`/skill-name\` — good for repeatable workflows and reference knowledge."
   Description for hooks: "Deterministic shell commands that run on tool events (e.g., format after every edit). CyberCode can't skip them."
 
 ## Phase 2: Explore the codebase
@@ -66,14 +66,14 @@ If the user chose project CYBER.md or both: ask about codebase practices — non
 If the user chose personal CYBER.local.md or both: ask about them, not the codebase. Do not mark any options as "recommended" — this is about their personal preferences, not best practices. Examples of questions:
   - What's their role on the team? (e.g., "backend engineer", "data scientist", "new hire onboarding")
   - How familiar are they with this codebase and its languages/frameworks? (so CyberCode can calibrate explanation depth)
-  - Do they have personal sandbox URLs, test accounts, API key paths, or local setup details Claude should know?
+  - Do they have personal sandbox URLs, test accounts, API key paths, or local setup details CyberCode should know?
   - Only if Phase 2 found multiple git worktrees: ask whether their worktrees are nested inside the main repo (e.g., \`.cyber/worktrees/<name>/\`) or siblings/external (e.g., \`../myrepo-feature/\`). If nested, the upward file walk finds the main repo's CYBER.local.md automatically — no special handling needed. If sibling/external, the personal content should live in a home-directory file (e.g., \`~/.cyber/<project-name>-instructions.md\`) and each worktree gets a one-line CYBER.local.md stub that imports it: \`@~/.cyber/<project-name>-instructions.md\`. Never put this import in the project CYBER.md — that would check a personal reference into the team-shared file.
   - Any communication preferences? (e.g., "be terse", "always explain tradeoffs", "don't summarize at the end")
 
 **Synthesize a proposal from Phase 2 findings** — e.g., format-on-edit if a formatter exists, a \`/verify\` skill if tests exist, a CYBER.md note for anything from the gap-fill answers that's a guideline rather than a workflow. For each, pick the artifact type that fits, **constrained by the Phase 1 skills+hooks choice**:
 
   - **Hook** (stricter) — deterministic shell command on a tool event; CyberCode can't skip it. Fits mechanical, fast, per-edit steps: formatting, linting, running a quick test on the changed file.
-  - **Skill** (on-demand) — you or Claude invoke \`/skill-name\` when you want it. Fits workflows that don't belong on every edit: deep verification, session reports, deploys.
+  - **Skill** (on-demand) — you or CyberCode invoke \`/skill-name\` when you want it. Fits workflows that don't belong on every edit: deep verification, session reports, deploys.
   - **CYBER.md note** (looser) — influences CyberCode's behavior but not enforced. Fits communication/thinking preferences: "plan before coding", "be terse", "explain tradeoffs".
 
   **Respect Phase 1's skills+hooks choice as a hard filter**: if the user picked "Skills only", downgrade any hook you'd suggest to a skill or a CYBER.md note. If "Hooks only", downgrade skills to hooks (where mechanically possible) or notes. If "Neither", everything becomes a CYBER.md note. Never propose an artifact type the user didn't opt into.
@@ -181,7 +181,7 @@ name: <skill-name>
 description: <what the skill does and when to use it>
 ---
 
-<Instructions for Claude>
+<Instructions for CyberCode>
 \`\`\`
 
 Both the user (\`/<skill-name>\`) and CyberCode can invoke skills by default. For workflows with side effects (e.g., \`/deploy\`, \`/fix-issue 123\`), add \`disable-model-invocation: true\` so only the user can trigger it, and use \`$ARGUMENTS\` to accept input.

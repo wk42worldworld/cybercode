@@ -59,10 +59,10 @@ if (scanExit !== 0) {
 
 // 单一合并 sidecar：server / cli 共享一份 bun runtime + 共享依赖代码。
 // 调用方（Tauri lib.rs / conversationService）通过第一个 positional 参数
-// 选择 'server' 或 'cli' 模式，详见 desktop/sidecars/claude-sidecar.ts。
+// 选择 'server' 或 'cli' 模式，详见 desktop/sidecars/cybercode-sidecar.ts。
 await compileExecutable({
-  entrypoint: path.join(desktopRoot, 'sidecars/claude-sidecar.ts'),
-  outfileBase: path.join(binariesDir, `claude-sidecar-${targetTriple}`),
+  entrypoint: path.join(desktopRoot, 'sidecars/cybercode-sidecar.ts'),
+  outfileBase: path.join(binariesDir, `cybercode-sidecar-${targetTriple}`),
   productName: 'CyberCode Sidecar',
   bunTarget,
 })

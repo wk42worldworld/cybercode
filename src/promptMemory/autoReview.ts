@@ -16,6 +16,7 @@ import {
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 import { createSystemMessage, createUserMessage } from '../utils/messages.js'
 import { jsonStringify } from '../utils/slowOperations.js'
+import { getSettingsWithSources } from '../utils/settings/settings.js'
 import { PROMPT_MEMORY_TOOL_NAME } from '../tools/PromptMemoryTool/constants.js'
 import {
   getBriefPath,
@@ -40,6 +41,13 @@ const WORKING_STYLE_SIGNAL =
   /(?:\b(?:always|never|first discuss|plan first|before you|make sure|from now on|workflow|quality bar)\b|先讨论|先计划|先.+再|每次都|总是|不要|不能|应该|必须|起码|按这个方法|做事方式|验收标准|品質基準|まず相談|必ず|しないで|먼저 논의|항상|반드시|하지 마)/i
 
 type ReviewTrigger = 'explicit' | 'interval'
+
+const MEMORY_LANGUAGE_ALIASES: Array<[RegExp, string]> = [
+  [/^(?:zh|zh-cn|zh-hans|chinese|中文|简体中文)$/i, 'Simplified Chinese'],
+  [/^(?:ja|jp|japanese|日本語|日文)$/i, 'Japanese'],
+  [/^(?:ko|kr|korean|한국어|韩文|韓文)$/i, 'Korean'],
+  [/^(?:en|en-us|english|英文)$/i, 'English'],
+]
 
 export type PromptMemoryAutoReviewLogEntry = {
   id: string
@@ -73,6 +81,30 @@ function getReviewIntervalTurns(): number {
   return Number.isFinite(parsed) && parsed > 0
     ? parsed
     : DEFAULT_REVIEW_INTERVAL_TURNS
+}
+
+export function normalizePromptMemoryLanguage(
+  language: string | undefined,
+): string {
+  const normalized = language?.trim()
+  if (!normalized) return 'the language used by the user in the recent messages'
+  return MEMORY_LANGUAGE_ALIASES.find(([pattern]) => pattern.test(normalized))?.[1]
+    ?? normalized.slice(0, 80)
+}
+
+function getPromptMemoryLanguage(): string {
+  try {
+    const settings = getSettingsWithSources().effective
+    return normalizePromptMemoryLanguage(
+      settings.promptMemoryLanguage ?? settings.language,
+    )
+  } catch (error) {
+    logForDebugging(
+      `[prompt-memory-review] failed to load language setting: ${errorMessage(error)}`,
+      { level: 'debug' },
+    )
+    return normalizePromptMemoryLanguage(undefined)
+  }
 }
 
 function getAutoReviewLogPath(): string {
@@ -230,7 +262,9 @@ export function buildPromptMemoryAutoReviewPrompt(params: {
   trigger: ReviewTrigger
   briefEntries: string[]
   userEntries: string[]
+  preferredLanguage?: string
 }): string {
+  const preferredLanguage = normalizePromptMemoryLanguage(params.preferredLanguage)
   return [
     'You are the automatic Prompt Memory reviewer for CyberCode.',
     '',
@@ -250,6 +284,7 @@ export function buildPromptMemoryAutoReviewPrompt(params: {
     '- BRIEF.md stores stable agent facts, environment facts, tool quirks, and cross-session working lessons.',
     '- USER.md stores user preferences, communication style, stable personal workflow preferences, and explicit remember/forget requests.',
     '- Prefix every added or replaced entry with exactly one semantic category tag.',
+    `- Write the human-readable body of every added or replaced entry in ${preferredLanguage}. Keep the semantic category tag in English exactly as specified below. Preserve technical identifiers, paths, commands, and quoted text in their original language.`,
     '- USER.md tags: [identity], [communication], [collaboration], [workflow], [quality], [boundaries], [expertise].',
     '- BRIEF.md tags: [meta-method], [environment], [lesson].',
     '- [meta-method] captures a reusable way of working across tasks, such as planning order, verification sequence, escalation thresholds, or how to decide between alternatives. It is not a project recipe; project recipes belong in Skills or project memory.',
@@ -513,6 +548,7 @@ async function runPromptMemoryAutoReview({
       trigger,
       briefEntries: brief.entries,
       userEntries: user.entries,
+      preferredLanguage: getPromptMemoryLanguage(),
     })
 
     const result = await runForkedAgent({

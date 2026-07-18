@@ -112,7 +112,7 @@ export function startServer(port = PORT, host = HOST) {
         return new Response('WebSocket upgrade failed', { status: 400 })
       }
 
-      // Internal SDK WebSocket used by the spawned Claude CLI.
+      // Internal SDK WebSocket used by the spawned CyberCode CLI.
       if (url.pathname.startsWith('/sdk/')) {
         const sessionId = url.pathname.split('/').pop() || ''
         if (!sessionId || !/^[0-9a-zA-Z_-]{1,64}$/.test(sessionId)) {

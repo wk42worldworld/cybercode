@@ -32,7 +32,7 @@ describe('Real Provider Configs', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
-  // Helper: read the Cybercode-specific settings file
+  // Helper: read the CyberCode-specific settings file
   async function readCybercodeSettings(): Promise<Record<string, unknown>> {
     const raw = await fs.readFile(path.join(tmpDir, 'cybercode', 'settings.json'), 'utf-8')
     return JSON.parse(raw)
@@ -218,7 +218,7 @@ describe('Real Provider Configs', () => {
       }, null, 2),
     )
 
-    // Cybercode 添加并激活自己的 provider
+    // CyberCode 添加并激活自己的 provider
     const provider = await service.addProvider({
       presetId: 'minimax',
       name: 'MiniMax',
@@ -234,11 +234,11 @@ describe('Real Provider Configs', () => {
     expect((original.env as Record<string, string>).ANTHROPIC_API_KEY).toBe('original-key')
     expect(original.effortLevel).toBe('high')
 
-    // 验证 cybercode/settings.json 是 Cybercode 自己的
+    // 验证 cybercode/settings.json 是 CyberCode 自己的
     const cybercode = await readCybercodeSettings()
     expect((cybercode.env as Record<string, string>).ANTHROPIC_BASE_URL).toBe('https://api.minimaxi.com/anthropic')
     expect((cybercode.env as Record<string, string>).ANTHROPIC_API_KEY).toBe('sk-cybercode-key')
 
-    console.log('✅ 原版 settings.json 完好无损，Cybercode 配置独立存储')
+    console.log('✅ 原版 settings.json 完好无损，CyberCode 配置独立存储')
   })
 })

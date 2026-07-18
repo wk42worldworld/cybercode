@@ -63,7 +63,7 @@ describe('ensureDesktopCliLauncherInstalled', () => {
   })
 
   unixOnly('copies the bundled sidecar into the user bin dir and configures PATH', async () => {
-    const sourcePath = join(tempSourceDir, 'claude-sidecar')
+    const sourcePath = join(tempSourceDir, 'cybercode-sidecar')
     await writeFile(sourcePath, '#!/bin/sh\necho desktop-sidecar\n', 'utf8')
     await chmod(sourcePath, 0o755)
     process.env.CLAUDE_CLI_PATH = sourcePath

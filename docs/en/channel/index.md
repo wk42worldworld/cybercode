@@ -1,6 +1,8 @@
 # Claude Code Channel System Documentation
 
 > Complete technical analysis of remote Agent control via IM platforms
+>
+> This is an upstream architecture research reference retained by CyberCode. Mentions of Claude Code and the `notifications/claude/channel` protocol identify the real compatibility target rather than CyberCode product branding. For the supported CyberCode setup, see the [IM integration guide](../../im/).
 
 ---
 

@@ -523,7 +523,7 @@ async function runInputActionGates(
     // Keyboard safety net — defocus (prepareForAction step B) should have
     // moved us off. If we're still here, typing would go to our chat box.
     return errorResult(
-      "Claude's own window still has keyboard focus. This should not happen " +
+      "CyberCode's own window still has keyboard focus. This should not happen " +
         "after the pre-action defocus. Click on the target application first.",
       "state_conflict",
     );
@@ -3546,7 +3546,7 @@ export async function handleToolCall(
   //
   // But ACQUIRE is split: request_access and list_granted_applications
   // check-without-acquire (the overlay + notifications are driven by
-  // cuLockChanged, and showing "Claude is using your computer" while the
+  // cuLockChanged, and showing "CyberCode is using your computer" while the
   // agent is only ASKING for access is premature). First action tool
   // acquires and the overlay appears. If the user denies and no action
   // follows, the overlay never shows.
@@ -3568,8 +3568,8 @@ export async function handleToolCall(
   if (lock) {
     if (lock.holder !== undefined && !lock.isSelf) {
       return errorResult(
-        "Another Claude session is currently using the computer. Wait for " +
-          "the user to acknowledge it is finished (stop button in the Claude " +
+        "Another CyberCode session is currently using the computer. Wait for " +
+          "the user to acknowledge it is finished (stop button in the CyberCode " +
           "window), or find a non-computer-use approach if one is readily " +
           "apparent.",
         "cu_lock_held",

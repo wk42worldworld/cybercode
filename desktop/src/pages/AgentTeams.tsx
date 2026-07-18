@@ -41,14 +41,14 @@ export function AgentTeams() {
                 </div>
               </div>
 
-              {/* CLAUDE COMPANION response */}
+              {/* CyberCode response */}
               <div className="flex gap-4 group">
                 <div className="w-8 h-8 rounded-full bg-[var(--color-surface-container-high)] flex-shrink-0 flex items-center justify-center text-[var(--color-brand)] border border-[var(--color-brand)]/30">
                   <Icon name="smart_toy" size={14} />
                 </div>
                 <div className="space-y-4 flex-1">
                   <p className="text-[12px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-widest">
-                    Claude Companion
+                    CyberCode
                   </p>
                   <div className="rounded-xl border border-[var(--color-border-separator)] bg-[var(--color-background)] p-5 shadow-[var(--shadow-dropdown)]">
                     <p className="mb-4 text-[var(--color-text-primary)]">
@@ -149,7 +149,7 @@ export function AgentTeams() {
                 </div>
                 <input
                   className="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-[14px] text-[var(--color-text-primary)] py-2"
-                  placeholder="Type a command or ask Claude..."
+                  placeholder="Type a command or ask CyberCode..."
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}

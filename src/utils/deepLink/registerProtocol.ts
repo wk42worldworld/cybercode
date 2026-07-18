@@ -30,15 +30,22 @@ import { which } from '../which.js'
 import { getUserBinDir, getXDGDataHome } from '../xdg.js'
 import { DEEP_LINK_PROTOCOL } from './parseDeepLink.js'
 
-export const MACOS_BUNDLE_ID = 'com.anthropic.claude-code-url-handler'
-const APP_NAME = 'Claude Code URL Handler'
-const DESKTOP_FILE_NAME = 'claude-code-url-handler.desktop'
-const MACOS_APP_NAME = 'Claude Code URL Handler.app'
+export const MACOS_BUNDLE_ID = 'com.cybercode.url-handler'
+const APP_NAME = 'CyberCode URL Handler'
+const DESKTOP_FILE_NAME = 'cybercode-url-handler.desktop'
+const LEGACY_DESKTOP_FILE_NAME = 'claude-code-url-handler.desktop'
+const MACOS_APP_NAME = 'CyberCode URL Handler.app'
+const LEGACY_MACOS_APP_NAME = 'Claude Code URL Handler.app'
 
 // Shared between register* (writes these paths/values) and
 // isProtocolHandlerCurrent (reads them back). Keep the writer and reader
 // in lockstep — drift here means the check returns a perpetual false.
 const MACOS_APP_DIR = path.join(os.homedir(), 'Applications', MACOS_APP_NAME)
+const LEGACY_MACOS_APP_DIR = path.join(
+  os.homedir(),
+  'Applications',
+  LEGACY_MACOS_APP_NAME,
+)
 const MACOS_SYMLINK_PATH = path.join(
   MACOS_APP_DIR,
   'Contents',
@@ -75,13 +82,15 @@ function windowsCommandValue(claudePath: string): string {
 async function registerMacos(claudePath: string): Promise<void> {
   const contentsDir = path.join(MACOS_APP_DIR, 'Contents')
 
-  // Remove any existing app bundle to start clean
-  try {
-    await fs.rm(MACOS_APP_DIR, { recursive: true })
-  } catch (e: unknown) {
-    const code = getErrnoCode(e)
-    if (code !== 'ENOENT') {
-      throw e
+  // Remove the current bundle and the pre-CyberCode-branded trampoline.
+  for (const appDir of [MACOS_APP_DIR, LEGACY_MACOS_APP_DIR]) {
+    try {
+      await fs.rm(appDir, { recursive: true })
+    } catch (e: unknown) {
+      const code = getErrnoCode(e)
+      if (code !== 'ENOENT') {
+        throw e
+      }
     }
   }
 
@@ -108,7 +117,7 @@ async function registerMacos(claudePath: string): Promise<void> {
   <array>
     <dict>
       <key>CFBundleURLName</key>
-      <string>Claude Code Deep Link</string>
+      <string>CyberCode Deep Link</string>
       <key>CFBundleURLSchemes</key>
       <array>
         <string>${DEEP_LINK_PROTOCOL}</string>
@@ -143,10 +152,20 @@ async function registerMacos(claudePath: string): Promise<void> {
  */
 async function registerLinux(claudePath: string): Promise<void> {
   await fs.mkdir(path.dirname(linuxDesktopPath()), { recursive: true })
+  await fs
+    .rm(
+      path.join(
+        getXDGDataHome(),
+        'applications',
+        LEGACY_DESKTOP_FILE_NAME,
+      ),
+      { force: true },
+    )
+    .catch(() => {})
 
   const desktopEntry = `[Desktop Entry]
 Name=${APP_NAME}
-Comment=Handle ${DEEP_LINK_PROTOCOL}:// deep links for Claude Code
+Comment=Handle ${DEEP_LINK_PROTOCOL}:// deep links for CyberCode
 ${linuxExecLine(claudePath)}
 Type=Application
 NoDisplay=true

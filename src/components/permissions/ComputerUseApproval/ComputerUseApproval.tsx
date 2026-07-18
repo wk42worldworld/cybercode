@@ -261,7 +261,7 @@ function ComputerUseAppListPanel(t0) {
   let t8;
   if ($[9] === Symbol.for("react.memo_cache_sentinel")) {
     t8 = {
-      label: <Text>Deny, and tell Claude what to do differently <Text bold={true}>(esc)</Text></Text>,
+      label: <Text>Deny, and tell CyberCode what to do differently <Text bold={true}>(esc)</Text></Text>,
       value: "deny"
     };
     $[9] = t8;
@@ -372,7 +372,7 @@ function ComputerUseAppListPanel(t0) {
   }
   let t16;
   if ($[30] !== request.willHide) {
-    t16 = request.willHide && request.willHide.length > 0 ? <Text dimColor={true}>{request.willHide.length} other{" "}{plural(request.willHide.length, "app")} will be hidden while Claude works.</Text> : null;
+    t16 = request.willHide && request.willHide.length > 0 ? <Text dimColor={true}>{request.willHide.length} other{" "}{plural(request.willHide.length, "app")} will be hidden while CyberCode works.</Text> : null;
     $[30] = request.willHide;
     $[31] = t16;
   } else {

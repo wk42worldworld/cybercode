@@ -141,7 +141,7 @@ Hooks run commands at specific points in CyberCode's lifecycle.
 | PostToolUse | Tool name | Run after successful tool |
 | PostToolUseFailure | Tool name | Run after tool fails |
 | Notification | Notification type | Run on notifications |
-| Stop | - | Run when Claude stops (including clear, resume, compact) |
+| Stop | - | Run when CyberCode stops (including clear, resume, compact) |
 | PreCompact | "manual"/"auto" | Before compaction |
 | PostCompact | "manual"/"auto" | After compaction (receives summary) |
 | UserPromptSubmit | - | When user submits |
@@ -385,7 +385,7 @@ ${HOOK_VERIFICATION_FLOW}
 
 ### Adding a Hook
 
-User: "Format my code after Claude writes it"
+User: "Format my code after CyberCode writes it"
 
 1. **Clarify**: Which formatter? (prettier, gofmt, etc.)
 2. **Read**: \`.cyber/settings.json\` (or create if missing)

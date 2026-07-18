@@ -1921,7 +1921,8 @@ async function run(): Promise<CommanderCommand> {
       initBuiltinPlugins();
       initBundledSkills();
     }
-    const setupPromise = process.env.CLAUDE_CODE_LOCAL_RECOVERY === '1' ? (async () => {
+    const isLocalRecovery = process.env.CYBERCODE_LOCAL_RECOVERY === '1' || process.env.CLAUDE_CODE_LOCAL_RECOVERY === '1';
+    const setupPromise = isLocalRecovery ? (async () => {
       setOriginalCwd(preSetupCwd);
       setProjectRoot(preSetupCwd);
       logForDebugging('[STARTUP] setup() skipped in local recovery mode');
@@ -3876,7 +3877,7 @@ async function run(): Promise<CommanderCommand> {
       permissionMode: 'auto'
     }));
     program.addOption(new Option('--tasks [id]', '[ANT-ONLY] Tasks mode: watch for tasks and auto-process them. Optional id is used as both the task list ID and agent ID (defaults to "tasklist").').argParser(String).hideHelp());
-    program.option('--agent-teams', '[ANT-ONLY] Force Claude to use multi-agent mode for solving problems', () => true);
+    program.option('--agent-teams', '[ANT-ONLY] Force CyberCode to use multi-agent mode for solving problems', () => true);
   }
   if (feature('TRANSCRIPT_CLASSIFIER')) {
     program.addOption(new Option('--enable-auto-mode', 'Opt in to auto mode').hideHelp());

@@ -1,6 +1,8 @@
 # Channel System Architecture
 
 > A deep dive into how Claude Code enables remote Agent control via IM platforms
+>
+> This document describes the upstream Claude Code Channel implementation. CyberCode's supported Telegram and Feishu adapters are documented in the [IM integration guide](../../im/).
 
 <p align="center">
 <a href="#1-what-is-a-channel">Concepts</a> ·

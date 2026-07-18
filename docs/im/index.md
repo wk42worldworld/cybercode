@@ -36,7 +36,7 @@ flowchart TD
 
     R --> S["adapters/common/ws-bridge.ts"]
     S --> T["Desktop Server"]
-    T --> U["Claude Code session / CLI 子进程"]
+    T --> U["CyberCode session / CLI 子进程"]
 
     U --> V["流式消息 / 权限请求 / 状态事件"]
     V --> S
@@ -49,7 +49,7 @@ flowchart TD
 - 配置层：桌面端 webapp 负责填写平台凭据、默认项目和配对码管理
 - 存储层：本地服务端把配置写入 `~/.claude/adapters.json`
 - 适配层：Telegram / 飞书 adapter 进程负责接 IM 平台、做授权检查、恢复或创建会话
-- 会话层：adapter 通过 HTTP 创建 session，再通过 WebSocket 把 IM 消息桥接到 Claude Code 会话
+- 会话层：adapter 通过 HTTP 创建 session，再通过 WebSocket 把 IM 消息桥接到 CyberCode 会话
 
 ## 用户怎么用
 
@@ -92,7 +92,7 @@ bun run feishu
 - 未配对用户：先把配对码发给 bot
 - 已配对用户：直接发送自然语言消息
 - 没有默认项目时：bot 会先让你从最近项目里选一个
-- 后续消息会复用同一个 Claude session
+- 后续消息会复用同一个 CyberCode session
 
 ## 配置和状态分别存哪
 
@@ -113,7 +113,7 @@ bun run feishu
 
 ### `~/.claude/adapter-sessions.json`
 
-保存 IM chat 到 Claude session 的映射：
+保存 IM chat 到 CyberCode session 的映射：
 
 - `chatId`
 - `sessionId`
@@ -136,7 +136,7 @@ bun run feishu
 
 ## 会话行为
 
-Adapter 不是直接把消息丢给一个全局 Claude 进程，而是：
+Adapter 不是直接把消息丢给一个全局 CyberCode 进程，而是：
 
 1. 先用 `POST /api/sessions` 创建 session
 2. 再用 `ws://.../ws/:sessionId` 建立桥接

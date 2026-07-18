@@ -1,5 +1,5 @@
 /**
- * Cybercode OAuth REST API
+ * CyberCode OAuth REST API
  *
  * POST   /api/cybercode-oauth/start    — 生成 PKCE+state,返回 authorize URL
  * GET    /callback                — 用户浏览器 redirect 到此,完成 token 交换

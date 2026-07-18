@@ -165,7 +165,10 @@ function computeChecksum(
  * getSettings() to avoid circular dependencies during settings loading.
  */
 export function isPolicyLimitsEligible(): boolean {
-  if (process.env.CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH === '1') {
+  if (
+    process.env.CYBERCODE_LOCAL_SKIP_REMOTE_PREFETCH === '1' ||
+    process.env.CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH === '1'
+  ) {
     return false
   }
 

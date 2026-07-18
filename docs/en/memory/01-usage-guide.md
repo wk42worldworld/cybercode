@@ -1,6 +1,6 @@
-# Claude Code Memory System — Usage Guide
+# CyberCode Memory System — Usage Guide
 
-> Let Claude Code remember who you are, what you prefer, and what's happening in your project across sessions.
+> Let CyberCode remember who you are, what you prefer, and what's happening in your project across sessions.
 
 <p align="center">
 <a href="#1-what-is-the-memory-system">Memory System</a> · <a href="#2-four-memory-types">Four Memory Types</a> · <a href="#3-how-to-trigger-memory-saving">Trigger Saving</a> · <a href="#4-where-are-memories-stored">Storage Location</a> · <a href="#5-how-to-manage-memories">Manage Memories</a> · <a href="#6-memory-lifecycle">Lifecycle</a> · <a href="#7-quick-reference">Quick Reference</a>
@@ -12,7 +12,7 @@
 
 ## 1. What Is the Memory System?
 
-Claude Code's memory system is a **file-based persistent knowledge store** that allows Claude to continuously build understanding of you and your project across multiple conversations.
+CyberCode's memory system is a **file-based persistent knowledge store** that allows the agent to continuously build understanding of you and your project across multiple conversations.
 
 Core principle: **Only remember things that cannot be inferred from the code itself.**
 
@@ -20,7 +20,7 @@ Core principle: **Only remember things that cannot be inferred from the code its
 |------------|----------------|
 | You're a data scientist focused on logging systems | Code architecture, file structure |
 | "Don't mock the database" | Git history, who changed what |
-| Non-critical merges frozen after Thursday | Existing CLAUDE.md content |
+| Non-critical merges frozen after Thursday | Existing CYBER.md content |
 | Bug tracking is in Linear's INGEST project | Debugging solutions (fixes are already in the code) |
 
 ---
@@ -29,27 +29,27 @@ Core principle: **Only remember things that cannot be inferred from the code its
 
 ![Four Memory Types](./images/02-memory-types.png)
 
-Claude Code strictly categorizes memories into four types:
+CyberCode strictly categorizes memories into four types:
 
 ### 2.1 User (User Profile)
 
-Records your role, goals, skill level, and preferences to help Claude tailor its collaboration approach.
+Records your role, goals, skill level, and preferences to help CyberCode tailor its collaboration approach.
 
 ```
 User says: I've written Go for ten years, but this is my first time touching the React part of this repo
-Claude saves: Deep Go experience, React newcomer — explain frontend concepts using backend analogies
+CyberCode saves: Deep Go experience, React newcomer — explain frontend concepts using backend analogies
 ```
 
 ### 2.2 Feedback (Behavioral Feedback)
 
-Your corrections or affirmations about how Claude works. These memories prevent Claude from repeating the same mistakes.
+Your corrections or affirmations about how CyberCode works. These memories prevent CyberCode from repeating the same mistakes.
 
 ```
 User says: Don't summarize what you did at the end of your reply, I can see the diff
-Claude saves: User prefers concise replies, no trailing summaries
+CyberCode saves: User prefers concise replies, no trailing summaries
 ```
 
-**Important**: Not only corrections are recorded -- affirmations are too. If Claude makes a non-obvious choice and you approve, that gets remembered as well.
+**Important**: Not only corrections are recorded -- affirmations are too. If CyberCode makes a non-obvious choice and you approve, that gets remembered as well.
 
 ### 2.3 Project (Project Context)
 
@@ -57,10 +57,10 @@ Project context that cannot be derived from the code or Git history: who's doing
 
 ```
 User says: We're freezing all non-critical merges after Thursday, the mobile team needs to cut a release branch
-Claude saves: Merge freeze starting 2026-03-05, flag non-critical PR work after this date
+CyberCode saves: Merge freeze starting 2026-03-05, flag non-critical PR work after this date
 ```
 
-**Note**: Claude converts relative dates ("Thursday") to absolute dates ("2026-03-05") to ensure memories don't become ambiguous over time.
+**Note**: CyberCode converts relative dates ("Thursday") to absolute dates ("2026-03-05") to ensure memories don't become ambiguous over time.
 
 ### 2.4 Reference (External References)
 
@@ -68,7 +68,7 @@ Pointers to information in external systems: dashboards, issue trackers, Slack c
 
 ```
 User says: On-call monitors the grafana.internal/d/api-latency dashboard
-Claude saves: grafana.internal/d/api-latency is the on-call latency dashboard — check when editing request path code
+CyberCode saves: grafana.internal/d/api-latency is the on-call latency dashboard — check when editing request path code
 ```
 
 ---
@@ -79,11 +79,11 @@ Claude saves: grafana.internal/d/api-latency is the on-call latency dashboard �
 
 ### Method 1: Automatic Extraction (Most Common)
 
-This is the primary method. **You don't need to do anything** -- Claude automatically analyzes conversation content at the end of each conversation turn and extracts information worth remembering.
+This is the primary method. **You don't need to do anything** -- CyberCode automatically analyzes conversation content at the end of each conversation turn and extracts information worth remembering.
 
 Workflow:
-1. You have a normal conversation with Claude
-2. Claude finishes its response (no tool calls pending)
+1. You have a normal conversation with CyberCode
+2. CyberCode finishes its response (no tool calls pending)
 3. A **memory extraction sub-agent** starts in the background
 4. The sub-agent analyzes the recent conversation content
 5. It identifies memories worth saving
@@ -91,16 +91,16 @@ Workflow:
 
 The terminal will display a notification:
 ```
-Memory updated in ~/.claude/projects/.../memory/feedback_testing.md · /memory to edit
+Memory updated in ~/.cyber/projects/.../memory/feedback_testing.md · /memory to edit
 ```
 
 ### Method 2: Explicit Request
 
-Directly tell Claude to "remember this":
+Directly tell CyberCode to "remember this":
 
 ```
 User: Remember, this project must run bun test before deploying
-Claude: [Immediately saves as a feedback-type memory]
+CyberCode: [Immediately saves as a feedback-type memory]
 ```
 
 ### Method 3: /memory Command
@@ -111,13 +111,13 @@ Type `/memory` in the terminal to open a file picker that lets you edit memory f
 > /memory
 ```
 
-This lists all editable memory files (CLAUDE.md, CLAUDE.local.md, auto-memory, etc.) and opens the selected file with your `$EDITOR` or `$VISUAL`.
+This lists all editable memory files (CYBER.md, CYBER.local.md, auto-memory, etc.) and opens the selected file with your `$EDITOR` or `$VISUAL`.
 
 ### Method 4: /remember Command
 
 Type `/remember` to trigger the memory review skill, which will:
 - Review all automatic memory entries
-- Propose promoting suitable entries to CLAUDE.md or CLAUDE.local.md
+- Propose promoting suitable entries to CYBER.md or CYBER.local.md
 - Detect duplicate, outdated, and conflicting memories
 - **Does not modify anything directly** -- all changes require your approval
 
@@ -128,7 +128,7 @@ Type `/remember` to trigger the memory review skill, which will:
 ### Directory Structure
 
 ```
-~/.claude/
+~/.cyber/
 └── projects/
     └── {project-path-hash}/
         └── memory/                    <- Auto-memory directory
@@ -177,23 +177,23 @@ MEMORY.md is an index, not content. It is **always loaded into context**, with o
 
 ## 5. How to Manage Memories
 
-### Ask Claude to Forget
+### Ask CyberCode to Forget
 
 ```
 User: Forget the memory about the merge freeze
-Claude: [Finds and deletes the relevant memory file and index entry]
+CyberCode: [Finds and deletes the relevant memory file and index entry]
 ```
 
-### Ask Claude to Ignore Memories
+### Ask CyberCode to Ignore Memories
 
 ```
 User: Ignore memories, start from scratch
-Claude: [Does not use any memory content in this conversation]
+CyberCode: [Does not use any memory content in this conversation]
 ```
 
 ### Manual Editing
 
-Directly edit files under `~/.claude/projects/{hash}/memory/`, or use the `/memory` command.
+Directly edit files under `~/.cyber/projects/{hash}/memory/`, or use the `/memory` command.
 
 ### Disable Automatic Memory
 
@@ -205,7 +205,7 @@ Directly edit files under `~/.claude/projects/{hash}/memory/`, or use the `/memo
 
 ### Custom Memory Directory
 
-Set in `~/.claude/settings.json`:
+Set in `~/.cyber/settings.json`:
 
 ```json
 {
@@ -213,7 +213,7 @@ Set in `~/.claude/settings.json`:
 }
 ```
 
-Supports `~/` expansion. For security reasons, the project-level `.claude/settings.json` is **not allowed** to set this option.
+Supports `~/` expansion. For security reasons, the project-level `.cyber/settings.json` is **not allowed** to set this option.
 
 ---
 
@@ -245,7 +245,7 @@ New information learned during conversation
 
 ### AutoDream -- "Dreaming" to Organize Memories
 
-Claude Code has a hidden **AutoDream** feature, analogous to how the human brain organizes memories during sleep. When the following conditions are met, Claude silently launches a "dreaming" sub-agent in the background:
+CyberCode has a hidden **AutoDream** feature, analogous to how the human brain organizes memories during sleep. When the following conditions are met, the agent silently launches a "dreaming" sub-agent in the background:
 
 - At least **>= 24 hours** since the last consolidation
 - At least **>= 5 sessions** accumulated in the interim
@@ -257,7 +257,7 @@ For a detailed technical analysis, see [AutoDream Memory Consolidation](./03-aut
 ### Freshness Management
 
 - **Today's/yesterday's memories**: Used directly
-- **Memories older than 1 day**: Accompanied by a stale warning, reminding Claude to verify before citing
+- **Memories older than 1 day**: Accompanied by a stale warning, reminding CyberCode to verify before citing
 - **Memories referencing file paths/function names**: Confirmed via grep before use to ensure they still exist
 
 ---
@@ -266,12 +266,12 @@ For a detailed technical analysis, see [AutoDream Memory Consolidation](./03-aut
 
 | Action | Method |
 |--------|--------|
-| Ask Claude to remember | "Remember: this project uses bun, not npm" |
-| Ask Claude to forget | "Forget the memory about XXX" |
+| Ask CyberCode to remember | "Remember: this project uses bun, not npm" |
+| Ask CyberCode to forget | "Forget the memory about XXX" |
 | Edit memories | `/memory` command |
 | Review and organize | `/remember` command |
 | Ignore memories | "Ignore memories" / "Don't use memories" |
 | Disable auto-memory | `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` |
 | Disable AutoDream | Set `"autoDreamEnabled": false` in `settings.json` |
 | Manually consolidate memories | `/dream` command |
-| View memory directory | `~/.claude/projects/{hash}/memory/` |
+| View memory directory | `~/.cyber/projects/{hash}/memory/` |

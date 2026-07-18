@@ -1,5 +1,5 @@
 /**
- * Unit tests for CybercodeOAuthService — cybercode 自管 OAuth 的核心 service 层。
+ * Unit tests for the CyberCode OAuth service — CyberCode 自管 OAuth 的核心 service 层。
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test'

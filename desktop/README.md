@@ -26,5 +26,5 @@ bun run tauri dev
 ### macOS 提示"已损坏，无法打开"
 
 ```bash
-xattr -cr /Applications/Claude\ Code\ Cybercode.app
+xattr -cr /Applications/CyberCode.app
 ```

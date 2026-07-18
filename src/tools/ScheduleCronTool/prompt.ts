@@ -69,17 +69,17 @@ export const CRON_LIST_TOOL_NAME = 'CronList'
 export function buildCronCreateDescription(durableEnabled: boolean): string {
   return durableEnabled
     ? 'Schedule a prompt to run at a future time — either recurring on a cron schedule, or once at a specific time. Pass durable: true to persist to .cyber/scheduled_tasks.json; otherwise session-only.'
-    : 'Schedule a prompt to run at a future time within this Claude session — either recurring on a cron schedule, or once at a specific time.'
+    : 'Schedule a prompt to run at a future time within this CyberCode session — either recurring on a cron schedule, or once at a specific time.'
 }
 
 export function buildCronCreatePrompt(durableEnabled: boolean): string {
   const durabilitySection = durableEnabled
     ? `## Durability
 
-By default (durable: false) the job lives only in this Claude session — nothing is written to disk, and the job is gone when Claude exits. Pass durable: true to write to .cyber/scheduled_tasks.json so the job survives restarts. Only use durable: true when the user explicitly asks for the task to persist ("keep doing this every day", "set this up permanently"). Most "remind me in 5 minutes" / "check back in an hour" requests should stay session-only.`
+By default (durable: false) the job lives only in this CyberCode session — nothing is written to disk, and the job is gone when CyberCode exits. Pass durable: true to write to .cyber/scheduled_tasks.json so the job survives restarts. Only use durable: true when the user explicitly asks for the task to persist ("keep doing this every day", "set this up permanently"). Most "remind me in 5 minutes" / "check back in an hour" requests should stay session-only.`
     : `## Session-only
 
-Jobs live only in this Claude session — nothing is written to disk, and the job is gone when Claude exits.`
+Jobs live only in this CyberCode session — nothing is written to disk, and the job is gone when CyberCode exits.`
 
   const durableRuntimeNote = durableEnabled
     ? 'Durable jobs persist to .cyber/scheduled_tasks.json and survive session restarts — on next launch they resume automatically. One-shot durable tasks that were missed while the REPL was closed are surfaced for catch-up. Session-only jobs die with the process. '

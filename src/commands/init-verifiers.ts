@@ -162,7 +162,7 @@ Based on the areas detected in Phase 1, you may need to create multiple verifier
 
 ## Phase 4: Generate Verifier Skill
 
-**All verifier skills are created in the project root's \`.cyber/skills/\` directory.** This ensures they are automatically loaded when Claude runs in the project.
+**All verifier skills are created in the project root's \`.cyber/skills/\` directory.** This ensures they are automatically loaded when CyberCode runs in the project.
 
 Before writing each verifier skill, call SkillGate with the proposed name, description, and complete SKILL.md draft. If it returns \`reuse\`, do not create a duplicate verifier. If it returns \`merge\`, refine the existing verifier if it is writable or ask before creating a narrower additive verifier. Only create a new verifier when SkillGate returns \`create\` or the user explicitly confirms the additive duplicate.
 

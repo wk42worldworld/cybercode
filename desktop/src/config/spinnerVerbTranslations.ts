@@ -29,7 +29,7 @@ const ZH_SPINNER_VERBS: Record<string, string> = {
   Channelling: '正在接通灵感频道',
   Choreographing: '正在编排步骤',
   Churning: '正在翻搅思绪',
-  Clauding: '正在 Claude 一下',
+  Cybercoding: '正在赛博编码',
   Coalescing: '正在汇聚思路',
   Cogitating: '正在深思熟虑',
   Combobulating: '正在把一切理顺',

@@ -1,4 +1,4 @@
-# Claude Code Skills 系统 — 实现原理
+# CyberCode Skills 系统 — 实现原理
 
 > 深度剖析 Skills 如何被发现、加载、注入、执行和管理。
 
@@ -92,8 +92,8 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
 getSkillDirCommands(cwd)
 ├─ 确定加载路径
 │  ├─ managed: ${MANAGED_PATH}/.claude/skills/
-│  ├─ user:    ~/.claude/skills/
-│  ├─ project: .claude/skills/ (向上遍历到 HOME)
+│  ├─ user:    ~/.cyber/skills/（兼容 ~/.claude/skills/）
+│  ├─ project: .cyber/skills/（兼容 .claude/skills/，向上遍历到 HOME）
 │  └─ additional: --add-dir 指定的路径
 │
 ├─ 并行加载（Promise.all）
@@ -647,7 +647,7 @@ export async function discoverSkillDirsForPaths(
     let currentDir = dirname(filePath)
     // 从文件所在目录向上遍历到 cwd（不含 cwd 本身）
     while (currentDir.startsWith(resolvedCwd + pathSep)) {
-      const skillDir = join(currentDir, '.claude', 'skills')
+      const skillDir = getExistingProjectConfigPath(currentDir, 'skills')
       if (!dynamicSkillDirs.has(skillDir)) {
         dynamicSkillDirs.add(skillDir)
         await fs.stat(skillDir)  // 检查是否存在

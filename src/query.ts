@@ -55,6 +55,7 @@ import {
   stripSignatureBlocks,
 } from './utils/messages.js'
 import { generateToolUseSummary } from './services/toolUseSummary/toolUseSummaryGenerator.js'
+import { startCodeGraphPreflight } from './services/codeGraphPreflight.js'
 import { prependUserContext, appendSystemContext } from './utils/api.js'
 import {
   createAttachmentMessage,
@@ -302,6 +303,14 @@ async function* queryLoop(
     state.messages,
     state.toolUseContext,
   )
+  const pendingCodeGraphPreflight = startCodeGraphPreflight(
+    state.messages,
+    querySource,
+    state.toolUseContext.abortController.signal,
+  )
+  let codeGraphPreflightContext: string | null | undefined = pendingCodeGraphPreflight
+    ? undefined
+    : null
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -649,6 +658,16 @@ async function* queryLoop(
 
     let attemptWithFallback = true
 
+    if (codeGraphPreflightContext === undefined) {
+      codeGraphPreflightContext = await pendingCodeGraphPreflight!.catch(() => null)
+    }
+    const userContextForQuery = codeGraphPreflightContext
+      ? {
+          ...userContext,
+          'Code Graph preflight': codeGraphPreflightContext,
+        }
+      : userContext
+
     queryCheckpoint('query_api_loop_start')
     try {
       while (attemptWithFallback) {
@@ -657,7 +676,7 @@ async function* queryLoop(
           let streamingFallbackOccured = false
           queryCheckpoint('query_api_streaming_start')
           for await (const message of deps.callModel({
-            messages: prependUserContext(messagesForQuery, userContext),
+            messages: prependUserContext(messagesForQuery, userContextForQuery),
             systemPrompt: fullSystemPrompt,
             thinkingConfig: toolUseContext.options.thinkingConfig,
             tools: toolUseContext.options.tools,

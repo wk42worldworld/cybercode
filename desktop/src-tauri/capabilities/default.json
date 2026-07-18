@@ -18,7 +18,7 @@
             "server",
             { "validator": "regex", "value": "^(--port|--host|--config)=.+$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         },
         {
@@ -26,7 +26,7 @@
             "adapters",
             { "validator": "regex", "value": "^(feishu|telegram|lark|slack)(:.+)?$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         },
         {
@@ -34,7 +34,7 @@
             "cli",
             { "validator": "regex", "value": "^.+$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         }
       ]
@@ -47,7 +47,7 @@
             "server",
             { "validator": "regex", "value": "^(--port|--host|--config)=.+$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         },
         {
@@ -55,7 +55,7 @@
             "adapters",
             { "validator": "regex", "value": "^(feishu|telegram|lark|slack)(:.+)?$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         },
         {
@@ -63,7 +63,7 @@
             "cli",
             { "validator": "regex", "value": "^.+$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         }
       ]
@@ -76,7 +76,7 @@
             "server",
             { "validator": "regex", "value": "^(--port|--host|--config)=.+$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         },
         {
@@ -84,7 +84,7 @@
             "adapters",
             { "validator": "regex", "value": "^(feishu|telegram|lark|slack)(:.+)?$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         },
         {
@@ -92,7 +92,7 @@
             "cli",
             { "validator": "regex", "value": "^.+$" }
           ],
-          "name": "binaries/claude-sidecar",
+          "name": "binaries/cybercode-sidecar",
           "sidecar": true
         }
       ]

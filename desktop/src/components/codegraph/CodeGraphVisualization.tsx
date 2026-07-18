@@ -1,7 +1,9 @@
 import {
+  Files,
   Focus,
   Maximize2,
   Search,
+  Waypoints,
   X,
   ZoomIn,
   ZoomOut,
@@ -14,7 +16,11 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import type { CodeGraphData, CodeGraphNode } from '../../api/tokenOptimization'
+import type {
+  CodeGraphConfidence,
+  CodeGraphData,
+  CodeGraphNode,
+} from '../../api/tokenOptimization'
 import { useTranslation } from '../../i18n'
 
 type PositionedNode = CodeGraphNode & {
@@ -23,15 +29,17 @@ type PositionedNode = CodeGraphNode & {
   radius: number
   clusterKey: string
 }
-type FileCluster = {
+type GraphCluster = {
   key: string
   label: string
+  kind: GraphViewMode
   x: number
   y: number
   radius: number
   nodeIds: string[]
 }
-type GraphLayout = { nodes: PositionedNode[]; clusters: FileCluster[] }
+type GraphLayout = { nodes: PositionedNode[]; clusters: GraphCluster[] }
+export type GraphViewMode = 'architecture' | 'files'
 type ViewTransform = { x: number; y: number; scale: number }
 type ScreenPoint = { x: number; y: number }
 
@@ -67,10 +75,11 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
   const [canvasSize, setCanvasSize] = useState({ width: 980, height: 620 })
   const [transform, setTransform] = useState<ViewTransform>({ x: 0, y: 0, scale: 1 })
   const [query, setQuery] = useState('')
+  const [viewMode, setViewMode] = useState<GraphViewMode>('architecture')
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
-  const layout = useMemo(() => buildSemanticLayout(data), [data])
+  const layout = useMemo(() => buildSemanticLayout(data, viewMode), [data, viewMode])
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.id, node])),
     [layout.nodes],
@@ -249,6 +258,34 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
             </span>
           )}
         </label>
+        <div
+          role="group"
+          aria-label={t('tokenOptimization.graph.view.label')}
+          className="flex h-[38px] items-center rounded-[8px] border border-[var(--color-border)] bg-[var(--color-background)] p-[2px]"
+        >
+          <GraphModeButton
+            active={viewMode === 'architecture'}
+            label={t('tokenOptimization.graph.view.architecture')}
+            onClick={() => {
+              setViewMode('architecture')
+              setSelectedId(null)
+              setTransform({ x: 0, y: 0, scale: 1 })
+            }}
+          >
+            <Waypoints size={14} />
+          </GraphModeButton>
+          <GraphModeButton
+            active={viewMode === 'files'}
+            label={t('tokenOptimization.graph.view.files')}
+            onClick={() => {
+              setViewMode('files')
+              setSelectedId(null)
+              setTransform({ x: 0, y: 0, scale: 1 })
+            }}
+          >
+            <Files size={14} />
+          </GraphModeButton>
+        </div>
         <div className="flex h-[38px] items-center rounded-[8px] border border-[var(--color-border)] bg-[var(--color-background)] p-[2px]">
           <GraphIconButton label={t('tokenOptimization.graph.zoomOut')} onClick={() => adjustZoom(0.82)}>
             <ZoomOut size={16} />
@@ -295,7 +332,7 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
         <GraphLegend t={t} />
 
         {hoveredNode && !selectedNode && (
-          <NodeTooltip node={hoveredNode} x={pointer.x} y={pointer.y} size={canvasSize} />
+          <NodeTooltip node={hoveredNode} x={pointer.x} y={pointer.y} size={canvasSize} t={t} />
         )}
 
         {selectedNode && (
@@ -317,9 +354,39 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
 
       <div className="flex min-h-[28px] items-center justify-between gap-[16px] text-[11px] text-[var(--color-text-tertiary)]">
         <span>{t('tokenOptimization.graph.summary', { nodes: data.nodes.length, edges: data.edges.length })}</span>
-        <span>{t('tokenOptimization.graph.fileSummary', { files: layout.clusters.length })}</span>
+        <span>
+          {viewMode === 'architecture'
+            ? t('tokenOptimization.graph.architectureSummary', {
+                communities: data.architecture.communities.length,
+                hubs: data.architecture.hubNodeIds.length,
+                bridges: data.architecture.bridgeNodeIds.length,
+              })
+            : t('tokenOptimization.graph.fileSummary', { files: layout.clusters.length })}
+        </span>
       </div>
     </div>
+  )
+}
+
+function GraphModeButton({ children, active, label, onClick }: {
+  children: React.ReactNode
+  active: boolean
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      title={label}
+      onClick={onClick}
+      className={`flex h-[32px] items-center gap-[6px] rounded-[6px] px-[9px] text-[11px] font-semibold transition-colors ${active
+        ? 'bg-[var(--color-surface-hover)] text-[var(--color-text-primary)] shadow-sm'
+        : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'}`}
+    >
+      {children}
+      <span>{label}</span>
+    </button>
   )
 }
 
@@ -347,6 +414,7 @@ function GraphLegend({ t }: { t: ReturnType<typeof useTranslation> }) {
       <LegendEdge color="#45e1bc" label={t('tokenOptimization.graph.edge.calls')} />
       <LegendEdge color="#ffba63" dashed label={t('tokenOptimization.graph.edge.references')} />
       <LegendEdge color="#6f8794" label={t('tokenOptimization.graph.edge.contains')} />
+      <LegendEdge color="#b69cff" dashed label={t('tokenOptimization.graph.edge.inferred')} />
     </div>
   )
 }
@@ -363,11 +431,12 @@ function LegendEdge({ color, label, dashed = false }: { color: string; label: st
   )
 }
 
-function NodeTooltip({ node, x, y, size }: {
+function NodeTooltip({ node, x, y, size, t }: {
   node: PositionedNode
   x: number
   y: number
   size: { width: number; height: number }
+  t: ReturnType<typeof useTranslation>
 }) {
   return (
     <div
@@ -379,13 +448,23 @@ function NodeTooltip({ node, x, y, size }: {
     >
       <div className="truncate font-semibold text-white">{node.qualifiedName || node.name}</div>
       <div className="mt-[3px] truncate text-[#78909a]">{node.filePath}:{node.startLine}</div>
+      <div className="mt-[3px] truncate text-[#8aa2ab]">
+        {node.communityLabel} · {getRoleLabel(node.role, t)}
+      </div>
     </div>
   )
 }
 
 function NodeInspector({ node, connections, onClose, onSelect, t }: {
   node: PositionedNode
-  connections: Array<{ node: PositionedNode; kind: string; direction: 'in' | 'out' }>
+  connections: Array<{
+    node: PositionedNode
+    kind: string
+    direction: 'in' | 'out'
+    confidence: CodeGraphConfidence
+    provenance: string | null
+    line: number | null
+  }>
   onClose: () => void
   onSelect: (node: PositionedNode) => void
   t: ReturnType<typeof useTranslation>
@@ -402,7 +481,7 @@ function NodeInspector({ node, connections, onClose, onSelect, t }: {
         <div className="min-w-0">
           <div className="flex items-center gap-[7px] font-mono text-[9px] uppercase text-[#78909a]">
             <span className="h-[6px] w-[6px] rounded-full" style={{ background: KIND_COLORS[node.kind] || '#78909a' }} />
-            {node.kind}
+            {node.kind} · {getRoleLabel(node.role, t)}
           </div>
           <h2 className="mt-[7px] truncate text-[14px] font-semibold text-white">
             {node.qualifiedName || node.name}
@@ -424,6 +503,10 @@ function NodeInspector({ node, connections, onClose, onSelect, t }: {
         <div className="mt-[5px] flex items-center justify-between text-[#78909a]">
           <span>{t('tokenOptimization.graph.inspector.lines')}</span>
           <span className="text-[#dce7eb]">{node.startLine}-{node.endLine}</span>
+        </div>
+        <div className="flex items-center justify-between gap-[12px] text-[#78909a]">
+          <span>{t('tokenOptimization.graph.inspector.community')}</span>
+          <span className="truncate text-right text-[#dce7eb]">{node.communityLabel}</span>
         </div>
         <div className="flex items-center justify-between text-[#78909a]">
           <span>{t('tokenOptimization.graph.inspector.degree')}</span>
@@ -463,7 +546,8 @@ function NodeInspector({ node, connections, onClose, onSelect, t }: {
                 {connection.node.name}
               </span>
               <span className="mt-[2px] block truncate font-mono text-[8px] uppercase text-[#60757f]">
-                {connection.direction === 'out' ? '→' : '←'} {connection.kind}
+                {connection.direction === 'out' ? '→' : '←'} {connection.kind} · {getConfidenceLabel(connection.confidence, t)}
+                {connection.line ? ` · L${connection.line}` : ''}
               </span>
             </span>
             <Focus size={12} className="shrink-0 text-[#50636c] opacity-0 group-hover:opacity-100" />
@@ -505,16 +589,22 @@ function drawGraph({ context, size, transform, data, layout, nodeById, hoveredId
     context.globalAlpha = clusterActive ? 1 : 0.24
     context.beginPath()
     context.arc(center.x, center.y, radius, 0, Math.PI * 2)
-    context.fillStyle = 'rgba(18, 28, 33, 0.52)'
+    context.fillStyle = cluster.kind === 'architecture'
+      ? 'rgba(15, 33, 35, 0.58)'
+      : 'rgba(18, 28, 33, 0.52)'
     context.fill()
-    context.setLineDash([2, 7])
-    context.lineWidth = 0.8
-    context.strokeStyle = 'rgba(107, 140, 151, 0.34)'
+    context.setLineDash(cluster.kind === 'architecture' ? [3, 6] : [2, 7])
+    context.lineWidth = cluster.kind === 'architecture' ? 1 : 0.8
+    context.strokeStyle = cluster.kind === 'architecture'
+      ? 'rgba(69, 225, 188, 0.33)'
+      : 'rgba(107, 140, 151, 0.34)'
     context.stroke()
     context.setLineDash([])
-    context.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace'
+    context.font = `${cluster.kind === 'architecture' ? 10 : 9}px ui-monospace, SFMono-Regular, Menlo, monospace`
     context.textBaseline = 'middle'
-    context.fillStyle = clusterActive ? '#6f8791' : '#42535a'
+    context.fillStyle = clusterActive
+      ? cluster.kind === 'architecture' ? '#79b8ad' : '#6f8791'
+      : '#42535a'
     context.fillText(truncateLabel(cluster.label, 30), center.x - radius + 9, center.y - radius + 13)
     context.restore()
   }
@@ -530,15 +620,20 @@ function drawGraph({ context, size, transform, data, layout, nodeById, hoveredId
     const related = !neighborhood || (neighborhood.has(edge.source) && neighborhood.has(edge.target))
     const queryRelated = !matchedIds || matchedIds.has(edge.source) || matchedIds.has(edge.target)
     const curve = curveControl(from, to, edge.source, edge.target)
+    const confidenceAlpha = edge.confidence === 'extracted' ? 1 : edge.confidence === 'inferred' ? 0.56 : 0.72
 
     context.save()
     context.beginPath()
     context.moveTo(from.x, from.y)
     context.quadraticCurveTo(curve.x, curve.y, to.x, to.y)
     context.strokeStyle = style.color
-    context.globalAlpha = emphasized ? 0.86 : related && queryRelated ? 0.19 : 0.035
-    context.lineWidth = emphasized ? 1.65 : edge.kind === 'contains' ? 0.65 : 0.9
-    context.setLineDash(style.dash)
+    context.globalAlpha = (emphasized
+      ? 0.86
+      : related && queryRelated
+        ? edge.crossCommunity ? 0.28 : 0.19
+        : 0.035) * confidenceAlpha
+    context.lineWidth = emphasized ? 1.65 : edge.crossCommunity ? 1.05 : edge.kind === 'contains' ? 0.65 : 0.9
+    context.setLineDash(edge.confidence === 'inferred' ? [2, 5] : style.dash)
     context.stroke()
     context.setLineDash([])
 
@@ -580,6 +675,18 @@ function drawGraph({ context, size, transform, data, layout, nodeById, hoveredId
       context.shadowColor = color
       context.shadowBlur = 15
       context.globalAlpha = 1
+    }
+
+    if (!isActive && node.role !== 'member') {
+      context.beginPath()
+      context.arc(point.x, point.y, radius + (node.role === 'bridge' ? 4.5 : 3.2), 0, Math.PI * 2)
+      context.strokeStyle = node.role === 'bridge' ? '#ffba63' : color
+      context.globalAlpha = node.role === 'bridge' ? 0.58 : 0.34
+      context.lineWidth = node.role === 'bridge' ? 1.15 : 0.85
+      context.setLineDash(node.role === 'bridge' ? [2, 3] : [])
+      context.stroke()
+      context.setLineDash([])
+      context.globalAlpha = isRelated && isMatch ? 0.94 : 0.1
     }
 
     drawNodeShape(context, node.kind, point, isActive ? radius + 1.3 : radius)
@@ -680,11 +787,16 @@ function drawLabels(
   context.globalAlpha = 1
 }
 
-export function buildSemanticLayout(data: CodeGraphData): GraphLayout {
+export function buildSemanticLayout(
+  data: CodeGraphData,
+  viewMode: GraphViewMode = 'architecture',
+): GraphLayout {
   if (data.nodes.length === 0) return { nodes: [], clusters: [] }
   const groups = new Map<string, CodeGraphNode[]>()
   for (const node of data.nodes) {
-    const key = node.filePath || '(project)'
+    const key = viewMode === 'architecture'
+      ? node.communityId || node.filePath || '(project)'
+      : node.filePath || '(project)'
     const group = groups.get(key) || []
     group.push(node)
     groups.set(key, group)
@@ -701,7 +813,7 @@ export function buildSemanticLayout(data: CodeGraphData): GraphLayout {
   const cellHeight = (WORLD_HEIGHT - 100) / rows
   const clusterRadius = clamp(Math.min(cellWidth, cellHeight) * 0.4, 72, 148)
   const nodes: PositionedNode[] = []
-  const clusters: FileCluster[] = []
+  const clusters: GraphCluster[] = []
 
   entries.forEach(([key, group], index) => {
     const column = index % columns
@@ -711,16 +823,20 @@ export function buildSemanticLayout(data: CodeGraphData): GraphLayout {
     const centerX = 60 + rowOffset + column * cellWidth + cellWidth / 2
     const centerY = 50 + row * cellHeight + cellHeight / 2
     const ordered = [...group].sort((left, right) => {
-      const filePriority = Number(right.kind === 'file') - Number(left.kind === 'file')
-      return filePriority || right.degree - left.degree || left.name.localeCompare(right.name)
+      const rolePriority = viewMode === 'architecture'
+        ? graphRolePriority(right.role) - graphRolePriority(left.role)
+        : Number(right.kind === 'file') - Number(left.kind === 'file')
+      return rolePriority || right.degree - left.degree || left.name.localeCompare(right.name)
     })
-    const hub = ordered.find((node) => node.kind === 'file') || ordered[0]!
+    const hub = viewMode === 'architecture'
+      ? ordered.find((node) => node.role === 'hub') || ordered[0]!
+      : ordered.find((node) => node.kind === 'file') || ordered[0]!
     const satellites = ordered.filter((node) => node.id !== hub.id)
     const positioned: PositionedNode[] = [{
       ...hub,
       x: centerX,
       y: centerY,
-      radius: hub.kind === 'file' ? 15 : 10,
+      radius: hub.kind === 'file' ? 15 : hub.role === 'hub' ? 12 : 10,
       clusterKey: key,
     }]
     satellites.forEach((node, satelliteIndex) => {
@@ -741,7 +857,10 @@ export function buildSemanticLayout(data: CodeGraphData): GraphLayout {
     nodes.push(...positioned)
     clusters.push({
       key,
-      label: key.split(/[\\/]/).pop() || key,
+      label: viewMode === 'architecture'
+        ? group[0]?.communityLabel || key
+        : key.split(/[\\/]/).pop() || key,
+      kind: viewMode,
       x: centerX,
       y: centerY,
       radius: clusterRadius,
@@ -749,6 +868,10 @@ export function buildSemanticLayout(data: CodeGraphData): GraphLayout {
     })
   })
   return { nodes, clusters }
+}
+
+function graphRolePriority(role: CodeGraphNode['role']) {
+  return role === 'hub' ? 3 : role === 'bridge' ? 2 : 1
 }
 
 function getNeighborhoodIds(data: CodeGraphData, id: string) {
@@ -769,15 +892,32 @@ function getNodeConnections(
     node: PositionedNode
     kind: string
     direction: 'in' | 'out'
+    confidence: CodeGraphConfidence
+    provenance: string | null
+    line: number | null
   }> = []
   for (const edge of data.edges) {
     if (edge.source === id) {
       const node = nodeById.get(edge.target)
-      if (node) connections.push({ node, kind: edge.kind, direction: 'out' })
+      if (node) connections.push({
+        node,
+        kind: edge.kind,
+        direction: 'out',
+        confidence: edge.confidence,
+        provenance: edge.provenance,
+        line: edge.line,
+      })
     }
     if (edge.target === id) {
       const node = nodeById.get(edge.source)
-      if (node) connections.push({ node, kind: edge.kind, direction: 'in' })
+      if (node) connections.push({
+        node,
+        kind: edge.kind,
+        direction: 'in',
+        confidence: edge.confidence,
+        provenance: edge.provenance,
+        line: edge.line,
+      })
     }
   }
   return connections.sort((left, right) => right.node.degree - left.node.degree)
@@ -884,6 +1024,31 @@ function clamp(value: number, min: number, max: number) {
 
 function truncateLabel(value: string, limit: number) {
   return value.length > limit ? `${value.slice(0, limit - 3)}...` : value
+}
+
+function getRoleLabel(role: CodeGraphNode['role'], t: ReturnType<typeof useTranslation>) {
+  switch (role) {
+    case 'hub':
+      return t('tokenOptimization.graph.role.hub')
+    case 'bridge':
+      return t('tokenOptimization.graph.role.bridge')
+    default:
+      return t('tokenOptimization.graph.role.member')
+  }
+}
+
+function getConfidenceLabel(
+  confidence: CodeGraphConfidence,
+  t: ReturnType<typeof useTranslation>,
+) {
+  switch (confidence) {
+    case 'extracted':
+      return t('tokenOptimization.graph.confidence.extracted')
+    case 'inferred':
+      return t('tokenOptimization.graph.confidence.inferred')
+    default:
+      return t('tokenOptimization.graph.confidence.unknown')
+  }
 }
 
 function rectanglesOverlap(

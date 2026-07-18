@@ -7,7 +7,7 @@ describe('resolveSidecarInvocation', () => {
     expect(
       resolveSidecarInvocation(
         ['server', '--host', '127.0.0.1'],
-        '/tmp/claude-sidecar',
+        '/tmp/cybercode-sidecar',
       ),
     ).toEqual({
       mode: 'server',
@@ -20,7 +20,7 @@ describe('resolveSidecarInvocation', () => {
     expect(
       resolveSidecarInvocation(
         ['codegraph', 'index', '--project', '/tmp/project'],
-        '/tmp/claude-sidecar',
+        '/tmp/cybercode-sidecar',
       ),
     ).toEqual({
       mode: 'codegraph',

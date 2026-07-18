@@ -30,7 +30,7 @@ export function TaskPromptStep(): ReactNode {
       <Box flexDirection="column">
         <Box marginBottom={1}>
           <Text dimColor>
-            Enter the prompt that will be sent to Claude when this task runs.
+            Enter the prompt that will be sent to CyberCode when this task runs.
           </Text>
         </Box>
         <TextInput

@@ -1,15 +1,15 @@
 /**
- * Claude Code 桌面端合并 sidecar 入口。
+ * CyberCode 桌面端合并 sidecar 入口。
  *
  * 历史上 server / cli / IM adapters 是各自独立的进程。每个 bun-compile
  * 二进制都要带一份 ~55MB 的 bun runtime，光这一项就重复占了 100MB+。
  * 把所有运行模式合并到同一个二进制里，runtime 只保留一份；调用方通过
  * 第一个 positional 参数选择模式：
  *
- *   claude-sidecar server   --app-root <path> --host 127.0.0.1 --port 12345
- *   claude-sidecar cli      --app-root <path> [其它 CLI 参数...]
- *   claude-sidecar adapters --app-root <path> [--feishu] [--telegram]
- *   claude-sidecar codegraph index|watch|mcp --project <path>
+ *   cybercode-sidecar server   --app-root <path> --host 127.0.0.1 --port 12345
+ *   cybercode-sidecar cli      --app-root <path> [其它 CLI 参数...]
+ *   cybercode-sidecar adapters --app-root <path> [--feishu] [--telegram]
+ *   cybercode-sidecar codegraph index|watch|mcp --project <path>
  *
  * 任何模式都必须先做 process.env / process.argv 设置，再 await 进入相应的
  * 子模块树。原因：src/server/index.ts、src/entrypoints/cli.tsx、以及

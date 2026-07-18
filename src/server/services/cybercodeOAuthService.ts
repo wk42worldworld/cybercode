@@ -1,5 +1,5 @@
 /**
- * CybercodeOAuthService — 桌面端自管 Claude OAuth token
+ * CyberCode OAuth service — 桌面端自管 Claude OAuth token
  *
  * 为什么存在: macOS Keychain ACL 在 .app 被打上 quarantine 属性后
  * 对无 UI sidecar 静默拒绝,导致 CLI 读不到 OAuth token → 403。
@@ -238,7 +238,7 @@ export class CybercodeOAuthService {
       return updated
     } catch (err) {
       console.error(
-        '[CybercodeOAuthService] token refresh failed:',
+        '[CyberCodeOAuthService] token refresh failed:',
         err instanceof Error ? err.message : err,
       )
       return null
