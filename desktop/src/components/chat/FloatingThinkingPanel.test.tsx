@@ -24,7 +24,9 @@ describe('FloatingThinkingPanel', () => {
     )
 
     expect(screen.getByTestId('floating-thinking-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('floating-thinking-panel')).toHaveClass('w-full', 'max-w-[878px]')
+    const panel = screen.getByTestId('floating-thinking-panel')
+    expect(panel).toHaveClass('w-full', 'max-w-[878px]')
+    expect(panel.parentElement).toHaveClass('right-[var(--chat-message-scrollbar-gutter)]')
     expect(screen.getByTestId('floating-thinking-panel-title').className).toContain('ai-shimmer-text')
     expect(screen.getByTestId('floating-thinking-panel-title').className).toContain('ai-shimmer-thinking')
     expect(screen.getByText('Reading context')).toBeInTheDocument()

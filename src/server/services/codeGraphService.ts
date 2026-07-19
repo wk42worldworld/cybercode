@@ -769,8 +769,14 @@ export class CodeGraphService {
 
   private assertAssetsAvailable() {
     const assetDir = this.getAssetDir()
-    if (!fs.existsSync(path.join(assetDir, 'tree-sitter.wasm'))) {
-      throw new Error(`Code Graph parser resources are missing: ${assetDir}`)
+    const requiredAssets = ['schema.sql', 'tree-sitter.wasm']
+    const missingAssets = requiredAssets.filter((asset) =>
+      !fs.existsSync(path.join(assetDir, asset)),
+    )
+    if (missingAssets.length > 0) {
+      throw new Error(
+        `Code Graph resources are missing (${missingAssets.join(', ')}): ${assetDir}`,
+      )
     }
   }
 

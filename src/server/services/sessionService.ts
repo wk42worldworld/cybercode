@@ -118,6 +118,13 @@ export type TranscriptMetadataSnapshot = {
   version?: string
 }
 
+type TranscriptTokenUsage = {
+  input_tokens: number
+  output_tokens: number
+  cache_creation_input_tokens: number
+  cache_read_input_tokens: number
+}
+
 export type TranscriptContextEstimate = {
   categories: Array<{
     name: string
@@ -141,12 +148,8 @@ export type TranscriptContextEstimate = {
   memoryFiles: Array<{ path: string; type: string; tokens: number }>
   mcpTools: Array<{ name: string; serverName: string; tokens: number; isLoaded?: boolean }>
   agents: Array<{ agentType: string; source: string; tokens: number }>
-  apiUsage: {
-    input_tokens: number
-    output_tokens: number
-    cache_creation_input_tokens: number
-    cache_read_input_tokens: number
-  }
+  apiUsage: TranscriptTokenUsage
+  latestTurnUsage: TranscriptTokenUsage
 }
 
 /** Raw entry parsed from a single JSONL line */
@@ -165,6 +168,7 @@ type RawEntry = {
     model?: string
     id?: string
     type?: string
+    stop_reason?: string | null
     usage?: {
       input_tokens?: number
       output_tokens?: number
@@ -186,6 +190,155 @@ type RawEntry = {
   customTitle?: string
   title?: string
   [key: string]: unknown
+}
+
+function isTranscriptUserTurnBoundary(entry: RawEntry): boolean {
+  if (
+    entry.type !== 'user' ||
+    entry.message?.role !== 'user' ||
+    entry.isMeta === true ||
+    entry.isSidechain === true
+  ) {
+    return false
+  }
+
+  const content = entry.message.content
+  if (typeof content === 'string') return content.trim().length > 0
+  if (!Array.isArray(content) || content.length === 0) return false
+
+  const blockTypes = content.map((block) =>
+    block && typeof block === 'object'
+      ? (block as Record<string, unknown>).type
+      : undefined,
+  )
+  return !blockTypes.includes('tool_result')
+}
+
+function emptyTranscriptTokenUsage(): TranscriptTokenUsage {
+  return {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+  }
+}
+
+type TranscriptUsageRecord = {
+  model: string
+  usage: TranscriptTokenUsage
+  webSearchRequests: number
+  speed?: string
+  timestamp?: string
+  turnIndex: number
+  order: number
+  isTerminal: boolean
+}
+
+function transcriptTokenTotal(usage: TranscriptTokenUsage): number {
+  return (
+    usage.input_tokens +
+    usage.output_tokens +
+    usage.cache_read_input_tokens +
+    usage.cache_creation_input_tokens
+  )
+}
+
+function addTranscriptTokenUsage(
+  total: TranscriptTokenUsage,
+  usage: TranscriptTokenUsage,
+): void {
+  total.input_tokens += usage.input_tokens
+  total.output_tokens += usage.output_tokens
+  total.cache_read_input_tokens += usage.cache_read_input_tokens
+  total.cache_creation_input_tokens += usage.cache_creation_input_tokens
+}
+
+function shouldReplaceTranscriptUsageRecord(
+  current: TranscriptUsageRecord,
+  candidate: TranscriptUsageRecord,
+): boolean {
+  if (current.isTerminal !== candidate.isTerminal) return candidate.isTerminal
+
+  const currentTotal = transcriptTokenTotal(current.usage)
+  const candidateTotal = transcriptTokenTotal(candidate.usage)
+  if (currentTotal !== candidateTotal) return candidateTotal > currentTotal
+
+  return candidate.order > current.order
+}
+
+function summarizeTranscriptUsage(entries: RawEntry[]): {
+  records: TranscriptUsageRecord[]
+  latestRequest: TranscriptUsageRecord | null
+  latestTurnUsage: TranscriptTokenUsage
+} {
+  const recordsByKey = new Map<string, TranscriptUsageRecord>()
+  let turnIndex = 0
+  let latestUserTurnIndex = 0
+
+  entries.forEach((entry, order) => {
+    if (isTranscriptUserTurnBoundary(entry)) {
+      turnIndex += 1
+      latestUserTurnIndex = turnIndex
+    }
+
+    const rawUsage = entry.message?.usage
+    const model = entry.message?.model
+    if (!rawUsage || typeof model !== 'string') return
+
+    const usage: TranscriptTokenUsage = {
+      input_tokens: typeof rawUsage.input_tokens === 'number' ? rawUsage.input_tokens : 0,
+      output_tokens: typeof rawUsage.output_tokens === 'number' ? rawUsage.output_tokens : 0,
+      cache_read_input_tokens:
+        typeof rawUsage.cache_read_input_tokens === 'number'
+          ? rawUsage.cache_read_input_tokens
+          : 0,
+      cache_creation_input_tokens:
+        typeof rawUsage.cache_creation_input_tokens === 'number'
+          ? rawUsage.cache_creation_input_tokens
+          : 0,
+    }
+    const webSearchRequests =
+      typeof rawUsage.server_tool_use?.web_search_requests === 'number'
+        ? rawUsage.server_tool_use.web_search_requests
+        : 0
+    if (transcriptTokenTotal(usage) === 0 && webSearchRequests === 0) return
+
+    const messageId = entry.message?.id?.trim()
+    const key = messageId
+      ? `${turnIndex}\0${model}\0${messageId}`
+      : `entry\0${order}`
+    const candidate: TranscriptUsageRecord = {
+      model,
+      usage,
+      webSearchRequests,
+      speed: rawUsage.speed,
+      timestamp: entry.timestamp,
+      turnIndex,
+      order,
+      isTerminal:
+        typeof entry.message?.stop_reason === 'string' &&
+        entry.message.stop_reason.length > 0,
+    }
+    const current = recordsByKey.get(key)
+    if (!current || shouldReplaceTranscriptUsageRecord(current, candidate)) {
+      recordsByKey.set(key, candidate)
+    }
+  })
+
+  const records = Array.from(recordsByKey.values()).sort((a, b) => a.order - b.order)
+  const tokenRecords = records.filter((record) => transcriptTokenTotal(record.usage) > 0)
+  const latestTurnUsage = emptyTranscriptTokenUsage()
+  for (const record of tokenRecords) {
+    if (record.turnIndex === latestUserTurnIndex) {
+      addTranscriptTokenUsage(latestTurnUsage, record.usage)
+    }
+  }
+
+  return {
+    records,
+    latestRequest: tokenRecords.at(-1) ?? null,
+    latestTurnUsage,
+  }
 }
 
 type ContentBlock = Record<string, unknown>
@@ -1162,44 +1315,20 @@ export class SessionService {
     if (!found) return null
 
     const entries = await this.readJsonlFile(found.filePath)
-    let latest: {
-      model: string
-      inputTokens: number
-      outputTokens: number
-      cacheReadInputTokens: number
-      cacheCreationInputTokens: number
-    } | null = null
+    const { latestRequest, latestTurnUsage } = summarizeTranscriptUsage(entries)
+    if (!latestRequest) return null
 
-    for (const entry of entries) {
-      const usage = entry.message?.usage
-      const model = entry.message?.model
-      if (!usage || typeof model !== 'string') continue
-
-      const inputTokens = typeof usage.input_tokens === 'number' ? usage.input_tokens : 0
-      const outputTokens = typeof usage.output_tokens === 'number' ? usage.output_tokens : 0
-      const cacheReadInputTokens = typeof usage.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : 0
-      const cacheCreationInputTokens = typeof usage.cache_creation_input_tokens === 'number' ? usage.cache_creation_input_tokens : 0
-      const promptTokens = inputTokens + cacheReadInputTokens + cacheCreationInputTokens
-      if (promptTokens === 0 && outputTokens === 0) continue
-
-      latest = {
-        model,
-        inputTokens,
-        outputTokens,
-        cacheReadInputTokens,
-        cacheCreationInputTokens,
-      }
-    }
-
-    if (!latest) return null
-
-    const rawMaxTokens = this.getTranscriptContextWindow(latest.model)
-    const totalTokens = latest.inputTokens + latest.cacheReadInputTokens + latest.cacheCreationInputTokens
+    const latest = latestRequest.usage
+    const rawMaxTokens = this.getTranscriptContextWindow(latestRequest.model)
+    const totalTokens =
+      latest.input_tokens +
+      latest.cache_read_input_tokens +
+      latest.cache_creation_input_tokens
     const percentage = rawMaxTokens > 0 ? Math.round((totalTokens / rawMaxTokens) * 100) : 0
     const categories: TranscriptContextEstimate['categories'] = [
-      { name: 'Input tokens', tokens: latest.inputTokens, color: '#8f3217' },
-      { name: 'Cache read', tokens: latest.cacheReadInputTokens, color: '#0f5c8f' },
-      { name: 'Cache write', tokens: latest.cacheCreationInputTokens, color: '#7c3aed' },
+      { name: 'Input tokens', tokens: latest.input_tokens, color: '#8f3217' },
+      { name: 'Cache read', tokens: latest.cache_read_input_tokens, color: '#0f5c8f' },
+      { name: 'Cache write', tokens: latest.cache_creation_input_tokens, color: '#7c3aed' },
       { name: 'Free space', tokens: Math.max(0, rawMaxTokens - totalTokens), color: '#a1a1aa', isDeferred: true },
     ].filter((category) => category.tokens > 0)
 
@@ -1226,16 +1355,12 @@ export class SessionService {
       rawMaxTokens,
       percentage,
       gridRows,
-      model: latest.model,
+      model: latestRequest.model,
       memoryFiles: [],
       mcpTools: [],
       agents: [],
-      apiUsage: {
-        input_tokens: latest.inputTokens,
-        output_tokens: latest.outputTokens,
-        cache_creation_input_tokens: latest.cacheCreationInputTokens,
-        cache_read_input_tokens: latest.cacheReadInputTokens,
-      },
+      apiUsage: latest,
+      latestTurnUsage,
     }
   }
 
@@ -1244,6 +1369,7 @@ export class SessionService {
     if (!found) return null
 
     const entries = await this.readJsonlFile(found.filePath)
+    const { records } = summarizeTranscriptUsage(entries)
     const models = new Map<string, TranscriptUsageSnapshot['models'][number]>()
     let totalCostUSD = 0
     let totalInputTokens = 0
@@ -1255,28 +1381,12 @@ export class SessionService {
     let firstUsageAt: number | null = null
     let lastUsageAt: number | null = null
 
-    for (const entry of entries) {
-      const usage = entry.message?.usage
-      const model = entry.message?.model
-      if (!usage || typeof model !== 'string') continue
-
-      const inputTokens = typeof usage.input_tokens === 'number' ? usage.input_tokens : 0
-      const outputTokens = typeof usage.output_tokens === 'number' ? usage.output_tokens : 0
-      const cacheReadInputTokens = typeof usage.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : 0
-      const cacheCreationInputTokens = typeof usage.cache_creation_input_tokens === 'number' ? usage.cache_creation_input_tokens : 0
-      const webSearchRequests = typeof usage.server_tool_use?.web_search_requests === 'number'
-        ? usage.server_tool_use.web_search_requests
-        : 0
-
-      if (
-        inputTokens === 0 &&
-        outputTokens === 0 &&
-        cacheReadInputTokens === 0 &&
-        cacheCreationInputTokens === 0 &&
-        webSearchRequests === 0
-      ) {
-        continue
-      }
+    for (const record of records) {
+      const { model, usage, webSearchRequests } = record
+      const inputTokens = usage.input_tokens
+      const outputTokens = usage.output_tokens
+      const cacheReadInputTokens = usage.cache_read_input_tokens
+      const cacheCreationInputTokens = usage.cache_creation_input_tokens
 
       const canonical = getCanonicalName(model)
       if (!Object.prototype.hasOwnProperty.call(MODEL_COSTS, canonical)) {
@@ -1289,7 +1399,7 @@ export class SessionService {
         cache_read_input_tokens: cacheReadInputTokens,
         cache_creation_input_tokens: cacheCreationInputTokens,
         server_tool_use: { web_search_requests: webSearchRequests },
-        speed: usage.speed,
+        speed: record.speed,
       } as Parameters<typeof calculateUSDCost>[1]
       let costUSD = 0
       try {
@@ -1336,8 +1446,8 @@ export class SessionService {
       totalCacheCreationInputTokens += cacheCreationInputTokens
       totalWebSearchRequests += webSearchRequests
 
-      if (entry.timestamp) {
-        const time = Date.parse(entry.timestamp)
+      if (record.timestamp) {
+        const time = Date.parse(record.timestamp)
         if (!Number.isNaN(time)) {
           firstUsageAt = firstUsageAt === null ? time : Math.min(firstUsageAt, time)
           lastUsageAt = lastUsageAt === null ? time : Math.max(lastUsageAt, time)

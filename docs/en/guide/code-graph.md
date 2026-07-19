@@ -35,8 +35,9 @@ Enabling Code Graph from Knowledge Space turns on its global switch. Projects op
 For eligible coding requests, CyberCode runs a lightweight preflight before broad file reads:
 
 - It searches for prompt-related symbols and expands through call, reference, and containment relationships.
-- It ranks the matching neighborhood and creates a compact context capped at about 1,800 tokens.
-- It supplies that context before broad file scans and exposes graph query tools to running sessions.
+- It ranks the matching neighborhood and creates a compact context capped at about 640 tokens; architecture summaries and search-result mappings are capped at about 320 tokens.
+- It supplies that context before broad file scans and exposes a native `CodeGraph` tool alongside Grep for symbol search, implementation exploration, impact analysis, architecture summaries, and readiness checks.
+- When Grep or shell rg/grep finds matches across multiple source files, CyberCode maps those hits to owning symbols and impact relationships before appending a small graph context.
 - Casual conversation, very short input, and command-only requests do not trigger graph context.
 
 After the initial index, a background watcher follows project changes. New files in a previously empty project are picked up automatically. Use **Rebuild Index** after a large generated change or rename when you need an immediate refresh.

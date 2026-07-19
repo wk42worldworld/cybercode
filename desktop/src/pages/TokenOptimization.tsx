@@ -756,7 +756,7 @@ export function TokenOptimization({ initialView = 'overview' }: TokenOptimizatio
           active={codeGraphGlobalEnabled ?? false}
           status={!projectPath && codeGraphGlobalEnabled
             ? t('tokenOptimization.codeGraph.active')
-            : <StatusLabel state={status?.state ?? 'disabled'} />}
+            : <StatusLabel state={status?.state ?? 'disabled'} error={status?.error} />}
           estimate={(
             <SavingsEstimateLabel
               estimate={optimizerEstimates.codeGraph}
@@ -1093,7 +1093,7 @@ function SavingsEstimateLabel({
   )
 }
 
-function StatusLabel({ state }: { state: CodeGraphState }) {
+function StatusLabel({ state, error }: { state: CodeGraphState; error?: string | null }) {
   const t = useTranslation()
   const tone = state === 'ready'
     ? 'text-[var(--color-success)]'
@@ -1103,7 +1103,10 @@ function StatusLabel({ state }: { state: CodeGraphState }) {
       ? 'text-[var(--color-error)]'
       : 'text-[var(--color-text-tertiary)]'
   return (
-    <span className={`shrink-0 whitespace-nowrap text-[11px] font-semibold ${tone}`}>
+    <span
+      className={`shrink-0 whitespace-nowrap text-[11px] font-semibold ${tone}`}
+      title={state === 'error' && error ? error : undefined}
+    >
       {t(`tokenOptimization.state.${state}`)}
     </span>
   )

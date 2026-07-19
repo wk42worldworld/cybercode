@@ -40,6 +40,7 @@ const bundledGrammars = [
 
 await patchSqliteAdapter()
 await patchCheckpointWorkers()
+await patchSchemaResolver()
 await patchParsePool()
 await patchGrammarResolver()
 await prepareRuntimeModule()
@@ -111,6 +112,22 @@ async function patchCheckpointWorkers() {
   if (!source.includes("require('bun:sqlite')")) {
     throw new Error(`[prepare-codegraph] Unable to patch WAL checkpoint workers: ${filePath}`)
   }
+}
+
+async function patchSchemaResolver() {
+  const filePath = path.join(libraryRoot, 'dist', 'db', 'index.js')
+  let source = await readFile(filePath, 'utf8')
+  if (source.includes("process.env.CYBER_CODEGRAPH_ASSET_DIR || __dirname, 'schema.sql'")) {
+    return
+  }
+
+  source = replaceRequired(
+    source,
+    "const schemaPath = path.join(__dirname, 'schema.sql');",
+    "const schemaPath = path.join(process.env.CYBER_CODEGRAPH_ASSET_DIR || __dirname, 'schema.sql');",
+    filePath,
+  )
+  await writeFile(filePath, source)
 }
 
 async function patchParsePool() {
@@ -230,10 +247,17 @@ export {
 async function prepareGrammarResources() {
   await mkdir(resourceDir, { recursive: true })
   for (const entry of await readdir(resourceDir)) {
-    if (entry.endsWith('.wasm') || entry === 'manifest.json') {
+    if (entry.endsWith('.wasm') || entry === 'schema.sql' || entry === 'manifest.json') {
       await rm(path.join(resourceDir, entry), { force: true })
     }
   }
+
+  const schemaDestination = path.join(resourceDir, 'schema.sql')
+  await copyFile(
+    path.join(libraryRoot, 'dist', 'db', 'schema.sql'),
+    schemaDestination,
+  )
+  const schemaBytes = await readFile(schemaDestination)
 
   await copyFile(
     path.join(libraryRoot, 'node_modules', 'web-tree-sitter', 'tree-sitter.wasm'),
@@ -259,6 +283,10 @@ async function prepareGrammarResources() {
       {
         codeGraphVersion: CODEGRAPH_VERSION,
         targetTriple,
+        schema: {
+          name: 'schema.sql',
+          sha256: createHash('sha256').update(schemaBytes).digest('hex'),
+        },
         grammars: assets,
       },
       null,

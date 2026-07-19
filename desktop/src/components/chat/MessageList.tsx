@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, memo, useState, useCallback, forwardRef, type CSSProperties } from 'react'
+import { useRef, useEffect, useLayoutEffect, useMemo, memo, useState, useCallback, forwardRef, type CSSProperties } from 'react'
 import { Virtuoso, type ListProps, type ScrollerProps, type VirtuosoHandle } from 'react-virtuoso'
 import { ApiError } from '../../api/client'
 import { sessionsApi, type SessionRewindResponse } from '../../api/sessions'
@@ -183,13 +183,49 @@ type MessageListProps = {
   __testInitialItemCount?: number
 }
 
+export function syncChatScrollbarGutter(scroller: HTMLElement) {
+  const chatLayout = scroller.closest<HTMLElement>('[data-chat-layout]')
+  if (!chatLayout) return
+
+  const gutter = Math.max(0, scroller.offsetWidth - scroller.clientWidth)
+  chatLayout.style.setProperty('--chat-message-scrollbar-gutter', `${gutter}px`)
+}
+
 const MessageScroller = forwardRef<HTMLDivElement, ScrollerProps>(function MessageScroller({ style, ...props }, ref) {
   const safeStyle = sanitizeScrollerStyle(style)
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const setScrollerRef = useCallback((node: HTMLDivElement | null) => {
+    scrollerRef.current = node
+    if (typeof ref === 'function') {
+      ref(node)
+    } else if (ref) {
+      ref.current = node
+    }
+  }, [ref])
+
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current
+    if (!scroller) return
+
+    const syncGutter = () => syncChatScrollbarGutter(scroller)
+    syncGutter()
+    window.addEventListener('resize', syncGutter)
+
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(syncGutter)
+    resizeObserver?.observe(scroller)
+
+    return () => {
+      window.removeEventListener('resize', syncGutter)
+      resizeObserver?.disconnect()
+    }
+  }, [])
 
   return (
     <div
       {...props}
-      ref={ref}
+      ref={setScrollerRef}
       className="message-scrollbar scrollbar-no-track"
       style={{
         ...safeStyle,

@@ -1050,7 +1050,7 @@ describe('ProviderService', () => {
   })
 
   describe('testProviderConfig', () => {
-    test('should test local providers without forcing the user to enter an API key', async () => {
+    test('should test local providers without forcing an API key or probing image support', async () => {
       const svc = new ProviderService()
       const provider = await svc.addProvider(sampleInput({
         presetId: 'ollama',
@@ -1084,9 +1084,9 @@ describe('ProviderService', () => {
       try {
         const result = await svc.testProvider(provider.id)
         expect(result.connectivity.success).toBe(true)
-        expect(result.imageCapability?.status).toBe('unsupported')
+        expect(result.imageCapability).toBeUndefined()
         expect(urls).toContain('http://localhost:11434/v1/messages')
-        expect(urls).toContain('http://localhost:11434/api/show')
+        expect(urls).not.toContain('http://localhost:11434/api/show')
       } finally {
         globalThis.fetch = originalFetch
       }

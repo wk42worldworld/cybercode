@@ -1,6 +1,8 @@
 import type { TranslationKey } from './en'
 
 export const ko = {
+  'settings.providers.connectivityOk': '연결 성공 ({latency}ms)',
+  'settings.providers.connectivityFailed': '연결 실패: {error}',
   'settings.providers.discoverModels': '모델 찾기',
   'settings.providers.modelsDiscovered': '{count}개 모델을 찾았습니다',
   'settings.providers.modelDiscoveryFailed': '모델 찾기 실패: {error}',

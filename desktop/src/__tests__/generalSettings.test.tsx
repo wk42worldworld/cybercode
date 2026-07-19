@@ -239,6 +239,56 @@ describe('Settings > Providers tab', () => {
     expect(MOCK_DELETE_PROVIDER).toHaveBeenCalledWith('provider-1')
   })
 
+  it('shows a single connection result on configured provider cards', async () => {
+    providerStoreState.presets = [
+      {
+        id: 'custom',
+        name: 'Custom',
+        baseUrl: '',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: '',
+          haiku: '',
+          sonnet: '',
+          opus: '',
+        },
+        needsApiKey: true,
+        websiteUrl: '',
+      },
+    ]
+    providerStoreState.testProvider = vi.fn().mockResolvedValue({
+      connectivity: {
+        success: true,
+        latencyMs: 22,
+        modelUsed: 'MiniMax-M2.7-highspeed',
+      },
+      modelChecks: [
+        {
+          roles: ['main'],
+          requestedModel: 'MiniMax-M2.7-highspeed',
+          result: {
+            success: true,
+            latencyMs: 22,
+            modelUsed: 'MiniMax-M2.7-highspeed',
+          },
+        },
+      ],
+      imageCapability: {
+        modelId: 'MiniMax-M2.7-highspeed',
+        status: 'unsupported',
+        source: 'probe',
+      },
+      allModelsPassed: true,
+    })
+
+    render(<ProviderSettings />)
+    fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+
+    expect(await screen.findByText('Connection successful (22ms)')).toBeInTheDocument()
+    expect(screen.queryByText(/Connection successful \(22ms\).*MiniMax/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Image input · MiniMax/)).not.toBeInTheDocument()
+  })
+
   it('uses the shared dropdown for API format in the provider form', () => {
     providerStoreState.presets = [
       {
@@ -272,6 +322,60 @@ describe('Settings > Providers tab', () => {
 
     expect(within(dialog).getByRole('button', { name: /OpenAI Responses API \(proxy\)/i })).toBeInTheDocument()
     expect(within(dialog).getByText('Requests will be translated via the local proxy')).toBeInTheDocument()
+  })
+
+  it('shows only the connection result and does not request an image capability probe', async () => {
+    providerStoreState.providers = []
+    providerStoreState.presets = [
+      {
+        id: 'custom',
+        name: 'Custom',
+        baseUrl: 'https://api.example.com/anthropic',
+        apiFormat: 'anthropic',
+        defaultModels: {
+          main: 'custom-main',
+          haiku: '',
+          sonnet: '',
+          opus: '',
+        },
+        needsApiKey: true,
+        websiteUrl: '',
+      },
+    ]
+    providerStoreState.testConfig = vi.fn().mockResolvedValue({
+      connectivity: { success: true, latencyMs: 18, modelUsed: 'custom-main' },
+      modelChecks: [
+        {
+          roles: ['main'],
+          requestedModel: 'custom-main',
+          result: { success: true, latencyMs: 18, modelUsed: 'custom-main' },
+        },
+      ],
+      proxy: { success: true, latencyMs: 4 },
+      imageCapability: {
+        modelId: 'custom-main',
+        status: 'supported',
+        source: 'probe',
+      },
+      allModelsPassed: true,
+    })
+
+    render(<ProviderSettings />)
+    fireEvent.click(screen.getByRole('button', { name: /Configure/i }))
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText('sk-...'), {
+      target: { value: 'sk-test' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Test Connection' }))
+
+    expect(await within(dialog).findByText('Connection successful (18ms)')).toBeInTheDocument()
+    expect(providerStoreState.testConfig).toHaveBeenCalledWith(expect.objectContaining({
+      probeImages: false,
+    }))
+    expect(within(dialog).queryByText('Main Model: custom-main -> custom-main (18ms)')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('② Proxy pipeline (4ms)')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('Image input · custom-main: supported')).not.toBeInTheDocument()
   })
 
   it('opens a provider-specific form with base URL and main model prefilled', () => {

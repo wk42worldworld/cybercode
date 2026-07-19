@@ -675,6 +675,7 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
     const rebuildButton = await screen.findByRole('button', { name: '重建索引' })
     await waitFor(() => expect(rebuildButton).toBeEnabled())
+    expect(screen.getByText('出错')).toHaveAttribute('title', 'Incomplete index')
     fireEvent.click(rebuildButton)
 
     await waitFor(() => {

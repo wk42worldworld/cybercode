@@ -32,6 +32,7 @@ import type {
 } from '../services/mcp/types.js'
 import { GLOB_TOOL_NAME } from 'src/tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from 'src/tools/GrepTool/prompt.js'
+import { CODEGRAPH_TOOL_NAME } from 'src/tools/CodeGraphTool/constants.js'
 import { hasEmbeddedSearchTools } from 'src/utils/embeddedTools.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'
 import {
@@ -299,6 +300,11 @@ function getUsingYourToolsSection(enabledTools: Set<string>): string {
   const embedded = hasEmbeddedSearchTools()
 
   const providedToolSubitems = [
+    ...(enabledTools.has(CODEGRAPH_TOOL_NAME)
+      ? [
+          `Use ${CODEGRAPH_TOOL_NAME} before broad scans for symbols, architecture, dependencies, or change impact. For exact text, config, CSS, Markdown, and error strings, use ${GREP_TOOL_NAME} first and then ${CODEGRAPH_TOOL_NAME} on the owning symbol before broad reads.`,
+        ]
+      : []),
     `To read files use ${FILE_READ_TOOL_NAME} instead of cat, head, tail, or sed`,
     `To edit files use ${FILE_EDIT_TOOL_NAME} instead of sed or awk`,
     `To create files use ${FILE_WRITE_TOOL_NAME} instead of cat with heredoc or echo redirection`,

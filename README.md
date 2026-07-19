@@ -91,7 +91,7 @@ The panel reports which layers are active and presents a combined estimated savi
 
 ### It maps code and organizes local knowledge
 
-The local Code Graph indexes files, symbols, references, calls, and containment relationships. For structural coding requests, CyberCode automatically selects a compact, graph-ranked preflight before broad file reads and exposes deeper graph tools to the running agent. This helps with unfamiliar repositories, implementation discovery, impact analysis, and cross-file refactoring without flooding the model with entire files.
+The local Code Graph indexes files, symbols, references, calls, and containment relationships. For structural coding requests, CyberCode automatically selects a compact, graph-ranked preflight before broad file reads and exposes a native `CodeGraph` tool alongside Grep. Multi-file text-search hits are mapped back to owning symbols and impact relationships, helping with unfamiliar repositories, implementation discovery, impact analysis, and cross-file refactoring without flooding the model with entire files.
 
 Click the graph icon in the desktop rail to open **Knowledge Space** directly. Its Graph view supports symbol search, architecture and file layouts, node inspection, panning, zooming, and index rebuilds. The Files and Search views can also index local files or folders as user-managed knowledge sources, with drag-and-drop, full-text search, and metadata-only handling for binary files. Removing a source removes only CyberCode's derived index, never the original file.
 

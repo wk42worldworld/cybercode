@@ -257,7 +257,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <section data-chat-layout className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* MessageList is ALWAYS mounted — never conditionally unmounted.
               Unmounting + remounting it causes a burst of 500+ DOM nodes which
               crashes the WKWebView GPU compositor (white screen).
@@ -295,14 +295,15 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
           {composerHeight > 0 && (
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 left-0 right-[12px] z-10 bg-[var(--color-chat-bg)]"
+              className="pointer-events-none absolute bottom-0 left-0 right-[var(--chat-message-scrollbar-gutter)] z-10 bg-[var(--color-chat-bg)]"
               style={{ height: Math.ceil(composerHeight / 2) }}
             />
           )}
 
           <div
             ref={bottomOverlayRef}
-            className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 flex flex-col"
+            data-testid="chat-bottom-overlay"
+            className="pointer-events-none absolute bottom-0 left-0 right-[var(--chat-message-scrollbar-gutter)] z-20 flex flex-col"
           >
             <div className="pointer-events-auto">
               {!isMemberSession && (

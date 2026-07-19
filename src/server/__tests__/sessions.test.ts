@@ -1509,6 +1509,162 @@ describe('Sessions API', () => {
     })
   })
 
+  it('GET /api/sessions/:id/usage should aggregate every model request in the latest user turn', async () => {
+    const sessionId = 'cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa'
+    const firstTurnAssistant = makeAssistantEntry('First turn response')
+    ;(firstTurnAssistant.message as Record<string, unknown>).usage = {
+      input_tokens: 100,
+      output_tokens: 10,
+      cache_read_input_tokens: 50,
+      cache_creation_input_tokens: 5,
+    }
+    const secondTurnToolCall = makeAssistantEntry('Reading files')
+    ;(secondTurnToolCall.message as Record<string, unknown>).usage = {
+      input_tokens: 200,
+      output_tokens: 20,
+      cache_read_input_tokens: 100,
+      cache_creation_input_tokens: 10,
+    }
+    const secondTurnFinalPartial = makeAssistantEntry('Finishing')
+    const secondTurnFinal = makeAssistantEntry('Finished')
+    const finalMessageId = (secondTurnFinal.message as Record<string, unknown>).id
+    ;(secondTurnFinalPartial.message as Record<string, unknown>).id = finalMessageId
+    ;(secondTurnFinalPartial.message as Record<string, unknown>).stop_reason = null
+    ;(secondTurnFinalPartial.message as Record<string, unknown>).usage = {
+      input_tokens: 300,
+      output_tokens: 0,
+      cache_read_input_tokens: 150,
+      cache_creation_input_tokens: 15,
+    }
+    ;(secondTurnFinal.message as Record<string, unknown>).stop_reason = 'end_turn'
+    ;(secondTurnFinal.message as Record<string, unknown>).usage = {
+      input_tokens: 300,
+      output_tokens: 30,
+      cache_read_input_tokens: 150,
+      cache_creation_input_tokens: 15,
+    }
+
+    await writeSessionFile('-tmp-api-turn-usage', sessionId, [
+      makeSessionMetaEntry('/tmp/api-turn-usage'),
+      makeUserEntry('First request'),
+      firstTurnAssistant,
+      makeUserEntry('Second request'),
+      secondTurnToolCall,
+      {
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [
+            { type: 'tool_result', tool_use_id: 'tool-1', content: 'ok' },
+            { type: 'text', text: '<system-reminder>Continue</system-reminder>' },
+          ],
+        },
+        uuid: crypto.randomUUID(),
+        timestamp: '2026-01-01T00:02:00.000Z',
+      },
+      makeMetaUserEntry(),
+      {
+        type: 'user',
+        isSidechain: true,
+        message: { role: 'user', content: 'Subagent follow-up' },
+        uuid: crypto.randomUUID(),
+        timestamp: '2026-01-01T00:02:00.000Z',
+      },
+      secondTurnFinalPartial,
+      secondTurnFinal,
+    ])
+
+    const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/usage`)
+    expect(res.status).toBe(200)
+
+    const body = (await res.json()) as {
+      usage: {
+        totalInputTokens: number
+        totalOutputTokens: number
+        totalCacheReadInputTokens: number
+        totalCacheCreationInputTokens: number
+      }
+      context: {
+        usedTokens: number
+        latestTurn: {
+          inputTokens: number
+          outputTokens: number
+          cacheReadInputTokens: number
+          cacheCreationInputTokens: number
+        }
+      }
+    }
+    expect(body.usage).toMatchObject({
+      totalInputTokens: 600,
+      totalOutputTokens: 60,
+      totalCacheReadInputTokens: 300,
+      totalCacheCreationInputTokens: 30,
+    })
+    expect(body.context.usedTokens).toBe(465)
+    expect(body.context.latestTurn).toEqual({
+      inputTokens: 500,
+      outputTokens: 50,
+      cacheReadInputTokens: 250,
+      cacheCreationInputTokens: 25,
+    })
+  })
+
+  it('GET /api/sessions/:id/usage should start a new turn for attachment-only user input', async () => {
+    const sessionId = 'dddddddd-eeee-ffff-aaaa-bbbbbbbbbbbb'
+    const firstTurnAssistant = makeAssistantEntry('First turn')
+    const secondTurnAssistant = makeAssistantEntry('Attachment turn')
+    const sharedProviderMessageId = 'provider-message-id-reused-across-turns'
+    ;(firstTurnAssistant.message as Record<string, unknown>).id = sharedProviderMessageId
+    ;(firstTurnAssistant.message as Record<string, unknown>).usage = {
+      input_tokens: 100,
+      output_tokens: 10,
+    }
+    ;(secondTurnAssistant.message as Record<string, unknown>).id = sharedProviderMessageId
+    ;(secondTurnAssistant.message as Record<string, unknown>).usage = {
+      input_tokens: 200,
+      output_tokens: 20,
+    }
+
+    await writeSessionFile('-tmp-api-attachment-turn-usage', sessionId, [
+      makeSessionMetaEntry('/tmp/api-attachment-turn-usage'),
+      makeUserEntry('First request'),
+      firstTurnAssistant,
+      {
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [{ type: 'image', source: { type: 'base64', data: 'abc' } }],
+        },
+        uuid: crypto.randomUUID(),
+        timestamp: '2026-01-01T00:03:00.000Z',
+      },
+      secondTurnAssistant,
+    ])
+
+    const res = await fetch(`${baseUrl}/api/sessions/${sessionId}/usage`)
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      usage: { totalInputTokens: number; totalOutputTokens: number }
+      context: {
+        latestTurn: {
+          inputTokens: number
+          outputTokens: number
+          cacheReadInputTokens: number
+          cacheCreationInputTokens: number
+        }
+      }
+    }
+
+    expect(body.usage.totalInputTokens).toBe(300)
+    expect(body.usage.totalOutputTokens).toBe(30)
+    expect(body.context.latestTurn).toEqual({
+      inputTokens: 200,
+      outputTokens: 20,
+      cacheReadInputTokens: 0,
+      cacheCreationInputTokens: 0,
+    })
+  })
+
   it('DELETE /api/sessions/:id should delete the session', async () => {
     const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
     await writeSessionFile('-tmp-api-test', sessionId, [makeSnapshotEntry()])

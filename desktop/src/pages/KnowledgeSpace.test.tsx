@@ -164,6 +164,19 @@ describe('KnowledgeSpace', () => {
     await waitFor(() => expect(tokenOptimizationApi.enable).toHaveBeenCalledWith(projectPath))
   })
 
+  it('refreshes an errored graph until the recovered index is ready', async () => {
+    vi.mocked(tokenOptimizationApi.status)
+      .mockResolvedValueOnce(graphStatus({ state: 'error', error: 'Missing schema' }))
+      .mockResolvedValue(graphStatus())
+
+    render(<KnowledgeSpace />)
+
+    expect(await screen.findByText('Missing schema')).toBeInTheDocument()
+    expect(await screen.findByTestId('code-graph-visualization', {}, { timeout: 3_000 }))
+      .toHaveTextContent('1')
+    expect(tokenOptimizationApi.status).toHaveBeenCalledTimes(2)
+  })
+
   it('filters full-text search to the selected source', async () => {
     vi.mocked(knowledgeApi.search).mockResolvedValue([{
       chunkId: 1,

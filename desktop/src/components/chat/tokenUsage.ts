@@ -77,13 +77,10 @@ export function resolveTokenUsageValues({
       }
     : null
   const persistedTurnTotal = persistedTurnUsage ? getTurnTokenTotal(persistedTurnUsage) : 0
-  const effectiveTurnUsage = liveTurnTotal > 0 || !persistedTurnUsage
-    ? liveTurnUsage
-    : persistedTurnUsage
   const includesUnpersistedTurn = isTurnActive || usageRevision > loadedRevision
-  const turnTotal = includesUnpersistedTurn || liveTurnTotal > 0
-    ? liveTurnTotal
-    : persistedTurnTotal
+  const shouldUseLiveTurn = includesUnpersistedTurn || !persistedTurnUsage
+  const effectiveTurnUsage = shouldUseLiveTurn ? liveTurnUsage : persistedTurnUsage
+  const turnTotal = shouldUseLiveTurn ? liveTurnTotal : persistedTurnTotal
   const sessionTotal = getSessionTokenTotal(persistedUsage) + (includesUnpersistedTurn ? turnTotal : 0)
   const liveContextTokens = getContextTokenTotal(liveTurnUsage)
   const contextTokens = includesUnpersistedTurn && liveContextTokens > 0

@@ -11,6 +11,7 @@ import {
   getContextTokenTotal,
   getTurnInputTokenTotal,
   getTurnTokenTotal,
+  resolveTokenUsageValues,
 } from './tokenUsage'
 import { clearSessionUsageCache } from './sessionUsageCache'
 
@@ -279,5 +280,57 @@ describe('TokenUsageIndicator', () => {
     expect(calculateContextUsagePercent(40_000, 200_000)).toBe(20)
     expect(calculateContextUsagePercent(220_000, 200_000)).toBe(100)
     expect(calculateContextUsagePercent(100, 0)).toBeNull()
+  })
+
+  it('uses the transcript turn aggregate after the matching usage revision loads', () => {
+    const values = resolveTokenUsageValues({
+      liveTurnUsage: {
+        input_tokens: 300,
+        output_tokens: 30,
+        cache_read_input_tokens: 150,
+        cache_creation_input_tokens: 15,
+      },
+      persistedUsage: {
+        source: 'transcript',
+        totalCostUSD: 0,
+        costDisplay: '$0.0000',
+        hasUnknownModelCost: false,
+        totalAPIDuration: 0,
+        totalDuration: 0,
+        totalLinesAdded: 0,
+        totalLinesRemoved: 0,
+        totalInputTokens: 600,
+        totalOutputTokens: 60,
+        totalCacheReadInputTokens: 300,
+        totalCacheCreationInputTokens: 30,
+        totalWebSearchRequests: 0,
+        models: [],
+      },
+      persistedContext: {
+        model: 'test-model',
+        usedTokens: 465,
+        contextWindow: 200_000,
+        percentage: 0,
+        latestTurn: {
+          inputTokens: 500,
+          outputTokens: 50,
+          cacheReadInputTokens: 250,
+          cacheCreationInputTokens: 25,
+        },
+      },
+      isTurnActive: false,
+      usageRevision: 2,
+      loadedRevision: 2,
+    })
+
+    expect(values.turnTotal).toBe(825)
+    expect(values.sessionTotal).toBe(990)
+    expect(values.contextTokens).toBe(465)
+    expect(values.effectiveTurnUsage).toEqual({
+      input_tokens: 500,
+      output_tokens: 50,
+      cache_read_input_tokens: 250,
+      cache_creation_input_tokens: 25,
+    })
   })
 })

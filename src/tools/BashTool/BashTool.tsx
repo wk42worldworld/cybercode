@@ -6,7 +6,9 @@ import type { CanUseToolFn } from 'src/hooks/useCanUseTool.js';
 import type { AppState } from 'src/state/AppState.js';
 import { z } from 'zod/v4';
 import { getKairosActive } from '../../bootstrap/state.js';
+import { getCwd } from '../../utils/cwd.js';
 import { rtkOptimizationService } from '../../services/rtkOptimization.js';
+import { buildCodeGraphFileContext, extractCodeGraphFileMatches, isBroadTextSearchCommand } from '../../services/codeGraphPreflight.js';
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js';
@@ -291,6 +293,7 @@ const outputSchema = lazySchema(() => z.object({
   returnCodeInterpretation: z.string().optional().describe('Semantic interpretation for non-error exit codes with special meaning'),
   noOutputExpected: z.boolean().optional().describe('Whether the command is expected to produce no output on success'),
   structuredContent: z.array(z.any()).optional().describe('Structured content blocks'),
+  graphContext: z.string().optional().describe('Compact code graph impact for broad grep results'),
   persistedOutputPath: z.string().optional().describe('Path to the persisted full output in tool-results dir (set when output is too large for inline)'),
   persistedOutputSize: z.number().optional().describe('Total size of the output in bytes (set when output is too large for inline)')
 }));
@@ -566,6 +569,7 @@ export const BashTool = buildTool({
     backgroundedByUser,
     assistantAutoBackgrounded,
     structuredContent,
+    graphContext,
     persistedOutputPath,
     persistedOutputSize
   }, toolUseID): ToolResultBlockParam {
@@ -619,10 +623,13 @@ export const BashTool = buildTool({
         backgroundInfo = `Command running in background with ID: ${backgroundTaskId}. Output is being written to: ${outputPath}`;
       }
     }
+    const baseContent = [processedStdout, errorMessage, backgroundInfo].filter(Boolean).join('\n');
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: [processedStdout, errorMessage, backgroundInfo].filter(Boolean).join('\n'),
+      content: graphContext
+        ? [baseContent, graphContext].filter(Boolean).join('\n\n')
+        : baseContent,
       is_error: interrupted
     };
   },
@@ -805,6 +812,14 @@ export const BashTool = buildTool({
         isImage = false;
       }
     }
+    let graphContext: string | undefined;
+    if (!isImage && isBroadTextSearchCommand(input.command)) {
+      const matches = extractCodeGraphFileMatches(getCwd(), compressedStdout);
+      const fileCount = new Set(matches.map(match => match.filePath.replace(/\\/g, '/').toLowerCase())).size;
+      if (fileCount >= 2) {
+        graphContext = buildCodeGraphFileContext(getCwd(), matches) ?? undefined;
+      }
+    }
     const data: Out = {
       stdout: compressedStdout,
       stderr: stderrForShellReset,
@@ -815,6 +830,7 @@ export const BashTool = buildTool({
       backgroundTaskId: result.backgroundTaskId,
       backgroundedByUser: result.backgroundedByUser,
       assistantAutoBackgrounded: result.assistantAutoBackgrounded,
+      graphContext,
       dangerouslyDisableSandbox: 'dangerouslyDisableSandbox' in input ? input.dangerouslyDisableSandbox as boolean | undefined : undefined,
       persistedOutputPath,
       persistedOutputSize

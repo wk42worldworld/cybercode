@@ -4,6 +4,9 @@
 node_modules
 .DS_Store
 
+# Per-project Code Graph indexes (generated locally)
+.codegraph/
+
 # Computer Use runtime (auto-generated)
 .runtime/
 extracted-natives/

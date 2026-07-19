@@ -1,2 +1,3 @@
 *.wasm
+schema.sql
 manifest.json

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -24,6 +24,8 @@ if (!executable) {
 }
 
 const temporaryHome = await mkdtemp(path.join(tmpdir(), 'cybercode-sidecar-smoke-'))
+const codeGraphAssetDir = path.join(desktopRoot, 'src-tauri', 'resources', 'codegraph')
+await smokeTestFreshCodeGraphIndex(executable, temporaryHome, codeGraphAssetDir)
 const port = await reserveLocalPort()
 const authToken = 'cybercode-release-smoke-test'
 const child = Bun.spawn(
@@ -100,7 +102,65 @@ if (!healthy) {
   )
 }
 
-console.log(`[sidecar-smoke] ${targetTriple} server reached /health successfully`)
+console.log(
+  `[sidecar-smoke] ${targetTriple} fresh Code Graph index and /health succeeded`,
+)
+
+async function smokeTestFreshCodeGraphIndex(
+  sidecarExecutable: string,
+  temporaryRoot: string,
+  assetDir: string,
+) {
+  const projectPath = path.join(temporaryRoot, 'fresh-codegraph-project')
+  await mkdir(projectPath, { recursive: true })
+  await writeFile(
+    path.join(projectPath, 'main.ts'),
+    'export function greet(name: string) { return `Hello, ${name}` }\n',
+  )
+
+  const child = Bun.spawn(
+    [sidecarExecutable, 'codegraph', 'index', '--project', projectPath, '--rebuild'],
+    {
+      cwd: projectPath,
+      env: {
+        ...process.env,
+        CYBER_CODEGRAPH_ASSET_DIR: assetDir,
+      },
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  )
+  const stdoutPromise = new Response(child.stdout).text()
+  const stderrPromise = new Response(child.stderr).text()
+  const timeout = setTimeout(() => child.kill(), 30_000)
+  const exitCode = await child.exited
+  clearTimeout(timeout)
+  const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise])
+  const completed = stdout
+    .split('\n')
+    .filter(Boolean)
+    .some((line) => {
+      try {
+        const event = JSON.parse(line) as { type?: string; success?: boolean }
+        return event.type === 'complete' && event.success === true
+      } catch {
+        return false
+      }
+    })
+
+  if (exitCode !== 0 || !completed || !existsSync(path.join(projectPath, '.codegraph', 'codegraph.db'))) {
+    await rm(temporaryRoot, { recursive: true, force: true })
+    throw new Error(
+      [
+        `[sidecar-smoke] Fresh Code Graph index failed (exit ${exitCode})`,
+        stdout.trim() ? `[stdout]\n${stdout.trim()}` : '',
+        stderr.trim() ? `[stderr]\n${stderr.trim()}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    )
+  }
+}
 
 async function reserveLocalPort(): Promise<number> {
   return new Promise((resolve, reject) => {

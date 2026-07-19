@@ -62,6 +62,8 @@ import { TodoWriteTool } from './tools/TodoWriteTool/TodoWriteTool.js'
 import { ExitPlanModeV2Tool } from './tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import { TestingPermissionTool } from './tools/testing/TestingPermissionTool.js'
 import { GrepTool } from './tools/GrepTool/GrepTool.js'
+import { CodeGraphTool } from './tools/CodeGraphTool/CodeGraphTool.js'
+import { CODEGRAPH_MCP_SERVER_NAME } from './tools/CodeGraphTool/constants.js'
 import { TungstenTool } from './tools/TungstenTool/TungstenTool.js'
 // Lazy require to break circular dependency: tools.ts -> TeamCreateTool/TeamDeleteTool -> ... -> tools.ts
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -204,6 +206,7 @@ export function getAllBaseTools(): Tools {
     // trick as ripgrep). When available, find/grep in Claude's shell are aliased
     // to these fast tools, so the dedicated Glob/Grep tools are unnecessary.
     ...(hasEmbeddedSearchTools() ? [] : [GlobTool, GrepTool]),
+    CodeGraphTool,
     ExitPlanModeV2Tool,
     FileReadTool,
     FileEditTool,
@@ -278,7 +281,7 @@ export function filterToolsByDenyRules<
 }
 
 export const getTools = (permissionContext: ToolPermissionContext): Tools => {
-  // Simple mode: only Bash, Read, and Edit tools
+  // Simple mode: Bash/PowerShell, CodeGraph, Read, and Edit only.
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
     // --bare + REPL mode: REPL wraps Bash/Read/Edit/etc inside the VM, so
     // return REPL instead of the raw primitives. Matches the non-bare path
@@ -302,6 +305,7 @@ export const getTools = (permissionContext: ToolPermissionContext): Tools => {
     }
     const simpleTools: Tool[] = [
       ...simpleShellTools,
+      CodeGraphTool,
       FileReadTool,
       FileEditTool,
     ]
@@ -372,6 +376,7 @@ export function assembleToolPool(
 
   // Filter out MCP tools that are in the deny list
   const allowedMcpTools = filterToolsByDenyRules(mcpTools, permissionContext)
+    .filter(tool => tool.mcpInfo?.serverName !== CODEGRAPH_MCP_SERVER_NAME)
 
   // Sort each partition for prompt-cache stability, keeping built-ins as a
   // contiguous prefix. The server's claude_code_system_cache_policy places a
@@ -407,5 +412,8 @@ export function getMergedTools(
   mcpTools: Tools,
 ): Tools {
   const builtInTools = getTools(permissionContext)
-  return [...builtInTools, ...mcpTools]
+  return [
+    ...builtInTools,
+    ...mcpTools.filter(tool => tool.mcpInfo?.serverName !== CODEGRAPH_MCP_SERVER_NAME),
+  ]
 }

@@ -25,6 +25,7 @@ const TOOL_ICONS: Record<string, string> = {
   Edit: 'edit_note',
   Glob: 'search',
   Grep: 'find_in_page',
+  CodeGraph: 'account_tree',
   Agent: 'smart_toy',
   WebSearch: 'travel_explore',
   WebFetch: 'cloud_download',
@@ -282,6 +283,10 @@ function getToolSummary(toolName: string, obj: Record<string, unknown>, t?: (key
       return typeof obj.pattern === 'string' ? obj.pattern : ''
     case 'Grep':
       return typeof obj.pattern === 'string' ? obj.pattern : ''
+    case 'CodeGraph':
+      return typeof obj.query === 'string'
+        ? `${typeof obj.action === 'string' ? obj.action : 'search'} · ${obj.query}`
+        : (typeof obj.action === 'string' ? obj.action : 'status')
     case 'Agent':
       return typeof obj.description === 'string' ? obj.description : ''
     default:

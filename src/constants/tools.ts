@@ -10,6 +10,7 @@ import { FILE_READ_TOOL_NAME } from '../tools/FileReadTool/prompt.js'
 import { WEB_SEARCH_TOOL_NAME } from '../tools/WebSearchTool/prompt.js'
 import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
+import { CODEGRAPH_TOOL_NAME } from '../tools/CodeGraphTool/constants.js'
 import { WEB_FETCH_TOOL_NAME } from '../tools/WebFetchTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { SHELL_TOOL_NAMES } from '../utils/shell/shellToolUtils.js'
@@ -57,6 +58,7 @@ export const ASYNC_AGENT_ALLOWED_TOOLS = new Set([
   WEB_SEARCH_TOOL_NAME,
   TODO_WRITE_TOOL_NAME,
   GREP_TOOL_NAME,
+  CODEGRAPH_TOOL_NAME,
   WEB_FETCH_TOOL_NAME,
   GLOB_TOOL_NAME,
   ...SHELL_TOOL_NAMES,

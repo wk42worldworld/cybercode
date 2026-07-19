@@ -2,7 +2,7 @@
 
 ## 下载
 
-前往 [GitHub Releases](https://github.com/wk42worldworld/cybercode/releases) 下载对应平台的安装包：
+前往 [GitHub Releases 最新版](https://github.com/wk42worldworld/cybercode/releases/latest) 下载对应平台的安装包：
 
 | 平台 | 文件 |
 |------|------|

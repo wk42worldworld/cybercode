@@ -19,6 +19,11 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { getGlobExclusionsForPluginCache } from '../../utils/plugins/orphanedPluginFilter.js'
 import { ripGrep } from '../../utils/ripgrep.js'
+import {
+  buildCodeGraphFileContext,
+  extractCodeGraphFileMatches,
+  type CodeGraphFileMatch,
+} from '../../services/codeGraphPreflight.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -141,6 +146,19 @@ function formatLimitInfo(
   return parts.join(', ')
 }
 
+function graphContextForMatches(
+  searchRoot: string,
+  matches: ReadonlyArray<CodeGraphFileMatch>,
+) {
+  const fileCount = new Set(matches.map((match) => pathKey(match.filePath))).size
+  if (fileCount < 2) return undefined
+  return buildCodeGraphFileContext(searchRoot, matches) ?? undefined
+}
+
+function pathKey(filePath: string) {
+  return filePath.replace(/\\/g, '/').toLowerCase()
+}
+
 const outputSchema = lazySchema(() =>
   z.object({
     mode: z.enum(['content', 'files_with_matches', 'count']).optional(),
@@ -151,6 +169,7 @@ const outputSchema = lazySchema(() =>
     numMatches: z.number().optional(), // For count mode
     appliedLimit: z.number().optional(), // The limit that was applied (if any)
     appliedOffset: z.number().optional(), // The offset that was applied
+    graphContext: z.string().optional(), // Compact graph impact for broad matches
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -261,15 +280,17 @@ export const GrepTool = buildTool({
       numMatches,
       appliedLimit,
       appliedOffset,
+      graphContext,
     },
     toolUseID,
   ) {
     if (mode === 'content') {
       const limitInfo = formatLimitInfo(appliedLimit, appliedOffset)
       const resultContent = content || 'No matches found'
-      const finalContent = limitInfo
+      let finalContent = limitInfo
         ? `${resultContent}\n\n[Showing results with pagination = ${limitInfo}]`
         : resultContent
+      if (graphContext) finalContent += `\n\n${graphContext}`
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
@@ -286,7 +307,7 @@ export const GrepTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: rawContent + summary,
+        content: rawContent + summary + (graphContext ? `\n\n${graphContext}` : ''),
       }
     }
 
@@ -300,7 +321,8 @@ export const GrepTool = buildTool({
       }
     }
     // head_limit has already been applied in call() method, so just show all filenames
-    const result = `Found ${numFiles} ${plural(numFiles, 'file')}${limitInfo ? ` ${limitInfo}` : ''}\n${filenames.join('\n')}`
+    const result = `Found ${numFiles} ${plural(numFiles, 'file')}${limitInfo ? ` ${limitInfo}` : ''}\n${filenames.join('\n')}` +
+      (graphContext ? `\n\n${graphContext}` : '')
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
@@ -469,6 +491,10 @@ export const GrepTool = buildTool({
         filenames: [],
         content: finalLines.join('\n'),
         numLines: finalLines.length,
+        graphContext: graphContextForMatches(
+          absolutePath,
+          extractCodeGraphFileMatches(absolutePath, limitedResults.join('\n')),
+        ),
         ...(appliedLimit !== undefined && { appliedLimit }),
         ...(offset > 0 && { appliedOffset: offset }),
       }
@@ -517,6 +543,10 @@ export const GrepTool = buildTool({
         filenames: [],
         content: finalCountLines.join('\n'),
         numMatches: totalMatches,
+        graphContext: graphContextForMatches(
+          absolutePath,
+          extractCodeGraphFileMatches(absolutePath, limitedResults.join('\n')),
+        ),
         ...(appliedLimit !== undefined && { appliedLimit }),
         ...(offset > 0 && { appliedOffset: offset }),
       }
@@ -566,6 +596,10 @@ export const GrepTool = buildTool({
       mode: 'files_with_matches' as const,
       filenames: relativeMatches,
       numFiles: relativeMatches.length,
+      graphContext: graphContextForMatches(
+        absolutePath,
+        finalMatches.map((filePath) => ({ filePath })),
+      ),
       ...(appliedLimit !== undefined && { appliedLimit }),
       ...(offset > 0 && { appliedOffset: offset }),
     }

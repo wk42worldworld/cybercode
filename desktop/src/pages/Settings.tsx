@@ -402,9 +402,7 @@ function ProviderCatalogItem({
   children?: ReactNode
 }) {
   const t = useTranslation()
-  const testPassed =
-    test?.result?.connectivity.success === true &&
-    test.result.allModelsPassed !== false
+  const testSummary = test?.result ? summarizeProviderConnectionTest(test.result) : null
   return (
     <div
       className={`relative overflow-hidden rounded-[12px] border transition-all ${
@@ -438,14 +436,12 @@ function ProviderCatalogItem({
           <p className="mt-0.5 text-[11px] text-[var(--color-text-tertiary)] truncate">
             {detail}
           </p>
-          {test && !test.loading && test.result && (
-            <p className={`mt-1 text-[11px] ${testPassed ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-              {testPassed
-                ? `${t('settings.providers.connectivityOk', { latency: String(test.result.connectivity.latencyMs) })} · ${test.result.connectivity.modelUsed ?? ''}`
+          {test && !test.loading && testSummary && (
+            <p className={`mt-1 text-[11px] ${testSummary.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+              {testSummary.success
+                ? t('settings.providers.connectivityOk', { latency: String(testSummary.latencyMs) })
                 : t('settings.providers.connectivityFailed', {
-                    error: test.result.connectivity.error ||
-                      test.result.modelChecks?.find((check) => !check.result.success)?.result.error ||
-                      '',
+                    error: testSummary.error || t('settings.providers.requestFailed'),
                   })}
             </p>
           )}
@@ -458,6 +454,24 @@ function ProviderCatalogItem({
       {children}
     </div>
   )
+}
+
+function summarizeProviderConnectionTest(result: ProviderTestResult): {
+  success: boolean
+  latencyMs: number
+  error: string
+} {
+  const failedModel = result.modelChecks?.find((check) => !check.result.success)?.result
+  const failedProxy = result.proxy?.success === false ? result.proxy : undefined
+  const failure = !result.connectivity.success
+    ? result.connectivity
+    : failedModel ?? failedProxy
+
+  return {
+    success: !failure && result.allModelsPassed !== false,
+    latencyMs: result.connectivity.latencyMs,
+    error: failure?.error ?? '',
+  }
 }
 
 function ProviderBadge({
@@ -910,17 +924,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             : t('settings.providers.imageSupportAutoOff'),
         })
     : t('settings.providers.supportsImagesHint')
-  const testRoleLabels: Record<ModelRole, string> = {
-    main: t('settings.providers.mainModel'),
-    haiku: t('settings.providers.haikuModel'),
-    sonnet: t('settings.providers.sonnetModel'),
-    opus: t('settings.providers.opusModel'),
-  }
-  const imageCapabilityLabels = {
-    supported: t('settings.providers.imageCapability.supported'),
-    unsupported: t('settings.providers.imageCapability.unsupported'),
-    unknown: t('settings.providers.imageCapability.unknown'),
-  }
+  const connectionTestSummary = testResult
+    ? summarizeProviderConnectionTest(testResult)
+    : null
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -1015,7 +1021,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           modelId: resolvedModels.main,
           models: resolvedModels,
           presetId: selectedPreset.id,
-          probeImages: true,
+          probeImages: false,
           apiFormat,
         })
       }
@@ -1152,50 +1158,15 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
               {isTesting ? `${t('settings.providers.testConnection')}…` : t('settings.providers.testConnection')}
             </button>
           </div>
-          {testResult && (
-            <div className="flex flex-col gap-0.5 mt-1">
-              {(testResult.modelChecks ?? []).length > 0 ? (
-                testResult.modelChecks?.map((check) => (
-                  <span
-                    key={check.requestedModel}
-                    className={`text-[12px] ${check.result.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}
-                  >
-                    {check.result.success
-                      ? t('settings.providers.modelCheckOk', {
-                          roles: check.roles.map((role) => testRoleLabels[role]).join(' / '),
-                          requested: check.requestedModel,
-                          actual: check.result.modelUsed ?? check.requestedModel,
-                          latency: check.result.latencyMs,
-                        })
-                      : t('settings.providers.modelCheckFailed', {
-                          roles: check.roles.map((role) => testRoleLabels[role]).join(' / '),
-                          requested: check.requestedModel,
-                          error: check.result.error ?? '',
-                        })}
-                  </span>
-                ))
-              ) : (
-                <span className={`text-[12px] ${testResult.connectivity.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-                  {testResult.connectivity.success
-                    ? t('settings.providers.connectivityOk', { latency: String(testResult.connectivity.latencyMs) })
-                    : t('settings.providers.connectivityFailed', { error: testResult.connectivity.error || '' })}
-                </span>
-              )}
-              {testResult.proxy && (
-                <span className={`text-[12px] ${testResult.proxy.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-                  {testResult.proxy.success
-                    ? t('settings.providers.proxyOk', { latency: String(testResult.proxy.latencyMs) })
-                    : t('settings.providers.proxyFailed', { error: testResult.proxy.error || '' })}
-                </span>
-              )}
-              {testResult.imageCapability && (
-                <span className="text-[12px] text-[var(--color-text-secondary)]">
-                  {t('settings.providers.imageCapabilityResult', {
-                    model: testResult.imageCapability.modelId,
-                    state: imageCapabilityLabels[testResult.imageCapability.status],
-                  })}
-                </span>
-              )}
+          {connectionTestSummary && (
+            <div className="mt-1">
+              <span className={`text-[12px] ${connectionTestSummary.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
+                {connectionTestSummary.success
+                  ? t('settings.providers.connectivityOk', { latency: String(connectionTestSummary.latencyMs) })
+                  : t('settings.providers.connectivityFailed', {
+                      error: connectionTestSummary.error || t('settings.providers.requestFailed'),
+                    })}
+              </span>
             </div>
           )}
         </div>

@@ -1,8 +1,9 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { isAnalyticsDisabled } from './analytics/config.js'
-import { getOrCreateUserID } from '../utils/config.js'
+import { getGlobalClaudeFile } from '../utils/env.js'
+import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from '../utils/envUtils.js'
 
 const DEFAULT_ENDPOINT =
@@ -10,6 +11,8 @@ const DEFAULT_ENDPOINT =
 const REPORT_INTERVAL_MS = 6 * 60 * 60 * 1000
 const REQUEST_TIMEOUT_MS = 2500
 const STATE_VERSION = 1
+const STARTUP_RETRY_DELAYS_MS = [5_000, 30_000, 5 * 60_000] as const
+const INSTALLATION_ID_PATTERN = /^[a-f0-9]{64}$/
 
 export type CybercodeUsageSurface = 'cli' | 'desktop'
 export type CybercodeUsageReportResult = 'sent' | 'skipped' | 'failed'
@@ -29,6 +32,7 @@ type ReportOptions = {
   endpoint?: string
   fetchImpl?: FetchLike
   getUserId?: () => string
+  globalConfigPath?: string
   isDisabled?: () => boolean
   now?: () => Date
   version?: string
@@ -37,7 +41,18 @@ type ReportOptions = {
   timeoutMs?: number
 }
 
-const reporters = new Map<CybercodeUsageSurface, ReturnType<typeof setInterval>>()
+type ReporterOptions = ReportOptions & {
+  reportIntervalMs?: number
+  retryDelaysMs?: readonly number[]
+}
+
+type ReporterState = {
+  periodicTimer: ReturnType<typeof setInterval>
+  retryTimer?: ReturnType<typeof setTimeout>
+  inFlight: boolean
+}
+
+const reporters = new Map<CybercodeUsageSurface, ReporterState>()
 
 /**
  * Starts a best-effort reporter without delaying startup. The interval is
@@ -45,15 +60,34 @@ const reporters = new Map<CybercodeUsageSurface, ReturnType<typeof setInterval>>
  */
 export function startCybercodeUsageReporter(
   surface: CybercodeUsageSurface,
+  options: ReporterOptions = {},
 ): void {
-  if (isCybercodeUsageAnalyticsDisabled() || reporters.has(surface)) return
+  const disabled = options.isDisabled
+    ? options.isDisabled()
+    : isCybercodeUsageAnalyticsDisabled()
+  if (disabled || reporters.has(surface)) return
 
-  void reportCybercodeUsage(surface)
   const timer = setInterval(() => {
-    void reportCybercodeUsage(surface)
-  }, REPORT_INTERVAL_MS)
+    const state = reporters.get(surface)
+    if (!state) return
+    if (state.retryTimer) {
+      clearTimeout(state.retryTimer)
+      state.retryTimer = undefined
+    }
+    void runScheduledReport(surface, options, state, 0)
+  }, options.reportIntervalMs ?? REPORT_INTERVAL_MS)
   timer.unref?.()
-  reporters.set(surface, timer)
+  const state: ReporterState = { periodicTimer: timer, inFlight: false }
+  reporters.set(surface, state)
+  void runScheduledReport(surface, options, state, 0)
+}
+
+export function _resetCybercodeUsageReportersForTesting(): void {
+  for (const state of reporters.values()) {
+    clearInterval(state.periodicTimer)
+    if (state.retryTimer) clearTimeout(state.retryTimer)
+  }
+  reporters.clear()
 }
 
 /**
@@ -96,11 +130,8 @@ async function reportCybercodeUsageInternal(
   )
   if (!endpoint) return 'failed'
 
-  const userId = (options.getUserId ?? getOrCreateUserID)()
-  const installationId = createHash('sha256')
-    .update('cybercode-usage-v1\0')
-    .update(userId)
-    .digest('hex')
+  const installationId = await getOrCreateInstallationId(configDir, options)
+  if (!installationId) return 'failed'
   const payload = {
     schemaVersion: 1,
     installationId,
@@ -139,6 +170,39 @@ async function reportCybercodeUsageInternal(
   }
 }
 
+async function runScheduledReport(
+  surface: CybercodeUsageSurface,
+  options: ReporterOptions,
+  state: ReporterState,
+  retryIndex: number,
+): Promise<void> {
+  if (state.inFlight) return
+  state.inFlight = true
+  const result = await reportCybercodeUsage(surface, options)
+  state.inFlight = false
+
+  if (result === 'sent') {
+    logForDiagnosticsNoPII('info', 'cybercode_usage_report_sent', { surface })
+    return
+  }
+  if (result !== 'failed') return
+
+  const retryDelays = options.retryDelaysMs ?? STARTUP_RETRY_DELAYS_MS
+  const retryDelayMs = retryDelays[retryIndex]
+  logForDiagnosticsNoPII('warn', 'cybercode_usage_report_failed', {
+    surface,
+    retry_attempt: retryIndex,
+    retry_delay_ms: retryDelayMs ?? null,
+  })
+  if (retryDelayMs === undefined || !reporters.has(surface)) return
+
+  state.retryTimer = setTimeout(() => {
+    state.retryTimer = undefined
+    void runScheduledReport(surface, options, state, retryIndex + 1)
+  }, retryDelayMs)
+  state.retryTimer.unref?.()
+}
+
 export function isCybercodeUsageAnalyticsDisabled(): boolean {
   return (
     isAnalyticsDisabled() ||
@@ -174,6 +238,100 @@ function localDay(date: Date): string {
 
 function truncate(value: string, maxLength: number): string {
   return value.trim().slice(0, maxLength) || 'unknown'
+}
+
+async function getOrCreateInstallationId(
+  configDir: string,
+  options: ReportOptions,
+): Promise<string | null> {
+  const installationIdPath = path.join(
+    configDir,
+    'cybercode',
+    'installation-id',
+  )
+  const existing = await readInstallationId(installationIdPath)
+  if (existing) return existing
+
+  const legacyUserId = await readLegacyUserId(options)
+  const candidate = legacyUserId
+    ? hashLegacyUserId(legacyUserId)
+    : randomBytes(32).toString('hex')
+
+  try {
+    await fs.mkdir(path.dirname(installationIdPath), { recursive: true })
+    const temporaryPath = `${installationIdPath}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`
+    try {
+      await fs.writeFile(temporaryPath, `${candidate}\n`, {
+        encoding: 'utf8',
+        flag: 'wx',
+        mode: 0o600,
+      })
+      await fs.link(temporaryPath, installationIdPath)
+      return candidate
+    } catch (error) {
+      if (isAlreadyExistsError(error)) {
+        return await readInstallationId(installationIdPath)
+      }
+      throw error
+    } finally {
+      await fs.rm(temporaryPath, { force: true })
+    }
+  } catch {
+    // A migrated ID is deterministic even when the config directory is
+    // read-only. A newly generated ID must be persisted before it is sent,
+    // otherwise every launch could be counted as a different installation.
+    return legacyUserId ? candidate : null
+  }
+}
+
+async function readInstallationId(filePath: string): Promise<string | null> {
+  try {
+    const installationId = (await fs.readFile(filePath, 'utf8')).trim()
+    return INSTALLATION_ID_PATTERN.test(installationId)
+      ? installationId
+      : null
+  } catch {
+    return null
+  }
+}
+
+async function readLegacyUserId(options: ReportOptions): Promise<string | null> {
+  if (options.getUserId) {
+    try {
+      return normalizeLegacyUserId(options.getUserId())
+    } catch {
+      return null
+    }
+  }
+
+  try {
+    const configPath = options.globalConfigPath ?? getGlobalClaudeFile()
+    const parsed = JSON.parse(await fs.readFile(configPath, 'utf8')) as {
+      userID?: unknown
+    }
+    return normalizeLegacyUserId(parsed.userID)
+  } catch {
+    return null
+  }
+}
+
+function normalizeLegacyUserId(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function hashLegacyUserId(userId: string): string {
+  return createHash('sha256')
+    .update('cybercode-usage-v1\0')
+    .update(userId)
+    .digest('hex')
+}
+
+function isAlreadyExistsError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'EEXIST'
+  )
 }
 
 async function readState(filePath: string): Promise<UsageState> {

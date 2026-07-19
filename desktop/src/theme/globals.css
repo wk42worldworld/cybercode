@@ -306,6 +306,8 @@
   --sidebar-rail-width: 72px;
   --titlebar-height: 40px;
   --statusbar-height: 36px;
+  --chat-message-scrollbar-size: 10px;
+  --chat-message-scrollbar-gutter: var(--chat-message-scrollbar-size);
   --motion-sidebar-duration: 240ms;
   --motion-sidebar-easing: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-route-duration: 160ms;
@@ -1489,8 +1491,8 @@ button, input, textarea, select, a, [role="button"] {
 }
 
 .message-scrollbar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: var(--chat-message-scrollbar-size);
+  height: var(--chat-message-scrollbar-size);
   background: transparent;
 }
 

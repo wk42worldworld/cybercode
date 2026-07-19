@@ -27,6 +27,7 @@ const TOOL_VERBS: Record<string, (count: number, t: (key: TranslationKey, params
   Bash: (n, t) => n === 1 ? t('toolGroup.ranOne') : t('toolGroup.ranMany', { count: n }),
   Glob: (_n, t) => t('toolGroup.foundFiles'),
   Grep: (n, t) => n === 1 ? t('toolGroup.searchedOne') : t('toolGroup.searchedMany', { count: n }),
+  CodeGraph: (n, t) => n === 1 ? t('toolGroup.searchedOne') : t('toolGroup.searchedMany', { count: n }),
   Agent: (n, t) => n === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: n }),
   WebSearch: (_n, t) => t('toolGroup.searchedWeb'),
   WebFetch: (n, t) => n === 1 ? t('toolGroup.fetchedOne') : t('toolGroup.fetchedMany', { count: n }),
@@ -596,6 +597,8 @@ function formatRecentToolUseSummary(
       return `Glob · ${typeof input.pattern === 'string' ? input.pattern : ''}${suffix}`
     case 'Grep':
       return `Grep · ${typeof input.pattern === 'string' ? input.pattern : ''}${suffix}`
+    case 'CodeGraph':
+      return `CodeGraph · ${typeof input.query === 'string' ? input.query : input.action ?? 'status'}${suffix}`
     case 'Agent':
       return `Agent · ${typeof input.description === 'string' ? input.description : ''}${suffix}`
     default:

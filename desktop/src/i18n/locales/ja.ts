@@ -1,6 +1,8 @@
 import type { TranslationKey } from './en'
 
 export const ja = {
+  'settings.providers.connectivityOk': '接続に成功しました（{latency}ms）',
+  'settings.providers.connectivityFailed': '接続に失敗しました: {error}',
   'settings.providers.discoverModels': 'モデルを検出',
   'settings.providers.modelsDiscovered': '{count} 個のモデルを検出しました',
   'settings.providers.modelDiscoveryFailed': '検出に失敗しました: {error}',

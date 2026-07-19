@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MessageBlock, MessageList, buildRenderModel } from './MessageList'
+import { MessageBlock, MessageList, buildRenderModel, syncChatScrollbarGutter } from './MessageList'
 import { ApiError } from '../../api/client'
 import { sessionsApi } from '../../api/sessions'
 import { useChatStore } from '../../stores/chatStore'
@@ -50,6 +50,19 @@ describe('MessageList nested tool calls', () => {
     useSessionRuntimeStore.setState({ selections: {} })
     useSessionStore.setState({ sessions: [], isLoading: false, error: null })
     useUIStore.setState({ toasts: [] })
+  })
+
+  it('aligns the chat layout to the measured scrollbar gutter', () => {
+    const layout = document.createElement('section')
+    const scroller = document.createElement('div')
+    layout.dataset.chatLayout = ''
+    layout.appendChild(scroller)
+    Object.defineProperty(scroller, 'offsetWidth', { configurable: true, value: 876 })
+    Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 861 })
+
+    syncChatScrollbarGutter(scroller)
+
+    expect(layout.style.getPropertyValue('--chat-message-scrollbar-gutter')).toBe('15px')
   })
 
   it('describes history failures as local reads without implying internet access', () => {

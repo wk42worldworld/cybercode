@@ -198,8 +198,8 @@ export function KnowledgeSpace() {
   }, [loadGraphStatus, projectPath])
 
   useEffect(() => {
-    if (!graphStatus || !['preparing', 'indexing', 'empty'].includes(graphStatus.state)) return
-    const interval = graphStatus.state === 'empty' ? 2_000 : 800
+    if (!graphStatus || !['preparing', 'indexing', 'empty', 'error'].includes(graphStatus.state)) return
+    const interval = graphStatus.state === 'empty' || graphStatus.state === 'error' ? 2_000 : 800
     const timer = window.setInterval(() => void loadGraphStatus(true), interval)
     return () => window.clearInterval(timer)
   }, [graphStatus, loadGraphStatus])

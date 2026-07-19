@@ -148,6 +148,34 @@ describe('Sidebar', () => {
     localStorage.clear()
   })
 
+  it('places the new-session action below the search field with matching dimensions', () => {
+    render(<Sidebar />)
+
+    const controls = screen.getByTestId('sidebar-session-controls')
+    const search = screen.getByPlaceholderText('Search sessions')
+    const newSessionButton = screen.getByRole('button', { name: 'New Session' })
+
+    expect(search).toHaveClass('h-[44px]', 'w-full', 'rounded-full')
+    expect(newSessionButton).toHaveClass('h-[44px]', 'w-full', 'rounded-full')
+    expect(search.parentElement).not.toContainElement(newSessionButton)
+    expect(controls.lastElementChild).toBe(newSessionButton)
+    expect(newSessionButton).toHaveAttribute('aria-haspopup', 'menu')
+    expect(newSessionButton).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByTestId('new-session-default-icon')).toHaveClass(
+      'absolute',
+      'left-1/2',
+      'top-1/2',
+      '-translate-x-1/2',
+      '-translate-y-1/2',
+    )
+    expect(screen.getByRole('tooltip')).toHaveTextContent('New Session')
+    expect(screen.getByTestId('new-session-tooltip')).toHaveClass(
+      'opacity-0',
+      'group-hover:opacity-100',
+      'group-hover:delay-[888ms]',
+    )
+  })
+
   it('opens a new tab when creating a session from the sidebar', async () => {
     createSession.mockResolvedValue('session-new-1')
 

@@ -1,12 +1,18 @@
 import { afterEach, describe, expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { reportCybercodeUsage } from './cybercodeUsageAnalytics.js'
+import {
+  _resetCybercodeUsageReportersForTesting,
+  reportCybercodeUsage,
+  startCybercodeUsageReporter,
+} from './cybercodeUsageAnalytics.js'
 
 const testRoots: string[] = []
 
 afterEach(() => {
+  _resetCybercodeUsageReportersForTesting()
   for (const root of testRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true })
   }
@@ -54,6 +60,12 @@ describe('CyberCode anonymous usage analytics', () => {
     })
     expect(payload.installationId).toMatch(/^[a-f0-9]{64}$/)
     expect(JSON.stringify(payload)).not.toContain('local-random-user-id')
+    expect(
+      fs.readFileSync(
+        path.join(configDir, 'cybercode', 'installation-id'),
+        'utf8',
+      ).trim(),
+    ).toBe(payload.installationId)
 
     const state = JSON.parse(
       fs.readFileSync(
@@ -91,6 +103,7 @@ describe('CyberCode anonymous usage analytics', () => {
   test('retries after network failures and rejects insecure remote endpoints', async () => {
     const configDir = temporaryConfig()
     let fetchCalls = 0
+    const installationIds: string[] = []
     const common = {
       configDir,
       getUserId: () => 'retry-user',
@@ -103,8 +116,14 @@ describe('CyberCode anonymous usage analytics', () => {
       await reportCybercodeUsage('cli', {
         ...common,
         endpoint: 'https://stats.example.test/heartbeat',
-        fetchImpl: async () => {
+        fetchImpl: async (_input: string | URL | Request, init?: RequestInit) => {
           fetchCalls += 1
+          installationIds.push(
+            String(
+              (JSON.parse(String(init?.body)) as { installationId: string })
+                .installationId,
+            ),
+          )
           return new Response(null, { status: 503 })
         },
       }),
@@ -114,13 +133,20 @@ describe('CyberCode anonymous usage analytics', () => {
       await reportCybercodeUsage('cli', {
         ...common,
         endpoint: 'https://stats.example.test/heartbeat',
-        fetchImpl: async () => {
+        fetchImpl: async (_input: string | URL | Request, init?: RequestInit) => {
           fetchCalls += 1
+          installationIds.push(
+            String(
+              (JSON.parse(String(init?.body)) as { installationId: string })
+                .installationId,
+            ),
+          )
           return new Response(null, { status: 204 })
         },
       }),
     ).toBe('sent')
     expect(fetchCalls).toBe(2)
+    expect(new Set(installationIds).size).toBe(1)
 
     expect(
       await reportCybercodeUsage('cli', {
@@ -134,7 +160,8 @@ describe('CyberCode anonymous usage analytics', () => {
     ).toBe('failed')
   })
 
-  test('contains unexpected local configuration failures', async () => {
+  test('reports without reading initialized global configuration', async () => {
+    let payload: { installationId: string } | undefined
     const result = await reportCybercodeUsage('desktop', {
       configDir: temporaryConfig(),
       endpoint: 'https://stats.example.test/heartbeat',
@@ -142,12 +169,107 @@ describe('CyberCode anonymous usage analytics', () => {
       getUserId: () => {
         throw new Error('config is temporarily unavailable')
       },
-      fetchImpl: async () => {
-        throw new Error('must not be called')
+      fetchImpl: async (_input, init) => {
+        payload = JSON.parse(String(init?.body)) as { installationId: string }
+        return new Response(null, { status: 204 })
       },
     })
 
-    expect(result).toBe('failed')
+    expect(result).toBe('sent')
+    expect(payload?.installationId).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  test('migrates the legacy anonymous user ID without changing identity', async () => {
+    const configDir = temporaryConfig()
+    const globalConfigPath = path.join(configDir, '.config.json')
+    const legacyUserId = 'existing-anonymous-user'
+    fs.writeFileSync(globalConfigPath, JSON.stringify({ userID: legacyUserId }))
+    let installationId = ''
+
+    expect(
+      await reportCybercodeUsage('desktop', {
+        configDir,
+        globalConfigPath,
+        endpoint: 'https://stats.example.test/heartbeat',
+        isDisabled: () => false,
+        fetchImpl: async (_input, init) => {
+          installationId = (
+            JSON.parse(String(init?.body)) as { installationId: string }
+          ).installationId
+          return new Response(null, { status: 204 })
+        },
+      }),
+    ).toBe('sent')
+
+    const expected = createHash('sha256')
+      .update('cybercode-usage-v1\0')
+      .update(legacyUserId)
+      .digest('hex')
+    expect(installationId).toBe(expected)
+    expect(
+      fs.readFileSync(
+        path.join(configDir, 'cybercode', 'installation-id'),
+        'utf8',
+      ).trim(),
+    ).toBe(expected)
+  })
+
+  test('uses one installation ID when desktop and CLI report concurrently', async () => {
+    const configDir = temporaryConfig()
+    const installationIds: string[] = []
+    const options = {
+      configDir,
+      endpoint: 'https://stats.example.test/heartbeat',
+      isDisabled: () => false,
+      getUserId: () => {
+        throw new Error('configuration is still locked')
+      },
+      fetchImpl: async (_input: string | URL | Request, init?: RequestInit) => {
+        installationIds.push(
+          (JSON.parse(String(init?.body)) as { installationId: string })
+            .installationId,
+        )
+        return new Response(null, { status: 204 })
+      },
+    }
+
+    const results = await Promise.all([
+      reportCybercodeUsage('desktop', options),
+      reportCybercodeUsage('cli', options),
+    ])
+
+    expect(results).toEqual(['sent', 'sent'])
+    expect(installationIds).toHaveLength(2)
+    expect(new Set(installationIds).size).toBe(1)
+  })
+
+  test('retries startup failures without waiting for the periodic interval', async () => {
+    const configDir = temporaryConfig()
+    const statePath = path.join(
+      configDir,
+      'cybercode',
+      'usage-analytics.json',
+    )
+    let fetchCalls = 0
+
+    startCybercodeUsageReporter('desktop', {
+      configDir,
+      endpoint: 'https://stats.example.test/heartbeat',
+      isDisabled: () => false,
+      getUserId: () => 'retry-schedule-user',
+      retryDelaysMs: [5],
+      reportIntervalMs: 60_000,
+      fetchImpl: async () => {
+        fetchCalls += 1
+        return new Response(null, { status: fetchCalls === 1 ? 503 : 204 })
+      },
+    })
+
+    await waitFor(() => fs.existsSync(statePath))
+    expect(fetchCalls).toBe(2)
+    expect(
+      JSON.parse(fs.readFileSync(statePath, 'utf8')),
+    ).toMatchObject({ lastReportedDay: localDay(new Date()) })
   })
 })
 
@@ -155,4 +277,19 @@ function temporaryConfig(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-usage-test-'))
   testRoots.push(root)
   return root
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 500): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error('Timed out waiting for condition')
+    await new Promise(resolve => setTimeout(resolve, 5))
+  }
+}
+
+function localDay(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }

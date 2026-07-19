@@ -972,7 +972,7 @@ export class ProviderService {
       modelId,
       models,
       presetId: provider.presetId,
-      probeImages: true,
+      probeImages: false,
       apiFormat,
     })
   }

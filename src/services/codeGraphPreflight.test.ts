@@ -4,7 +4,10 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {
+  buildCodeGraphFileContext,
   buildCodeGraphPreflight,
+  extractCodeGraphFileMatches,
+  isBroadTextSearchCommand,
   startCodeGraphPreflight,
   shouldRunCodeGraphPreflight,
 } from './codeGraphPreflight.js'
@@ -31,6 +34,16 @@ describe('Code Graph automatic preflight gate', () => {
   test('runs for code-shaped symbols paired with an implementation action', () => {
     expect(shouldRunCodeGraphPreflight('帮我修改 CodeGraphService.getVisualization')).toBe(true)
     expect(shouldRunCodeGraphPreflight('Fix desktop/src/App.tsx')).toBe(true)
+  })
+
+  test('runs for natural-language feature changes without code-shaped tokens', () => {
+    const prompt = '将偏好设置中的深色模式彻底删除'
+    expect(shouldRunCodeGraphPreflight(prompt)).toBe(true)
+    expect(buildCodeGraphPreflight(
+      projectDir,
+      prompt,
+      new AbortController().signal,
+    )).toContain('<codegraph_context')
   })
 
   test('does not spend graph work on ordinary chat or bare slash commands', () => {
@@ -60,6 +73,23 @@ describe('Code Graph automatic preflight gate', () => {
     )
 
     expect(result).toBeNull()
+  })
+
+  test('maps exact-text search hits to owning symbols and impact edges', () => {
+    const output = `${path.join(projectDir, 'src', 'auth.ts')}:2:  return createSession()`
+    const matches = extractCodeGraphFileMatches(projectDir, output)
+
+    expect(isBroadTextSearchCommand('grep -rn createSession src')).toBe(true)
+    expect(isBroadTextSearchCommand('git status')).toBe(false)
+    expect(matches).toEqual([{
+      filePath: path.join(projectDir, 'src', 'auth.ts'),
+      line: 2,
+    }])
+
+    const context = buildCodeGraphFileContext(projectDir, matches)
+    expect(context).toContain('auth.login')
+    expect(context).toContain('login --calls/extracted--> createSession')
+    expect(estimateCodeGraphTokens(context!)).toBeLessThanOrEqual(320)
   })
 
   test('returns a compact architecture report for a structural prompt without symbols', () => {
@@ -105,6 +135,10 @@ describe('Code Graph automatic preflight gate', () => {
       new AbortController().signal,
     ))
     expect(disabled).toBeNull()
+    expect(buildCodeGraphFileContext(projectDir, [{
+      filePath: path.join(projectDir, 'src', 'auth.ts'),
+      line: 2,
+    }])).toBeNull()
 
     fs.writeFileSync(configPath, JSON.stringify({ enabled: true, projects: {} }))
     const enabled = await runWithCwdOverride(projectDir, () => startCodeGraphPreflight(
@@ -114,6 +148,10 @@ describe('Code Graph automatic preflight gate', () => {
     ))
     expect(enabled).toContain('<codegraph_context')
     expect(enabled).toContain('auth.createSession')
+    expect(buildCodeGraphFileContext(projectDir, [{
+      filePath: path.join(projectDir, 'src', 'auth.ts'),
+      line: 2,
+    }])).toContain('auth.login')
   })
 })
 

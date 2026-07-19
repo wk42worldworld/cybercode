@@ -426,10 +426,10 @@ async function getSessionUsage(sessionId: string, url: URL): Promise<Response> {
         ...(contextEstimate.apiUsage
           ? {
               latestTurn: {
-                inputTokens: contextEstimate.apiUsage.input_tokens,
-                outputTokens: contextEstimate.apiUsage.output_tokens,
-                cacheReadInputTokens: contextEstimate.apiUsage.cache_read_input_tokens,
-                cacheCreationInputTokens: contextEstimate.apiUsage.cache_creation_input_tokens,
+                inputTokens: contextEstimate.latestTurnUsage.input_tokens,
+                outputTokens: contextEstimate.latestTurnUsage.output_tokens,
+                cacheReadInputTokens: contextEstimate.latestTurnUsage.cache_read_input_tokens,
+                cacheCreationInputTokens: contextEstimate.latestTurnUsage.cache_creation_input_tokens,
               },
             }
           : {}),

@@ -166,7 +166,7 @@ describe('ActiveSession task polling', () => {
     unmount()
   })
 
-  it('keeps the composer clickable above the bottom overlay', () => {
+  it('keeps the composer clickable and aligned with the message viewport', () => {
     const sessionId = 'clickable-composer-session'
 
     useSessionStore.setState({
@@ -220,6 +220,9 @@ describe('ActiveSession task polling', () => {
     const composerShell = screen.getByTestId('chat-input').parentElement
     expect(composerShell).toHaveClass('pointer-events-auto')
     expect(composerShell).not.toHaveClass('pointer-events-none')
+    expect(screen.getByTestId('chat-bottom-overlay')).toHaveClass(
+      'right-[var(--chat-message-scrollbar-gutter)]',
+    )
   })
 
   it('refreshes CLI tasks repeatedly while a turn is active', async () => {

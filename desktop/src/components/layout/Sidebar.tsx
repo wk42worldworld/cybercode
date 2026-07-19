@@ -338,28 +338,46 @@ export function Sidebar() {
         </div>
 
         <div className="px-[16px]">
-          <div className="relative">
-            <Search size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
-            <input
-              id="sidebar-search"
-              type="text"
-              placeholder={t('sidebar.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-[44px] w-full rounded-full border-2 border-[var(--color-sidebar-search-border)] bg-[var(--color-sidebar-search-bg)] pl-[40px] pr-[74px] text-[13px] font-medium text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)]"
-            />
-            <div className="absolute right-[40px] top-1/2 -translate-y-1/2">
-              <ProjectFilter variant="embedded" />
+          <div data-testid="sidebar-session-controls" className="flex flex-col gap-[8px]">
+            <div className="relative">
+              <Search size={16} strokeWidth={1.75} className="absolute left-[16px] top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]" />
+              <input
+                id="sidebar-search"
+                type="text"
+                placeholder={t('sidebar.searchPlaceholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-[44px] w-full rounded-full border-2 border-[var(--color-sidebar-search-border)] bg-[var(--color-sidebar-search-bg)] pl-[40px] pr-[46px] text-[13px] font-medium text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)]"
+              />
+              <div className="absolute right-[8px] top-1/2 -translate-y-1/2">
+                <ProjectFilter variant="embedded" />
+              </div>
             </div>
             <button
               ref={newSessionButtonRef}
               type="button"
               onClick={handleNewSession}
-              title={t('sidebar.newSession')}
               aria-label={t('sidebar.newSession')}
-              className="absolute right-[8px] top-1/2 flex h-[28px] w-[28px] -translate-y-1/2 items-center justify-center rounded-full text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+              aria-haspopup="menu"
+              aria-expanded={newSessionMenuOpen}
+              className="group relative flex h-[44px] w-full items-center justify-center rounded-full border-2 border-[var(--color-sidebar-search-border)] bg-[var(--color-sidebar-search-bg)] px-[16px] text-[13px] font-semibold text-[var(--color-text-secondary)] outline-none transition-[border-color,background-color,color] duration-150 hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:border-[var(--color-border-focus)]"
             >
-              <Plus size={16} strokeWidth={1.75} />
+              <Plus
+                data-testid="new-session-default-icon"
+                aria-hidden="true"
+                size={17}
+                strokeWidth={1.75}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              />
+              {!newSessionMenuOpen && (
+                <span
+                  data-testid="new-session-tooltip"
+                  role="tooltip"
+                  className="pointer-events-none absolute left-1/2 top-full z-[100] mt-[6px] min-w-max -translate-x-1/2 -translate-y-[2px] whitespace-nowrap rounded-[10px] bg-[var(--color-inverse-surface)] px-[10px] py-[6px] text-[12px] font-semibold leading-none text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-[opacity,transform] delay-0 duration-100 group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-[888ms] group-focus-visible:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:delay-0"
+                >
+                  {t('sidebar.newSession')}
+                </span>
+              )}
             </button>
           </div>
         </div>

@@ -101,6 +101,20 @@ describe('chat blocks', () => {
     expect(container.querySelector('.tool-running-text')).toBeNull()
   })
 
+  it('renders native CodeGraph calls as first-class tool blocks', () => {
+    const { container } = render(
+      <ToolCallBlock
+        toolName="CodeGraph"
+        input={{ action: 'impact', query: 'ThemeSettings' }}
+        result={{ content: 'No dependents', isError: false }}
+      />,
+    )
+
+    expect(container.textContent).toContain('CodeGraph')
+    expect(container.textContent).toContain('impact · ThemeSettings')
+    expect(container.querySelector('.codicon-git-branch')).toBeTruthy()
+  })
+
   it('marks a resultless historical tool as interrupted instead of running', () => {
     const webFetch = {
       id: 'fetch-call',

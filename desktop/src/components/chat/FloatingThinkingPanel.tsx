@@ -115,7 +115,7 @@ export function FloatingThinkingPanel({
   if (!visibleContent) return null
 
   return (
-    <div className="pointer-events-none absolute left-0 right-0 top-[20px] z-30 flex justify-center px-[24px]">
+    <div className="pointer-events-none absolute left-0 right-[var(--chat-message-scrollbar-gutter)] top-[20px] z-30 flex justify-center px-[24px]">
       <div
         data-chat-content-column
         className={`pointer-events-auto w-full max-w-[878px] translate-y-0 overflow-hidden rounded-[18px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-primary)] shadow-[var(--shadow-dropdown)] transition-[opacity,transform] duration-[150ms] ease-out ${
