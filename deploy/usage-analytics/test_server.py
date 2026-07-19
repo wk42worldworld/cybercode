@@ -252,6 +252,7 @@ class UsageAnalyticsTest(unittest.TestCase):
         self.assertIsNone(trusted_client_ip("8.8.8.8", "203.0.113.20"))
 
     def test_signed_session_rejects_tampering_and_expiry(self):
+        self.assertEqual(SESSION_TTL_SECONDS, 31 * 24 * 60 * 60)
         secret = session_secret_from_password("a-long-admin-password")
         token = create_session_token("admin", secret, now=1_000)
         self.assertTrue(verify_session_token(token, "admin", secret, now=1_000))
@@ -321,6 +322,8 @@ class UsageAnalyticsTest(unittest.TestCase):
             status, headers, body = request("GET", "/cybercode-stats/login")
             self.assertEqual(status, 200)
             self.assertIn("CyberCode".encode(), body)
+            self.assertIn("31 天免登录".encode(), body)
+            self.assertNotIn("12 小时".encode(), body)
             self.assertNotIn(b"__LOGIN_ERROR_MESSAGE__", body)
             self.assertNotIn("WWW-Authenticate", headers)
 
@@ -361,6 +364,10 @@ class UsageAnalyticsTest(unittest.TestCase):
             self.assertIn("HttpOnly", session_cookie)
             self.assertIn("SameSite=Strict", session_cookie)
             self.assertIn("Secure", session_cookie)
+            self.assertIn(
+                "Max-Age={0}".format(SESSION_TTL_SECONDS),
+                session_cookie,
+            )
             cookie_header = session_cookie.split(";", 1)[0]
 
             status, _, body = request(

@@ -70,7 +70,7 @@ sudo systemctl reload nginx
 ```
 
 The dashboard is available at `/cybercode-stats` and uses a branded web login
-that creates an HttpOnly, SameSite=Strict signed session cookie for 12 hours.
+that creates an HttpOnly, SameSite=Strict signed session cookie for 31 days.
 Proactive HTTP Basic credentials remain supported for scripts, but unauthorized
 browser requests never emit a Basic challenge. The heartbeat endpoint is public,
 strictly validated, rate-limited, and de-duplicated by installation and
