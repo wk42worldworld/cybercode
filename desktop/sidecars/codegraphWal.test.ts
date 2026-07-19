@@ -17,6 +17,8 @@ afterEach(() => {
 })
 
 describe('CodeGraph WAL maintenance', () => {
+  // Hosted Windows runners can take more than Bun's 5 s default to flush the
+  // WAL while another connection remains open. Keep the real I/O assertion.
   it('checkpoints and truncates a WAL while the writer connection remains open', () => {
     const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-wal-test-'))
     temporaryDirectories.push(projectPath)
@@ -43,5 +45,5 @@ describe('CodeGraph WAL maintenance', () => {
       insert.finalize()
       writer.close()
     }
-  })
+  }, 30_000)
 })
