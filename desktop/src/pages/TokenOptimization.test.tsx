@@ -88,13 +88,22 @@ function graphData(projectName: string, nodeCount: number): CodeGraphData {
 }
 
 function status(overrides: Partial<CodeGraphStatus> = {}): CodeGraphStatus {
+  const state = overrides.state ?? 'disabled'
   return {
     projectPath,
     indexable: true,
     enabled: false,
-    state: 'disabled',
+    state,
     progress: null,
-    stats: null,
+    stats: state === 'ready' ? {
+      fileCount: 1,
+      nodeCount: 4,
+      edgeCount: 3,
+      errorFileCount: 0,
+      dbSizeBytes: 4096,
+      lastUpdated: Date.now(),
+      filesByLanguage: { typescript: 1 },
+    } : null,
     error: null,
     bundledLanguages: ['TypeScript'],
     ...overrides,
@@ -385,9 +394,9 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('18–27%')
+    expect(overview).toHaveTextContent('4–27%')
     expect(overview).not.toHaveTextContent('80%')
-    expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计18–27%')
+    expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计4–27%')
   })
 
   it('shows the expected RTK range until local samples exist', async () => {
@@ -402,19 +411,19 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('18–27%')
-    expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计18–27%')
+    expect(overview).toHaveTextContent('4–27%')
+    expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计4–27%')
   })
 
   it('shows a savings estimate for every optimizer', async () => {
     render(<TokenOptimization />)
 
-    expect(await screen.findByTestId('lite-toolbar')).toHaveTextContent('全周期 预计2–8%')
-    expect(await screen.findByTestId('pruning-toolbar')).toHaveTextContent('全周期 预计8–24%')
-    expect(await screen.findByTestId('ponytail-toolbar')).toHaveTextContent('全周期 预计0–22%')
-    expect(await screen.findByTestId('caveman-toolbar')).toHaveTextContent('全周期 预计14–21%')
-    expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计18–27%')
-    expect(await screen.findByTestId('codegraph-toolbar')).toHaveTextContent('全周期 预计23–64%')
+    expect(await screen.findByTestId('lite-toolbar')).toHaveTextContent('全周期 预计1–8%')
+    expect(await screen.findByTestId('pruning-toolbar')).toHaveTextContent('全周期 预计5–24%')
+    expect(await screen.findByTestId('ponytail-toolbar')).toHaveTextContent('全周期 预计2–22%')
+    expect(await screen.findByTestId('caveman-toolbar')).toHaveTextContent('全周期 预计2–21%')
+    expect(screen.getByTestId('rtk-toolbar')).toHaveTextContent('全周期 预计4–27%')
+    expect(await screen.findByTestId('codegraph-toolbar')).toHaveTextContent('全周期 预计6–64%')
   })
 
   it('aggregates enabled full-cycle estimates and renders animated rings', async () => {
@@ -457,15 +466,15 @@ describe('TokenOptimization', () => {
     const { container } = render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('65–96%')
-    expect(overview).toHaveTextContent('当前已启用方案递减叠加，高区间按重叠折算，上限为 96%')
+    expect(overview).toHaveTextContent('18–89%')
+    expect(overview).toHaveTextContent('短任务可能因固定提示与检索开销暂时增加 Token')
     expect(overview).toHaveTextContent('6/6')
-    expect(screen.getByLabelText('最低预估 65%')).toBeInTheDocument()
-    expect(screen.getByLabelText('最高预估 96%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最低预估 18%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 89%')).toBeInTheDocument()
     expect(container.querySelectorAll('.token-savings-ring')).toHaveLength(2)
   })
 
-  it('shows an upper estimate above 92% for Lite, RTK, and Code Graph together', async () => {
+  it('does not count Code Graph savings before the current index is ready', async () => {
     vi.mocked(tokenOptimizationApi.liteStatus).mockResolvedValue({
       enabled: true,
       mode: 'deterministic',
@@ -482,13 +491,13 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('43–93%')
+    expect(overview).toHaveTextContent('5–33%')
     expect(overview).toHaveTextContent('3/6')
-    expect(screen.getByLabelText('最低预估 43%')).toBeInTheDocument()
-    expect(screen.getByLabelText('最高预估 93%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最低预估 5%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 33%')).toBeInTheDocument()
   })
 
-  it('keeps three high-range optimizers at 93% so a fourth one still advances', async () => {
+  it('combines ready Code Graph, pruning, and RTK without double-counting', async () => {
     vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
     vi.mocked(tokenOptimizationApi.status).mockResolvedValue(status({
       enabled: true,
@@ -510,12 +519,12 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('49–93%')
+    expect(overview).toHaveTextContent('14–80%')
     expect(overview).toHaveTextContent('3/6')
-    expect(screen.getByLabelText('最高预估 93%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 80%')).toBeInTheDocument()
   })
 
-  it('raises the upper estimate to 94% when a fourth optimizer is enabled', async () => {
+  it('overlap-adjusts four enabled optimizers', async () => {
     vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
     vi.mocked(tokenOptimizationApi.liteStatus).mockResolvedValue({
       enabled: true,
@@ -540,13 +549,13 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('57–94%')
+    expect(overview).toHaveTextContent('12–81%')
     expect(overview).toHaveTextContent('4/6')
-    expect(screen.getByLabelText('最低预估 57%')).toBeInTheDocument()
-    expect(screen.getByLabelText('最高预估 94%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最低预估 12%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 81%')).toBeInTheDocument()
   })
 
-  it('raises the upper estimate to 95% when five optimizers are enabled', async () => {
+  it('overlap-adjusts five enabled optimizers', async () => {
     vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
     vi.mocked(tokenOptimizationApi.liteStatus).mockResolvedValue({
       enabled: true,
@@ -567,14 +576,18 @@ describe('TokenOptimization', () => {
       enabled: true,
       mode: 'full',
     })
+    vi.mocked(tokenOptimizationApi.status).mockResolvedValue(status({
+      enabled: true,
+      state: 'ready',
+    }))
 
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('57–95%')
+    expect(overview).toHaveTextContent('14–85%')
     expect(overview).toHaveTextContent('5/6')
-    expect(screen.getByLabelText('最低预估 57%')).toBeInTheDocument()
-    expect(screen.getByLabelText('最高预估 95%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最低预估 14%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 85%')).toBeInTheDocument()
   })
 
   it('uses the same Ponytail estimate in its row and the overview when enabled alone', async () => {
@@ -586,11 +599,11 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('0–22%')
+    expect(overview).toHaveTextContent('2–22%')
     expect(overview).toHaveTextContent('1/6')
-    expect(screen.getByLabelText('最低预估 0%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最低预估 2%')).toBeInTheDocument()
     expect(screen.getByLabelText('最高预估 22%')).toBeInTheDocument()
-    expect(screen.getByTestId('ponytail-toolbar')).toHaveTextContent('全周期 预计0–22%')
+    expect(screen.getByTestId('ponytail-toolbar')).toHaveTextContent('全周期 预计2–22%')
   })
 
   it('aggregates Ponytail and Caveman so both switches affect the estimate', async () => {
@@ -606,9 +619,9 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('14–43%')
-    expect(screen.getByLabelText('最低预估 14%')).toBeInTheDocument()
-    expect(screen.getByLabelText('最高预估 43%')).toBeInTheDocument()
+    expect(overview).toHaveTextContent('4–38%')
+    expect(screen.getByLabelText('最低预估 4%')).toBeInTheDocument()
+    expect(screen.getByLabelText('最高预估 38%')).toBeInTheDocument()
     expect(overview).toHaveTextContent('2/6')
   })
 
@@ -621,10 +634,10 @@ describe('TokenOptimization', () => {
     render(<TokenOptimization />)
 
     const overview = await screen.findByTestId('savings-overview')
-    expect(overview).toHaveTextContent('14–21%')
-    expect(screen.getByLabelText('最低预估 14%')).toBeInTheDocument()
+    expect(overview).toHaveTextContent('2–21%')
+    expect(screen.getByLabelText('最低预估 2%')).toBeInTheDocument()
     expect(screen.getByLabelText('最高预估 21%')).toBeInTheDocument()
-    expect(screen.getByTestId('caveman-toolbar')).toHaveTextContent('全周期 预计14–21%')
+    expect(screen.getByTestId('caveman-toolbar')).toHaveTextContent('全周期 预计2–21%')
   })
 
   it('enables Code Graph globally without asking for setup', async () => {
@@ -644,6 +657,29 @@ describe('TokenOptimization', () => {
       expect(tokenOptimizationApi.enable).toHaveBeenCalledWith(projectPath)
     })
     expect((await screen.findAllByText('正在准备')).length).toBeGreaterThan(0)
+  })
+
+  it('allows an errored Code Graph index to be rebuilt', async () => {
+    vi.mocked(tokenOptimizationApi.codeGraphGlobalStatus).mockResolvedValue({ enabled: true })
+    vi.mocked(tokenOptimizationApi.status).mockResolvedValue(status({
+      enabled: true,
+      state: 'error',
+      error: 'Incomplete index',
+    }))
+    vi.mocked(tokenOptimizationApi.rebuild).mockResolvedValue(status({
+      enabled: true,
+      state: 'preparing',
+      progress: { phase: 'preparing', current: 0, total: 0 },
+    }))
+
+    render(<TokenOptimization />)
+    const rebuildButton = await screen.findByRole('button', { name: '重建索引' })
+    await waitFor(() => expect(rebuildButton).toBeEnabled())
+    fireEvent.click(rebuildButton)
+
+    await waitFor(() => {
+      expect(tokenOptimizationApi.rebuild).toHaveBeenCalledWith(projectPath)
+    })
   })
 
   it('does not overlap slow Code Graph status polls', async () => {

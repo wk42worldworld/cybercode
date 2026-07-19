@@ -36,8 +36,9 @@ describe('Caveman token optimization', () => {
     const writer = new CavemanOptimizationService()
     expect(writer.setEnabled(true).enabled).toBe(true)
     expect(service.getStatus().enabled).toBe(true)
-    expect(service.getSystemPrompt()).toContain('Keep user-facing responses highly concise')
-    expect(service.getSystemPrompt()).toContain('irreversible-action confirmations')
+    expect(service.getSystemPrompt()).toContain('Be concise and direct')
+    expect(service.getSystemPrompt()).toContain('irreversible actions')
+    expect(service.getSystemPrompt()!.length).toBeLessThan(400)
 
     writer.setEnabled(false)
     expect(service.getStatus().enabled).toBe(false)

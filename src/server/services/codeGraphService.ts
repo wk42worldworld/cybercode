@@ -96,6 +96,16 @@ type CodeGraphServiceOptions = {
   watcherRestartBaseDelayMs?: number
 }
 
+type CodeGraphSessionController = {
+  getActiveSessions(): string[]
+  getSessionWorkDir(sessionId: string): string
+  requestControl(
+    sessionId: string,
+    request: Record<string, unknown>,
+    timeoutMs?: number,
+  ): Promise<Record<string, unknown>>
+}
+
 class CodeGraphProjectScopeError extends Error {
   constructor(
     message: string,
@@ -112,9 +122,14 @@ export class CodeGraphService {
   private watcherRestartAttempts = new Map<string, number>()
   private watcherRestartBaseDelayMs: number
   private lifecycleGeneration = 0
+  private sessionController: CodeGraphSessionController | null = null
 
   constructor(options: CodeGraphServiceOptions = {}) {
     this.watcherRestartBaseDelayMs = Math.max(0, options.watcherRestartBaseDelayMs ?? 1_000)
+  }
+
+  setSessionController(controller: CodeGraphSessionController | null) {
+    this.sessionController = controller
   }
 
   getGlobalStatus(): CodeGraphGlobalStatus {
@@ -253,6 +268,7 @@ export class CodeGraphService {
     if (
       enabled
       && runtime.indexGeneration === null
+      && runtime.status.state !== 'error'
       && !runtime.watchProcess
       && !runtime.status.stats
     ) {
@@ -307,6 +323,7 @@ export class CodeGraphService {
   private async runIndex(projectPath: string, rebuild: boolean) {
     const runtime = this.getOrCreateRuntime(projectPath, true)
     if (runtime.indexGeneration !== null) return
+    const shouldRebuild = rebuild || this.hasIncompleteDatabase(projectPath)
     const lifecycleGeneration = this.lifecycleGeneration
     runtime.indexGeneration = lifecycleGeneration
     runtime.indexStarting = true
@@ -320,7 +337,9 @@ export class CodeGraphService {
     }
 
     try {
-      await this.patchRunningSessions(projectPath, null)
+      // A normal sync can safely run while the existing MCP server is open.
+      // Rebuilds recreate the database, so only they need a best-effort detach.
+      if (shouldRebuild) await this.patchRunningSessions(projectPath, null)
       if (runtime.indexGeneration !== lifecycleGeneration) return
       if (
         lifecycleGeneration !== this.lifecycleGeneration
@@ -331,7 +350,7 @@ export class CodeGraphService {
         return
       }
       this.assertAssetsAvailable()
-      const invocation = this.buildInvocation('index', projectPath, rebuild)
+      const invocation = this.buildInvocation('index', projectPath, shouldRebuild)
       const proc = Bun.spawn([invocation.command, ...invocation.args], {
         cwd: projectPath,
         env: { ...process.env, ...invocation.env },
@@ -341,6 +360,8 @@ export class CodeGraphService {
       })
       runtime.indexProcess = proc
       runtime.indexStarting = false
+      runtime.status.state = 'indexing'
+      runtime.status.progress = { phase: 'scanning', current: 0, total: 0 }
 
       const stderrPromise = new Response(proc.stderr).text()
       await this.consumeJsonLines(proc.stdout, (event) => {
@@ -387,14 +408,20 @@ export class CodeGraphService {
         stats: nextStats,
         error: null,
       }
-      this.startWatcher(projectPath)
-      await this.patchRunningSessions(
-        projectPath,
-        this.buildMcpServerConfig(projectPath),
-      )
       if (runtime.indexGeneration === lifecycleGeneration) {
         runtime.indexGeneration = null
       }
+      this.startWatcher(projectPath)
+      void this.patchRunningSessions(
+        projectPath,
+        this.buildMcpServerConfig(projectPath),
+      ).catch((error) => {
+        console.warn(
+          `[CodeGraph] Could not attach MCP tools for ${projectPath}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+      })
     } catch (error) {
       if (runtime.indexGeneration !== lifecycleGeneration) return
       runtime.indexStarting = false
@@ -472,7 +499,8 @@ export class CodeGraphService {
     projectPath: string,
     config: CodeGraphProcessConfig | null,
   ) {
-    const { conversationService } = await import('./conversationService.js')
+    const conversationService = this.sessionController
+    if (!conversationService) return
     const operations = conversationService.getActiveSessions()
       .filter((sessionId) => {
         const workDir = conversationService.getSessionWorkDir(sessionId)
@@ -719,6 +747,11 @@ export class CodeGraphService {
 
   private getDatabasePath(projectPath: string) {
     return path.join(projectPath, '.codegraph', 'codegraph.db')
+  }
+
+  private hasIncompleteDatabase(projectPath: string) {
+    return fs.existsSync(this.getDatabasePath(projectPath))
+      && this.readStats(projectPath) === null
   }
 
   private getConfigPath() {

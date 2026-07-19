@@ -510,7 +510,9 @@ export function TokenOptimization({ initialView = 'overview' }: TokenOptimizatio
     ponytailStatus,
     cavemanStatus,
     rtkStatus,
-    codeGraphGlobalEnabled ?? false,
+    codeGraphGlobalEnabled === true
+      && status?.state === 'ready'
+      && (status.stats?.nodeCount ?? 0) > 0,
   )
   const savingsEstimate = getCombinedSavingsEstimate(optimizerEstimates)
   const activeOptimizerCount = [
@@ -783,7 +785,7 @@ export function TokenOptimization({ initialView = 'overview' }: TokenOptimizatio
                 type="button"
                 aria-label={t('tokenOptimization.rebuild')}
                 title={t('tokenOptimization.rebuild')}
-                disabled={!status?.enabled || !['ready', 'empty'].includes(status.state) || loading}
+                disabled={!status?.enabled || !['ready', 'empty', 'error'].includes(status.state) || loading}
                 onClick={() => void rebuild()}
                 className="flex h-[32px] w-[32px] items-center justify-center rounded-[7px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-35"
               >
@@ -911,20 +913,20 @@ function getOptimizerEstimates(
   codeGraphGlobalEnabled: boolean,
 ) {
   return {
-    lite: createEstimate(2, 8, lite?.enabled ?? false),
+    lite: createEstimate(1, 8, lite?.enabled ?? false),
     pruning: createEstimate(
-      pruning?.level === 'conservative' ? 4 : pruning?.level === 'aggressive' ? 15 : 8,
+      pruning?.level === 'conservative' ? 3 : pruning?.level === 'aggressive' ? 8 : 5,
       pruning?.level === 'conservative' ? 12 : pruning?.level === 'aggressive' ? 40 : 24,
       pruning?.enabled ?? false,
     ),
     // Ponytail's fair agentic benchmark measured up to 22% fewer tokens, but
     // irreducible tasks and some reasoning models can land near zero savings.
-    ponytail: createEstimate(0, 22, ponytail?.enabled ?? false),
-    caveman: createEstimate(14, 21, caveman?.enabled ?? false),
+    ponytail: createEstimate(2, 22, ponytail?.enabled ?? false),
+    caveman: createEstimate(2, 21, caveman?.enabled ?? false),
     // RTK reports 60–90% command-output reduction. At an estimated 30% share
     // of a coding-agent cycle, that contributes roughly 18–27% end to end.
-    rtk: createEstimate(18, 27, rtk?.enabled ?? false),
-    codeGraph: createEstimate(23, 64, codeGraphGlobalEnabled),
+    rtk: createEstimate(4, 27, rtk?.enabled ?? false),
+    codeGraph: createEstimate(6, 64, codeGraphGlobalEnabled),
   }
 }
 
@@ -987,9 +989,9 @@ function getCombinedSavingsEstimate(estimates: ReturnType<typeof getOptimizerEst
     }
   }
 
-  // Add the full-cycle ranges as a best-case portfolio estimate. Individual
-  // optimizers target different token pools, and the cap avoids implying that
-  // any combination can eliminate the entire cycle.
+  // Each optimizer acts on an overlapping part of the same request cycle.
+  // Combine remaining-token ratios so stacking switches cannot double-count
+  // the same input, output, or tool-result tokens.
   const cycleEstimates = Object.values(estimates)
     .filter((estimate) => estimate.enabled)
 
@@ -1005,15 +1007,11 @@ function getCombinedSavingsEstimate(estimates: ReturnType<typeof getOptimizerEst
 }
 
 function combineEstimatedPercentages(percentages: number[]) {
-  const total = percentages.reduce((sum, percentage) => sum + percentage, 0)
-  if (total <= 92) return Math.max(0, Math.round(total))
-
-  // Above 92%, overlap rises quickly. Compress each additional 20 points of
-  // raw estimates into one visible percentage point. The count-aware ceiling
-  // keeps every additional optimizer visible regardless of activation order:
-  // three can reach 93%, four 94%, five 95%, and all six 96%.
-  const countAwareCeiling = Math.min(96, 90 + percentages.length)
-  return Math.min(countAwareCeiling, 92 + Math.ceil((total - 92) / 20))
+  const remainingRatio = percentages.reduce((remaining, percentage) => {
+    const bounded = Math.min(100, Math.max(0, percentage)) / 100
+    return remaining * (1 - bounded)
+  }, 1)
+  return Math.round((1 - remainingRatio) * 100)
 }
 
 function SavingsRing({

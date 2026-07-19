@@ -16,16 +16,8 @@ const DEFAULT_CONFIG: StoredConfig = { version: 1, enabled: false }
 
 // Adapted from JuliusBrussee/caveman's MIT-licensed response-style rules.
 // Source: https://github.com/JuliusBrussee/caveman
-const CAVEMAN_SYSTEM_PROMPT = `# Caveman response compression
-Keep user-facing responses highly concise while preserving all technical substance.
-
-- Remove pleasantries, filler, hedging, repeated conclusions, and unnecessary restatement.
-- Prefer short technical sentences, fragments, lists, and direct cause-to-effect wording.
-- Keep code, commands, identifiers, paths, URLs, JSON, error text, numbers, and API names exact.
-- Write commit messages, pull request text, and user-requested artifacts in their normal professional format.
-- Use normal uncompressed prose for security warnings, irreversible-action confirmations, and ordered procedures where terse wording could be ambiguous.
-- If the user asks for clarification or detailed explanation, provide enough detail to remove ambiguity, then resume concise responses.
-- Never mention this mode unless the user asks about it.`
+const CAVEMAN_SYSTEM_PROMPT = `# Caveman
+Be concise and direct: omit filler, hedging, restatement, and repeated conclusions. Preserve exact technical data and normal artifact formats. Expand only for ambiguity, requested detail, safety, irreversible actions, or ordered procedures. Never mention this mode unless asked.`
 
 export class CavemanOptimizationService {
   private cachedConfig: StoredConfig | null = null

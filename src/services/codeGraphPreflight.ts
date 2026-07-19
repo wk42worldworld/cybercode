@@ -14,9 +14,10 @@ import {
 import { openCodeGraphDatabaseForRead } from '../server/services/codeGraphDatabase.js'
 import { limitTextToTokenBudget } from './codeGraphTextBudget.js'
 
-const PREFLIGHT_TOKEN_BUDGET = 1_800
-const MAX_CONTEXT_NODES = 36
-const MAX_CONTEXT_EDGES = 260
+const PREFLIGHT_TOKEN_BUDGET = 640
+const ARCHITECTURE_TOKEN_BUDGET = 320
+const MAX_CONTEXT_NODES = 18
+const MAX_CONTEXT_EDGES = 96
 const architectureCache = new Map<string, { fingerprint: string; text: string }>()
 
 type PreflightNode = {
@@ -81,7 +82,7 @@ export function buildCodeGraphPreflight(
   if (!body || signal.aborted) return null
 
   return limitTextToTokenBudget([
-    '<codegraph_context note="Automatic graph-ranked context for this prompt. Treat included source as already read; use Code Graph tools for deeper details before broad file scans.">',
+    '<codegraph_context note="Graph-ranked context; treat it as already read. Use graph tools before broad file scans.">',
     body,
     '</codegraph_context>',
   ].join('\n'), PREFLIGHT_TOKEN_BUDGET)
@@ -97,7 +98,7 @@ function buildSymbolContext(
   const db = openCodeGraphDatabaseForRead(dbPath)
   try {
     const seeds = searchNodes(db, terms)
-    if (seeds.length === 0) return getArchitectureContext(dbPath)
+    if (seeds.length === 0) return null
     if (signal.aborted) return null
 
     const columns = new Set(
@@ -242,11 +243,11 @@ function formatSymbolContext(
   const lines = [
     '# Automatic Code Graph Context',
     '',
-    `Query: ${prompt.slice(0, 400)}`,
+    `Query: ${prompt.slice(0, 180)}`,
     '',
     '## Relevant symbols',
   ]
-  for (const node of nodes.slice(0, 18)) {
+  for (const node of nodes.slice(0, 10)) {
     lines.push(
       `- ${node.qualifiedName || node.name} (${node.kind}, ${node.filePath}:${node.startLine})` +
       `${node.signature ? ` — ${node.signature}` : ''}`,
@@ -255,7 +256,7 @@ function formatSymbolContext(
 
   if (edges.length > 0) {
     lines.push('', '## Relationships')
-    for (const edge of edges.slice(0, 36)) {
+    for (const edge of edges.slice(0, 16)) {
       const source = nodeById.get(edge.source)
       const target = nodeById.get(edge.target)
       if (!source || !target) continue
@@ -271,7 +272,7 @@ function formatSymbolContext(
     .filter((node) => node.kind !== 'file' && node.kind !== 'module')
     .map((node) => ({ node, source: readNodeSource(projectPath, node) }))
     .filter((entry): entry is { node: PreflightNode; source: string } => Boolean(entry.source))
-    .slice(0, 5)
+    .slice(0, 2)
   if (sourceBlocks.length > 0) {
     lines.push('', '## Targeted source')
     for (const { node, source } of sourceBlocks) {
@@ -284,7 +285,7 @@ function formatSymbolContext(
       )
     }
   }
-  return limitTextToTokenBudget(lines.join('\n'), PREFLIGHT_TOKEN_BUDGET - 120)
+  return limitTextToTokenBudget(lines.join('\n'), PREFLIGHT_TOKEN_BUDGET - 80)
 }
 
 function readNodeSource(projectPath: string, node: PreflightNode) {
@@ -296,7 +297,7 @@ function readNodeSource(projectPath: string, node: PreflightNode) {
     if (!stat.isFile() || stat.size > 4 * 1024 * 1024) return null
     const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/)
     const start = Math.max(0, node.startLine - 1)
-    const end = Math.min(lines.length, Math.max(start + 1, Math.min(node.endLine, node.startLine + 70)))
+    const end = Math.min(lines.length, Math.max(start + 1, Math.min(node.endLine, node.startLine + 35)))
     return lines.slice(start, end).join('\n').trim() || null
   } catch {
     return null
@@ -310,7 +311,7 @@ function getArchitectureContext(dbPath: string) {
     if (cached?.fingerprint === fingerprint) return cached.text
     const text = limitTextToTokenBudget(
       formatCodeGraphArchitecture(getCodeGraphArchitecture(dbPath, 600)),
-      PREFLIGHT_TOKEN_BUDGET - 120,
+      ARCHITECTURE_TOKEN_BUDGET,
     )
     architectureCache.set(dbPath, { fingerprint, text })
     return text

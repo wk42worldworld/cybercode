@@ -49,7 +49,17 @@ describe('Code Graph automatic preflight gate', () => {
     expect(result).toContain('auth.createSession')
     expect(result).toContain('calls/extracted')
     expect(result).toContain('return token')
-    expect(estimateCodeGraphTokens(result!)).toBeLessThanOrEqual(1_800)
+    expect(estimateCodeGraphTokens(result!)).toBeLessThanOrEqual(640)
+  })
+
+  test('does not inject unrelated architecture when no symbol matches', () => {
+    const result = buildCodeGraphPreflight(
+      projectDir,
+      'Fix TotallyMissingController.handleRequest',
+      new AbortController().signal,
+    )
+
+    expect(result).toBeNull()
   })
 
   test('returns a compact architecture report for a structural prompt without symbols', () => {

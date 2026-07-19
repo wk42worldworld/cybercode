@@ -6,7 +6,11 @@ import * as path from 'node:path'
 import { handleTokenOptimizationApi } from '../api/token-optimization.js'
 import { getCodeGraphVisualization } from '../services/codeGraphAnalysis.js'
 import { openCodeGraphDatabaseForRead } from '../services/codeGraphDatabase.js'
-import { CodeGraphService, codeGraphService } from '../services/codeGraphService.js'
+import {
+  CodeGraphService,
+  codeGraphService,
+  type CodeGraphStatus,
+} from '../services/codeGraphService.js'
 
 const originalConfigDir = process.env.CYBER_CONFIG_DIR
 const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cybercode-codegraph-test-'))
@@ -15,12 +19,15 @@ const projectDir = path.join(testRoot, 'project')
 const emptyProjectDir = path.join(testRoot, 'empty-project')
 const inheritedProjectDir = path.join(testRoot, 'inherited-project')
 const architectureProjectDir = path.join(testRoot, 'architecture-project')
+const incompleteProjectDir = path.join(testRoot, 'incomplete-project')
 fs.mkdirSync(projectDir, { recursive: true })
 fs.mkdirSync(emptyProjectDir, { recursive: true })
 fs.mkdirSync(inheritedProjectDir, { recursive: true })
 fs.mkdirSync(architectureProjectDir, { recursive: true })
+fs.mkdirSync(path.join(incompleteProjectDir, '.codegraph'), { recursive: true })
 const canonicalProjectDir = fs.realpathSync.native(projectDir)
 const canonicalEmptyProjectDir = fs.realpathSync.native(emptyProjectDir)
+const canonicalIncompleteProjectDir = fs.realpathSync.native(incompleteProjectDir)
 
 beforeAll(() => {
   process.env.CYBER_CONFIG_DIR = configDir
@@ -28,6 +35,9 @@ beforeAll(() => {
   createGraphDatabase(emptyProjectDir, false)
   createGraphDatabase(inheritedProjectDir)
   createArchitectureGraphDatabase(architectureProjectDir)
+  new Database(path.join(incompleteProjectDir, '.codegraph', 'codegraph.db'), {
+    create: true,
+  }).close()
   const configPath = path.join(configDir, 'cybercode', 'codegraph.json')
   fs.mkdirSync(path.dirname(configPath), { recursive: true })
   fs.writeFileSync(configPath, JSON.stringify({
@@ -170,6 +180,59 @@ describe('native Code Graph service', () => {
     })
   })
 
+  test('rebuilds an incomplete database instead of trying to reuse it', async () => {
+    const service = new CodeGraphService()
+    let invocation: string[] = []
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation((args) => {
+      invocation = [...args]
+      return createFakeWatchProcess(Promise.resolve(1))
+    })
+    const internals = service as unknown as {
+      runIndex: (projectPath: string, rebuild: boolean) => Promise<void>
+    }
+
+    try {
+      service.enableGlobal()
+      await internals.runIndex(canonicalIncompleteProjectDir, false)
+
+      expect(invocation).toContain('--rebuild')
+      expect(service.getStatus(incompleteProjectDir).state).toBe('error')
+    } finally {
+      service.shutdown()
+      spawnSpy.mockRestore()
+    }
+  })
+
+  test('does not restart an errored index on every status poll', () => {
+    const service = new CodeGraphService()
+    const internals = service as unknown as {
+      getOrCreateRuntime: (
+        projectPath: string,
+        enabled: boolean,
+      ) => {
+        status: CodeGraphStatus
+        indexGeneration: number | null
+        watchProcess: ReturnType<typeof Bun.spawn> | null
+      }
+    }
+    const runtime = internals.getOrCreateRuntime(canonicalProjectDir, true)
+    runtime.status = {
+      ...runtime.status,
+      state: 'error',
+      stats: null,
+      error: 'broken index',
+    }
+    runtime.indexGeneration = null
+    runtime.watchProcess = null
+
+    try {
+      expect(service.getStatus(projectDir).state).toBe('error')
+      expect(service.getStatus(projectDir).state).toBe('error')
+    } finally {
+      service.shutdown()
+    }
+  })
+
   test('keeps reporting preparation while a rebuild is waiting to start', async () => {
     const service = new CodeGraphService()
     const preparation = Promise.withResolvers<void>()
@@ -253,13 +316,18 @@ describe('native Code Graph service', () => {
     }
   })
 
-  test('keeps a newly enabled index owned when an old preparation finishes late', async () => {
+  test('starts a newly enabled index without waiting for an old preparation', async () => {
     const service = new CodeGraphService()
     const oldPreparation = Promise.withResolvers<void>()
     const newPreparation = Promise.withResolvers<void>()
-    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() =>
-      createFakeWatchProcess(Promise.resolve(0)),
-    )
+    const watcherExit = Promise.withResolvers<number>()
+    let spawnCount = 0
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() => {
+      spawnCount += 1
+      return createFakeWatchProcess(
+        spawnCount === 1 ? Promise.resolve(0) : watcherExit.promise,
+      )
+    })
     const runs: Promise<void>[] = []
     let patchCallCount = 0
     const internals = service as unknown as {
@@ -287,18 +355,22 @@ describe('native Code Graph service', () => {
       await service.disableGlobal()
       service.enableGlobal()
       expect(runs).toHaveLength(2)
+      await runs[1]
+
+      expect(service.getStatus(projectDir).state).toBe('ready')
+      expect(spawnSpy).toHaveBeenCalled()
 
       oldPreparation.resolve()
       await runs[0]
       service.ensureProject(projectDir)
 
       expect(runs).toHaveLength(2)
-      expect(service.getStatus(projectDir).state).toBe('preparing')
-      expect(spawnSpy).not.toHaveBeenCalled()
+      expect(service.getStatus(projectDir).state).toBe('ready')
     } finally {
       service.shutdown()
       oldPreparation.resolve()
       newPreparation.resolve()
+      watcherExit.resolve(0)
       await Promise.all(runs)
       spawnSpy.mockRestore()
     }

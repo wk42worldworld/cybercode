@@ -1170,3 +1170,4 @@ function normalizeSessionPermissionUpdates(
 }
 
 export const conversationService = new ConversationService()
+codeGraphService.setSessionController(conversationService)
