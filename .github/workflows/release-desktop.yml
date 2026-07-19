@@ -349,6 +349,101 @@ jobs:
 
           ls -la "$OUT"
 
+      - name: Validate packaged Code Graph resources
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          LABEL: ${{ matrix.label }}
+          ASSET_SUFFIX: ${{ matrix.asset_suffix }}
+        run: |
+          set -euo pipefail
+
+          OUT="$RUNNER_TEMP/release-assets"
+          ZIP="$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}.zip"
+          INSPECT="$RUNNER_TEMP/cybercode-package-check-$ASSET_SUFFIX"
+          ROOT="$INSPECT/root"
+          mkdir -p "$ROOT"
+
+          case "$LABEL" in
+            macOS-ARM64|macOS-x64)
+              unzip -q "$ZIP" -d "$ROOT"
+              ;;
+            Linux-x64)
+              WRAPPED="$INSPECT/wrapped"
+              mkdir -p "$WRAPPED"
+              unzip -q "$ZIP" -d "$WRAPPED"
+              DEB="$WRAPPED/CyberCode_${VERSION}_${ASSET_SUFFIX}_deb.deb"
+              if [ ! -s "$DEB" ]; then
+                echo "::error::Linux ZIP does not contain the expected DEB installer"
+                exit 1
+              fi
+              dpkg-deb --extract "$DEB" "$ROOT"
+              ;;
+            Windows-x64)
+              WRAPPED="$INSPECT/wrapped"
+              mkdir -p "$WRAPPED"
+              7z x -bd -y "-o$WRAPPED" "$ZIP" >/dev/null
+              NSIS="$WRAPPED/CyberCode_${VERSION}_${ASSET_SUFFIX}_nsis.exe"
+              if [ ! -s "$NSIS" ]; then
+                echo "::error::Windows ZIP does not contain the expected NSIS installer"
+                exit 1
+              fi
+              7z x -bd -y "-o$ROOT" "$NSIS" >/dev/null
+              ;;
+            *)
+              echo "::error::Unknown release label: $LABEL"
+              exit 1
+              ;;
+          esac
+
+          RESOURCE_DIR="$(find "$ROOT" -type d -path '*/resources/codegraph' -print -quit)"
+          SIDECAR="$(find "$ROOT" -type f \( -name 'cybercode-sidecar' -o -name 'cybercode-sidecar.exe' \) -print -quit)"
+          if [ -z "$RESOURCE_DIR" ] || [ -z "$SIDECAR" ] || [ ! -s "$SIDECAR" ]; then
+            echo "::error::Packaged Code Graph resources or CyberCode sidecar are missing"
+            find "$ROOT" -maxdepth 8 -type f | sort
+            exit 1
+          fi
+
+          for required in schema.sql tree-sitter.wasm manifest.json; do
+            if [ ! -s "$RESOURCE_DIR/$required" ]; then
+              echo "::error::Packaged Code Graph resource is missing or empty: $required"
+              find "$RESOURCE_DIR" -maxdepth 1 -type f | sort
+              exit 1
+            fi
+          done
+
+          GRAMMAR_COUNT="$(find "$RESOURCE_DIR" -maxdepth 1 -type f -name 'tree-sitter-*.wasm' | wc -l | tr -d '[:space:]')"
+          if [ "$GRAMMAR_COUNT" -lt 11 ]; then
+            echo "::error::Expected at least 11 packaged Code Graph grammars, found $GRAMMAR_COUNT"
+            find "$RESOURCE_DIR" -maxdepth 1 -type f | sort
+            exit 1
+          fi
+
+          RESOURCE_DIR="$RESOURCE_DIR" node <<'NODE'
+          const crypto = require('node:crypto')
+          const fs = require('node:fs')
+          const path = require('node:path')
+
+          const resourceDir = process.env.RESOURCE_DIR
+          const manifest = JSON.parse(
+            fs.readFileSync(path.join(resourceDir, 'manifest.json'), 'utf8'),
+          )
+          const schemaPath = path.join(resourceDir, 'schema.sql')
+          const schemaSha256 = crypto
+            .createHash('sha256')
+            .update(fs.readFileSync(schemaPath))
+            .digest('hex')
+
+          if (
+            manifest.schema?.name !== 'schema.sql' ||
+            manifest.schema?.sha256 !== schemaSha256
+          ) {
+            throw new Error('Packaged Code Graph schema does not match manifest.json')
+          }
+          NODE
+
+          echo "Validated packaged Code Graph resources for $LABEL ($GRAMMAR_COUNT grammars)"
+
       - name: Upload release assets artifact
         uses: actions/upload-artifact@v4
         with:
