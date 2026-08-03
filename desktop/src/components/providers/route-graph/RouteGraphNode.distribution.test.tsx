@@ -40,6 +40,28 @@ function distributionProps(
   } as unknown as Parameters<typeof RouteGraphNodeView>[0]
 }
 
+function conditionProps(onConfigChange = vi.fn()) {
+  return {
+    id: 'condition',
+    type: 'routeGraphNode',
+    selected: false,
+    dragging: false,
+    zIndex: 0,
+    isConnectable: true,
+    positionAbsoluteX: 0,
+    positionAbsoluteY: 0,
+    data: {
+      kind: 'condition',
+      config: {
+        condition: 'modality',
+        operator: 'is',
+        value: 'image',
+      },
+      onConfigChange,
+    },
+  } as unknown as Parameters<typeof RouteGraphNodeView>[0]
+}
+
 describe('RouteGraphNode distribution pins', () => {
   beforeEach(() => {
     useSettingsStore.setState({ locale: 'en' })
@@ -85,5 +107,20 @@ describe('RouteGraphNode distribution pins', () => {
 
     expect(onConfigChange).toHaveBeenNthCalledWith(1, { distributionOutputCount: 4 })
     expect(onConfigChange).toHaveBeenNthCalledWith(2, { distributionOutputCount: 2 })
+  })
+})
+
+describe('RouteGraphNode condition values', () => {
+  beforeEach(() => useSettingsStore.setState({ locale: 'en' }))
+
+  it('offers image modality as a localized inline choice', async () => {
+    const onConfigChange = vi.fn()
+    render(<RouteGraphNodeView {...conditionProps(onConfigChange)} />)
+
+    expect(screen.getByRole('button', { name: 'Value: Image' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Value: Image' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Text' }))
+
+    expect(onConfigChange).toHaveBeenCalledWith({ value: 'text' })
   })
 })

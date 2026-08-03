@@ -460,6 +460,73 @@ describe('agent routing blueprint', () => {
     expect(replies[1]).toContain('second-key')
   })
 
+  test('keeps text on the default branch and temporarily routes images to a vision model', async () => {
+    upstream = Bun.serve({
+      hostname: '127.0.0.1',
+      port: 0,
+      async fetch(request) {
+        const key = request.headers.get('authorization')?.replace('Bearer ', '') ?? ''
+        const body = await request.json() as { model: string }
+        return openAIResponse(body.model, key)
+      },
+    })
+    const text = await addProvider('Text', 'text-key', 'text-model', {
+      imageSupportMode: 'disabled',
+    })
+    const vision = await addProvider('Vision', 'vision-key', 'vision-model', {
+      imageSupportMode: 'enabled',
+    })
+    const imageAware = graph(
+      [
+        node('start', 'start'),
+        node('condition', 'condition', {
+          field: 'modality',
+          operator: 'contains',
+          value: 'image',
+        }),
+        node('vision', 'model', { providerId: vision.id, modelId: 'vision-model' }),
+        node('text', 'model', { providerId: text.id, modelId: 'text-model' }),
+        node('output', 'output'),
+      ],
+      [
+        edge('start-condition', 'start', 'condition'),
+        edge('image', 'condition', 'vision', 'true'),
+        edge('text', 'condition', 'text', 'false'),
+        edge('vision-output', 'vision', 'output'),
+        edge('text-output', 'text', 'output'),
+      ],
+    )
+    await setPublishedGraph(imageAware)
+
+    const textResponse = await routeRequest({
+      model: 'cybercode-route-blueprint',
+      max_tokens: 64,
+      messages: [{ role: 'user', content: 'hello' }],
+    }, 'modality-text')
+    expect(await textResponse.text()).toContain('text-key')
+
+    const imageResponse = await routeRequest({
+      model: 'cybercode-route-blueprint',
+      max_tokens: 64,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Describe this image.' },
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: 'AA==' },
+          },
+        ],
+      }],
+    }, 'modality-image')
+    expect(await imageResponse.text()).toContain('vision-key')
+
+    const persisted = (await routingService.getConfig()).profiles[0]?.graph
+    expect(persisted?.nodes.find((entry) => entry.id === 'text')).toMatchObject({
+      config: { providerId: text.id, modelId: 'text-model' },
+    })
+  })
+
   test('keeps V1 graphs compatible and previews a V2 agent through its fallback without calling a model', () => {
     const legacy = directGraph('provider-a', 'model-a')
     expect(RouteGraphSchema.parse(legacy).version).toBe(1)
@@ -1639,7 +1706,12 @@ describe('agent routing blueprint', () => {
     expect(await response.text()).toContain('exceeded its estimated')
   })
 
-  async function addProvider(name: string, apiKey: string, modelId: string) {
+  async function addProvider(
+    name: string,
+    apiKey: string,
+    modelId: string,
+    options: { imageSupportMode?: 'auto' | 'enabled' | 'disabled' } = {},
+  ) {
     if (!upstream) {
       upstream = Bun.serve({
         hostname: '127.0.0.1',
@@ -1654,6 +1726,7 @@ describe('agent routing blueprint', () => {
       baseUrl: `http://127.0.0.1:${upstream.port}`,
       apiFormat: 'openai_chat',
       models: { main: modelId, haiku: modelId, sonnet: modelId, opus: modelId },
+      ...options,
     })
   }
 

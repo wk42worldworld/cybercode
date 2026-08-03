@@ -16,6 +16,8 @@ import {
   CONDITION_OPERATORS,
   DISTRIBUTION_MODES,
   RESULT_MODES,
+  conditionValueOptions,
+  normalizeConditionValue,
   uiConditionOperator,
 } from './routeGraphOptions'
 import {
@@ -61,6 +63,8 @@ export function RouteGraphInspector({
 }) {
   const t = useTranslation()
   const config = node.data.config
+  const condition = config.condition ?? 'task'
+  const conditionValues = conditionValueOptions(condition)
   const source = sources.find((entry) => entry.providerId === config.providerId)
   const updateConfig = (patch: Partial<RouteGraphNodeConfig>) => {
     onChange({
@@ -141,10 +145,14 @@ export function RouteGraphInspector({
                 value: entry,
                 label: t(`settings.routing.graph.condition.${entry}` as never),
               }))}
-              onChange={(condition) => updateConfig({
-                condition: condition as RouteConditionKind,
-                operator: uiConditionOperator(config.operator ?? 'is'),
-              })}
+              onChange={(nextCondition) => {
+                const conditionKind = nextCondition as RouteConditionKind
+                updateConfig({
+                  condition: conditionKind,
+                  operator: uiConditionOperator(config.operator ?? 'is'),
+                  value: normalizeConditionValue(conditionKind, config.value),
+                })
+              }}
             />
             <InspectorSelect
               label={t('settings.routing.graph.operator')}
@@ -156,12 +164,22 @@ export function RouteGraphInspector({
               onChange={(operator) => updateConfig({ operator: operator as RouteConditionOperator })}
             />
             {!['known', 'unknown'].includes(config.operator ?? '') && (
-              <InspectorField label={t('settings.routing.graph.value')}>
-                <ImeSafeInput
-                  value={String(config.value ?? '')}
-                  onChange={(value) => updateConfig({ value })}
-                />
-              </InspectorField>
+              conditionValues.length > 0
+                ? <InspectorSelect
+                    label={t('settings.routing.graph.value')}
+                    value={String(normalizeConditionValue(condition, config.value))}
+                    options={conditionValues.map((value) => ({
+                      value,
+                      label: t(`settings.routing.graph.conditionValue.${condition}.${value}` as never),
+                    }))}
+                    onChange={(value) => updateConfig({ value })}
+                  />
+                : <InspectorField label={t('settings.routing.graph.value')}>
+                    <ImeSafeInput
+                      value={String(config.value ?? '')}
+                      onChange={(value) => updateConfig({ value })}
+                    />
+                  </InspectorField>
             )}
             {config.condition === 'quota' && <UnknownQuotaNotice />}
           </>

@@ -36,6 +36,8 @@ import {
   CONDITION_OPERATORS,
   DISTRIBUTION_MODES,
   RESULT_MODES,
+  conditionValueOptions,
+  normalizeConditionValue,
   uiConditionOperator,
 } from './routeGraphOptions'
 import {
@@ -435,6 +437,8 @@ export function RouteGraphNodeView({ id, data, selected }: NodeProps<FlowRouteNo
 
     if (data.kind === 'condition') {
       const operator = uiConditionOperator(data.config.operator ?? 'is')
+      const condition = data.config.condition ?? 'task'
+      const conditionValues = conditionValueOptions(condition)
       return (
         <>
           <InlineNodeSelect
@@ -445,10 +449,14 @@ export function RouteGraphNodeView({ id, data, selected }: NodeProps<FlowRouteNo
               value: entry,
               label: t(`settings.routing.graph.condition.${entry}` as never),
             }))}
-            onChange={(condition) => updateConfig({
-              condition: condition as RouteConditionKind,
-              operator,
-            })}
+            onChange={(nextCondition) => {
+              const conditionKind = nextCondition as RouteConditionKind
+              updateConfig({
+                condition: conditionKind,
+                operator,
+                value: normalizeConditionValue(conditionKind, data.config.value),
+              })
+            }}
           />
           <InlineNodeSelect
             label={t('settings.routing.graph.operator')}
@@ -463,12 +471,23 @@ export function RouteGraphNodeView({ id, data, selected }: NodeProps<FlowRouteNo
             })}
           />
           {!['known', 'unknown'].includes(operator) && (
-            <InlineNodeInput
-              label={t('settings.routing.graph.value')}
-              value={String(data.config.value ?? '')}
-              disabled={controlsDisabled}
-              onChange={(value) => updateConfig({ value })}
-            />
+            conditionValues.length > 0
+              ? <InlineNodeSelect
+                  label={t('settings.routing.graph.value')}
+                  value={String(normalizeConditionValue(condition, data.config.value))}
+                  disabled={controlsDisabled}
+                  options={conditionValues.map((value) => ({
+                    value,
+                    label: t(`settings.routing.graph.conditionValue.${condition}.${value}` as never),
+                  }))}
+                  onChange={(value) => updateConfig({ value })}
+                />
+              : <InlineNodeInput
+                  label={t('settings.routing.graph.value')}
+                  value={String(data.config.value ?? '')}
+                  disabled={controlsDisabled}
+                  onChange={(value) => updateConfig({ value })}
+                />
           )}
         </>
       )

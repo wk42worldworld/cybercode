@@ -23,6 +23,11 @@ export const CONDITION_OPERATORS: RouteConditionOperator[] = [
   'unknown',
 ]
 
+export const CONDITION_VALUE_OPTIONS: Partial<Record<RouteConditionKind, readonly string[]>> = {
+  task: ['vision', 'coding', 'reasoning', 'audio', 'general'],
+  modality: ['image', 'text', 'audio'],
+}
+
 export const DISTRIBUTION_MODES: RouteDistributionMode[] = [
   'round-robin',
   'quota',
@@ -44,4 +49,18 @@ export function uiConditionOperator(
   if (operator === 'equals' || operator === 'contains') return 'is'
   if (operator === 'not-equals') return 'is-not'
   return operator
+}
+
+export function conditionValueOptions(condition: RouteConditionKind): readonly string[] {
+  return CONDITION_VALUE_OPTIONS[condition] ?? []
+}
+
+export function normalizeConditionValue(
+  condition: RouteConditionKind,
+  value: string | number | boolean | undefined,
+): string | number | boolean | undefined {
+  const options = conditionValueOptions(condition)
+  if (options.length === 0) return value
+  const normalized = String(value ?? '')
+  return options.includes(normalized) ? normalized : options[0]
 }
