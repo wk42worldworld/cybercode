@@ -65,6 +65,7 @@ function pushAssistantHistoryText(
   idGen: IdGenerator,
   model?: string,
   serverId?: string,
+  stableId?: string,
 ): void {
   if (!content.trim()) return
   const last = messages[messages.length - 1]
@@ -75,7 +76,10 @@ function pushAssistantHistoryText(
     return
   }
   messages.push({
-    id: idGen(),
+    // Deterministic ids keep Virtuoso's scroll anchor valid across history
+    // reloads (see loadHistory/reloadHistory in chatStore): the same block of
+    // the same source message must produce the same id every time.
+    id: stableId ?? idGen(),
     type: 'assistant_text',
     content,
     timestamp,
@@ -124,14 +128,30 @@ export function mapHistoryMessages(
       continue
     }
     if ((msg.type === 'assistant' || msg.type === 'tool_use') && Array.isArray(msg.content)) {
-      for (const block of msg.content as AssistantHistoryBlock[]) {
+      const blocks = msg.content as AssistantHistoryBlock[]
+      for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+        const block = blocks[blockIndex]!
         if (block.type === 'thinking' && block.thinking)
-          uiMessages.push({ id: idGen(), type: 'thinking', content: block.thinking, timestamp, serverId: msg.id })
+          uiMessages.push({
+            id: msg.id ? `${msg.id}:thinking:${blockIndex}` : idGen(),
+            type: 'thinking',
+            content: block.thinking,
+            timestamp,
+            serverId: msg.id,
+          })
         else if (block.type === 'text' && block.text)
-          pushAssistantHistoryText(uiMessages, block.text, timestamp, idGen, msg.model, msg.id)
+          pushAssistantHistoryText(
+            uiMessages,
+            block.text,
+            timestamp,
+            idGen,
+            msg.model,
+            msg.id,
+            msg.id ? `${msg.id}:text:${blockIndex}` : undefined,
+          )
         else if (block.type === 'tool_use')
           uiMessages.push({
-            id: idGen(),
+            id: msg.id ? `${msg.id}:tool:${block.id ?? blockIndex}` : idGen(),
             type: 'tool_use',
             toolName: block.name ?? 'unknown',
             toolUseId: block.id ?? '',
@@ -146,7 +166,9 @@ export function mapHistoryMessages(
     if ((msg.type === 'user' || msg.type === 'tool_result') && Array.isArray(msg.content)) {
       const textParts: string[] = []
       const attachments: UIAttachment[] = []
-      for (const block of msg.content as UserHistoryBlock[]) {
+      const blocks = msg.content as UserHistoryBlock[]
+      for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+        const block = blocks[blockIndex]!
         if (block.type === 'text' && block.text && isTeammateMessage(block.text)) {
           if (!includeTeammateMessages) continue
           textParts.push(...extractVisibleTeammateMessageContents(block.text))
@@ -172,7 +194,7 @@ export function mapHistoryMessages(
           attachments.push({ type: 'file', name: block.name || 'file' })
         else if (block.type === 'tool_result')
           uiMessages.push({
-            id: idGen(),
+            id: msg.id ? `${msg.id}:result:${block.tool_use_id ?? blockIndex}` : idGen(),
             type: 'tool_result',
             toolUseId: block.tool_use_id ?? '',
             content: block.content,

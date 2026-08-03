@@ -74,6 +74,16 @@ export function KnowledgeSpace() {
   const [graphActionLoading, setGraphActionLoading] = useState(false)
   const graphRequestRef = useRef(0)
   const sourceLoadRequestRef = useRef(0)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      graphRequestRef.current += 1
+      sourceLoadRequestRef.current += 1
+    }
+  }, [])
 
   const projectPath = useMemo(() => {
     const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
@@ -91,6 +101,7 @@ export function KnowledgeSpace() {
   )
 
   const notifyError = useCallback((error: unknown, fallback: string) => {
+    if (!mountedRef.current) return
     useUIStore.getState().addToast({
       type: 'error',
       message: error instanceof Error ? error.message : fallback,
@@ -98,6 +109,7 @@ export function KnowledgeSpace() {
   }, [])
 
   const loadSources = useCallback(async (quiet = false) => {
+    if (!mountedRef.current) return
     const requestId = ++sourceLoadRequestRef.current
     if (!quiet) setLoadingSources(true)
     try {
@@ -105,18 +117,20 @@ export function KnowledgeSpace() {
         knowledgeApi.sources(),
         knowledgeApi.stats(),
       ])
-      if (sourceLoadRequestRef.current !== requestId) return
+      if (!mountedRef.current || sourceLoadRequestRef.current !== requestId) return
       setSources(nextSources)
       setStats(nextStats)
       setSelectedSourceId((current) =>
         current && nextSources.some((source) => source.id === current) ? current : null,
       )
     } catch (error) {
-      if (!quiet && sourceLoadRequestRef.current === requestId) {
+      if (!quiet && mountedRef.current && sourceLoadRequestRef.current === requestId) {
         notifyError(error, t('knowledgeSpace.errors.load'))
       }
     } finally {
-      if (!quiet && sourceLoadRequestRef.current === requestId) setLoadingSources(false)
+      if (!quiet && mountedRef.current && sourceLoadRequestRef.current === requestId) {
+        setLoadingSources(false)
+      }
     }
   }, [notifyError, t])
 
@@ -125,7 +139,8 @@ export function KnowledgeSpace() {
   }, [loadSources])
 
   useEffect(() => {
-    if (!sources.some((source) => source.status === 'pending' || source.status === 'indexing')) return
+    if (!sources.some((source) =>
+      source.status === 'pending' || source.status === 'indexing' || source.status === 'removing')) return
     const timer = window.setInterval(() => void loadSources(true), 1_000)
     return () => window.clearInterval(timer)
   }, [loadSources, sources])
@@ -172,6 +187,7 @@ export function KnowledgeSpace() {
   }, [mode, notifyError, searchQuery, selectedSourceId, t])
 
   const loadGraphStatus = useCallback(async (quiet = false) => {
+    if (!mountedRef.current) return
     const requestPath = projectPath
     const requestId = ++graphRequestRef.current
     if (!requestPath) {
@@ -181,10 +197,10 @@ export function KnowledgeSpace() {
     }
     try {
       const nextStatus = await tokenOptimizationApi.status(requestPath)
-      if (graphRequestRef.current !== requestId) return
+      if (!mountedRef.current || graphRequestRef.current !== requestId) return
       setGraphStatus(nextStatus)
     } catch (error) {
-      if (!quiet && graphRequestRef.current === requestId) {
+      if (!quiet && mountedRef.current && graphRequestRef.current === requestId) {
         notifyError(error, t('knowledgeSpace.errors.graph'))
       }
     }
@@ -228,6 +244,7 @@ export function KnowledgeSpace() {
     if (uniquePaths.length === 0) return
     try {
       const added = await knowledgeApi.addSources(uniquePaths)
+      if (!mountedRef.current) return
       setSources((current) => mergeSources(current, added))
       if (added[0]) setSelectedSourceId(added[0].id)
       void loadSources(true)
@@ -240,6 +257,7 @@ export function KnowledgeSpace() {
     try {
       if (isTauriRuntime()) {
         const { open } = await import('@tauri-apps/plugin-dialog')
+        if (!mountedRef.current) return
         const selected = await open({
           directory,
           multiple: !directory,
@@ -247,6 +265,7 @@ export function KnowledgeSpace() {
             ? t('knowledgeSpace.sources.addFolder')
             : t('knowledgeSpace.sources.addFile'),
         })
+        if (!mountedRef.current) return
         const paths = Array.isArray(selected) ? selected : selected ? [selected] : []
         await addSourcePaths(paths)
         return
@@ -267,6 +286,7 @@ export function KnowledgeSpace() {
     void import('@tauri-apps/api/window')
       .then(async ({ getCurrentWindow }) => {
         unlisten = await getCurrentWindow().onDragDropEvent((event) => {
+          if (cancelled || !mountedRef.current) return
           if (event.payload.type === 'enter' || event.payload.type === 'over') {
             setDragging(true)
           } else if (event.payload.type === 'drop') {
@@ -276,9 +296,11 @@ export function KnowledgeSpace() {
             setDragging(false)
           }
         })
-        if (cancelled) unlisten()
+        if (cancelled) unlisten?.()
       })
-      .catch(() => setDragging(false))
+      .catch(() => {
+        if (!cancelled && mountedRef.current) setDragging(false)
+      })
     return () => {
       cancelled = true
       unlisten?.()
@@ -289,14 +311,20 @@ export function KnowledgeSpace() {
     if (!selectedSource) return
     if (!window.confirm(t('knowledgeSpace.details.removeConfirm', { name: selectedSource.name }))) return
     setSourceActionId(selectedSource.id)
+    setSources((current) => current.map((source) => source.id === selectedSource.id
+      ? { ...source, status: 'removing', error: null }
+      : source))
     try {
       await knowledgeApi.removeSource(selectedSource.id)
+      if (!mountedRef.current) return
       setSelectedSourceId(null)
       await loadSources(true)
     } catch (error) {
+      if (!mountedRef.current) return
+      await loadSources(true).catch(() => undefined)
       notifyError(error, t('knowledgeSpace.errors.remove'))
     } finally {
-      setSourceActionId(null)
+      if (mountedRef.current) setSourceActionId(null)
     }
   }
 
@@ -305,12 +333,13 @@ export function KnowledgeSpace() {
     setSourceActionId(selectedSource.id)
     try {
       const nextSource = await knowledgeApi.reindexSource(selectedSource.id)
+      if (!mountedRef.current) return
       setSources((current) => mergeSources(current, [nextSource]))
       void loadSources(true)
     } catch (error) {
       notifyError(error, t('knowledgeSpace.errors.reindex'))
     } finally {
-      setSourceActionId(null)
+      if (mountedRef.current) setSourceActionId(null)
     }
   }
 
@@ -318,11 +347,12 @@ export function KnowledgeSpace() {
     if (!projectPath || graphActionLoading) return
     setGraphActionLoading(true)
     try {
-      setGraphStatus(await tokenOptimizationApi.enable(projectPath))
+      const nextStatus = await tokenOptimizationApi.enable(projectPath)
+      if (mountedRef.current) setGraphStatus(nextStatus)
     } catch (error) {
       notifyError(error, t('knowledgeSpace.errors.graph'))
     } finally {
-      setGraphActionLoading(false)
+      if (mountedRef.current) setGraphActionLoading(false)
     }
   }
 
@@ -331,11 +361,12 @@ export function KnowledgeSpace() {
     setGraphActionLoading(true)
     setGraph(null)
     try {
-      setGraphStatus(await tokenOptimizationApi.rebuild(projectPath))
+      const nextStatus = await tokenOptimizationApi.rebuild(projectPath)
+      if (mountedRef.current) setGraphStatus(nextStatus)
     } catch (error) {
       notifyError(error, t('knowledgeSpace.errors.graph'))
     } finally {
-      setGraphActionLoading(false)
+      if (mountedRef.current) setGraphActionLoading(false)
     }
   }
 
@@ -484,8 +515,8 @@ function SourceRail({
             active={selectedSourceId === source.id}
             icon={source.kind === 'folder' ? <Folder size={15} /> : <File size={15} />}
             label={source.name}
-            meta={source.status === 'indexing' || source.status === 'pending'
-              ? t('knowledgeSpace.status.indexing')
+            meta={source.status === 'indexing' || source.status === 'pending' || source.status === 'removing'
+              ? t(`knowledgeSpace.status.${source.status}` as never)
               : String(source.documentCount)}
             status={source.status}
             onClick={() => onSelect(source.id)}
@@ -512,7 +543,7 @@ function SourceButton({ active, icon, label, meta, status, onClick }: {
         ? 'bg-[var(--color-surface-active)] text-[var(--color-text-primary)]'
         : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'}`}
     >
-      <span className="shrink-0">{status === 'indexing' || status === 'pending'
+      <span className="shrink-0">{status === 'indexing' || status === 'pending' || status === 'removing'
         ? <LoaderCircle className="animate-spin" size={15} />
         : icon}</span>
       <span className="min-w-0 flex-1 truncate text-[12px]">{label}</span>
@@ -796,10 +827,10 @@ function SourceInspector({ source, stats, busy, onReindex, onRemove }: {
               <p className="mt-[12px] text-[10px] leading-[16px] text-[var(--color-danger)]">{source.error}</p>
             )}
             <div className="mt-[18px] flex gap-[8px]">
-              <IconButton label={t('knowledgeSpace.details.reindex')} onClick={onReindex} disabled={busy} bordered>
+              <IconButton label={t('knowledgeSpace.details.reindex')} onClick={onReindex} disabled={busy || source.status === 'removing'} bordered>
                 <RefreshCw className={busy ? 'animate-spin' : ''} size={15} />
               </IconButton>
-              <IconButton label={t('knowledgeSpace.details.remove')} onClick={onRemove} disabled={busy} bordered danger>
+              <IconButton label={t('knowledgeSpace.details.remove')} onClick={onRemove} disabled={busy || source.status === 'removing'} bordered danger>
                 <Trash2 size={15} />
               </IconButton>
             </div>

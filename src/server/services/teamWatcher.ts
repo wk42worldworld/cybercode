@@ -5,7 +5,7 @@
  * Uses polling (setInterval) rather than fs.watch for cross-platform reliability.
  * Detects three kinds of events:
  *   - team_created  : a new team directory with config.json appears
- *   - team_update   : an existing team's config.json content changes
+ *   - team_update   : an existing team's config or member storage changes
  *   - team_deleted  : a previously-seen team directory disappears
  */
 
@@ -25,7 +25,11 @@ function getTeamsDir(): string {
 
 export class TeamWatcher {
   private intervalId: ReturnType<typeof setInterval> | null = null
-  private lastSnapshots = new Map<string, string>() // teamName -> raw JSON content
+  private lastSnapshots = new Map<string, string>() // teamName -> composite team snapshot
+
+  constructor(
+    private readonly broadcastOverride?: (message: ServerMessage) => void,
+  ) {}
 
   /** Start polling for team changes. */
   start(intervalMs = 3000): void {
@@ -87,15 +91,16 @@ export class TeamWatcher {
         continue
       }
 
+      const snapshot = this.buildTeamSnapshot(teamsDir, teamName, content)
       const lastContent = this.lastSnapshots.get(teamName)
 
       if (lastContent === undefined) {
         // New team detected
-        this.lastSnapshots.set(teamName, content)
+        this.lastSnapshots.set(teamName, snapshot)
         this.broadcast({ type: 'team_created', teamName })
-      } else if (content !== lastContent) {
-        // Team config changed -- extract member statuses and broadcast
-        this.lastSnapshots.set(teamName, content)
+      } else if (snapshot !== lastContent) {
+        // Team state changed -- extract member statuses and broadcast
+        this.lastSnapshots.set(teamName, snapshot)
         try {
           const config = JSON.parse(content)
           const members = this.extractMemberStatuses(config)
@@ -103,6 +108,9 @@ export class TeamWatcher {
           const inboxMembers = this.discoverInboxMembers(teamsDir, teamName, config)
           const subagentMembers = this.discoverSubagentMembers(teamsDir, config)
           const allMembers = [...members, ...inboxMembers, ...subagentMembers]
+            .filter((member, index, all) => (
+              all.findIndex((candidate) => candidate.agentId === member.agentId) === index
+            ))
           this.broadcast({ type: 'team_update', teamName, members: allMembers })
         } catch {
           // JSON parse failed (likely truncated write) — try to recover partial members
@@ -113,7 +121,7 @@ export class TeamWatcher {
           // If nothing recoverable, skip broadcast entirely — don't send empty members
         }
       }
-      // else: content unchanged, nothing to do
+      // else: team state unchanged, nothing to do
     }
 
     // Check for deleted teams (were in lastSnapshots but no longer on disk)
@@ -123,6 +131,79 @@ export class TeamWatcher {
         this.broadcast({ type: 'team_deleted', teamName: name })
       }
     }
+  }
+
+  /**
+   * Include auxiliary member storage in the watched snapshot. Agent Teams can
+   * add an inbox or an in-process transcript without rewriting config.json.
+   */
+  private buildTeamSnapshot(
+    teamsDir: string,
+    teamName: string,
+    configContent: string,
+  ): string {
+    const parts = [configContent]
+    const inboxDir = path.join(teamsDir, teamName, 'inboxes')
+
+    try {
+      const inboxFiles = fs
+        .readdirSync(inboxDir)
+        .filter((file) => file.endsWith('.json'))
+        .sort()
+      parts.push(`inboxes:${inboxFiles.join(',')}`)
+    } catch {
+      parts.push('inboxes:')
+    }
+
+    let leadSessionId: string | null = null
+    try {
+      const config = JSON.parse(configContent) as Record<string, unknown>
+      leadSessionId = typeof config.leadSessionId === 'string'
+        ? config.leadSessionId
+        : null
+    } catch {
+      // The config itself is already part of the snapshot; ignore partial JSON.
+    }
+
+    if (!leadSessionId) return parts.join('\n--team-member-snapshot--\n')
+
+    const projectsDir = path.join(path.dirname(teamsDir), 'projects')
+    const subagentFiles: string[] = []
+    try {
+      const projectEntries = fs.readdirSync(projectsDir, { withFileTypes: true })
+      for (const projectEntry of projectEntries) {
+        if (!projectEntry.isDirectory()) continue
+        const subagentsDir = path.join(
+          projectsDir,
+          projectEntry.name,
+          leadSessionId,
+          'subagents',
+        )
+        let files: string[]
+        try {
+          files = fs.readdirSync(subagentsDir)
+        } catch {
+          continue
+        }
+        for (const file of files) {
+          if (!file.endsWith('.jsonl')) continue
+          const filePath = path.join(subagentsDir, file)
+          try {
+            const stat = fs.statSync(filePath)
+            subagentFiles.push(
+              `${projectEntry.name}/${file}:${stat.size}:${stat.mtimeMs}`,
+            )
+          } catch {
+            // Ignore a transcript that disappears during the scan.
+          }
+        }
+      }
+    } catch {
+      // No projects directory yet.
+    }
+
+    parts.push(`subagents:${subagentFiles.sort().join(',')}`)
+    return parts.join('\n--team-member-snapshot--\n')
   }
 
   // ── Member status extraction ───────────────────────────────────────────
@@ -324,6 +405,10 @@ export class TeamWatcher {
   // ── Broadcasting ───────────────────────────────────────────────────────
 
   private broadcast(message: ServerMessage): void {
+    if (this.broadcastOverride) {
+      this.broadcastOverride(message)
+      return
+    }
     const sessionIds = getActiveSessionIds()
     for (const id of sessionIds) {
       sendToSession(id, message)

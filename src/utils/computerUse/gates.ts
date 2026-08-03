@@ -2,6 +2,8 @@ import type { CoordinateMode, CuSubGates } from '../../vendor/computer-use-mcp/t
 
 import { getDynamicConfig_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 
+import { isComputerUseSupportedPlatform } from './common.js'
+
 type ChicagoConfig = CuSubGates & {
   enabled: boolean
   coordinateMode: CoordinateMode
@@ -32,7 +34,9 @@ function readConfig(): ChicagoConfig {
 }
 
 export function getChicagoEnabled(): boolean {
-  return true
+  // Hard platform gate: win32-arm64 (and linux-arm64) have no bundled
+  // runtime asset, so the tools must never register there.
+  return isComputerUseSupportedPlatform()
 }
 
 export function getChicagoSubGates(): CuSubGates {

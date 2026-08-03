@@ -88,6 +88,26 @@ export function ensureSessionSearchSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_project_memories_project
       ON project_memories(project_path, updated_at DESC);
 
+    CREATE TABLE IF NOT EXISTS history_session_staging (
+      run_id TEXT NOT NULL,
+      stable_key TEXT NOT NULL,
+      staging_key TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      project_path TEXT NOT NULL,
+      work_dir TEXT,
+      title TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      modified_at TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_mtime_ms REAL NOT NULL,
+      file_size INTEGER NOT NULL,
+      message_count INTEGER NOT NULL,
+      PRIMARY KEY(run_id, stable_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_history_session_staging_run
+      ON history_session_staging(run_id, stable_key);
+
     CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts
       USING fts5(content_text);
     CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts_trigram
@@ -97,6 +117,20 @@ export function ensureSessionSearchSchema(db: Database): void {
     CREATE VIRTUAL TABLE IF NOT EXISTS project_memories_fts_trigram
       USING fts5(summary, title, keywords, work_dir, tokenize='trigram');
   `)
+  configureFtsForegroundMergePolicy(db)
+}
+
+function configureFtsForegroundMergePolicy(db: Database): void {
+  const tables = [
+    'messages_fts',
+    'messages_fts_trigram',
+    'project_memories_fts',
+    'project_memories_fts_trigram',
+  ] as const
+  for (const table of tables) {
+    db.query(`INSERT INTO ${table}(${table}, rank) VALUES ('automerge', 0)`).run()
+    db.query(`INSERT INTO ${table}(${table}, rank) VALUES ('crisismerge', 0)`).run()
+  }
 }
 
 export function sessionKey(projectPath: string, sessionId: string): string {

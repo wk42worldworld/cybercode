@@ -4,6 +4,7 @@
  * GET /api/skills              — List all installed skills (metadata only)
  * GET /api/skills/detail       — Full skill data (tree + files)
  *       ?source=user&name=xxx
+ * GET /api/skills/marketplace  — Discover skills from supported markets
  */
 
 import * as path from 'path'
@@ -42,6 +43,13 @@ import type {
   SkillLearningMode,
   SkillLearningOverview,
 } from '../../skillLearning/types.js'
+import {
+  installSkillMarketplaceItem,
+  listSkillMarketplace,
+  SkillMarketplaceError,
+  uninstallSkillMarketplaceItem,
+  type SkillMarketplaceScope,
+} from '../../skills/skillMarketplace.js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -467,6 +475,10 @@ export async function handleSkillsApi(
       return await handleSkillLearningApi(req, url, segments)
     }
 
+    if (sub === 'marketplace') {
+      return await handleSkillMarketplaceApi(req, url, segments)
+    }
+
     if (req.method !== 'GET') {
       throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
     }
@@ -505,6 +517,91 @@ async function listSkills(url: URL): Promise<Response> {
 async function openSkillConfigDir(): Promise<Response> {
   await openDirectory(getUserSkillsDir())
   return Response.json({ ok: true })
+}
+
+function marketplaceApiError(error: unknown): never {
+  if (error instanceof SkillMarketplaceError) {
+    if (error.code === 'NOT_FOUND') throw ApiError.notFound(error.message)
+    if (error.code === 'CONFLICT') throw ApiError.conflict(error.message)
+    if (error.code === 'INVALID_INPUT') throw ApiError.badRequest(error.message)
+    throw new ApiError(503, error.message, 'MARKETPLACE_UNAVAILABLE')
+  }
+  throw error
+}
+
+async function readMarketplaceAction(req: Request): Promise<{
+  itemId: string
+  scope: SkillMarketplaceScope
+  cwd?: string
+}> {
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    throw ApiError.badRequest('Invalid JSON body')
+  }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw ApiError.badRequest('Invalid Skill marketplace request')
+  }
+
+  const input = body as Record<string, unknown>
+  if (typeof input.itemId !== 'string' || input.itemId.length === 0) {
+    throw ApiError.badRequest('Marketplace Skill is required')
+  }
+  if (input.scope !== 'user' && input.scope !== 'project') {
+    throw ApiError.badRequest('Invalid Skill installation scope')
+  }
+  if (input.cwd !== undefined && typeof input.cwd !== 'string') {
+    throw ApiError.badRequest('Invalid project path')
+  }
+  return {
+    itemId: input.itemId,
+    scope: input.scope,
+    cwd: input.cwd,
+  }
+}
+
+async function handleSkillMarketplaceApi(
+  req: Request,
+  url: URL,
+  segments: string[],
+): Promise<Response> {
+  const action = segments[3]
+
+  try {
+    if (!action) {
+      if (req.method !== 'GET') {
+        throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
+      }
+      const catalog = await listSkillMarketplace({
+        cwd: url.searchParams.get('cwd') || undefined,
+        refresh: url.searchParams.get('refresh') === 'true',
+      })
+      return Response.json({ catalog })
+    }
+
+    if (action === 'install') {
+      if (req.method !== 'POST') {
+        throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
+      }
+      const result = await installSkillMarketplaceItem(await readMarketplaceAction(req))
+      await clearCommandCaches()
+      return Response.json({ ok: true, ...result })
+    }
+
+    if (action === 'uninstall') {
+      if (req.method !== 'POST') {
+        throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
+      }
+      const result = await uninstallSkillMarketplaceItem(await readMarketplaceAction(req))
+      await clearCommandCaches()
+      return Response.json({ ok: true, ...result })
+    }
+
+    throw ApiError.notFound(`Unknown Skill marketplace endpoint: ${action}`)
+  } catch (error) {
+    marketplaceApiError(error)
+  }
 }
 
 function parseSkillLearningNumber(

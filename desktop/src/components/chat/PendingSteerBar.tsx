@@ -7,7 +7,7 @@ import {
   PencilLine,
   X,
 } from 'lucide-react'
-import { useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chatStore'
@@ -39,6 +39,12 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
   const cancelPendingSteer = useChatStore((s) => s.cancelPendingSteer)
   const [draggedSteerId, setDraggedSteerId] = useState<string | null>(null)
   const [dropTargetSteerId, setDropTargetSteerId] = useState<string | null>(null)
+  // HTML5 drag & drop cannot be used here: the app enables Tauri's native
+  // drag-drop channel (file attachments), and on macOS WKWebView that makes
+  // the native layer swallow dragover/drop, so in-page DnD never completes.
+  // Pointer events work in every webview, so reorder is pointer-driven.
+  const rowRefs = useRef(new Map<string, HTMLDivElement>())
+  const dragStateRef = useRef<{ steerId: string; pointerId: number } | null>(null)
 
   const visibleSteers = pendingSteers.filter((steer) => steer.status !== 'cancelled' && steer.status !== 'processed')
   const reorderableSteers = visibleSteers.filter(isReorderableSteer)
@@ -46,22 +52,50 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
   const showReorderHandles = reorderableSteers.length > 1
 
   const clearDragState = () => {
+    dragStateRef.current = null
     setDraggedSteerId(null)
     setDropTargetSteerId(null)
   }
 
-  const handleDragStart = (event: DragEvent<HTMLButtonElement>, steerId: string) => {
-    setDraggedSteerId(steerId)
-    setDropTargetSteerId(null)
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', steerId)
+  const findDropTargetAt = (clientY: number): string | null => {
+    for (const steer of visibleSteers) {
+      const row = rowRefs.current.get(steer.id)
+      if (!row) continue
+      const rect = row.getBoundingClientRect()
+      if (clientY >= rect.top && clientY <= rect.bottom) return steer.id
+    }
+    return null
   }
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>, targetSteerId: string) => {
+  const handleReorderPointerDown = (event: PointerEvent<HTMLButtonElement>, steerId: string) => {
+    if (event.button !== 0 || dragStateRef.current) return
     event.preventDefault()
-    const sourceSteerId = event.dataTransfer.getData('text/plain') || draggedSteerId
-    if (sourceSteerId && sourceSteerId !== targetSteerId) {
-      reorderPendingSteer(sessionId, sourceSteerId, targetSteerId)
+    const handle = event.currentTarget
+    if (typeof handle.setPointerCapture === 'function') {
+      try {
+        handle.setPointerCapture(event.pointerId)
+      } catch {
+        // jsdom and older webviews may reject capture; drag still works without it.
+      }
+    }
+    dragStateRef.current = { steerId, pointerId: event.pointerId }
+    setDraggedSteerId(steerId)
+    setDropTargetSteerId(null)
+  }
+
+  const handleReorderPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragStateRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const targetId = findDropTargetAt(event.clientY)
+    setDropTargetSteerId(targetId && targetId !== drag.steerId ? targetId : null)
+  }
+
+  const handleReorderPointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragStateRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const targetId = findDropTargetAt(event.clientY)
+    if (targetId && targetId !== drag.steerId) {
+      reorderPendingSteer(sessionId, drag.steerId, targetId)
     }
     clearDragState()
   }
@@ -83,7 +117,7 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
   if (visibleSteers.length === 0) return null
 
   return (
-    <div className="mb-[-8px] w-full px-[24px]">
+    <div className="mb-[8px] w-full px-[24px]">
       <div data-chat-content-column className="mx-auto flex w-full max-w-[878px] min-w-0 flex-col gap-[6px] rounded-[14px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] p-[6px] shadow-[0_10px_32px_rgba(15,23,42,0.10)]">
         {visibleSteers.map((steer, index) => {
           const canAct = steer.status === 'draft' || steer.status === 'failed'
@@ -97,15 +131,12 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
             <div
               key={steer.id}
               data-testid={`pending-steer-row-${steer.id}`}
-              onDragOver={(event) => {
-                if (!draggedSteerId || !canReorder || draggedSteerId === steer.id) return
-                event.preventDefault()
-                event.dataTransfer.dropEffect = 'move'
-                setDropTargetSteerId(steer.id)
-              }}
-              onDrop={(event) => {
-                if (!canReorder) return
-                handleDrop(event, steer.id)
+              ref={(element) => {
+                if (element) {
+                  rowRefs.current.set(steer.id, element)
+                } else {
+                  rowRefs.current.delete(steer.id)
+                }
               }}
               className={`relative flex h-[36px] min-w-0 items-center gap-[8px] rounded-[10px] bg-[var(--color-surface-container-low)] px-[8px] text-[var(--color-text-secondary)] transition-opacity ${
                 draggedSteerId === steer.id ? 'opacity-55' : ''
@@ -123,14 +154,17 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
               {showReorderHandles && (
                 <button
                   type="button"
-                  draggable={canReorder}
                   disabled={!canReorder}
-                  onDragStart={(event) => handleDragStart(event, steer.id)}
-                  onDragEnd={clearDragState}
+                  onPointerDown={(event) => {
+                    if (canReorder) handleReorderPointerDown(event, steer.id)
+                  }}
+                  onPointerMove={handleReorderPointerMove}
+                  onPointerUp={handleReorderPointerUp}
+                  onPointerCancel={clearDragState}
                   onKeyDown={(event) => handleReorderKeyDown(event, steer.id)}
                   aria-label={`${t('chat.pendingSteerReorder')}: ${preview}`}
                   title={t('chat.pendingSteerReorder')}
-                  className="inline-flex h-[24px] w-[20px] shrink-0 cursor-grab items-center justify-center rounded-[6px] text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
+                  className="inline-flex h-[24px] w-[20px] shrink-0 cursor-grab touch-none items-center justify-center rounded-[6px] text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] active:cursor-grabbing disabled:cursor-default disabled:opacity-30"
                 >
                   <GripVertical size={14} strokeWidth={2.2} />
                 </button>
@@ -155,7 +189,7 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
                   <>
                     <button
                       type="button"
-                      onClick={() => sendPendingSteers(sessionId, 'next', [steer.id])}
+                      onClick={() => sendPendingSteers(sessionId, 'now', [steer.id])}
                       aria-label={t('chat.pendingSteerJoin')}
                       title={t('chat.pendingSteerJoin')}
                       className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"

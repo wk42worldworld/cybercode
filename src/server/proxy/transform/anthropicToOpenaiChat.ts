@@ -50,9 +50,9 @@ export function anthropicToOpenaiChat(
     stream: body.stream,
   }
 
-  // max_tokens — omit to let upstream provider use its own default/max.
-  // Claude Code sends very large values (e.g. 128K) that exceed many
-  // providers' limits (DeepSeek: 8192, etc.).
+  // Preserve deliberately small internal calls while still omitting the very
+  // large values Claude-compatible clients send to providers with lower caps.
+  if (body.max_tokens <= 96) result.max_tokens = body.max_tokens
 
   // temperature & top_p
   if (body.temperature !== undefined) result.temperature = body.temperature

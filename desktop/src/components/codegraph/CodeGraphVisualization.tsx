@@ -2,6 +2,7 @@ import {
   Files,
   Focus,
   Maximize2,
+  RefreshCw,
   Search,
   Waypoints,
   X,
@@ -11,10 +12,12 @@ import {
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import type {
   CodeGraphConfidence,
@@ -22,24 +25,22 @@ import type {
   CodeGraphNode,
 } from '../../api/tokenOptimization'
 import { useTranslation } from '../../i18n'
+import {
+  EMPTY_GRAPH_LAYOUT,
+  buildBoundedSemanticLayout,
+  buildSemanticLayout,
+  clamp,
+  hashString,
+  requestCodeGraphLayout,
+  shouldUseCodeGraphLayoutWorker,
+  type GraphLayout,
+  type GraphLayoutFallbackReason,
+  type GraphViewMode,
+  type PositionedNode,
+} from './codeGraphLayout'
 
-type PositionedNode = CodeGraphNode & {
-  x: number
-  y: number
-  radius: number
-  clusterKey: string
-}
-type GraphCluster = {
-  key: string
-  label: string
-  kind: GraphViewMode
-  x: number
-  y: number
-  radius: number
-  nodeIds: string[]
-}
-type GraphLayout = { nodes: PositionedNode[]; clusters: GraphCluster[] }
-export type GraphViewMode = 'architecture' | 'files'
+export { buildSemanticLayout } from './codeGraphLayout'
+export type { GraphViewMode } from './codeGraphLayout'
 type ViewTransform = { x: number; y: number; scale: number }
 type ScreenPoint = { x: number; y: number }
 
@@ -79,7 +80,26 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
-  const layout = useMemo(() => buildSemanticLayout(data, viewMode), [data, viewMode])
+  const [keyboardNodeIndex, setKeyboardNodeIndex] = useState(0)
+  const [layoutRetryKey, setLayoutRetryKey] = useState(0)
+  const accessibilityId = useId()
+  const usesWorkerLayout = shouldUseCodeGraphLayoutWorker(data)
+  const synchronousLayout = useMemo(
+    () => usesWorkerLayout ? null : buildSemanticLayout(data, viewMode),
+    [data, usesWorkerLayout, viewMode],
+  )
+  const [workerLayout, setWorkerLayout] = useState<{
+    data: CodeGraphData
+    viewMode: GraphViewMode
+    layout: GraphLayout
+  } | null>(null)
+  const layout = synchronousLayout
+    ?? (workerLayout?.data === data && workerLayout.viewMode === viewMode
+      ? workerLayout.layout
+      : EMPTY_GRAPH_LAYOUT)
+  const layoutPending = usesWorkerLayout
+    && (workerLayout?.data !== data || workerLayout.viewMode !== viewMode)
+  const renderEdges = layout.renderEdges ?? data.edges
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.id, node])),
     [layout.nodes],
@@ -94,19 +114,52 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
   const hoveredNode = hoveredId ? nodeById.get(hoveredId) ?? null : null
   const selectedNode = selectedId ? nodeById.get(selectedId) ?? null : null
   const selectedConnections = useMemo(
-    () => selectedId ? getNodeConnections(data, selectedId, nodeById) : [],
-    [data, nodeById, selectedId],
+    () => selectedId ? getNodeConnections(renderEdges, selectedId, nodeById) : [],
+    [nodeById, renderEdges, selectedId],
   )
+  const accessibleNodeIndex = layout.nodes.length > 0
+    ? Math.min(keyboardNodeIndex, layout.nodes.length - 1)
+    : -1
+  const accessibleNode = accessibleNodeIndex >= 0 ? layout.nodes[accessibleNodeIndex]! : null
+  const graphSummary = t('tokenOptimization.graph.summary', {
+    nodes: layout.fallback?.processedNodeCount ?? data.nodes.length,
+    edges: layout.fallback?.processedEdgeCount ?? data.edges.length,
+  })
+
+  useEffect(() => {
+    if (!usesWorkerLayout) return
+    const controller = new AbortController()
+    requestCodeGraphLayout(data, viewMode, { signal: controller.signal })
+      .then((nextLayout) => {
+        if (controller.signal.aborted) return
+        setWorkerLayout({ data, viewMode, layout: nextLayout })
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof Error && error.name === 'AbortError')) {
+          setWorkerLayout({
+            data,
+            viewMode,
+            layout: buildBoundedSemanticLayout(data, viewMode, 'worker-error'),
+          })
+        }
+      })
+    return () => controller.abort()
+  }, [data, layoutRetryKey, usesWorkerLayout, viewMode])
+
+  useEffect(() => {
+    setKeyboardNodeIndex(0)
+    setHoveredId(null)
+  }, [layout.nodes])
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
     const updateSize = () => {
-      const width = Math.max(320, container.clientWidth)
+      const width = container.clientWidth > 0 ? container.clientWidth : 320
       const availableHeight = container.clientHeight
-      const height = Math.max(
-        440,
-        Math.min(900, availableHeight > 440 ? availableHeight : Math.round(width * 0.64)),
+      const height = Math.min(
+        900,
+        availableHeight > 0 ? availableHeight : Math.max(220, Math.round(width * 0.64)),
       )
       setCanvasSize({ width, height })
     }
@@ -123,13 +176,13 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const context = canvas.getContext('2d')
-    if (!context) return
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
     canvas.width = Math.round(canvasSize.width * dpr)
     canvas.height = Math.round(canvasSize.height * dpr)
     canvas.style.width = `${canvasSize.width}px`
     canvas.style.height = `${canvasSize.height}px`
+    const context = canvas.getContext('2d')
+    if (!context) return
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
     let animationFrame = 0
     let lastFrame = 0
@@ -141,7 +194,7 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
           context,
           size: canvasSize,
           transform,
-          data,
+          edges: renderEdges,
           layout,
           nodeById,
           hoveredId,
@@ -155,7 +208,7 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
     }
     render(performance.now())
     return () => window.cancelAnimationFrame(animationFrame)
-  }, [canvasSize, data, hoveredId, layout, nodeById, normalizedQuery, selectedId, transform])
+  }, [canvasSize, hoveredId, layout, nodeById, normalizedQuery, renderEdges, selectedId, transform])
 
   const findNodeAt = useCallback((x: number, y: number) => {
     const world = screenToWorld(x, y, canvasSize, transform)
@@ -236,6 +289,29 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
     }))
   }
 
+  const handleKeyboardNavigation = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (layout.nodes.length === 0) return
+    let nextIndex = accessibleNodeIndex
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (accessibleNodeIndex + 1) % layout.nodes.length
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (accessibleNodeIndex - 1 + layout.nodes.length) % layout.nodes.length
+    } else if (event.key === 'Home') {
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      nextIndex = layout.nodes.length - 1
+    } else if ((event.key === 'Enter' || event.key === ' ') && accessibleNode) {
+      event.preventDefault()
+      focusNode(accessibleNode)
+      return
+    } else {
+      return
+    }
+    event.preventDefault()
+    setKeyboardNodeIndex(nextIndex)
+    setHoveredId(layout.nodes[nextIndex]!.id)
+  }
+
   return (
     <div className="codegraph-visualization flex min-h-0 flex-1 flex-col gap-[12px]">
       <div className="codegraph-toolbar flex flex-wrap items-center gap-[10px]">
@@ -309,55 +385,133 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
         </div>
       </div>
 
+      {layout.fallback && (
+        <div
+          role="status"
+          className="flex min-h-[36px] flex-wrap items-center gap-x-[10px] gap-y-[4px] border-l-2 border-[#ffba63] bg-[var(--color-surface-hover)] px-[10px] py-[7px] text-[11px] text-[var(--color-text-secondary)]"
+        >
+          <strong className="text-[var(--color-text-primary)]">
+            {t('tokenOptimization.graph.fallback.preview', {
+              shown: layout.fallback.processedNodeCount,
+              total: layout.fallback.sourceNodeCount,
+            })}
+          </strong>
+          <span className="min-w-0 flex-1">
+            {getGraphFallbackReasonLabel(layout.fallback.reason, t)}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setWorkerLayout(null)
+              setLayoutRetryKey((current) => current + 1)
+            }}
+            className="inline-flex h-[26px] items-center gap-[5px] rounded-[6px] px-[7px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-active)] hover:text-[var(--color-text-primary)]"
+          >
+            <RefreshCw size={13} />
+            {t('common.retry')}
+          </button>
+        </div>
+      )}
+
+      <p id={`${accessibilityId}-summary`} className="sr-only">
+        {graphSummary}
+      </p>
       <div
         ref={containerRef}
-        className="codegraph-canvas-shell relative min-h-[440px] w-full flex-1 overflow-hidden rounded-[8px] border border-[#26333a] bg-[#090d10] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.015)]"
+        aria-busy={layoutPending}
+        className="codegraph-canvas-shell relative min-h-[200px] w-full flex-1 overflow-hidden rounded-[8px] border border-[#26333a] bg-[#090d10] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.015)]"
       >
-        <canvas
-          ref={canvasRef}
-          aria-label={t('tokenOptimization.graph.canvasLabel')}
-          className="block cursor-grab touch-none active:cursor-grabbing"
-          onDoubleClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
-          onPointerDown={handlePointerDown}
-          onPointerLeave={() => {
-            dragRef.current = null
-            setHoveredId(null)
-          }}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onWheel={handleWheel}
-        />
-
-        <div className="pointer-events-none absolute left-[12px] top-[11px] flex items-center gap-[8px] font-mono text-[9px] uppercase text-[#78909a]">
-          <span className="h-[5px] w-[5px] rounded-full bg-[#45e1bc] shadow-[0_0_10px_rgba(69,225,188,0.8)]" />
-          {t('tokenOptimization.graph.liveMap')}
-        </div>
-
-        <GraphLegend t={t} />
-
-        {hoveredNode && !selectedNode && (
-          <NodeTooltip node={hoveredNode} x={pointer.x} y={pointer.y} size={canvasSize} t={t} />
-        )}
-
-        {selectedNode && (
-          <NodeInspector
-            node={selectedNode}
-            connections={selectedConnections}
-            onClose={() => setSelectedId(null)}
-            onSelect={focusNode}
-            t={t}
-          />
-        )}
-
-        {layout.nodes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-[13px] text-[#78909a]">
-            {t('tokenOptimization.graph.empty')}
+        {layoutPending ? (
+          <div
+            role="status"
+            className="absolute inset-0 flex items-center justify-center gap-[8px] text-[13px] text-[#78909a]"
+          >
+            <RefreshCw aria-hidden="true" className="animate-spin" size={15} />
+            {t('common.loading')}
           </div>
+        ) : (
+          <>
+            <canvas
+              ref={canvasRef}
+              role="img"
+              aria-label={t('tokenOptimization.graph.canvasLabel')}
+              aria-describedby={`${accessibilityId}-summary`}
+              className="block cursor-grab touch-none active:cursor-grabbing"
+              onDoubleClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
+              onPointerDown={handlePointerDown}
+              onPointerLeave={() => {
+                dragRef.current = null
+                setHoveredId(null)
+              }}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onWheel={handleWheel}
+            />
+
+            <div
+              role="listbox"
+              tabIndex={layout.nodes.length > 0 ? 0 : -1}
+              aria-label={t('tokenOptimization.graph.canvasLabel')}
+              aria-describedby={`${accessibilityId}-summary`}
+              aria-activedescendant={accessibleNode
+                ? `${accessibilityId}-node-${accessibleNodeIndex}`
+                : undefined}
+              onFocus={() => {
+                if (accessibleNode) setHoveredId(accessibleNode.id)
+              }}
+              onBlur={() => setHoveredId(null)}
+              onKeyDown={handleKeyboardNavigation}
+              className="pointer-events-none absolute inset-0 z-[5] outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#45e1bc]"
+            >
+              {accessibleNode && (
+                <span
+                  id={`${accessibilityId}-node-${accessibleNodeIndex}`}
+                  role="option"
+                  aria-selected={selectedId === accessibleNode.id}
+                  aria-posinset={accessibleNodeIndex + 1}
+                  aria-setsize={layout.nodes.length}
+                  className="sr-only"
+                >
+                  {accessibleNode.qualifiedName || accessibleNode.name}, {accessibleNode.kind},{' '}
+                  {getRoleLabel(accessibleNode.role, t)}, {accessibleNode.filePath}:{accessibleNode.startLine}
+                </span>
+              )}
+            </div>
+
+            <div className="pointer-events-none absolute left-[12px] top-[11px] flex items-center gap-[8px] font-mono text-[9px] uppercase text-[#78909a]">
+              <span className="h-[5px] w-[5px] rounded-full bg-[#45e1bc] shadow-[0_0_10px_rgba(69,225,188,0.8)]" />
+              {layout.fallback
+                ? t('tokenOptimization.graph.fallback.mapLabel')
+                : t('tokenOptimization.graph.liveMap')}
+            </div>
+
+            <GraphLegend t={t} />
+
+            {hoveredNode && !selectedNode && (
+              <NodeTooltip node={hoveredNode} x={pointer.x} y={pointer.y} size={canvasSize} t={t} />
+            )}
+
+            {selectedNode && (
+              <NodeInspector
+                node={selectedNode}
+                connections={selectedConnections}
+                onClose={() => setSelectedId(null)}
+                onSelect={focusNode}
+                t={t}
+              />
+            )}
+
+            {layout.nodes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center text-[13px] text-[#78909a]">
+                {t('tokenOptimization.graph.empty')}
+              </div>
+            )}
+          </>
         )}
       </div>
 
       <div className="codegraph-summary flex min-h-[28px] flex-wrap items-center justify-between gap-x-[16px] gap-y-[4px] text-[11px] text-[var(--color-text-tertiary)]">
-        <span>{t('tokenOptimization.graph.summary', { nodes: data.nodes.length, edges: data.edges.length })}</span>
+        <span>{graphSummary}</span>
         <span>
           {viewMode === 'architecture'
             ? t('tokenOptimization.graph.architectureSummary', {
@@ -370,6 +524,13 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
       </div>
     </div>
   )
+}
+
+function getGraphFallbackReasonLabel(
+  reason: GraphLayoutFallbackReason,
+  t: ReturnType<typeof useTranslation>,
+): string {
+  return t(`tokenOptimization.graph.fallback.reason.${reason}` as never)
 }
 
 function GraphModeButton({ children, active, label, onClick }: {
@@ -562,11 +723,11 @@ function NodeInspector({ node, connections, onClose, onSelect, t }: {
   )
 }
 
-function drawGraph({ context, size, transform, data, layout, nodeById, hoveredId, selectedId, query, time }: {
+function drawGraph({ context, size, transform, edges, layout, nodeById, hoveredId, selectedId, query, time }: {
   context: CanvasRenderingContext2D
   size: { width: number; height: number }
   transform: ViewTransform
-  data: CodeGraphData
+  edges: CodeGraphData['edges']
   layout: GraphLayout
   nodeById: Map<string, PositionedNode>
   hoveredId: string | null
@@ -580,7 +741,7 @@ function drawGraph({ context, size, transform, data, layout, nodeById, hoveredId
   drawGrid(context, size, transform)
 
   const activeId = selectedId || hoveredId
-  const neighborhood = activeId ? getNeighborhoodIds(data, activeId) : null
+  const neighborhood = activeId ? getNeighborhoodIds(edges, activeId) : null
   const matchedIds = query
     ? new Set(layout.nodes.filter((node) => matchesQuery(node, query)).map((node) => node.id))
     : null
@@ -613,7 +774,7 @@ function drawGraph({ context, size, transform, data, layout, nodeById, hoveredId
     context.restore()
   }
 
-  for (const edge of data.edges) {
+  for (const edge of edges) {
     const source = nodeById.get(edge.source)
     const target = nodeById.get(edge.target)
     if (!source || !target) continue
@@ -791,96 +952,9 @@ function drawLabels(
   context.globalAlpha = 1
 }
 
-export function buildSemanticLayout(
-  data: CodeGraphData,
-  viewMode: GraphViewMode = 'architecture',
-): GraphLayout {
-  if (data.nodes.length === 0) return { nodes: [], clusters: [] }
-  const groups = new Map<string, CodeGraphNode[]>()
-  for (const node of data.nodes) {
-    const key = viewMode === 'architecture'
-      ? node.communityId || node.filePath || '(project)'
-      : node.filePath || '(project)'
-    const group = groups.get(key) || []
-    group.push(node)
-    groups.set(key, group)
-  }
-  const entries = [...groups.entries()].sort(([left], [right]) => left.localeCompare(right))
-  const columns = Math.max(
-    1,
-    entries.length <= 4
-      ? Math.ceil(Math.sqrt(entries.length))
-      : Math.ceil(Math.sqrt(entries.length * 1.3)),
-  )
-  const rows = Math.ceil(entries.length / columns)
-  const cellWidth = (WORLD_WIDTH - 120) / columns
-  const cellHeight = (WORLD_HEIGHT - 100) / rows
-  const clusterRadius = clamp(Math.min(cellWidth, cellHeight) * 0.4, 72, 148)
-  const nodes: PositionedNode[] = []
-  const clusters: GraphCluster[] = []
-
-  entries.forEach(([key, group], index) => {
-    const column = index % columns
-    const row = Math.floor(index / columns)
-    const itemsInRow = Math.min(columns, entries.length - row * columns)
-    const rowOffset = (columns - itemsInRow) * cellWidth / 2
-    const centerX = 60 + rowOffset + column * cellWidth + cellWidth / 2
-    const centerY = 50 + row * cellHeight + cellHeight / 2
-    const ordered = [...group].sort((left, right) => {
-      const rolePriority = viewMode === 'architecture'
-        ? graphRolePriority(right.role) - graphRolePriority(left.role)
-        : Number(right.kind === 'file') - Number(left.kind === 'file')
-      return rolePriority || right.degree - left.degree || left.name.localeCompare(right.name)
-    })
-    const hub = viewMode === 'architecture'
-      ? ordered.find((node) => node.role === 'hub') || ordered[0]!
-      : ordered.find((node) => node.kind === 'file') || ordered[0]!
-    const satellites = ordered.filter((node) => node.id !== hub.id)
-    const positioned: PositionedNode[] = [{
-      ...hub,
-      x: centerX,
-      y: centerY,
-      radius: hub.kind === 'file' ? 15 : hub.role === 'hub' ? 12 : 10,
-      clusterKey: key,
-    }]
-    satellites.forEach((node, satelliteIndex) => {
-      const ringIndex = Math.floor(satelliteIndex / 10)
-      const indexOnRing = satelliteIndex % 10
-      const ringCount = Math.min(10, satellites.length - ringIndex * 10)
-      const offset = ((hashString(key) % 360) * Math.PI) / 180
-      const angle = offset + indexOnRing / Math.max(1, ringCount) * Math.PI * 2 + ringIndex * 0.35
-      const distance = Math.min(clusterRadius - 13, 48 + ringIndex * 34 + (satelliteIndex % 3) * 4)
-      positioned.push({
-        ...node,
-        x: centerX + Math.cos(angle) * distance,
-        y: centerY + Math.sin(angle) * distance * 0.82,
-        radius: 5.2 + Math.min(4.8, Math.sqrt(Math.max(0, node.degree)) * 0.72),
-        clusterKey: key,
-      })
-    })
-    nodes.push(...positioned)
-    clusters.push({
-      key,
-      label: viewMode === 'architecture'
-        ? group[0]?.communityLabel || key
-        : key.split(/[\\/]/).pop() || key,
-      kind: viewMode,
-      x: centerX,
-      y: centerY,
-      radius: clusterRadius,
-      nodeIds: positioned.map((node) => node.id),
-    })
-  })
-  return { nodes, clusters }
-}
-
-function graphRolePriority(role: CodeGraphNode['role']) {
-  return role === 'hub' ? 3 : role === 'bridge' ? 2 : 1
-}
-
-function getNeighborhoodIds(data: CodeGraphData, id: string) {
+function getNeighborhoodIds(edges: CodeGraphData['edges'], id: string) {
   const ids = new Set([id])
-  for (const edge of data.edges) {
+  for (const edge of edges) {
     if (edge.source === id) ids.add(edge.target)
     if (edge.target === id) ids.add(edge.source)
   }
@@ -888,7 +962,7 @@ function getNeighborhoodIds(data: CodeGraphData, id: string) {
 }
 
 function getNodeConnections(
-  data: CodeGraphData,
+  edges: CodeGraphData['edges'],
   id: string,
   nodeById: Map<string, PositionedNode>,
 ) {
@@ -900,7 +974,7 @@ function getNodeConnections(
     provenance: string | null
     line: number | null
   }> = []
-  for (const edge of data.edges) {
+  for (const edge of edges) {
     if (edge.source === id) {
       const node = nodeById.get(edge.target)
       if (node) connections.push({
@@ -1011,19 +1085,6 @@ function getFitScale(size: { width: number; height: number }, zoom: number) {
 function matchesQuery(node: CodeGraphNode, query: string) {
   return [node.name, node.qualifiedName, node.filePath, node.kind, node.language]
     .some((value) => value.toLowerCase().includes(query))
-}
-
-function hashString(value: string) {
-  let hash = 2166136261
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value))
 }
 
 function truncateLabel(value: string, limit: number) {

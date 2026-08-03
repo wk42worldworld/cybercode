@@ -194,7 +194,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                 ? 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
                 : 'bg-[var(--color-surface-selected)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]'
             }`
-            : 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-2 text-left text-[14px] text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-surface-hover)]'
+            : 'inline-flex h-8 max-w-full items-center gap-1.5 rounded-lg border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] px-2 text-left text-[13px] text-[var(--color-text-secondary)] transition-colors duration-200 hover:bg-[var(--color-surface-hover)]'
         }
       >
         {variant === 'embedded' ? (
@@ -208,7 +208,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
           <>
             <Icon name="folder" size={14} className="text-[var(--color-text-secondary)]" />
             <span className="min-w-0">
-              <span className="block truncate text-[14px] font-semibold">{label}</span>
+              <span className="block truncate text-[13px] font-semibold">{label}</span>
             </span>
             <span className="flex h-[14px] w-[14px] flex-shrink-0 items-center justify-center text-[var(--color-text-tertiary)] transition-colors">
               <Icon name="expand_more" size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -247,7 +247,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
             >
               <Icon name="workspaces" size={14} className="opacity-50" />
               <div className="min-w-0 flex-1">
-                <div className={`truncate text-[13px] ${isAllSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                <div className={`truncate text-[12px] ${isAllSelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                   {t('sidebar.allProjects')}
                 </div>
               </div>
@@ -266,7 +266,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
             >
               <Icon name="bolt" size={14} className="opacity-50" />
               <div className="min-w-0 flex-1">
-                <div className={`truncate text-[13px] ${isTemporarySelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                <div className={`truncate text-[12px] ${isTemporarySelected ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                   {t('sidebar.temporarySessions')}
                 </div>
               </div>
@@ -276,7 +276,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
             </button>
 
             {options.length === 0 ? (
-              <div className="px-4 py-5 text-center text-[12px] text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
+              <div className="px-4 py-5 text-center text-[11px] text-[var(--color-text-tertiary)]">{t('sidebar.noSessions')}</div>
             ) : (
               <>
                 <div className="my-1 h-px bg-[var(--color-border-separator)]" />
@@ -297,7 +297,7 @@ export function ProjectFilter({ variant = 'default' }: { variant?: 'default' | '
                       >
                         <Icon name={option.isGit ? 'account_tree' : 'folder'} size={14} className="opacity-50" />
                         <div className="min-w-0 flex-1">
-                          <div className={`truncate text-[13px] ${checked ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
+                          <div className={`truncate text-[12px] ${checked ? 'font-semibold text-[var(--color-text-primary)]' : 'font-medium text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)]'}`}>
                             {option.title}
                           </div>
                         </div>

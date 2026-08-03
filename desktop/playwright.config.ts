@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
+import { fileURLToPath } from 'node:url'
+
+const mockCliPath = fileURLToPath(
+  new URL('../src/server/__tests__/fixtures/mock-sdk-cli.ts', import.meta.url),
+)
 
 const host = '127.0.0.1'
 const apiPort = Number.parseInt(process.env.CYBERCODE_E2E_API_PORT || '3467', 10)
@@ -37,6 +42,7 @@ export default defineConfig({
       reuseExistingServer: false,
       env: {
         CYBERCODE_E2E_API_PORT: String(apiPort),
+        CLAUDE_CLI_PATH: process.env.CLAUDE_CLI_PATH ?? mockCliPath,
       },
     },
     {

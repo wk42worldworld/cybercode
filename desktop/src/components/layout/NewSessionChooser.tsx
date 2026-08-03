@@ -154,7 +154,7 @@ export function NewSessionChooser({
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {currentProject && (
           <>
-            <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+            <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase text-[var(--color-text-tertiary)]">
               {t('newSession.currentProject')}
             </div>
             <ProjectMenuItem
@@ -173,7 +173,7 @@ export function NewSessionChooser({
           <RecentProjectsSkeleton />
         ) : recentProjects.length > 0 ? (
           <>
-            <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+            <div className="px-2.5 pb-1 pt-1.5 text-[9px] font-semibold uppercase text-[var(--color-text-tertiary)]">
               {t('newSession.recentProjects')}
             </div>
             {recentProjects.map((project) => (
@@ -190,7 +190,7 @@ export function NewSessionChooser({
             ))}
           </>
         ) : (
-          <div className="px-3 py-4 text-center text-[12px] text-[var(--color-text-tertiary)]">
+          <div className="px-3 py-4 text-center text-[11px] text-[var(--color-text-tertiary)]">
             {t('newSession.noRecentProjects')}
           </div>
         )}
@@ -275,10 +275,10 @@ function ProjectMenuItem({
         {loading ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name={icon} size={16} />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold">{title}</span>
-        <span className="mt-0.5 block truncate text-[11px] text-[var(--color-text-tertiary)]">{subtitle}</span>
+        <span className="block truncate text-[12px] font-semibold">{title}</span>
+        <span className="mt-0.5 block truncate text-[10px] text-[var(--color-text-tertiary)]">{subtitle}</span>
       </span>
-      {meta && <span className="shrink-0 text-[10px] text-[var(--color-text-tertiary)]">{meta}</span>}
+      {meta && <span className="shrink-0 text-[9px] text-[var(--color-text-tertiary)]">{meta}</span>}
     </button>
   )
 }
@@ -311,7 +311,7 @@ function ActionMenuItem({
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-surface-container)]">
         {loading ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name={icon} size={16} />}
       </span>
-      <span className="text-[13px] font-semibold">{title}</span>
+      <span className="text-[12px] font-semibold">{title}</span>
     </button>
   )
 }

@@ -37,7 +37,7 @@ export function ensureKnowledgeSchema(db: Database): void {
     );
   `)
 
-  migrateDocumentIdentity(db)
+  migrateDocumentSchema(db)
 
   db.exec(`
 
@@ -54,12 +54,15 @@ export function ensureKnowledgeSchema(db: Database): void {
       content_hash TEXT NOT NULL DEFAULT '',
       indexed_at TEXT NOT NULL,
       error TEXT,
-      FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE CASCADE,
-      UNIQUE(source_id, path)
+      is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+      FOREIGN KEY(source_id) REFERENCES knowledge_sources(id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_knowledge_documents_source_path
       ON knowledge_documents(source_id, relative_path);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_documents_active_path
+      ON knowledge_documents(source_id, path) WHERE is_active = 1;
 
     CREATE TABLE IF NOT EXISTS knowledge_chunks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,12 +101,12 @@ export function ensureKnowledgeSchema(db: Database): void {
   `)
 }
 
-function migrateDocumentIdentity(db: Database): void {
+function migrateDocumentSchema(db: Database): void {
   const row = db.query<{ sql: string | null }, []>(`
     SELECT sql FROM sqlite_master
     WHERE type = 'table' AND name = 'knowledge_documents'
   `).get()
-  if (!row?.sql || /UNIQUE\s*\(\s*source_id\s*,\s*path\s*\)/i.test(row.sql)) return
+  if (!row?.sql || /\bis_active\b/i.test(row.sql)) return
 
   // Indexed content is derived data. Keep the user's source list and rebuild
   // documents when upgrading from the original globally-unique path schema.

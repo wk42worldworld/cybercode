@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 const version =
   process.env.CYBERCODE_LOCAL_VERSION ??
   process.env.CLAUDE_CODE_LOCAL_VERSION ??

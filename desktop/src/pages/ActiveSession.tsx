@@ -4,7 +4,8 @@ import { useSessionStore } from '../stores/sessionStore'
 import { useChatStore } from '../stores/chatStore'
 import { useCLITaskStore } from '../stores/cliTaskStore'
 import { useTeamStore } from '../stores/teamStore'
-import { useTranslation } from '../i18n'
+import { useTranslation, type TranslationKey } from '../i18n'
+import { formatBytes } from '../lib/formatBytes'
 import type { UIMessage } from '../types/chat'
 import { MessageList } from '../components/chat/MessageList'
 import { ChatInput } from '../components/chat/ChatInput'
@@ -21,6 +22,40 @@ const RUNTIME_TRANSITION_STATUS_VERBS = new Set([
   'Switching provider and model...',
   'Restarting session with new permissions...',
 ])
+
+type ComputerUseRuntimeNotice = {
+  phase: string
+  progressPercent: number
+  downloadedBytes: number
+  totalBytes: number | null
+  error: string | null
+}
+
+function describeComputerUseRuntime(
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+  runtime: ComputerUseRuntimeNotice,
+): string {
+  switch (runtime.phase) {
+    case 'downloading': {
+      const downloaded = formatBytes(runtime.downloadedBytes)
+      const total = runtime.totalBytes ? formatBytes(runtime.totalBytes) : null
+      return t('settings.computerUse.runtimeDownloading', {
+        percent: runtime.progressPercent,
+        size: total ? `${downloaded} / ${total}` : downloaded,
+      })
+    }
+    case 'verifying':
+      return t('settings.computerUse.runtimeVerifying')
+    case 'installing':
+      return t('settings.computerUse.runtimeInstalling')
+    case 'paused':
+      return t('settings.computerUse.runtimePaused')
+    case 'error':
+      return runtime.error ?? t('settings.computerUse.runtimeError')
+    default:
+      return t('settings.computerUse.runtimeChecking')
+  }
+}
 
 type ActiveSessionProps = {
   sessionId?: string
@@ -57,6 +92,23 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const memberInfo = useTeamStore((s) => sessionId ? s.getMemberBySessionId(sessionId) : null)
   const activeTeam = useTeamStore((s) => s.activeTeam)
   const isMemberSession = !!memberInfo
+  // Member tabs don't own a WebSocket — a computer-use approval raised by a
+  // teammate arrives on the lead session's socket. Find that pending request
+  // so the modal can render here too instead of hanging until the timeout.
+  const computerUsePermissionOwnerId = useChatStore((s) => {
+    if (!isMemberSession) return null
+    if (sessionId && s.sessions[sessionId]?.pendingComputerUsePermission) return sessionId
+    for (const [sid, state] of Object.entries(s.sessions)) {
+      if (state.pendingComputerUsePermission) return sid
+    }
+    return null
+  })
+  const ownerComputerUsePermission = useChatStore((s) =>
+    computerUsePermissionOwnerId
+      ? s.sessions[computerUsePermissionOwnerId]?.pendingComputerUsePermission ?? null
+      : null,
+  )
+  const computerUseRuntime = sessionState?.computerUseRuntime ?? null
   const historyNeedsLoading =
     sessionState?.historyLoadState === undefined ||
     sessionState.historyLoadState === 'idle'
@@ -342,6 +394,27 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
                   onStop={() => stopGeneration(sessionId)}
                 />
               )}
+              {computerUseRuntime && (
+                <div className="w-full shrink-0 px-[24px] pb-2">
+                  <div data-chat-content-column className="mx-auto w-full max-w-[878px]">
+                    <div
+                      role={computerUseRuntime.phase === 'error' ? 'alert' : 'status'}
+                      className={`inline-flex max-w-full items-center gap-2 rounded-[16px] border px-3 py-1.5 text-[11px] ${
+                        computerUseRuntime.phase === 'error'
+                          ? 'border-red-500/20 bg-red-500/5 text-red-600'
+                          : 'border-amber-500/20 bg-amber-500/5 text-amber-600'
+                      }`}
+                    >
+                      <span className="shrink-0 font-medium">
+                        {t('chat.computerUseRuntime.label')}
+                      </span>
+                      <span className="truncate">
+                        {describeComputerUseRuntime(t, computerUseRuntime)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
               {!isMemberSession && <SessionTaskBar sessionId={sessionId} />}
               {!isMemberSession && <PendingSteerBar sessionId={sessionId} />}
               <TeamStatusBar />
@@ -360,10 +433,18 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
             </div>
           </div>
 
-          {!isMemberSession && sessionId ? (
+          {sessionId ? (
             <ComputerUsePermissionModal
-              sessionId={sessionId}
-              request={pendingComputerUsePermission?.request ?? null}
+              sessionId={
+                isMemberSession
+                  ? (computerUsePermissionOwnerId ?? sessionId)
+                  : sessionId
+              }
+              request={
+                isMemberSession
+                  ? ownerComputerUsePermission?.request ?? null
+                  : pendingComputerUsePermission?.request ?? null
+              }
             />
           ) : null}
         </section>

@@ -645,14 +645,14 @@ describe('chatStore history mapping', () => {
       },
     ])
 
-    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'next')
+    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'now')
 
     const payload = sendMock.mock.calls[sendMock.mock.calls.length - 1]?.[1]
     expect(payload).toMatchObject({
       type: 'user_steer',
       steerId,
       content: '补充一下这个约束',
-      priority: 'next',
+      priority: 'now',
     })
     expect(payload.attachments).toMatchObject([
       { type: 'file', name: 'notes.txt', path: '/tmp/notes.txt' },
@@ -661,7 +661,7 @@ describe('chatStore history mapping', () => {
       {
         id: steerId,
         status: 'queued',
-        priority: 'next',
+        priority: 'now',
       },
     ])
 
@@ -720,7 +720,7 @@ describe('chatStore history mapping', () => {
     const secondId = useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, '第二条补充')
     sendMock.mockClear()
 
-    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'next', [secondId])
+    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'now', [secondId])
 
     expect(sendMock).toHaveBeenCalledTimes(1)
     expect(sendMock).toHaveBeenCalledWith(TEST_SESSION_ID, {
@@ -728,7 +728,7 @@ describe('chatStore history mapping', () => {
       steerId: secondId,
       content: '第二条补充',
       attachments: undefined,
-      priority: 'next',
+      priority: 'now',
     })
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
       {
@@ -738,9 +738,73 @@ describe('chatStore history mapping', () => {
       {
         id: secondId,
         status: 'queued',
-        priority: 'next',
+        priority: 'now',
       },
     ])
+  })
+
+  it('keeps an immediate steer visible when the interrupted turn completes first', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          pendingSteers: [{
+            id: 'steer-now',
+            content: 'Apply this immediately',
+            createdAt: 1,
+            status: 'queued',
+            priority: 'now',
+          }, {
+            id: 'steer-after',
+            content: 'Apply this after the steer',
+            createdAt: 2,
+            status: 'draft',
+          }],
+        }),
+      },
+    })
+    sendMock.mockClear()
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 1, output_tokens: 1 },
+    })
+
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      { id: 'steer-now', status: 'queued', priority: 'now' },
+      { id: 'steer-after', status: 'draft' },
+    ])
+    expect(sendMock).not.toHaveBeenCalled()
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId: 'steer-now',
+      status: 'processing',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      { id: 'steer-now', status: 'processing' },
+      { id: 'steer-after', status: 'draft' },
+    ])
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId: 'steer-now',
+      status: 'processed',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toMatchObject([
+      { id: 'steer-after', status: 'draft' },
+    ])
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 2, output_tokens: 2 },
+    })
+    expect(sendMock).toHaveBeenLastCalledWith(TEST_SESSION_ID, {
+      type: 'user_message',
+      content: 'Apply this after the steer',
+      attachments: undefined,
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toEqual([])
   })
 
   it('moves draft steering input back into the composer for editing', () => {

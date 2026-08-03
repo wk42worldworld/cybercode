@@ -121,11 +121,11 @@ describe('IconRail floating panel navigation', () => {
   it('toggles direct rail pages through the same floating panel state', () => {
     renderIconRail()
 
-    fireEvent.click(screen.getByRole('button', { name: '大模型与智能路由' }))
+    fireEvent.click(screen.getByRole('button', { name: '大模型与智能体路由' }))
     expect(useUIStore.getState().settingsPanelView).toBe('providers')
     expect(useUIStore.getState().settingsOpen).toBe(true)
 
-    fireEvent.click(screen.getByRole('button', { name: '大模型与智能路由' }))
+    fireEvent.click(screen.getByRole('button', { name: '大模型与智能体路由' }))
     expect(useUIStore.getState().settingsOpen).toBe(false)
   })
 
@@ -134,7 +134,7 @@ describe('IconRail floating panel navigation', () => {
 
     expect(container.firstElementChild).toHaveClass('z-[120]')
 
-    fireEvent.click(screen.getByRole('button', { name: '大模型与智能路由' }))
+    fireEvent.click(screen.getByRole('button', { name: '大模型与智能体路由' }))
     fireEvent.click(screen.getByRole('button', { name: '更多' }))
 
     expect(screen.getByRole('menu')).toHaveClass('z-[110]')
@@ -156,7 +156,7 @@ describe('IconRail floating panel navigation', () => {
     expect(screen.getByRole('button', { name: '设置' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '数据迁移' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '点赞收藏项目' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '大模型与智能路由' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '大模型与智能体路由' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'IM 接入' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '更多' }))

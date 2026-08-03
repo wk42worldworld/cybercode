@@ -97,6 +97,11 @@ import {
   asSystemPrompt,
   type SystemPrompt,
 } from '../../utils/systemPromptType.js'
+import {
+  compactLocalSystemPromptParts,
+  compactLocalToolSchemas,
+  shouldUseLocalModelPerformanceProfile,
+} from '../../utils/localModelPerformance.js'
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js'
 import { getDynamicConfig_BLOCKS_ON_INIT } from '../analytics/growthbook.js'
 import {
@@ -360,6 +365,54 @@ export function getPromptCachingEnabled(model: string): boolean {
   }
 
   return true
+}
+
+/**
+ * Returns true when the given base URL points at a local inference server
+ * (llama.cpp, ollama, LM Studio, or the embedded provider proxy): a loopback
+ * host (localhost, 127.0.0.0/8, ::1, docker bridge hosts, an `ollama` host
+ * alias) or an RFC1918 LAN address (self-hosted inference on another
+ * machine). Mirrors the URL rules in src/utils/localModelPerformance.ts.
+ */
+export function isLocalInferenceBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) return false
+  try {
+    const hostname = new URL(baseUrl).hostname
+      .toLowerCase()
+      .replace(/^\[|\]$/g, '')
+    return (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname === '0.0.0.0' ||
+      hostname === '::' ||
+      hostname === '::1' ||
+      hostname === 'ollama' ||
+      hostname === 'host.docker.internal' ||
+      hostname === 'gateway.docker.internal' ||
+      /^127(?:\.\d{1,3}){3}$/.test(hostname) ||
+      // RFC1918 private ranges (10/8, 172.16/12, 192.168/16)
+      /^10(?:\.\d{1,3}){3}$/.test(hostname) ||
+      /^172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(hostname) ||
+      /^192\.168(?:\.\d{1,3}){2}$/.test(hostname)
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Returns true when the URL points at the embedded CyberCode provider proxy
+ * (loopback path starting with /proxy/). The desktop app routes every
+ * provider — cloud ones included — through that proxy, so such URLs must not
+ * count as local inference targets.
+ */
+export function isEmbeddedProxyBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) return false
+  try {
+    return /^\/proxy(?:\/|$)/.test(new URL(baseUrl).pathname)
+  } catch {
+    return false
+  }
 }
 
 export function getCacheControl({
@@ -1124,6 +1177,7 @@ async function* queryModel(
       ? ((await getInferenceProfileBackingModel(options.model)) ??
         options.model)
       : options.model
+  const localModelPerformance = shouldUseLocalModelPerformanceProfile()
 
   queryCheckpoint('query_tool_schema_build_start')
   const isAgenticQuery =
@@ -1432,18 +1486,21 @@ async function* queryModel(
     useToolSearch && hasChromeTools && !isMcpInstructionsDeltaEnabled()
 
   // filter(Boolean) works by converting each element to a boolean - empty strings become false and are filtered out.
+  const assembledSystemPrompt = liteOptimizationService.cleanSystemPrompt([
+    getAttributionHeader(fingerprint),
+    getCLISyspromptPrefix({
+      isNonInteractive: options.isNonInteractiveSession,
+      hasAppendSystemPrompt: options.hasAppendSystemPrompt,
+    }),
+    ...systemPrompt,
+    ...(!supportsImageInput ? [IMAGE_INPUT_UNSUPPORTED_MODEL_CONTEXT] : []),
+    ...(advisorModel ? [ADVISOR_TOOL_INSTRUCTIONS] : []),
+    ...(injectChromeHere ? [CHROME_TOOL_SEARCH_INSTRUCTIONS] : []),
+  ].filter(Boolean))
   systemPrompt = asSystemPrompt(
-    liteOptimizationService.cleanSystemPrompt([
-      getAttributionHeader(fingerprint),
-      getCLISyspromptPrefix({
-        isNonInteractive: options.isNonInteractiveSession,
-        hasAppendSystemPrompt: options.hasAppendSystemPrompt,
-      }),
-      ...systemPrompt,
-      ...(!supportsImageInput ? [IMAGE_INPUT_UNSUPPORTED_MODEL_CONTEXT] : []),
-      ...(advisorModel ? [ADVISOR_TOOL_INSTRUCTIONS] : []),
-      ...(injectChromeHere ? [CHROME_TOOL_SEARCH_INSTRUCTIONS] : []),
-    ].filter(Boolean)),
+    localModelPerformance
+      ? compactLocalSystemPromptParts(assembledSystemPrompt)
+      : assembledSystemPrompt,
   )
 
   // Prepend system prompt block for easy API identification
@@ -1471,7 +1528,10 @@ async function* queryModel(
       model: advisorModel,
     } as unknown as BetaToolUnion)
   }
-  const allTools = [...toolSchemas, ...extraToolSchemas]
+  const rawTools = [...toolSchemas, ...extraToolSchemas]
+  const allTools = localModelPerformance
+    ? compactLocalToolSchemas(rawTools)
+    : rawTools
 
   const isFastMode =
     isFastModeEnabled() &&
@@ -1960,11 +2020,31 @@ async function* queryModel(
     // kill hung streams. Without this, a silently dropped connection can hang
     // the session indefinitely since the SDK's request timeout only covers the
     // initial fetch(), not the streaming body.
-    const streamWatchdogEnabled = isEnvTruthy(
-      process.env.CLAUDE_ENABLE_STREAM_WATCHDOG,
-    )
+    //
+    // Local inference servers (llama.cpp, ollama, …) are reached through a
+    // loopback base URL and can hang mid-stream without producing tokens
+    // (e.g. a stuck llama.cpp process). When CLAUDE_ENABLE_STREAM_WATCHDOG is
+    // not set explicitly, default the watchdog ON for local targets and keep
+    // the previous default (off) for remote providers. An explicitly set env
+    // var always wins.
+    const envWatchdogSetting = process.env.CLAUDE_ENABLE_STREAM_WATCHDOG
+    // The desktop app routes every provider through the embedded proxy on
+    // loopback (/proxy/...); exclude those URLs so cloud providers behind the
+    // proxy don't get treated as local inference.
+    const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL
+    const isLocalInferenceTarget =
+      isLocalInferenceBaseUrl(anthropicBaseUrl) &&
+      !isEmbeddedProxyBaseUrl(anthropicBaseUrl)
+    const streamWatchdogEnabled =
+      envWatchdogSetting !== undefined && envWatchdogSetting !== ''
+        ? isEnvTruthy(envWatchdogSetting)
+        : isLocalInferenceTarget
+    // Local inference (especially CPU) can have long prefill pauses before the
+    // first token, so use a more generous idle threshold there; inter-token
+    // gaps are typically <10s, so 5 minutes won't false-trigger.
     const STREAM_IDLE_TIMEOUT_MS =
-      parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) || 90_000
+      parseInt(process.env.CLAUDE_STREAM_IDLE_TIMEOUT_MS || '', 10) ||
+      (isLocalInferenceTarget ? 300_000 : 90_000)
     const STREAM_IDLE_WARNING_MS = STREAM_IDLE_TIMEOUT_MS / 2
     let streamIdleAborted = false
     // performance.now() snapshot when watchdog fires, for measuring abort propagation delay

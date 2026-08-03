@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 import { Check, ChevronRight, Route, Search, Server } from 'lucide-react'
 import { OFFICIAL_DEFAULT_MODEL_ID, OFFICIAL_MODELS } from '../../constants/modelCatalog'
+import { providersApi } from '../../api/providers'
+import { isLocalProvider } from '../chat/localProvider'
 import { useTranslation } from '../../i18n'
 import { subscribeToViewportChanges } from '../../lib/viewportEvents'
 import { useChatStore } from '../../stores/chatStore'
@@ -398,7 +400,9 @@ export function ModelSelector({
     : null
   const availableRouteProfiles = routingDashboard?.config.enabled
     ? routingDashboard.config.profiles.filter((profile) => (
-        profile.enabled && routingDashboard.routeAvailability[profile.id]?.available
+        Boolean(profile.graph) &&
+        profile.enabled &&
+        routingDashboard.routeAvailability[profile.id]?.available
       ))
     : []
   const normalizedRouteQuery = routeQuery.trim().toLocaleLowerCase()
@@ -740,6 +744,18 @@ export function ModelSelector({
                       modelId: model.id,
                       contextWindow: sourceModel?.contextWindow,
                     })
+                    const provider = choice?.providerId
+                      ? providers.find((item) => item.id === choice.providerId)
+                      : undefined
+                    if (provider && isLocalProvider(provider)) {
+                      // Fire-and-forget: prewarm local backends so the next
+                      // request does not pay the cold-start cost.
+                      void providersApi
+                        .warmupProvider(provider.id, model.id)
+                        .catch((error) => {
+                          console.warn(`Warmup request for ${provider.name} failed:`, error)
+                        })
+                    }
                     return
                   }
                   if (isControlled) {

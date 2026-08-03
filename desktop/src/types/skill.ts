@@ -123,3 +123,51 @@ export type SkillLearningOverview = {
   events: SkillLearningEvent[]
   memories: SkillMemoryOverview[]
 }
+
+export type SkillMarketplaceScope = 'user' | 'project'
+
+export type SkillMarketplaceInstallation = {
+  scope: SkillMarketplaceScope
+  managed: boolean
+  updateAvailable: boolean
+}
+
+export type MarketplaceLocalizedDescriptions = Partial<Record<'en' | 'zh' | 'ja' | 'ko', string>>
+
+export type SkillMarketplaceItem = {
+  id: string
+  name: string
+  displayName: string
+  installName: string
+  description: string
+  localizedDescriptions?: MarketplaceLocalizedDescriptions
+  version?: string
+  updatedAt?: string
+  popularity?: number
+  author?: string
+  license?: string
+  category: string
+  tags: string[]
+  sourceId: string
+  sourceName: string
+  sourceUrl: string
+  relativePath: string
+  revision: string
+  installations: SkillMarketplaceInstallation[]
+}
+
+export type SkillMarketplaceSource = {
+  id: string
+  name: string
+  homepage: string
+  status: 'ready' | 'stale' | 'error'
+  itemCount: number
+  revision?: string
+  refreshedAt?: string
+  error?: string
+}
+
+export type SkillMarketplaceCatalog = {
+  items: SkillMarketplaceItem[]
+  sources: SkillMarketplaceSource[]
+}

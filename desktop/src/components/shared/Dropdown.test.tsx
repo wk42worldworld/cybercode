@@ -117,4 +117,56 @@ describe('Dropdown viewport positioning', () => {
     expect(parentEscapeHandler).not.toHaveBeenCalled()
     document.removeEventListener('keydown', handleParentKeyDown)
   })
+
+  it('closes on outside mousedown even when propagation is stopped (e.g. React Flow pane)', () => {
+    render(
+      <Dropdown
+        items={[
+          { value: 'a', label: 'Alpha' },
+          { value: 'b', label: 'Beta' },
+        ]}
+        value="a"
+        onChange={vi.fn()}
+        trigger={<button type="button">Choose format</button>}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose format' }))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+    // Simulate React Flow's pane: d3-zoom calls stopImmediatePropagation on
+    // bubbled mousedown, so document-level bubble listeners never fire.
+    const pane = document.createElement('div')
+    pane.addEventListener('mousedown', (event) => event.stopImmediatePropagation())
+    document.body.appendChild(pane)
+    try {
+      fireEvent.mouseDown(pane)
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    } finally {
+      pane.remove()
+    }
+  })
+
+  it('renders an explicit option badge without changing selection behavior', () => {    const onChange = vi.fn()
+    render(
+      <Dropdown
+        items={[
+          { value: 'deepseek', label: 'DeepSeek', badge: 'Official API' },
+          { value: 'openrouter', label: 'OpenRouter', badge: 'Aggregator' },
+        ]}
+        value="deepseek"
+        onChange={onChange}
+        trigger={<button type="button">Choose provider</button>}
+        density="compact"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose provider' }))
+    const option = screen.getByRole('option', { name: 'OpenRouter Aggregator' })
+    expect(option.querySelector('.settings-dropdown-item-badge')).toHaveTextContent('Aggregator')
+
+    fireEvent.click(option)
+    expect(onChange).toHaveBeenCalledWith('openrouter')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
 })

@@ -94,12 +94,32 @@ async function refreshLocalConnection(): Promise<boolean> {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown, options?: { timeout?: number }): Promise<T> {
+type RequestOptions = {
+  timeout?: number
+  signal?: AbortSignal
+}
+
+function createCallerAbortError(signal?: AbortSignal) {
+  const reason = signal && 'reason' in signal ? signal.reason : undefined
+  if (reason instanceof Error) return reason
+  const error = new Error('Request cancelled')
+  error.name = 'AbortError'
+  return error
+}
+
+function throwIfCallerAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw createCallerAbortError(signal)
+}
+
+async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
   const timeoutMs = options?.timeout ?? 30_000
   const maxAttempts = method === 'GET' ? 2 : 1
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    throwIfCallerAborted(options?.signal)
     const controller = new AbortController()
+    const abortFromCaller = () => controller.abort()
+    options?.signal?.addEventListener('abort', abortFromCaller, { once: true })
     const timeout = setTimeout(() => controller.abort(), timeoutMs)
     try {
       const url = `${baseUrl}${path}`
@@ -122,6 +142,9 @@ async function request<T>(method: string, path: string, body?: unknown, options?
       if (res.status === 204) return undefined as T
       return res.json() as Promise<T>
     } catch (error) {
+      if (options?.signal?.aborted) {
+        throw createCallerAbortError(options.signal)
+      }
       if (controller.signal.aborted) {
         throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`)
       }
@@ -136,6 +159,7 @@ async function request<T>(method: string, path: string, body?: unknown, options?
       throw error
     } finally {
       clearTimeout(timeout)
+      options?.signal?.removeEventListener('abort', abortFromCaller)
     }
   }
 
@@ -143,9 +167,9 @@ async function request<T>(method: string, path: string, body?: unknown, options?
 }
 
 export const api = {
-  get: <T>(path: string, options?: { timeout?: number }) => request<T>('GET', path, undefined, options),
-  post: <T>(path: string, body?: unknown, options?: { timeout?: number }) => request<T>('POST', path, body, options),
+  get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, undefined, options),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
 }

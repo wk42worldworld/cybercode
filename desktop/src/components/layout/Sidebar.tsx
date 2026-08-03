@@ -498,7 +498,7 @@ export function Sidebar() {
                 placeholder={t('sidebar.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`${SIDEBAR_PRIMARY_CONTROL_CLASSES} h-[44px] min-h-[44px] max-h-[44px] pl-[40px] pr-[46px] text-[13px] font-medium leading-none text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)]`}
+                className={`${SIDEBAR_PRIMARY_CONTROL_CLASSES} h-[44px] min-h-[44px] max-h-[44px] pl-[40px] pr-[46px] text-[12px] font-medium leading-none text-[var(--color-text-primary)] outline-none transition-colors placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-border-focus)]`}
               />
               <div className="absolute right-[8px] top-1/2 -translate-y-1/2">
                 <ProjectFilter variant="embedded" />
@@ -511,7 +511,7 @@ export function Sidebar() {
               aria-label={t('sidebar.newSession')}
               aria-haspopup="menu"
               aria-expanded={newSessionMenuOpen}
-              className={`${SIDEBAR_PRIMARY_CONTROL_CLASSES} group relative flex h-[43px] min-h-[43px] max-h-[43px] items-center justify-center px-[16px] text-[13px] font-semibold leading-none text-[var(--color-text-secondary)] outline-none transition-[border-color,background-color,color] duration-150 hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:border-[var(--color-border-focus)]`}
+              className={`${SIDEBAR_PRIMARY_CONTROL_CLASSES} group relative flex h-[43px] min-h-[43px] max-h-[43px] items-center justify-center px-[16px] text-[12px] font-semibold leading-none text-[var(--color-text-secondary)] outline-none transition-[border-color,background-color,color] duration-150 hover:border-[var(--color-border-focus)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:border-[var(--color-border-focus)]`}
             >
               <Plus
                 data-testid="new-session-default-icon"
@@ -524,7 +524,7 @@ export function Sidebar() {
                 <span
                   data-testid="new-session-tooltip"
                   role="tooltip"
-                  className="pointer-events-none absolute left-1/2 top-full z-[100] mt-[6px] min-w-max -translate-x-1/2 -translate-y-[2px] whitespace-nowrap rounded-[10px] bg-[var(--color-inverse-surface)] px-[10px] py-[6px] text-[12px] font-semibold leading-none text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-[opacity,transform] delay-0 duration-100 group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-[888ms] group-focus-visible:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:delay-0"
+                  className="pointer-events-none absolute left-1/2 top-full z-[100] mt-[6px] min-w-max -translate-x-1/2 -translate-y-[2px] whitespace-nowrap rounded-[10px] bg-[var(--color-inverse-surface)] px-[10px] py-[6px] text-[11px] font-semibold leading-none text-[var(--color-inverse-on-surface)] opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.12)] transition-[opacity,transform] delay-0 duration-100 group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-[888ms] group-focus-visible:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:delay-0"
                 >
                   {t('sidebar.newSession')}
                 </span>
@@ -537,14 +537,14 @@ export function Sidebar() {
           <div className="mt-[16px] flex flex-col gap-[10px] px-[12px] pb-[16px]">
             {error && (
               <div className="rounded-[12px] border border-red-500/20 bg-red-500/5 px-4 py-3">
-                <div className="text-[11px] font-medium text-red-500">{t('sidebar.sessionListFailed')}</div>
-                <div className="mt-1 break-words text-[10px] text-[var(--color-text-tertiary)]">{error}</div>
-                <button onClick={() => fetchSessions()} className="mt-2 text-[10px] font-bold uppercase text-[var(--color-brand)] hover:underline">{t('common.retry')}</button>
+                <div className="text-[10px] font-medium text-red-500">{t('sidebar.sessionListFailed')}</div>
+                <div className="mt-1 break-words text-[9px] text-[var(--color-text-tertiary)]">{error}</div>
+                <button onClick={() => fetchSessions()} className="mt-2 text-[9px] font-bold uppercase text-[var(--color-brand)] hover:underline">{t('common.retry')}</button>
               </div>
             )}
 
             {visibleSessionCount === 0 && (
-              <div className="py-6 text-center text-[11px] italic text-[var(--color-text-tertiary)]">
+              <div className="py-6 text-center text-[10px] italic text-[var(--color-text-tertiary)]">
                 {searchQuery ? t('sidebar.noMatching') : t('sidebar.noSessions')}
               </div>
             )}
@@ -634,7 +634,7 @@ export function Sidebar() {
               const session = sessions.find((s) => s.id === contextMenu.id && s.projectPath === contextMenu.projectPath)
               handleStartRename(contextMenu, session ? getSessionDisplayTitle(session, t) : '')
             }}
-            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[11px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
           >
             <Icon name="edit" size={13} className="text-[var(--color-text-tertiary)]" />
             <span>{t('common.rename')}</span>
@@ -651,7 +651,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => handleStartProjectRename(contextMenu.projectPath, contextMenu.title)}
-            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[11px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
           >
             <Icon name="edit" size={13} className="text-[var(--color-text-tertiary)]" />
             <span>{t('common.rename')}</span>
@@ -659,7 +659,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => removeProjectFromSidebar(contextMenu.projectPath)}
-            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[12px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+            className="flex h-[32px] w-full items-center gap-2 rounded-[6px] px-2.5 text-left text-[11px] font-medium text-[var(--color-text-primary)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
           >
             <Icon name="remove" size={13} className="text-[var(--color-text-tertiary)]" />
             <span>{t('sidebar.removeProject')}</span>
@@ -676,6 +676,7 @@ export function Sidebar() {
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
         confirmVariant="danger"
+        size="compact"
       />
 
       <ConfirmDialog
@@ -692,6 +693,7 @@ export function Sidebar() {
         cancelLabel={t('common.cancel')}
         confirmVariant="danger"
         loading={isBulkDeleting}
+        size="compact"
       />
 
       <NewSessionMenu
@@ -799,7 +801,7 @@ const SessionProjectGroup = memo(function SessionProjectGroup({
               if (event.key === 'Enter') onFinishProjectRename()
               if (event.key === 'Escape') onCancelProjectRename()
             }}
-            className="h-[40px] w-full rounded-[8px] border border-[var(--color-border-focus)] bg-[var(--color-surface-container-lowest)] px-[12px] text-[12px] font-bold text-[var(--color-text-primary)] outline-none ring-2 ring-[var(--color-brand)]/15"
+            className="h-[40px] w-full rounded-[8px] border border-[var(--color-border-focus)] bg-[var(--color-surface-container-lowest)] px-[12px] text-[11px] font-bold text-[var(--color-text-primary)] outline-none ring-2 ring-[var(--color-brand)]/15"
           />
         ) : (
           <>
@@ -820,11 +822,11 @@ const SessionProjectGroup = memo(function SessionProjectGroup({
                   : <Folder size={14} strokeWidth={1.85} />}
               </span>
               <span className={`min-w-0 flex-1 transition-[padding] duration-100 ${canRenameProject && !selectionMode ? 'group-hover/project:pr-[28px] group-focus-within/project:pr-[28px]' : ''}`}>
-                <span className="block truncate text-[12px] font-bold leading-[16px] text-[var(--color-text-primary)]">
+                <span className="block truncate text-[11px] font-bold leading-[16px] text-[var(--color-text-primary)]">
                   {group.title}
                 </span>
               </span>
-              <span className={`shrink-0 rounded-full bg-[var(--color-surface-container)] px-[6px] py-[2px] text-[10px] font-bold text-[var(--color-text-tertiary)] transition-opacity ${selectionMode || !canBulkSelect ? '' : 'group-hover/project:opacity-0 group-focus-within/project:opacity-0'}`}>
+              <span className={`shrink-0 rounded-full bg-[var(--color-surface-container)] px-[6px] py-[2px] text-[9px] font-bold text-[var(--color-text-tertiary)] transition-opacity ${selectionMode || !canBulkSelect ? '' : 'group-hover/project:opacity-0 group-focus-within/project:opacity-0'}`}>
                 {t('sidebar.projectSessionCount', { count: group.sessions.length })}
               </span>
               <ChevronDown
@@ -868,7 +870,7 @@ const SessionProjectGroup = memo(function SessionProjectGroup({
       {selectionMode && (
         <div
           data-testid={`bulk-selection-toolbar-${group.key}`}
-          className="flex h-[34px] items-center gap-[4px] border-y border-[var(--color-border-separator)] px-[8px] text-[11px] text-[var(--color-text-secondary)]"
+          className="flex h-[34px] items-center gap-[4px] border-y border-[var(--color-border-separator)] px-[8px] text-[10px] text-[var(--color-text-secondary)]"
         >
           <button
             type="button"
@@ -991,7 +993,7 @@ function SidebarSessionRow({
             if (e.key === 'Enter') onFinishRename()
             if (e.key === 'Escape') onCancelRename()
           }}
-          className="h-[60px] w-full rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-[15px] py-[11px] text-[13px] leading-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
+          className="h-[60px] w-full rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] px-[15px] py-[11px] text-[12px] leading-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-border-focus)]"
         />
       ) : (
         <>
@@ -1031,7 +1033,7 @@ function SidebarSessionRow({
               )}
               <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-2">
-                  <span className={`min-w-0 flex-1 truncate text-[13px] font-bold leading-normal ${useInverse ? 'text-[var(--color-inverse-on-surface)]' : 'text-[var(--color-text-primary)]'}`}>
+                  <span className={`min-w-0 flex-1 truncate text-[12px] font-bold leading-normal ${useInverse ? 'text-[var(--color-inverse-on-surface)]' : 'text-[var(--color-text-primary)]'}`}>
                     {displayTitle}
                   </span>
                   {session.workDir && !session.workDirExists && (
@@ -1039,12 +1041,12 @@ function SidebarSessionRow({
                       {t('sidebar.missingDir')}
                     </span>
                   )}
-                  <span className={`mt-0.5 shrink-0 text-[10px] font-bold ${useInverse ? 'text-[var(--color-inverse-on-surface)]/45' : 'text-[var(--color-text-tertiary)]'}`}>
+                  <span className={`mt-0.5 shrink-0 text-[9px] font-bold ${useInverse ? 'text-[var(--color-inverse-on-surface)]/45' : 'text-[var(--color-text-tertiary)]'}`}>
                     {formatRelativeTime(session.modifiedAt)}
                   </span>
                 </div>
                 {session.lastMessage && session.lastMessage !== displayTitle && (
-                  <p className={`mt-[2px] truncate pr-[42px] text-left text-[11px] font-medium leading-normal ${useInverse ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
+                  <p className={`mt-[2px] truncate pr-[42px] text-left text-[10px] font-medium leading-normal ${useInverse ? 'text-[var(--color-inverse-on-surface)]/65' : 'text-[var(--color-text-tertiary)]'}`}>
                     {session.lastMessage}
                   </p>
                 )}

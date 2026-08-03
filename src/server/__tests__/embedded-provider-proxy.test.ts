@@ -21,6 +21,7 @@ const ENV_KEYS = [
   'CYBERCODE_MODEL_CONTEXT_WINDOWS',
   'CYBERCODE_PROVIDER_ID',
   'CYBERCODE_TUI_SERVER_PORT',
+  'SERVER_AUTH_TOKEN',
 ] as const
 
 describe('standalone CLI provider runtime', () => {
@@ -34,6 +35,7 @@ describe('standalone CLI provider runtime', () => {
     process.env.CLAUDE_CONFIG_DIR = tmpDir
     process.env.CYBERCODE_TUI_SERVER_PORT = '0'
     delete process.env.CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST
+    delete process.env.SERVER_AUTH_TOKEN
     upstream = null
     stopEmbeddedProviderProxy()
     routingService.resetHealth()

@@ -138,11 +138,8 @@ const DOCUMENT_PROSE_CLASSES = `
 
 const CHAT_PROSE_CLASSES = `
   text-[14px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]
-  prose-headings:my-0 prose-headings:text-[var(--color-text-primary)] prose-headings:font-bold prose-headings:tracking-normal
-  prose-h1:text-[15px] prose-h1:leading-relaxed
-  prose-h2:text-[15px] prose-h2:leading-relaxed
-  prose-h3:text-[14px] prose-h3:leading-relaxed
-  prose-h4:text-[14px] prose-h4:leading-relaxed
+  prose-headings:my-0 prose-headings:text-[14px] prose-headings:font-semibold prose-headings:leading-relaxed prose-headings:tracking-normal prose-headings:text-[var(--color-text-primary)]
+  prose-h1:font-bold prose-h2:font-bold
   prose-p:my-0 prose-p:text-[14px] prose-p:font-normal prose-p:leading-relaxed prose-p:text-[var(--color-text-primary)]
   prose-p:tracking-normal
   prose-strong:text-[var(--color-text-primary)] prose-strong:font-bold

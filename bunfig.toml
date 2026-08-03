@@ -1,1 +1,5 @@
 preload = ["./preload.ts"]
+
+[test]
+preload = ["./test-preload.ts"]
+pathIgnorePatterns = ["desktop/**"]

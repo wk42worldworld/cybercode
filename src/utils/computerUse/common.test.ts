@@ -8,7 +8,8 @@ import {
 describe('computer use platform helpers', () => {
   it('recognizes supported platforms', () => {
     expect(isComputerUseSupportedPlatform('darwin')).toBe(true)
-    expect(isComputerUseSupportedPlatform('win32')).toBe(true)
+    expect(isComputerUseSupportedPlatform('win32', 'x64')).toBe(true)
+    expect(isComputerUseSupportedPlatform('win32', 'arm64')).toBe(false)
     expect(isComputerUseSupportedPlatform('linux', 'x64')).toBe(true)
     expect(isComputerUseSupportedPlatform('linux', 'arm64')).toBe(false)
   })

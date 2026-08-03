@@ -1,0 +1,30 @@
+[Unit]
+Description=CyberCode P2P signaling service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cybercode-p2p
+Group=cybercode-p2p
+EnvironmentFile=/etc/cybercode-p2p.env
+ExecStart=/opt/cybercode-p2p/cybercode-p2p-signal
+Restart=always
+RestartSec=2
+TimeoutStopSec=15
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=256M
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

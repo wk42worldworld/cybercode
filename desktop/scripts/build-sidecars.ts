@@ -196,6 +196,13 @@ async function compileExecutable({
     minify: { whitespace: true, identifiers: true, syntax: true },
     sourcemap: 'none',
     target: 'bun',
+    define: {
+      // The public signaling endpoint is product infrastructure, not a user
+      // setting. Runtime CYBERCODE_P2P_SIGNAL_URL still takes precedence.
+      'process.env.CYBERCODE_P2P_BUILTIN_SIGNAL_URL': JSON.stringify(
+        process.env.CYBERCODE_P2P_BUILTIN_SIGNAL_URL?.trim() || '',
+      ),
+    },
     // 可选 npm 包：开 telemetry / 用 sharp 图像 / 用 Bedrock/Vertex 等
     // 替代 provider 时才需要，全部不在顶层 package.json 里。标 external
     // 让 bun build 跳过解析；运行时 import 在没装时自然失败，由 try/catch

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 
-import { replaceImagesForTextOnlyModel } from './claude.js'
+import { isEmbeddedProxyBaseUrl, isLocalInferenceBaseUrl, replaceImagesForTextOnlyModel } from './claude.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { modelSupportsImages } from '../../utils/model/imageSupport.js'
 
@@ -85,5 +85,49 @@ describe('image support safeguards', () => {
     expect(raw).not.toContain('"type":"image"')
     expect(raw).toContain('Raw image block withheld')
     expect(raw).toContain('image/OCR/MCP tool')
+  })
+})
+
+describe('isLocalInferenceBaseUrl', () => {
+  test('detects loopback and ollama hosts', () => {
+    expect(isLocalInferenceBaseUrl('http://127.0.0.1:8080/v1')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://localhost:11434')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://[::1]:8080')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://ollama:11434')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://127.0.1.5:3000')).toBe(true)
+  })
+
+  test('detects RFC1918 LAN hosts as local self-hosted inference', () => {
+    expect(isLocalInferenceBaseUrl('http://192.168.1.20:11434')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://10.0.0.5:1234/v1')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://172.16.3.9:8080')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://172.32.3.9:8080')).toBe(false)
+  })
+
+  test('rejects remote and missing URLs', () => {
+    expect(isLocalInferenceBaseUrl('https://api.anthropic.com')).toBe(false)
+    expect(isLocalInferenceBaseUrl('https://api.openai.com/v1')).toBe(false)
+    expect(isLocalInferenceBaseUrl(undefined)).toBe(false)
+    expect(isLocalInferenceBaseUrl('not a url')).toBe(false)
+  })
+})
+
+describe('isEmbeddedProxyBaseUrl', () => {
+  test('detects embedded proxy URLs so the watchdog skips them', () => {
+    // The desktop app routes every provider through the embedded proxy, so a
+    // loopback /proxy/ URL must not count as a local inference target.
+    expect(isEmbeddedProxyBaseUrl('http://127.0.0.1:3456/proxy/v1/messages')).toBe(true)
+    expect(isEmbeddedProxyBaseUrl('http://127.0.0.1:3456/proxy/routes/balanced/sessions/test')).toBe(true)
+    expect(isLocalInferenceBaseUrl('http://127.0.0.1:3456/proxy/v1/messages')).toBe(true)
+    expect(
+      isLocalInferenceBaseUrl('http://127.0.0.1:3456/proxy/v1/messages') &&
+        !isEmbeddedProxyBaseUrl('http://127.0.0.1:3456/proxy/v1/messages'),
+    ).toBe(false)
+  })
+
+  test('ignores direct local inference URLs', () => {
+    expect(isEmbeddedProxyBaseUrl('http://127.0.0.1:8080/v1/messages')).toBe(false)
+    expect(isEmbeddedProxyBaseUrl('http://192.168.1.20:11434/v1')).toBe(false)
+    expect(isEmbeddedProxyBaseUrl(undefined)).toBe(false)
   })
 })

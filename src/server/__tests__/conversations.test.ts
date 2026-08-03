@@ -778,6 +778,7 @@ describe('WebSocket Chat Integration', () => {
       .join('\n')
   }
   const originalCliPath = process.env.CLAUDE_CLI_PATH
+  const originalCyberConfigDir = process.env.CYBER_CONFIG_DIR
   const originalConfigDir = process.env.CLAUDE_CONFIG_DIR
   const originalMockSdkInboundLogDir = process.env.MOCK_SDK_INBOUND_LOG_DIR
   const originalProviderServerPort = ProviderService.getServerPort()
@@ -785,6 +786,7 @@ describe('WebSocket Chat Integration', () => {
   beforeAll(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-conv-'))
     mockSdkInboundDir = path.join(tmpDir, 'mock-sdk-inbound')
+    process.env.CYBER_CONFIG_DIR = tmpDir
     process.env.CLAUDE_CONFIG_DIR = tmpDir
     process.env.MOCK_SDK_INBOUND_LOG_DIR = mockSdkInboundDir
     process.env.CLAUDE_CLI_PATH = fileURLToPath(
@@ -818,6 +820,11 @@ describe('WebSocket Chat Integration', () => {
       process.env.CLAUDE_CONFIG_DIR = originalConfigDir
     } else {
       delete process.env.CLAUDE_CONFIG_DIR
+    }
+    if (originalCyberConfigDir) {
+      process.env.CYBER_CONFIG_DIR = originalCyberConfigDir
+    } else {
+      delete process.env.CYBER_CONFIG_DIR
     }
     ProviderService.setServerPort(originalProviderServerPort)
   }, 20_000)
@@ -1304,32 +1311,46 @@ describe('WebSocket Chat Integration', () => {
     })
   }, 25_000)
 
-  it('should queue user_steer messages through the SDK input stream', async () => {
+  it('should immediately steer the running task through the SDK input stream', async () => {
     const messages: any[] = []
     const sessionId = `chat-steer-${crypto.randomUUID()}`
     const steerId = '123e4567-e89b-12d3-a456-426614174000'
     const ws = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+    let steerSent = false
+    let steerSentAt = 0
+    let steerProcessedAt = 0
 
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
         ws.close()
         resolve()
-      }, 5000)
+      }, 6000)
 
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data as string)
         messages.push(msg)
         if (msg.type === 'connected') {
           ws.send(JSON.stringify({
+            type: 'user_message',
+            content: '__mock_wait_for_interrupt__',
+          }))
+        }
+        if (
+          !steerSent
+          && (msg.type === 'thinking' || msg.type === 'content_start')
+        ) {
+          steerSent = true
+          steerSentAt = Date.now()
+          ws.send(JSON.stringify({
             type: 'user_steer',
             steerId,
             content: 'Add this constraint',
-            priority: 'next',
+            priority: 'now',
           }))
         }
-        if (msg.type === 'steer_status' && msg.status === 'queued') {
+        if (msg.type === 'steer_status' && msg.status === 'processed') {
+          steerProcessedAt = Date.now()
           clearTimeout(timeout)
-          ws.close()
           resolve()
         }
       }
@@ -1340,11 +1361,46 @@ describe('WebSocket Chat Integration', () => {
       }
     })
 
-    const steerStatus = messages.find((m) => m.type === 'steer_status')
-    expect(steerStatus).toMatchObject({
+    expect(steerSent).toBe(true)
+    expect(steerProcessedAt).toBeGreaterThanOrEqual(steerSentAt)
+    expect(steerProcessedAt - steerSentAt).toBeLessThan(1500)
+    expect(messages).toContainEqual(expect.objectContaining({
+      type: 'steer_status',
       steerId,
-      status: 'queued',
-    })
+      status: 'processing',
+    }))
+    expect(messages).toContainEqual(expect.objectContaining({
+      type: 'steer_status',
+      steerId,
+      status: 'processed',
+    }))
+    try {
+      await waitUntil(async () => {
+        try {
+          const inbound = await readMockSdkInbound(sessionId)
+          return inbound.some((entry) => entry.uuid === steerId && entry.priority === 'now')
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+          throw error
+        }
+      }, 'immediate steer to reach the SDK input stream')
+
+      const inbound = await readMockSdkInbound(sessionId)
+      const interruptIndex = inbound.findIndex((entry) =>
+        entry.type === 'control_request' && entry.request?.subtype === 'interrupt'
+      )
+      const steerIndex = inbound.findIndex((entry) => entry.uuid === steerId)
+      expect(interruptIndex).toBeGreaterThanOrEqual(0)
+      expect(steerIndex).toBeGreaterThan(interruptIndex)
+      expect(inbound[steerIndex]).toMatchObject({
+        type: 'user',
+        uuid: steerId,
+        priority: 'now',
+      })
+    } finally {
+      ws.close()
+      conversationService.stopSession(sessionId)
+    }
   })
 
   it('should continue chat when SDK init arrives only after the first user turn', async () => {

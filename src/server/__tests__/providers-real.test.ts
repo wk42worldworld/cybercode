@@ -188,21 +188,30 @@ describe('Real Provider Configs', () => {
   })
 
   test('连通性测试 — 返回结构正确', async () => {
-    const result = await service.testProviderConfig({
-      baseUrl: 'https://api.minimaxi.com/anthropic',
-      apiKey: 'sk-fake-test-key',
-      modelId: 'MiniMax-M2.7-highspeed',
-    })
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => Response.json({
+      type: 'error',
+      error: {
+        type: 'authentication_error',
+        message: 'invalid test key',
+      },
+    }, { status: 401 })) as typeof fetch
 
-    // testProviderConfig 返回 { connectivity: { ... }, proxy?: { ... } }
-    expect(result.connectivity).toBeDefined()
-    expect(result.connectivity.latencyMs).toBeGreaterThanOrEqual(0)
-    expect(result.connectivity.modelUsed).toBe('MiniMax-M2.7-highspeed')
+    try {
+      const result = await service.testProviderConfig({
+        baseUrl: 'https://api.minimaxi.com/anthropic',
+        apiKey: 'sk-fake-test-key',
+        modelId: 'MiniMax-M2.7-highspeed',
+      })
 
-    console.log('🔌 MiniMax 连通性测试结果:')
-    console.log('   success:', result.connectivity.success)
-    console.log('   latencyMs:', result.connectivity.latencyMs)
-    console.log('   error:', result.connectivity.error)
+      // A rejected probe still returns a complete, user-displayable result.
+      expect(result.connectivity.success).toBe(false)
+      expect(result.connectivity.latencyMs).toBeGreaterThanOrEqual(0)
+      expect(result.connectivity.modelUsed).toBe('MiniMax-M2.7-highspeed')
+      expect(result.connectivity.error).toContain('invalid test key')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 
   test('providers.json 和 cybercode/settings.json 独立于 settings.json', async () => {

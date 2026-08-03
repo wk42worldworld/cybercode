@@ -10,6 +10,11 @@ import { SessionService } from '../services/sessionService.js'
 import { clearCommandsCache } from '../../commands.js'
 import { sanitizePath } from '../../utils/sessionStoragePortable.js'
 import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
+import { openSessionSearchDb } from '../../sessionSearch/db.js'
+import {
+  _resetPortablePathCacheForTesting,
+  CYBER_PORTABLE_ROOT_ENV,
+} from '../../utils/portablePaths.js'
 
 // ============================================================================
 // Test helpers
@@ -656,6 +661,99 @@ describe('SessionService', () => {
     const content = await fs.readFile(filePath, 'utf-8')
     const entry = JSON.parse(content.trim().split('\n')[0]!)
     expect(entry.type).toBe('file-history-snapshot')
+  })
+
+  it('should repair portable session work directories after a Windows drive-letter change', async () => {
+    const previousPortableRoot = process.env[CYBER_PORTABLE_ROOT_ENV]
+    const portableRoot = path.join(tmpDir, 'CyberCode-Portable')
+    const portableProject = path.join(portableRoot, 'projects', 'demo-a1b2c3d4')
+    await fs.mkdir(portableProject, { recursive: true })
+    await fs.writeFile(
+      path.join(tmpDir, 'portable-projects.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        createdAt: '2026-08-01T00:00:00.000Z',
+        projects: [{
+          id: 'demo-project',
+          name: 'demo',
+          relativePath: 'projects/demo-a1b2c3d4',
+          originalPaths: ['D:\\work\\demo'],
+        }],
+      }),
+    )
+    process.env[CYBER_PORTABLE_ROOT_ENV] = portableRoot
+    _resetPortablePathCacheForTesting()
+
+    try {
+      const { sessionId, session } = await service.createSession('d:\\WORK\\demo')
+      expect(session.workDir).toBe(portableProject)
+
+      const found = await service.findSessionFile(sessionId)
+      expect(found).not.toBeNull()
+      const originalLines = (await fs.readFile(found!.filePath, 'utf-8'))
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line) as Record<string, unknown>)
+      const storedMeta = originalLines.find(entry => entry.type === 'session-meta')
+      expect(storedMeta?.workDir).toBe(
+        'cybercode-portable://projects/demo-a1b2c3d4',
+      )
+
+      storedMeta!.workDir = 'F:\\CyberCode-Portable\\projects\\demo-a1b2c3d4'
+      const largeHistoricalToolResult = {
+        type: 'tool_result',
+        content: 'x'.repeat(700 * 1024),
+      }
+      await fs.writeFile(
+        found!.filePath,
+        `${[
+          ...originalLines.map(entry => JSON.stringify(entry)),
+          JSON.stringify(largeHistoricalToolResult),
+        ].join('\n')}\n`,
+      )
+
+      const repaired = await service.repairPortableProjectPaths()
+      expect(repaired).toMatchObject({
+        active: true,
+        scannedSessions: 1,
+        eligibleSessions: 1,
+        repairedSessions: 1,
+        failedSessions: 0,
+      })
+
+      const repairedLines = (await fs.readFile(found!.filePath, 'utf-8'))
+        .trim()
+        .split('\n')
+        .map(line => JSON.parse(line) as Record<string, unknown>)
+      expect(repairedLines.at(-1)).toMatchObject({
+        type: 'session-meta',
+        workDir: 'cybercode-portable://projects/demo-a1b2c3d4',
+        portablePathRepair: true,
+      })
+      expect(await service.getSessionWorkDir(sessionId)).toBe(portableProject)
+
+      const repairedStat = await fs.stat(found!.filePath)
+      const searchDb = openSessionSearchDb()
+      try {
+        expect(
+          searchDb.query(
+            'SELECT work_dir, file_size FROM sessions WHERE file_path = ?',
+          ).get(found!.filePath),
+        ).toMatchObject({
+          work_dir: portableProject,
+          file_size: repairedStat.size,
+        })
+      } finally {
+        searchDb.close()
+      }
+    } finally {
+      if (previousPortableRoot === undefined) {
+        delete process.env[CYBER_PORTABLE_ROOT_ENV]
+      } else {
+        process.env[CYBER_PORTABLE_ROOT_ENV] = previousPortableRoot
+      }
+      _resetPortablePathCacheForTesting()
+    }
   })
 
   it('should create a Windows-safe project directory name', async () => {

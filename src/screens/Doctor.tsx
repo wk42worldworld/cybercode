@@ -123,7 +123,7 @@ export function Doctor(t0) {
   const validationErrors = useSettingsErrors();
   let t2;
   if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
-    t2 = getDoctorDiagnostic().then(_temp6);
+    t2 = getDoctorDiagnostic().then(_temp6).catch(_temp5);
     $[2] = t2;
   } else {
     t2 = $[2];
@@ -163,7 +163,7 @@ export function Doctor(t0) {
   let t6;
   if ($[6] !== agentDefinitions || $[7] !== toolPermissionContext || $[8] !== tools) {
     t5 = () => {
-      getDoctorDiagnostic().then(setDiagnostic);
+      getDoctorDiagnostic().then(setDiagnostic).catch(() => {});
       (async () => {
         const userAgentsDir = join(getClaudeConfigHomeDir(), "agents");
         const projectAgentsDir = getExistingProjectConfigPath(getOriginalCwd(), "agents");

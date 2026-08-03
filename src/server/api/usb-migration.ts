@@ -25,7 +25,10 @@ export async function handleUsbMigrationApi(
 
     if ((!resource || resource === 'scan') && req.method === 'GET') {
       return Response.json(
-        await usbMigrationService.scan(url.searchParams.get('force') === 'true'),
+        await usbMigrationService.scan(
+          url.searchParams.get('force') === 'true',
+          req.signal,
+        ),
       )
     }
 
@@ -44,7 +47,26 @@ export async function handleUsbMigrationApi(
           'replaceExisting',
         ),
       }
-      return Response.json(await usbMigrationService.start(input), { status: 202 })
+      return Response.json(
+        await usbMigrationService.start(input, req.signal),
+        { status: 202 },
+      )
+    }
+
+    if (resource === 'portable-paths' && !segments[3] && req.method === 'GET') {
+      return Response.json(usbMigrationService.getPortablePathStatus())
+    }
+
+    if (resource === 'recovery' && req.method === 'GET') {
+      return Response.json(usbMigrationService.getRecoveryStatus())
+    }
+
+    if (
+      resource === 'portable-paths'
+      && segments[3] === 'repair'
+      && req.method === 'POST'
+    ) {
+      return Response.json(await usbMigrationService.repairPortableProjectPaths())
     }
 
     if (resource === 'jobs' && segments[3]) {

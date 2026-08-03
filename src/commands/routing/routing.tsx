@@ -37,7 +37,7 @@ export type RoutingCommandResult = {
 
 function formatDashboard(dashboard: RoutingDashboard): string {
   if (dashboard.config.profiles.length === 0) {
-    return `Smart routing is ${dashboard.config.enabled ? 'on' : 'off'}, with no routes configured.`
+    return `Agent routing is ${dashboard.config.enabled ? 'on' : 'off'}, with no routes configured.`
   }
   const routes = dashboard.config.profiles.map(profile => {
     const availability = dashboard.routeAvailability[profile.id]
@@ -46,7 +46,7 @@ function formatDashboard(dashboard: RoutingDashboard): string {
       : availability?.reason ?? 'unavailable'
     return `${profile.enabled ? '*' : '-'} ${profile.name} [${profile.id}] · ${profile.strategy} · ${state}`
   })
-  return `Smart routing is ${dashboard.config.enabled ? 'on' : 'off'}:\n${routes.join('\n')}`
+  return `Agent routing is ${dashboard.config.enabled ? 'on' : 'off'}:\n${routes.join('\n')}`
 }
 
 async function updateRoute(
@@ -79,14 +79,14 @@ export async function executeRoutingCommand(
     const config = await routingService.getConfig()
     const enabled = action === 'on'
     await routingService.updateConfig({ ...config, enabled })
-    return { message: `Smart routing is ${enabled ? 'on' : 'off'}.` }
+    return { message: `Agent routing is ${enabled ? 'on' : 'off'}.` }
   }
 
   if (action === 'use') {
     if (!routeId) return { message: ROUTING_USAGE }
     const runtime = await activateRouteForCli(routeId, sessionId)
     return {
-      message: `Using smart route ${routeId} for this TUI session.`,
+      message: `Using agent route ${routeId} for this TUI session.`,
       runtimeModel: runtime.model,
     }
   }
@@ -192,7 +192,7 @@ function RoutingPicker({
         }
       }),
       {
-        label: dashboard.config.enabled ? 'Turn smart routing off' : 'Turn smart routing on',
+        label: dashboard.config.enabled ? 'Turn agent routing off' : 'Turn agent routing on',
         value: 'toggle',
         description: 'Applies to every saved route',
       },
@@ -211,7 +211,7 @@ function RoutingPicker({
   const select = async (value: string) => {
     if (busy || !dashboard) return
     if (value === 'close') {
-      onDone('Smart routing unchanged.', { display: 'system' })
+      onDone('Agent routing unchanged.', { display: 'system' })
       return
     }
     if (value.startsWith('use:')) {
@@ -247,10 +247,10 @@ function RoutingPicker({
 
   return (
     <Dialog
-      title="Smart routing"
+      title="Agent routing"
       subtitle="Routes share the same provider and model catalog as CyberCode Desktop."
       color="permission"
-      onCancel={() => onDone('Smart routing unchanged.', { display: 'system' })}
+      onCancel={() => onDone('Agent routing unchanged.', { display: 'system' })}
     >
       {!dashboard ? <Text dimColor>Loading routes...</Text> : null}
       {error ? <Text color="error">{error}</Text> : null}
@@ -266,7 +266,7 @@ function RoutingPicker({
             layout="compact-vertical"
             isDisabled={busy}
             onChange={value => void select(value)}
-            onCancel={() => onDone('Smart routing unchanged.', { display: 'system' })}
+            onCancel={() => onDone('Agent routing unchanged.', { display: 'system' })}
           />
         </Box>
       ) : null}

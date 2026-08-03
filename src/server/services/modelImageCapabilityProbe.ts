@@ -26,6 +26,27 @@ const PROBE_IMAGE_BASE64 =
 const PROBE_PROMPT =
   'Count the distinct vertical colored bars in the image. Reply with only the number.'
 
+/**
+ * Inconclusive ('unknown') probe results are not written to the persistent
+ * learned-capability registry, so without a cache every image-bearing message
+ * would re-run the real image probe (up to 8s each). Keep them in a short
+ * in-memory cache instead: a brief TTL absorbs back-to-back messages while
+ * still picking up state changes after a local server (e.g. Ollama) restarts.
+ */
+const UNKNOWN_RESOLUTION_TTL_MS = 60_000
+const unknownResolutionCache = new Map<string, {
+  resolution: ImageSupportResolution
+  expiresAt: number
+}>()
+
+function unknownResolutionCacheKey(provider: SavedProvider, modelId: string): string {
+  return `${provider.baseUrl.replace(/\/+$/, '').toLowerCase()}\n${modelId.trim().toLowerCase()}`
+}
+
+export function resetUnknownImageProbeCacheForTests(): void {
+  unknownResolutionCache.clear()
+}
+
 export function isImageInputUnsupportedError(message: string): boolean {
   const normalized = message.replace(/\s+/g, ' ').trim()
   if (!normalized) return false
@@ -407,11 +428,23 @@ export async function resolveProviderImageSupportDynamically(
     return initial
   }
 
+  const cacheKey = unknownResolutionCacheKey(provider, initial.modelId)
+  const cachedUnknown = unknownResolutionCache.get(cacheKey)
+  if (cachedUnknown) {
+    if (cachedUnknown.expiresAt > Date.now()) return cachedUnknown.resolution
+    unknownResolutionCache.delete(cacheKey)
+  }
+
   const probed = await probeProviderImageSupport(provider, initial.modelId, options)
   if (probed.status === 'unknown') {
-    return initial.status === 'supported'
+    const resolution: ImageSupportResolution = initial.status === 'supported'
       ? { ...initial, supportsImages: false, status: 'unknown' }
       : initial
+    unknownResolutionCache.set(cacheKey, {
+      resolution,
+      expiresAt: Date.now() + UNKNOWN_RESOLUTION_TTL_MS,
+    })
+    return resolution
   }
 
   recordLearnedImageSupport({

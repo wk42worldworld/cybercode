@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 import { SkillSettings } from '../pages/Settings'
@@ -188,6 +188,99 @@ describe('Settings > Skills tab', () => {
     expect(screen.getByText('Second skill description')).toBeInTheDocument()
     expect(screen.getAllByText('Plugin').length).toBeGreaterThan(0)
     expect(screen.getByText('Telegram Access')).toBeInTheDocument()
+  })
+
+  it('loads the Skill market on demand and installs into the current project', async () => {
+    let installed = false
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/api/skills/config')) {
+        return new Response(JSON.stringify({
+          config: {
+            userSkillsDir: '/Users/test/.cyber/skills',
+            displayPath: '~/.cyber/skills',
+          },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      if (url.includes('/api/skills/marketplace/install')) {
+        installed = true
+        return new Response(JSON.stringify({
+          ok: true,
+          item: {},
+          installPath: '/workspace/project/.cyber/skills/react-best-practices',
+          updated: false,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      if (url.includes('/api/skills/marketplace')) {
+        return new Response(JSON.stringify({
+          catalog: {
+            sources: [
+              {
+                id: 'vercel',
+                name: 'Vercel Agent Skills',
+                homepage: 'https://github.com/vercel-labs/agent-skills',
+                status: 'ready',
+                itemCount: 1,
+              },
+            ],
+            items: [
+              {
+                id: 'vercel:skills/react-best-practices',
+                name: 'react-best-practices',
+                displayName: 'React Best Practices',
+                installName: 'react-best-practices',
+                description: 'Guidelines for building fast React applications.',
+                category: 'web-development',
+                tags: ['react'],
+                sourceId: 'vercel',
+                sourceName: 'Vercel Agent Skills',
+                sourceUrl: 'https://github.com/vercel-labs/agent-skills',
+                relativePath: 'skills/react-best-practices',
+                revision: 'abc123',
+                installations: installed
+                  ? [{ scope: 'project', managed: true, updateAvailable: false }]
+                  : [],
+              },
+            ],
+          },
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      throw new Error(`Unexpected request: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<SkillSettings />)
+
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/skills/marketplace'),
+      expect.anything(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Skill market' }))
+
+    expect(await screen.findByText('React Best Practices')).toBeInTheDocument()
+    expect(screen.getByText('Guidelines for building fast React applications.')).toBeInTheDocument()
+    act(() => useSettingsStore.setState({ locale: 'zh' }))
+    expect(await screen.findByText(/用于处理“React Best Practices”相关任务的技能/))
+      .toBeInTheDocument()
+    expect(screen.getByText('Web 开发')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '推荐' })).toBeInTheDocument()
+    expect(screen.queryByText('Guidelines for building fast React applications.'))
+      .not.toBeInTheDocument()
+    act(() => useSettingsStore.setState({ locale: 'en' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Install' }))
+
+    await waitFor(() => {
+      const installCall = fetchMock.mock.calls.find(([request]) =>
+        String(request).includes('/api/skills/marketplace/install'))
+      expect(installCall).toBeDefined()
+      expect(JSON.parse(String(installCall?.[1]?.body))).toMatchObject({
+        itemId: 'vercel:skills/react-best-practices',
+        scope: 'project',
+        cwd: '/workspace/project',
+      })
+      expect(screen.getByText('Installed')).toBeInTheDocument()
+    })
+    expect(MOCK_FETCH_SKILLS).toHaveBeenCalledWith('/workspace/project')
   })
 
   it('shows learned Skill drafts and approves them into the installed list', async () => {

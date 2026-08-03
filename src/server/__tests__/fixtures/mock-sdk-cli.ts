@@ -85,9 +85,9 @@ ws.addEventListener('message', (event) => {
   void (async () => {
     for (const line of lines) {
       const parsed = JSON.parse(line)
+      recordInbound(parsed)
 
       if (parsed.type === 'user') {
-        recordInbound(parsed)
         sendInit()
         if (exitAfterFirstUserMs > 0 && !firstUserExitScheduled) {
           firstUserExitScheduled = true
@@ -165,6 +165,21 @@ ws.addEventListener('message', (event) => {
           },
           session_id: sessionId,
         })
+        if (parsed.uuid) {
+          emit(ws, {
+            type: 'user',
+            message: parsed.message,
+            session_id: sessionId,
+            parent_tool_use_id: null,
+            uuid: parsed.uuid,
+            timestamp: parsed.timestamp,
+            isReplay: true,
+          })
+        }
+        if (text === '__mock_wait_for_interrupt__') {
+          await delay(5_000)
+          continue
+        }
         if (streamDelayMs > 0) await delay(streamDelayMs)
         emit(ws, {
           type: 'stream_event',

@@ -7,7 +7,7 @@ import * as fs from 'node:fs/promises'
 import * as fsSyn from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
-import type { TeamMemberStatus } from '../ws/events.js'
+import type { ServerMessage, TeamMemberStatus } from '../ws/events.js'
 
 // ============================================================================
 // Test helpers
@@ -370,6 +370,102 @@ describe('TeamWatcher polling', () => {
     watcher.reset()
     watcher.checkNow()
     // No error means reset worked
+  })
+
+  it('broadcasts a team update when a member inbox appears without a config rewrite', async () => {
+    const events: ServerMessage[] = []
+    watcher = new TeamWatcher((message) => events.push(message))
+    await writeTeamConfig('inbox-race-team', makeTeamConfig({ name: 'inbox-race-team' }))
+
+    watcher.checkNow()
+    events.length = 0
+
+    const inboxDir = path.join(tmpDir, 'teams', 'inbox-race-team', 'inboxes')
+    await fs.mkdir(inboxDir, { recursive: true })
+    await fs.writeFile(path.join(inboxDir, 'reviewer.json'), '{}', 'utf-8')
+    watcher.checkNow()
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'team_update',
+      teamName: 'inbox-race-team',
+      members: expect.arrayContaining([
+        expect.objectContaining({ agentId: 'reviewer@inbox-race-team' }),
+      ]),
+    }))
+  })
+
+  it('broadcasts a team update when an in-process transcript appears', async () => {
+    const events: ServerMessage[] = []
+    watcher = new TeamWatcher((message) => events.push(message))
+    await writeTeamConfig('subagent-race-team', makeTeamConfig({
+      name: 'subagent-race-team',
+      leadSessionId: 'lead-session-race',
+    }))
+
+    watcher.checkNow()
+    events.length = 0
+
+    const subagentsDir = path.join(
+      tmpDir,
+      'projects',
+      '-tmp-project',
+      'lead-session-race',
+      'subagents',
+    )
+    await fs.mkdir(subagentsDir, { recursive: true })
+    await fs.writeFile(
+      path.join(subagentsDir, 'agent-reviewer.jsonl'),
+      JSON.stringify({ agentName: 'reviewer' }) + '\n',
+      'utf-8',
+    )
+    watcher.checkNow()
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'team_update',
+      teamName: 'subagent-race-team',
+      members: expect.arrayContaining([
+        expect.objectContaining({ agentId: 'reviewer@subagent-race-team' }),
+      ]),
+    }))
+  })
+
+  it('deduplicates a member discovered in both inbox and transcript storage', async () => {
+    const events: ServerMessage[] = []
+    watcher = new TeamWatcher((message) => events.push(message))
+    await writeTeamConfig('duplicate-member-team', makeTeamConfig({
+      name: 'duplicate-member-team',
+      leadSessionId: 'lead-session-duplicate',
+    }))
+
+    watcher.checkNow()
+    events.length = 0
+
+    const inboxDir = path.join(tmpDir, 'teams', 'duplicate-member-team', 'inboxes')
+    await fs.mkdir(inboxDir, { recursive: true })
+    await fs.writeFile(path.join(inboxDir, 'reviewer.json'), '{}', 'utf-8')
+
+    const subagentsDir = path.join(
+      tmpDir,
+      'projects',
+      '-tmp-project',
+      'lead-session-duplicate',
+      'subagents',
+    )
+    await fs.mkdir(subagentsDir, { recursive: true })
+    await fs.writeFile(
+      path.join(subagentsDir, 'agent-reviewer.jsonl'),
+      JSON.stringify({ agentName: 'reviewer' }) + '\n',
+      'utf-8',
+    )
+    watcher.checkNow()
+
+    const update = events.find((event) => event.type === 'team_update')
+    expect(update && update.type === 'team_update' ? update.members : []).toHaveLength(3)
+    expect(
+      update && update.type === 'team_update'
+        ? update.members.filter((member) => member.agentId === 'reviewer@duplicate-member-team')
+        : [],
+    ).toHaveLength(1)
   })
 })
 

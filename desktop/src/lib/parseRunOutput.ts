@@ -1,3 +1,10 @@
+import {
+  HEAVY_TEXT_THRESHOLD_BYTES,
+  parseRunOutputCore,
+  reachesUtf8ByteLimit,
+} from './heavyTextCore'
+import { requestHeavyTextTask, type HeavyTextWorkerFactory } from './heavyTextWorker'
+
 /**
  * Parse task run output into displayable text.
  *
@@ -15,65 +22,31 @@
  * field, treat as NDJSON. Otherwise return as-is.
  */
 export function parseRunOutput(raw: string): string {
-  if (!raw || !raw.trim()) return ''
+  return parseRunOutputCore(raw)
+}
 
-  const lines = raw.trim().split('\n')
+export function shouldParseRunOutputInWorker(raw: string) {
+  return reachesUtf8ByteLimit(raw, HEAVY_TEXT_THRESHOLD_BYTES)
+}
 
-  // Quick check: does this look like NDJSON? (first non-empty line starts with '{')
-  const firstLine = lines.find((l) => l.trim())
-  if (!firstLine || !firstLine.trim().startsWith('{')) {
-    // Already extracted plain text — return as-is
-    return raw.trim()
-  }
+const BOUNDED_RUN_PREVIEW_CHARS = 64 * 1024
 
-  // Try to parse as NDJSON (legacy format)
-  const textParts: string[] = []
-  let anyRecognized = false
+export function createBoundedRunOutputPreview(raw: string) {
+  if (raw.length <= BOUNDED_RUN_PREVIEW_CHARS * 2) return parseRunOutput(raw)
+  const head = parseRunOutput(raw.slice(0, BOUNDED_RUN_PREVIEW_CHARS))
+  const tail = parseRunOutput(raw.slice(-BOUNDED_RUN_PREVIEW_CHARS))
+  const marker = `[...] ${BOUNDED_RUN_PREVIEW_CHARS * 2}/${raw.length}`
+  return [head, marker, tail].filter(Boolean).join('\n\n')
+}
 
-  for (const line of lines) {
-    if (!line.trim()) continue
-
-    let parsed: any
-    try {
-      parsed = JSON.parse(line)
-    } catch {
-      continue
-    }
-
-    const type = parsed?.type
-
-    if (type === 'assistant') {
-      anyRecognized = true
-      const content = parsed?.message?.content
-      if (!Array.isArray(content)) continue
-      for (const block of content) {
-        if (block.type === 'text' && block.text?.trim()) {
-          textParts.push(block.text.trim())
-        }
-      }
-    }
-
-    if (type === 'result') {
-      anyRecognized = true
-      const result = parsed?.result
-      if (typeof result === 'string' && result.trim()) {
-        textParts.push(result.trim())
-      } else if (result?.message?.trim()) {
-        textParts.push(result.message.trim())
-      }
-    }
-
-    if (type === 'system' || type === 'user') {
-      anyRecognized = true
-      // Skip these — not useful to display
-    }
-  }
-
-  // If we recognized NDJSON structure, return extracted text
-  if (anyRecognized) {
-    return textParts.join('\n\n')
-  }
-
-  // Fallback: the JSON lines didn't have recognized types — return raw
-  return raw.trim()
+export function parseRunOutputAsync(
+  raw: string,
+  options: { signal?: AbortSignal; workerFactory?: HeavyTextWorkerFactory } = {},
+) {
+  if (!shouldParseRunOutputInWorker(raw)) return Promise.resolve(parseRunOutput(raw))
+  return requestHeavyTextTask(
+    { kind: 'parse-run-output', raw },
+    () => createBoundedRunOutputPreview(raw),
+    options,
+  )
 }

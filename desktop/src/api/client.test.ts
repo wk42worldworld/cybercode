@@ -80,4 +80,41 @@ describe('desktop API client authentication', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(refreshConnection).not.toHaveBeenCalled()
   })
+
+  it('propagates caller cancellation without retrying the request', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_input, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          'abort',
+          () => reject(init.signal?.reason),
+          { once: true },
+        )
+      }),
+    )
+    const controller = new AbortController()
+    const request = api.get('/api/agent-migration', {
+      timeout: 120_000,
+      signal: controller.signal,
+    })
+
+    controller.abort(new DOMException('User cancelled', 'AbortError'))
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('rejects a pre-aborted legacy signal without throwIfAborted support', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    const signal = {
+      aborted: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as AbortSignal
+
+    await expect(api.get('/api/status', { signal })).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

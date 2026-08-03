@@ -1,6 +1,6 @@
 import { api } from './client'
 
-export type KnowledgeSourceStatus = 'pending' | 'indexing' | 'ready' | 'empty' | 'error'
+export type KnowledgeSourceStatus = 'pending' | 'indexing' | 'removing' | 'ready' | 'empty' | 'error'
 export type KnowledgeSourceKind = 'file' | 'folder'
 
 export type KnowledgeSource = {
@@ -58,7 +58,10 @@ export const knowledgeApi = {
     api.post<KnowledgeSource[]>('/api/knowledge/sources', { paths }),
 
   removeSource: (sourceId: string) =>
-    api.delete<{ removed: boolean }>(`/api/knowledge/sources/${encodeURIComponent(sourceId)}`),
+    api.delete<{ removed: boolean }>(
+      `/api/knowledge/sources/${encodeURIComponent(sourceId)}`,
+      { timeout: 5 * 60_000 },
+    ),
 
   reindexSource: (sourceId: string) =>
     api.post<KnowledgeSource>(`/api/knowledge/sources/${encodeURIComponent(sourceId)}/reindex`, {}),

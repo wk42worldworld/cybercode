@@ -11,10 +11,17 @@ import * as path from 'node:path'
 import { ApiError } from '../middleware/errorHandler.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { sanitizePath as sanitizePortablePath } from '../../utils/sessionStoragePortable.js'
-import { resolvePortableProjectPath } from '../../utils/portablePaths.js'
+import {
+  getPortableRuntimeInfo,
+  isPortableProjectReference,
+  resolvePortableProjectPath,
+  toPortableProjectReference,
+  type PortableRuntimeInfo,
+} from '../../utils/portablePaths.js'
 import {
   deleteSessionFromSearchIndex,
   indexSessionSearchFile,
+  refreshSessionSearchPathMetadata,
 } from '../../sessionSearch/indexer.js'
 import { stripProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
 import type { FileHistorySnapshot } from '../../utils/fileHistory.js'
@@ -71,6 +78,13 @@ export type SessionLaunchInfo = {
 export type TrimSessionResult = {
   removedCount: number
   removedMessageIds: string[]
+}
+
+export type PortablePathRepairResult = PortableRuntimeInfo & {
+  scannedSessions: number
+  eligibleSessions: number
+  repairedSessions: number
+  failedSessions: number
 }
 
 export type MessageEntry = {
@@ -408,6 +422,10 @@ export class SessionService {
       throw err
     }
 
+    return this.parseJsonlEntries(content)
+  }
+
+  private parseJsonlEntries(content: string): RawEntry[] {
     const entries: RawEntry[] = []
     for (const line of content.split('\n')) {
       const trimmed = line.trim()
@@ -419,6 +437,54 @@ export class SessionService {
       }
     }
     return entries
+  }
+
+  /**
+   * Read bounded samples from both ends of a transcript. Path metadata is
+   * written near the beginning or end, so repair should not load years of
+   * command output and screenshots just to find the working directory.
+   */
+  private async readJsonlBoundaryEntries(filePath: string): Promise<RawEntry[]> {
+    let file: fs.FileHandle
+    try {
+      file = await fs.open(filePath, 'r')
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw err
+    }
+
+    try {
+      const { size } = await file.stat()
+      if (size === 0) return []
+
+      const boundaryBytes = RECENT_HISTORY_CHUNK_BYTES
+      if (size <= boundaryBytes * 2) {
+        const buffer = Buffer.allocUnsafe(size)
+        const { bytesRead } = await file.read(buffer, 0, size, 0)
+        return this.parseJsonlEntries(buffer.subarray(0, bytesRead).toString('utf-8'))
+      }
+
+      const head = Buffer.allocUnsafe(boundaryBytes)
+      const headRead = await file.read(head, 0, boundaryBytes, 0)
+      const headBuffer = head.subarray(0, headRead.bytesRead)
+      const headEnd = headBuffer.lastIndexOf(0x0a)
+      const headEntries = headEnd >= 0
+        ? this.parseJsonlEntries(headBuffer.subarray(0, headEnd + 1).toString('utf-8'))
+        : []
+
+      const tail = Buffer.allocUnsafe(boundaryBytes)
+      const tailStart = size - boundaryBytes
+      const tailRead = await file.read(tail, 0, boundaryBytes, tailStart)
+      const tailBuffer = tail.subarray(0, tailRead.bytesRead)
+      const tailStartLine = tailBuffer.indexOf(0x0a)
+      const tailEntries = tailStartLine >= 0
+        ? this.parseJsonlEntries(tailBuffer.subarray(tailStartLine + 1).toString('utf-8'))
+        : []
+
+      return [...headEntries, ...tailEntries]
+    } finally {
+      await file.close()
+    }
   }
 
   /**
@@ -525,6 +591,24 @@ export class SessionService {
     }
   }
 
+  private async syncSessionSearchPathMetadata(
+    file: { filePath: string; projectDir: string; sessionId: string },
+    workDir: string,
+  ): Promise<void> {
+    try {
+      await refreshSessionSearchPathMetadata({
+        filePath: file.filePath,
+        projectPath: file.projectDir,
+        sessionId: file.sessionId,
+      }, workDir)
+    } catch (error) {
+      console.warn(
+        `[SessionService] session search path refresh failed for ${file.sessionId}:`,
+        error,
+      )
+    }
+  }
+
   private async removeSessionSearchIndex(
     sessionId: string,
     projectDir?: string,
@@ -546,7 +630,9 @@ export class SessionService {
     entries: RawEntry[],
     fallbackProjectDir?: string,
   ): string | null {
-    for (const entry of entries) {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const entry = entries[i]
+      if (!entry) continue
       if (entry.type === 'session-meta' && typeof (entry as Record<string, unknown>).workDir === 'string') {
         return resolvePortableProjectPath(
           (entry as Record<string, unknown>).workDir as string,
@@ -1494,6 +1580,93 @@ export class SessionService {
   // Public API
   // --------------------------------------------------------------------------
 
+  getPortablePathStatus(): PortableRuntimeInfo {
+    return getPortableRuntimeInfo()
+  }
+
+  async repairPortableProjectPaths(): Promise<PortablePathRepairResult> {
+    const runtime = getPortableRuntimeInfo()
+    if (!runtime.active || runtime.projectCount === 0) {
+      return {
+        ...runtime,
+        scannedSessions: 0,
+        eligibleSessions: 0,
+        repairedSessions: 0,
+        failedSessions: 0,
+      }
+    }
+
+    const sessionFiles = await this.discoverSessionFiles()
+    let scannedSessions = 0
+    let eligibleSessions = 0
+    let repairedSessions = 0
+    let failedSessions = 0
+
+    for (const file of sessionFiles) {
+      scannedSessions += 1
+      try {
+        const entries = await this.readJsonlBoundaryEntries(file.filePath)
+        const workDir = this.resolveWorkDirFromEntries(entries, file.projectDir)
+        if (!workDir) continue
+
+        const portableReference = toPortableProjectReference(workDir)
+        if (!isPortableProjectReference(portableReference)) continue
+        eligibleSessions += 1
+
+        let latestStoredWorkDir: string | null = null
+        for (let index = entries.length - 1; index >= 0; index -= 1) {
+          const entry = entries[index]
+          if (
+            entry?.type === 'session-meta'
+            && typeof (entry as Record<string, unknown>).workDir === 'string'
+          ) {
+            latestStoredWorkDir = (entry as Record<string, unknown>).workDir as string
+            break
+          }
+        }
+        if (
+          latestStoredWorkDir
+          && isPortableProjectReference(latestStoredWorkDir)
+          && resolvePortableProjectPath(latestStoredWorkDir) === workDir
+        ) {
+          continue
+        }
+
+        const stats = await fs.stat(file.filePath)
+        const repairEntry = {
+          type: 'session-meta',
+          isMeta: true,
+          workDir: portableReference,
+          isTemporary: this.resolveIsTemporaryFromEntries(entries),
+          timestamp: new Date().toISOString(),
+          portablePathRepair: true,
+        }
+        const appendedBytes = Buffer.byteLength(`${JSON.stringify(repairEntry)}\n`)
+        await this.appendJsonlEntry(file.filePath, repairEntry)
+        const updatedStats = await fs.stat(file.filePath)
+        if (updatedStats.size === stats.size + appendedBytes) {
+          await fs.utimes(file.filePath, stats.atime, stats.mtime).catch(() => {})
+        }
+        await this.syncSessionSearchPathMetadata(file, workDir)
+        repairedSessions += 1
+      } catch (error) {
+        failedSessions += 1
+        console.warn(
+          `[SessionService] portable path repair failed for ${file.sessionId}:`,
+          error,
+        )
+      }
+    }
+
+    return {
+      ...runtime,
+      scannedSessions,
+      eligibleSessions,
+      repairedSessions,
+      failedSessions,
+    }
+  }
+
   /**
    * List all sessions, optionally filtered by project path.
    */
@@ -1716,7 +1889,7 @@ export class SessionService {
     // expand relative paths — in bundled sidecar mode the server's cwd is
     // typically '/'. Callers (IM adapters) already send absolute realPath,
     // but we log here so cwd regressions are caught early.
-    const absWorkDir = path.resolve(resolvedWorkDir)
+    const absWorkDir = path.resolve(resolvePortableProjectPath(resolvedWorkDir))
     console.log(
       `[SessionService] createSession: requested workDir=${JSON.stringify(
         workDir,
@@ -1758,7 +1931,7 @@ export class SessionService {
     const metaEntry = {
       type: 'session-meta',
       isMeta: true,
-      workDir: absWorkDir,
+      workDir: toPortableProjectReference(absWorkDir),
       isTemporary,
       timestamp: now,
     }
@@ -2143,13 +2316,15 @@ export class SessionService {
     sessionId: string,
     metadata: { workDir: string; customTitle?: string | null }
   ): Promise<void> {
+    const resolvedWorkDir = path.resolve(
+      resolvePortableProjectPath(metadata.workDir || os.homedir()),
+    )
     let found = await this.findSessionFile(sessionId)
     let isTemporary = false
     if (!found) {
       if (!this.isValidSessionId(sessionId)) return
 
-      const absWorkDir = path.resolve(metadata.workDir || os.homedir())
-      const projectDir = this.sanitizePath(absWorkDir)
+      const projectDir = this.sanitizePath(resolvedWorkDir)
       const dirPath = path.join(this.getProjectsDir(), projectDir)
       const filePath = path.join(dirPath, `${sessionId}.jsonl`)
       const now = new Date().toISOString()
@@ -2201,7 +2376,7 @@ export class SessionService {
     await this.appendJsonlEntry(found.filePath, {
       type: 'session-meta',
       isMeta: true,
-      workDir: metadata.workDir,
+      workDir: toPortableProjectReference(resolvedWorkDir),
       isTemporary,
       timestamp: new Date().toISOString(),
     })

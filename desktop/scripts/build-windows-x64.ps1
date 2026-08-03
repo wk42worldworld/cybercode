@@ -224,6 +224,8 @@ Write-Step "Building Windows desktop app for $targetTriple"
 Push-Location $desktopDir
 try {
   $env:TAURI_ENV_TARGET_TRIPLE = $targetTriple
+  # 与 .github/workflows/release-desktop.yml 保持一致：内嵌 computer-use 运行时
+  $env:CYBERCODE_EMBED_COMPUTER_USE_RUNTIME = '1'
   & bunx @tauriBuildArgs
   if ($LASTEXITCODE -ne 0) {
     throw "[build-windows-x64] tauri build failed (exit $LASTEXITCODE)"

@@ -41,7 +41,7 @@
 | `/insights` | - | CyberCode 세션 분석 보고서를 생성합니다. |
 | `/model` | `[모델]` | 현재 세션에서 사용할 모델을 전환합니다. |
 | `/provider` | `/providers`; `status`, `sync`, `auto-sync on|off` | 공급자 설정과 전환, 상태 확인, 호환 `/models` 목록 동기화를 수행합니다. OpenAI 호환 API는 내장 bridge를 사용합니다. |
-| `/routing` | `/route`; `status`, `create`, `use`, `strategy`, `reset-health` | 스마트 route를 생성, 확인, 활성화하고 route health를 초기화합니다. |
+| `/routing` | `/route`; `status`, `create`, `use`, `strategy`, `reset-health` | 에이전트 route를 생성, 확인, 활성화하고 route health를 초기화합니다. |
 | `/node` | `/agent-node`, `/gateway`; `status`, `start`, `stop`, `rotate`, `revoke` | 내장 Agent node를 실행하고 별도 Key, 대상 범위, 요청 한도를 관리합니다. |
 | `/effort` | `low`, `medium`, `high`, `max`, `auto` | 모델 추론 강도를 조정합니다. |
 | `/fast` | `on`, `off` | 사용 가능한 경우 빠른 모드를 전환합니다. |

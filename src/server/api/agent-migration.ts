@@ -32,7 +32,7 @@ export async function handleAgentMigrationApi(
 
     if (!resource && req.method === 'GET') {
       const targetAgentId = parseOptionalAgentId(url.searchParams.get('targetAgentId')) ?? 'cybercode'
-      return Response.json(await agentMigrationService.scan(targetAgentId))
+      return Response.json(await agentMigrationService.scan(targetAgentId, req.signal))
     }
 
     if (resource === 'items' && segments[3] && req.method === 'GET') {

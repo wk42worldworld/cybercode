@@ -36,4 +36,44 @@ describe('provider retry policy', () => {
     await expect(request.next()).rejects.toBeInstanceOf(CannotRetryError)
     expect(attempts).toBe(1)
   })
+
+  test('does not retry a local-proxy 502 flagged with x-should-retry: false', async () => {
+    let attempts = 0
+    // The ant-only bypass ignores x-should-retry on 5xx; pin the external
+    // user path so the header is honored.
+    const previousUserType = process.env.USER_TYPE
+    delete process.env.USER_TYPE
+    const error = new APIError(
+      502,
+      {
+        type: 'error',
+        error: {
+          type: 'api_error',
+          message: 'upstream request timed out',
+        },
+      },
+      undefined,
+      new Headers({ 'x-should-retry': 'false' }),
+    )
+
+    const request = withRetry(
+      async () => ({}) as Anthropic,
+      async () => {
+        attempts++
+        throw error
+      },
+      {
+        model: 'qwen3-local',
+        thinkingConfig: { type: 'disabled' },
+      },
+    )
+
+    await expect(request.next()).rejects.toBeInstanceOf(CannotRetryError)
+    expect(attempts).toBe(1)
+    if (previousUserType === undefined) {
+      delete process.env.USER_TYPE
+    } else {
+      process.env.USER_TYPE = previousUserType
+    }
+  })
 })

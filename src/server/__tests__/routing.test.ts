@@ -227,6 +227,7 @@ describe('native smart routing', () => {
     expect(env.ANTHROPIC_MODEL).toBe('cybercode-route-balanced')
     expect(env.ANTHROPIC_API_KEY).not.toBe('upstream-secret')
     expect(env.CYBERCODE_MODEL_CONTEXT_WINDOWS).toContain('200000')
+    expect(env.CYBERCODE_LOCAL_MODEL_PERFORMANCE).toBeUndefined()
 
     const dashboard = await routingService.getDashboard()
     expect(dashboard.routeAvailability.balanced?.contextWindow).toBe(200_000)
@@ -260,6 +261,9 @@ describe('native smart routing', () => {
       messages: [{ role: 'user', content: 'use an available source' }],
     })
     expect(plan.targets.map((target) => target.provider.id)).toEqual([local.id])
+
+    const env = await routingService.getRuntimeEnv('balanced', 'local-only')
+    expect(env.CYBERCODE_LOCAL_MODEL_PERFORMANCE).toBe('1')
   })
 
   test('keeps connected OAuth providers routable without persisting their access token', async () => {

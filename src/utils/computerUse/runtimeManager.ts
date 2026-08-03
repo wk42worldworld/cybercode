@@ -15,6 +15,7 @@ import {
 import path from 'node:path'
 import { execFileNoThrow } from '../execFileNoThrow.js'
 import { getClaudeConfigHomeDir } from '../envUtils.js'
+import { logForDebugging } from '../debug.js'
 
 export type ComputerUseRuntimePhase =
   | 'not-installed'
@@ -40,6 +41,10 @@ export type ComputerUseRuntimeStatus = {
   error: string | null
   canPause: boolean
 }
+
+export type ComputerUseRuntimeStatusListener = (
+  status: ComputerUseRuntimeStatus,
+) => void
 
 export type ComputerUseRuntimeAsset = {
   filename: string
@@ -331,6 +336,7 @@ export class ComputerUseRuntimeManager {
   private abortController: AbortController | null = null
   private activePythonPath: string | null = null
   private status: ComputerUseRuntimeStatus
+  private readonly statusListeners = new Set<ComputerUseRuntimeStatusListener>()
 
   constructor(options: RuntimeManagerOptions = {}) {
     this.runtimeRoot = options.runtimeRoot ?? path.join(getClaudeConfigHomeDir(), '.runtime')
@@ -373,8 +379,27 @@ export class ComputerUseRuntimeManager {
     return cloneStatus(this.status)
   }
 
+  addStatusListener(listener: ComputerUseRuntimeStatusListener): () => void {
+    this.statusListeners.add(listener)
+    return () => {
+      this.statusListeners.delete(listener)
+    }
+  }
+
   private update(patch: Partial<ComputerUseRuntimeStatus>): void {
     this.status = { ...this.status, ...patch }
+    if (this.statusListeners.size === 0) return
+    const status = this.snapshot()
+    for (const listener of this.statusListeners) {
+      try {
+        listener(status)
+      } catch (error) {
+        logForDebugging(
+          `computer-use runtime status listener failed: ${error instanceof Error ? error.message : String(error)}`,
+          { level: 'warn' },
+        )
+      }
+    }
   }
 
   private async resolveActivePointer(
@@ -412,7 +437,17 @@ export class ComputerUseRuntimeManager {
           return pythonPath
         }
       }
-    } catch {}
+    } catch (error) {
+      // The local runtime is unusable and we silently fall back to a network
+      // download. Record why so "local package ignored" issues are
+      // diagnosable from the debug log. A missing pointer file is the normal
+      // "not installed yet" case and stays at debug level.
+      const code = (error as NodeJS.ErrnoException | null)?.code
+      logForDebugging(
+        `computer-use runtime: failed to resolve ${source} active pointer at ${activePointerPath}: ${error instanceof Error ? error.message : String(error)}`,
+        { level: code === 'ENOENT' ? 'debug' : 'warn' },
+      )
+    }
     return null
   }
 
@@ -443,12 +478,22 @@ export class ComputerUseRuntimeManager {
         (bundled.payloadSize ?? 0) <= 0 ||
         !isSafeRuntimeAsset(asset)
       ) {
+        logForDebugging(
+          `computer-use runtime: bundled manifest at ${this.bundledRuntimeRoot} failed validation; falling back to download`,
+          { level: 'warn' },
+        )
         return null
       }
 
       const payloadPath = path.join(this.bundledRuntimeRoot, bundled.payload)
       const payloadStat = await stat(payloadPath)
-      if (!payloadStat.isFile() || payloadStat.size !== bundled.payloadSize) return null
+      if (!payloadStat.isFile() || payloadStat.size !== bundled.payloadSize) {
+        logForDebugging(
+          `computer-use runtime: bundled payload ${payloadPath} size mismatch (expected ${bundled.payloadSize}, got ${payloadStat.isFile() ? payloadStat.size : 'not a file'}); falling back to download`,
+          { level: 'warn' },
+        )
+        return null
+      }
 
       return {
         manifest: {
@@ -461,7 +506,15 @@ export class ComputerUseRuntimeManager {
         payloadSha256: bundled.payloadSha256,
         payloadSize: bundled.payloadSize,
       }
-    } catch {
+    } catch (error) {
+      // Falls back to a network download. Record why the bundled archive was
+      // skipped so a corrupt/mismatched embedded payload is diagnosable
+      // instead of silently turning into a 36MB download.
+      const code = (error as NodeJS.ErrnoException | null)?.code
+      logForDebugging(
+        `computer-use runtime: bundled archive at ${this.bundledRuntimeRoot} unusable: ${error instanceof Error ? error.message : String(error)}`,
+        { level: code === 'ENOENT' ? 'debug' : 'warn' },
+      )
       return null
     }
   }
@@ -1004,6 +1057,12 @@ const sharedRuntimeManager = new ComputerUseRuntimeManager()
 
 export function getComputerUseRuntimeStatus(): ComputerUseRuntimeStatus {
   return sharedRuntimeManager.snapshot()
+}
+
+export function subscribeComputerUseRuntimeStatus(
+  listener: ComputerUseRuntimeStatusListener,
+): () => void {
+  return sharedRuntimeManager.addStatusListener(listener)
 }
 
 export async function refreshComputerUseRuntimeStatus(): Promise<ComputerUseRuntimeStatus> {

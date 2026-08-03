@@ -1,6 +1,11 @@
 import type { PluginScope } from '../../utils/plugins/schemas.js'
 import { ApiError, errorResponse } from '../middleware/errorHandler.js'
 import { PluginService } from '../services/pluginService.js'
+import {
+  installPluginMarketplaceItem,
+  listPluginMarketplace,
+  PluginMarketplaceError,
+} from '../../plugins/pluginMarketplace.js'
 
 const pluginService = new PluginService()
 
@@ -25,6 +30,31 @@ export async function handlePluginsApi(
       }
       return Response.json({
         detail: await pluginService.getPluginDetail(pluginId, cwd),
+      })
+    }
+
+    if (method === 'GET' && sub === 'marketplace') {
+      return Response.json({
+        catalog: await listPluginMarketplace({
+          refresh: url.searchParams.get('refresh') === 'true',
+          signal: req.signal,
+        }),
+      })
+    }
+
+    if (
+      method === 'POST' &&
+      sub === 'marketplace' &&
+      segments[3] === 'install'
+    ) {
+      const body = await parseJsonBody(req)
+      const itemId = asString(body.id)
+      if (!itemId) {
+        throw ApiError.badRequest('Missing or invalid "id" in request body')
+      }
+      return Response.json({
+        ok: true,
+        ...(await installPluginMarketplaceItem({ itemId })),
       })
     }
 
@@ -69,16 +99,31 @@ export async function handlePluginsApi(
       'METHOD_NOT_ALLOWED',
     )
   } catch (error) {
+    if (error instanceof PluginMarketplaceError) {
+      const status = error.code === 'NOT_FOUND'
+        ? 404
+        : error.code === 'UNAVAILABLE'
+          ? 503
+          : error.code === 'CANCELLED'
+            ? 499
+            : 400
+      return errorResponse(new ApiError(status, error.message, error.code))
+    }
     return errorResponse(error)
   }
 }
 
 async function parseJsonBody(req: Request): Promise<Record<string, unknown>> {
+  let parsed: unknown
   try {
-    return (await req.json()) as Record<string, unknown>
+    parsed = await req.json()
   } catch {
     throw ApiError.badRequest('Invalid JSON body')
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw ApiError.badRequest('JSON body must be an object')
+  }
+  return parsed as Record<string, unknown>
 }
 
 function asString(value: unknown): string | undefined {

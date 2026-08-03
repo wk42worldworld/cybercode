@@ -20,6 +20,7 @@ export default defineConfig({
       'e2e/**',
       'sidecars/**/*.test.ts',
       'scripts/sidecarTarget.test.ts',
+      'scripts/computerUseSigning.test.ts',
       'scripts/linuxSidecarPackaging.test.ts',
     ],
   },

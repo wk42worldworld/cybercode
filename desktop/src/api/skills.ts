@@ -6,6 +6,9 @@ import type {
   SkillLearningMode,
   SkillLearningOverview,
   SkillCandidate,
+  SkillMarketplaceCatalog,
+  SkillMarketplaceItem,
+  SkillMarketplaceScope,
 } from '../types/skill'
 
 export type SkillsConfig = {
@@ -42,6 +45,38 @@ export const skillsApi = {
       { timeout: 120_000 },
     )
   },
+
+  marketplace: (cwd?: string, refresh = false) => {
+    const query = new URLSearchParams()
+    if (cwd) query.set('cwd', cwd)
+    if (refresh) query.set('refresh', 'true')
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return api.get<{ catalog: SkillMarketplaceCatalog }>(
+      `/api/skills/marketplace${suffix}`,
+      { timeout: 180_000 },
+    )
+  },
+
+  installMarketplaceItem: (
+    itemId: string,
+    scope: SkillMarketplaceScope,
+    cwd?: string,
+  ) => api.post<{
+    ok: true
+    item: SkillMarketplaceItem
+    installPath: string
+    updated: boolean
+  }>('/api/skills/marketplace/install', { itemId, scope, cwd }, { timeout: 180_000 }),
+
+  uninstallMarketplaceItem: (
+    itemId: string,
+    scope: SkillMarketplaceScope,
+    cwd?: string,
+  ) => api.post<{ ok: true; installPath: string }>(
+    '/api/skills/marketplace/uninstall',
+    { itemId, scope, cwd },
+    { timeout: 180_000 },
+  ),
 
   learning: async (cwd?: string) => {
     const query = cwd ? `?cwd=${encodeURIComponent(cwd)}` : ''

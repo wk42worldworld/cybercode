@@ -24,7 +24,7 @@ export async function handleKnowledgeApi(
         return Response.json(await knowledgeService.addSources(body.paths), { status: 202 })
       }
       if (sourceId && !action && req.method === 'DELETE') {
-        if (!knowledgeService.removeSource(sourceId)) throw ApiError.notFound('Knowledge source not found')
+        if (!await knowledgeService.removeSource(sourceId)) throw ApiError.notFound('Knowledge source not found')
         return Response.json({ removed: true })
       }
       if (sourceId && action === 'reindex' && req.method === 'POST') {

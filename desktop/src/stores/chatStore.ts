@@ -41,7 +41,7 @@ export type PendingSteer = {
   attachments?: UIAttachment[]
   createdAt: number
   status: 'draft' | 'queued' | 'processing' | 'processed' | 'cancelled' | 'failed'
-  priority?: 'next' | 'later'
+  priority?: 'now' | 'next' | 'later'
   error?: string
 }
 
@@ -104,6 +104,16 @@ export type PerSessionState = {
     requestId: string
     request: ComputerUsePermissionRequest
   } | null
+  /** Transient Computer Use runtime preparation state pushed by the server
+   *  while a tool call blocks on the managed runtime download. Null when the
+   *  runtime is ready or nothing is happening. */
+  computerUseRuntime?: {
+    phase: string
+    progressPercent: number
+    downloadedBytes: number
+    totalBytes: number | null
+    error: string | null
+  } | null
   pendingSteers?: PendingSteer[]
   tokenUsage: TokenUsage
   usageRevision?: number
@@ -139,6 +149,7 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   dismissedThinkingPanelIdentityKey: null,
   pendingPermission: null,
   pendingComputerUsePermission: null,
+  computerUseRuntime: null,
   pendingSteers: [],
   tokenUsage: { input_tokens: 0, output_tokens: 0 },
   usageRevision: 0,
@@ -197,7 +208,11 @@ type ChatStore = {
     attachments?: AttachmentRef[],
     options?: { displayContent?: string },
   ) => string
-  sendPendingSteers: (sessionId: string, priority: 'next' | 'later', steerIds?: string[]) => void
+  sendPendingSteers: (
+    sessionId: string,
+    priority: 'now' | 'next' | 'later',
+    steerIds?: string[],
+  ) => void
   reorderPendingSteer: (sessionId: string, steerId: string, targetSteerId: string) => void
   autoSendPendingSteers: (sessionId: string) => void
   editPendingSteer: (sessionId: string, steerId: string) => void
@@ -301,6 +316,11 @@ function isPendingSteerActionable(steer: PendingSteer): boolean {
 
 function isPendingSteerAutoSendable(steer: PendingSteer): boolean {
   return steer.status === 'draft'
+}
+
+function shouldAutoSendPendingSteers(steers: PendingSteer[]): boolean {
+  return steers.some(isPendingSteerAutoSendable)
+    && !steers.some((steer) => steer.status === 'queued' || steer.status === 'processing')
 }
 
 function reorderActionablePendingSteers(
@@ -1837,7 +1857,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'message_complete': {
         const session = get().sessions[sessionId]
         if (!session) break
-        const shouldAutoSendPending = (session.pendingSteers ?? []).some(isPendingSteerAutoSendable)
+        const shouldAutoSendPending = shouldAutoSendPendingSteers(session.pendingSteers ?? [])
         const text = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (text.trim()) {
           update((s) => {
@@ -1864,7 +1884,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           elapsedTimer: null,
           turnStartedAt: null,
           lastModelActivityAt: null,
-          pendingSteers: (session.pendingSteers ?? []).filter(isPendingSteerActionable),
+          pendingSteers: (session.pendingSteers ?? []).filter(
+            (steer) => steer.status !== 'processed' && steer.status !== 'cancelled',
+          ),
         }))
         if (shouldAutoSendPending) {
           get().autoSendPendingSteers(sessionId)
@@ -1992,6 +2014,35 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         if (msg.subtype === 'slash_commands' && Array.isArray(msg.data)) {
           update(() => ({ slashCommands: msg.data as Array<{ name: string; description: string }> }))
         }
+        if (msg.subtype === 'computer_use_runtime' && msg.data && typeof msg.data === 'object') {
+          const data = msg.data as {
+            phase?: unknown
+            progressPercent?: unknown
+            downloadedBytes?: unknown
+            totalBytes?: unknown
+            error?: unknown
+          }
+          const phase = typeof data.phase === 'string' ? data.phase : ''
+          if (phase) {
+            if (phase === 'ready' || phase === 'not-installed') {
+              update(() => ({ computerUseRuntime: null }))
+            } else {
+              update(() => ({
+                computerUseRuntime: {
+                  phase,
+                  progressPercent:
+                    typeof data.progressPercent === 'number' ? data.progressPercent : 0,
+                  downloadedBytes:
+                    typeof data.downloadedBytes === 'number' ? data.downloadedBytes : 0,
+                  totalBytes: typeof data.totalBytes === 'number' ? data.totalBytes : null,
+                  error: typeof data.error === 'string' && data.error.trim()
+                    ? data.error
+                    : null,
+                },
+              }))
+            }
+          }
+        }
         if (msg.subtype === 'session_cleared') {
           const session = get().sessions[sessionId]
           if (session?.elapsedTimer) clearInterval(session.elapsedTimer)
@@ -2011,6 +2062,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             dismissedThinkingPanelIdentityKey: null,
             pendingPermission: null,
             pendingComputerUsePermission: null,
+            computerUseRuntime: null,
             chatState: 'idle',
             elapsedTimer: null,
             elapsedSeconds: 0,

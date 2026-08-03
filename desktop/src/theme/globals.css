@@ -1578,6 +1578,12 @@ button, input, textarea, select, a, [role="button"] {
   }
 }
 
+@container settings-content (min-width: 760px) {
+  .provider-catalog-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @container settings-content (min-width: 960px) {
   .provider-settings-layout {
     grid-template-columns: 200px minmax(0, 1fr);

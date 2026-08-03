@@ -11,6 +11,7 @@ import {
   MemoryStick,
   RefreshCw,
   Wrench,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -69,6 +70,7 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState<string | null>(null)
   const loadRequestId = useRef(0)
+  const scanAbortController = useRef<AbortController | null>(null)
   const scanCache = useRef(new Map<ExternalAgentId, AgentMigrationScan>())
   const sourceChosen = useRef(false)
 
@@ -76,6 +78,9 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
     quiet = false,
     force = false,
   }: { quiet?: boolean; force?: boolean } = {}) => {
+    scanAbortController.current?.abort()
+    const scanController = new AbortController()
+    scanAbortController.current = scanController
     const requestId = ++loadRequestId.current
     if (!quiet) setLoading(true)
     setError(null)
@@ -101,12 +106,15 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
     const cached = scanCache.current.get(targetAgentId)
     if (cached) {
       applyScan(cached)
+      if (scanAbortController.current === scanController) {
+        scanAbortController.current = null
+      }
       if (!quiet && requestId === loadRequestId.current) setLoading(false)
       return
     }
 
     try {
-      const scan = await agentMigrationApi.scan(targetAgentId)
+      const scan = await agentMigrationApi.scan(targetAgentId, scanController.signal)
       if (requestId !== loadRequestId.current) return
       if (scan.targetAgentId !== targetAgentId) {
         throw new Error(t('agentMigration.loadFailed'))
@@ -114,10 +122,14 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
       scanCache.current.set(targetAgentId, scan)
       applyScan(scan)
     } catch (loadError) {
+      if (scanController.signal.aborted) return
       if (requestId !== loadRequestId.current) return
       setAgents([])
       setError(errorMessage(loadError, t('agentMigration.loadFailed')))
     } finally {
+      if (scanAbortController.current === scanController) {
+        scanAbortController.current = null
+      }
       if (!quiet && requestId === loadRequestId.current) setLoading(false)
     }
   }, [t, targetAgentId])
@@ -125,9 +137,18 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
   useEffect(() => {
     void load()
     return () => {
+      scanAbortController.current?.abort()
+      scanAbortController.current = null
       loadRequestId.current += 1
     }
   }, [load])
+
+  const cancelScan = () => {
+    scanAbortController.current?.abort()
+    scanAbortController.current = null
+    loadRequestId.current += 1
+    setLoading(false)
+  }
 
   const activeAgent = agents.find(agent => agent.id === activeAgentId) ?? null
   const targetAgent = agents.find(agent => agent.id === targetAgentId) ?? null
@@ -298,7 +319,11 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
 
           <div className="min-w-0">
             {loading ? (
-              <LoadingState label={t('agentMigration.scanning')} />
+              <LoadingState
+                label={t('agentMigration.scanning')}
+                cancelLabel={t('agentMigration.cancelScan')}
+                onCancel={cancelScan}
+              />
             ) : activeAgent ? (
               <>
                 <AgentHeader
@@ -381,7 +406,11 @@ export function AgentMigration({ embedded = false }: { embedded?: boolean } = {}
                 </footer>
               </>
             ) : (
-              <EmptyState label={t('agentMigration.noneDetected')} />
+              <EmptyState
+                label={t('agentMigration.noneDetected')}
+                retryLabel={t('agentMigration.rescan')}
+                onRetry={() => void load({ force: true })}
+              />
             )}
           </div>
         </div>
@@ -1090,20 +1119,52 @@ function IconButton({
   )
 }
 
-function LoadingState({ label }: { label: string }) {
+function LoadingState({
+  label,
+  cancelLabel,
+  onCancel,
+}: {
+  label: string
+  cancelLabel: string
+  onCancel: () => void
+}) {
   return (
-    <div className="flex min-h-[420px] items-center justify-center gap-[9px] text-[12px] text-[var(--color-text-secondary)]">
-      <RefreshCw size={16} className="animate-spin" />
-      {label}
+    <div className="flex min-h-[420px] flex-col items-center justify-center gap-[12px] text-[12px] text-[var(--color-text-secondary)]">
+      <div className="flex items-center gap-[9px]">
+        <RefreshCw size={16} className="animate-spin" />
+        {label}
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        icon={<X size={14} />}
+        onClick={onCancel}
+      >
+        {cancelLabel}
+      </Button>
     </div>
   )
 }
 
-function EmptyState({ label }: { label: string }) {
+function EmptyState({
+  label,
+  retryLabel,
+  onRetry,
+}: {
+  label: string
+  retryLabel?: string
+  onRetry?: () => void
+}) {
   return (
     <div className="flex min-h-[280px] flex-col items-center justify-center gap-[10px] px-[24px] text-center text-[12px] text-[var(--color-text-tertiary)]">
       <Bot size={23} strokeWidth={1.4} />
       {label}
+      {retryLabel && onRetry && (
+        <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
+          {retryLabel}
+        </Button>
+      )}
     </div>
   )
 }

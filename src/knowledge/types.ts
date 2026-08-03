@@ -3,6 +3,7 @@ export type KnowledgeSourceKind = 'file' | 'folder'
 export type KnowledgeSourceStatus =
   | 'pending'
   | 'indexing'
+  | 'removing'
   | 'ready'
   | 'empty'
   | 'error'

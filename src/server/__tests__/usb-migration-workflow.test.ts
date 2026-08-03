@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 describe('desktop portable release workflow', () => {
-  test('publishes true portable assets and a checksummed manifest', async () => {
+  test('publishes signed portable assets and a versioned manifest', async () => {
     const workflow = await readFile(
       resolve(import.meta.dir, '../../../.github/workflows/release-desktop.yml'),
       'utf8',
@@ -16,10 +16,26 @@ describe('desktop portable release workflow', () => {
     expect(workflow).toContain('CyberCode_${VERSION}_${ASSET_SUFFIX}_portable.zip')
     expect(workflow).toContain("'release-assets/portable.json'")
     expect(workflow).toContain("crypto.createHash('sha256')")
+    expect(workflow).toContain('Sign portable release asset')
+    expect(workflow).toContain('signature: sig(definition.filename)')
+    expect(workflow).toContain('schemaVersion: 2')
     expect(workflow).toContain("'macos-arm64'")
     expect(workflow).toContain("'macos-x64'")
     expect(workflow).toContain("'linux-x64'")
     expect(workflow).toContain("'windows-x64'")
+  })
+
+  test('updates AppImage installs with a signed AppImage rather than a DEB', async () => {
+    const workflow = await readFile(
+      resolve(import.meta.dir, '../../../.github/workflows/release-desktop.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain("'linux-x86_64': asset(assetBaseUrl, linuxAppImage)")
+    expect(workflow).toContain("'linux-x86_64-appimage': asset(assetBaseUrl, linuxAppImage)")
+    expect(workflow).toContain("'linux-x86_64-deb': asset(assetBaseUrl, linuxDeb)")
+    expect(workflow).toContain('linux_x64_portable.AppImage.sig')
+    expect(workflow).toContain('windows_x64_portable.zip.sig')
   })
 
   test('creates the Windows portable archive from the validated installer payload', async () => {

@@ -529,6 +529,7 @@ describe('Sidebar', () => {
     expect(deleteSession).not.toHaveBeenCalled()
     const dialog = screen.getByRole('dialog')
     expect(dialog).toBeInTheDocument()
+    expect(dialog).toHaveStyle({ width: '300px' })
     expect(screen.getByText('Delete this session? This cannot be undone.')).toBeInTheDocument()
 
     await act(async () => {
@@ -622,6 +623,7 @@ describe('Sidebar', () => {
     fireEvent.click(within(alphaProject).getByRole('button', { name: 'Delete selected sessions' }))
     expect(deleteSession).not.toHaveBeenCalled()
     const dialog = screen.getByRole('dialog', { name: 'Delete selected sessions' })
+    expect(dialog).toHaveStyle({ width: '300px' })
     expect(within(dialog).getByText('Delete the selected sessions (1)? This cannot be undone.')).toBeInTheDocument()
 
     await act(async () => {

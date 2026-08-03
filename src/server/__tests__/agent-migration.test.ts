@@ -8,6 +8,7 @@ import {
   AgentMigrationService,
   type AgentMigrationRequest,
 } from '../services/agentMigrationService.js'
+import { BackgroundScheduler } from '../background/scheduler.js'
 
 describe('AgentMigrationService', () => {
   let root: string
@@ -1362,6 +1363,134 @@ describe('AgentMigrationService', () => {
 
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ error: 'SAME_AGENT' })
+  })
+
+  it('bounds agent detection to two concurrent scanners and joins duplicate scans', async () => {
+    const scheduler = new BackgroundScheduler()
+    const service = createService({ backgroundScheduler: scheduler })
+    const scanner = service as unknown as {
+      scanAgent: (...args: never[]) => Promise<unknown>
+    }
+    const originalScanAgent = scanner.scanAgent.bind(service)
+    let active = 0
+    let maximum = 0
+    let calls = 0
+    scanner.scanAgent = async (...args: never[]) => {
+      active += 1
+      calls += 1
+      maximum = Math.max(maximum, active)
+      await Bun.sleep(5)
+      try {
+        return await originalScanAgent(...args)
+      } finally {
+        active -= 1
+      }
+    }
+
+    const first = service.scan()
+    const second = service.scan()
+    const [firstResult, secondResult] = await Promise.all([first, second])
+    expect(maximum).toBeLessThanOrEqual(2)
+    expect(calls).toBe(firstResult.agents.length)
+    expect(secondResult.scannedAt).toBe(firstResult.scannedAt)
+  })
+
+  it('cancels the shared scan task when its last request is aborted', async () => {
+    const scheduler = new BackgroundScheduler()
+    const service = createService({ backgroundScheduler: scheduler })
+    const scanner = service as unknown as {
+      scanAgent: (...args: unknown[]) => Promise<unknown>
+    }
+    scanner.scanAgent = async (...args: unknown[]) => {
+      const signal = args[2] as AbortSignal
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      })
+      throw new Error('unreachable')
+    }
+    const controller = new AbortController()
+    const scan = service.scan('cybercode', controller.signal)
+    await Bun.sleep(5)
+
+    controller.abort(new DOMException('User cancelled', 'AbortError'))
+
+    await expect(scan).rejects.toMatchObject({ name: 'AbortError' })
+    await Bun.sleep(5)
+    const task = (scheduler.snapshot() as Array<{ type: string; status: string }>)
+      .find(candidate => candidate.type === 'agent-migration-scan')
+    expect(task?.status).toBe('cancelled')
+  })
+
+  it('keeps a joined scan running while another request still observes it', async () => {
+    const scheduler = new BackgroundScheduler()
+    const service = createService({ backgroundScheduler: scheduler })
+    const scanner = service as unknown as {
+      scanAgent: (...args: unknown[]) => Promise<unknown>
+    }
+    const originalScanAgent = scanner.scanAgent.bind(service)
+    let release!: () => void
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    let taskSignal: AbortSignal | undefined
+    scanner.scanAgent = async (...args: unknown[]) => {
+      taskSignal = args[2] as AbortSignal
+      await gate
+      taskSignal.throwIfAborted()
+      return originalScanAgent(...args)
+    }
+    const firstController = new AbortController()
+    const secondController = new AbortController()
+    const first = service.scan('cybercode', firstController.signal)
+    const second = service.scan('cybercode', secondController.signal)
+    await Bun.sleep(5)
+
+    firstController.abort(new DOMException('First view closed', 'AbortError'))
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' })
+    expect(taskSignal?.aborted).toBe(false)
+    release()
+    await expect(second).resolves.toMatchObject({ targetAgentId: 'cybercode' })
+  })
+
+  it('does not wait for the default FTS refresh after a successful migration', async () => {
+    const scheduler = new BackgroundScheduler({ limits: { 'sqlite-write': 1 } })
+    let releaseWriter!: () => void
+    const writerGate = new Promise<void>(resolve => {
+      releaseWriter = resolve
+    })
+    const blocker = scheduler.enqueue({
+      type: 'test-sqlite-blocker',
+      key: 'fts',
+      priority: 0,
+      lane: 'sqlite-write',
+      resourceKey: 'session-search-db',
+      dedupe: 'join',
+      run: () => writerGate,
+    })
+    await Bun.sleep(0)
+    await write(join(homeDir, '.codex', 'AGENTS.md'), '# Imported without waiting for FTS')
+    const service = new AgentMigrationService({
+      homeDir,
+      cyberConfigDir,
+      env: {},
+      findExecutable: command => command === 'codex' ? '/bin/codex' : null,
+      registerProject: async () => false,
+      backgroundScheduler: scheduler,
+    })
+    const scan = await service.scan()
+    const instruction = scan.agents
+      .find(agent => agent.id === 'codex')!
+      .items.find(item => item.kind === 'instruction')!
+
+    const migration = await Promise.race([
+      service.migrate({ agentId: 'codex', itemIds: [instruction.id] }),
+      Bun.sleep(100).then(() => null),
+    ])
+    expect(migration).not.toBeNull()
+    expect(migration?.imported).toBe(1)
+    releaseWriter()
+    await blocker.promise
+    await scheduler.shutdown({ timeoutMs: 100 })
   })
 
   function createService(overrides: Partial<ConstructorParameters<typeof AgentMigrationService>[0]> = {}) {

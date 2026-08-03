@@ -439,6 +439,19 @@ export function MessageList({ sessionId, projectPath, isActive = true, bottomOve
       }
       if (newFirstIndex > 0) {
         firstItemIndexRef.current += newFirstIndex
+      } else if (newFirstIndex === -1) {
+        // Neither array contains the other's first item — the dataset was
+        // fully replaced (e.g. reloadHistory after a reconnect, rewind, or a
+        // server-side compaction while away). Virtuoso's index anchor now
+        // points at unrelated items and can snap the viewport to the top, so
+        // reset the anchor and re-arm the initial-bottom lock to land on the
+        // newest message instead.
+        firstItemIndexRef.current = INITIAL_FIRST_ITEM_INDEX
+        pendingInitialBottomRef.current = !__testInitialItemCount
+        initialBottomRangeIncludesLastRef.current = false
+        initialBottomLayoutVersionRef.current += 1
+        isNearBottomRef.current = true
+        autoFollowCurrentTurnRef.current = false
       }
     }
   }
@@ -1360,6 +1373,7 @@ export function MessageList({ sessionId, projectPath, isActive = true, bottomOve
 
 /** Virtuoso Header: keeps the first bubble breathing below the top chrome. */
 function ListHeader({ isLoadingMoreHistory }: { isLoadingMoreHistory: boolean }) {
+  const t = useTranslation()
   return (
     <>
       <div className="h-[10px] shrink-0" />
@@ -1367,7 +1381,7 @@ function ListHeader({ isLoadingMoreHistory }: { isLoadingMoreHistory: boolean })
         <div className="flex items-center justify-center py-3">
           <div className="flex items-center gap-2 text-[12px] text-[var(--color-text-tertiary)]">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-text-secondary)]" />
-            <span>加载更多记录…</span>
+            <span>{t('chat.historyLoadMore')}</span>
           </div>
         </div>
       )}

@@ -1594,12 +1594,22 @@ async function run(): Promise<CommanderCommand> {
       }
     }
 
+    // Warnings that must reach the user even though setup continues. They go
+    // to stderr immediately (print mode / pre-render) and are replayed as
+    // system messages in the REPL via initialMessages below.
+    const startupWarnings: string[] = [];
+    const reportStartupWarning = (message: string) => {
+      startupWarnings.push(message);
+      process.stderr.write(chalk.yellow(`Warning: ${message}\n`));
+    };
+
     // agent-browser is bundled with CyberCode desktop and exposed as a compact
     // MCP server. Browser-page automation stays independent from Computer Use,
     // so ordinary DOM inspection and page screenshots need no OS capture grant.
     try {
       const {
-        setupAgentBrowserMCP
+        setupAgentBrowserMCP,
+        describeAgentBrowserUnavailableReason
       } = await import('src/utils/agentBrowser/setup.js');
       const agentBrowser = setupAgentBrowserMCP();
       if (agentBrowser) {
@@ -1609,16 +1619,20 @@ async function run(): Promise<CommanderCommand> {
         };
         allowedTools.push(...agentBrowser.allowedTools);
         appendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${agentBrowser.systemPrompt}` : agentBrowser.systemPrompt;
+      } else {
+        const reason = describeAgentBrowserUnavailableReason() ?? 'unknown reason';
+        reportStartupWarning(`agent-browser unavailable: ${reason}. Browser automation tools are disabled for this session.`);
       }
     } catch (error) {
       logForDebugging(`[agent-browser MCP] Setup failed: ${errorMessage(error)}`);
+      reportStartupWarning(`agent-browser setup failed: ${errorMessage(error)}. Browser automation tools are disabled for this session.`);
     }
 
     // chicago MCP: guarded Computer Use (app allowlist + frontmost gate +
-    // SCContentFilter screenshots). Ant-only, GrowthBook-gated — failures
-    // are silent (this is dogfooding). Platform + interactive checks inline
-    // so unsupported platforms / print-mode ants skip the Computer Use
+    // SCContentFilter screenshots). Platform + arch checks inline so
+    // unsupported platforms / print-mode sessions skip the Computer Use
     // import entirely. gates.js is light (type-only package import).
+    // Setup failures surface via reportStartupWarning.
     //
     // Placed AFTER the enterprise-MCP-config check: that check rejects any
     // dynamicMcpConfig entry with `type !== 'sdk'`, and our config is
@@ -1627,7 +1641,7 @@ async function run(): Promise<CommanderCommand> {
     // shipped without incident; chicago places itself correctly.
     if (
       process.platform === 'darwin' ||
-      process.platform === 'win32' ||
+      (process.platform === 'win32' && process.arch === 'x64') ||
       (process.platform === 'linux' && process.arch === 'x64')
     ) {
       try {
@@ -1650,7 +1664,12 @@ async function run(): Promise<CommanderCommand> {
         }
       } catch (error) {
         logForDebugging(`[Computer Use MCP] Setup failed: ${errorMessage(error)}`);
+        reportStartupWarning(`Computer Use setup failed: ${errorMessage(error)}. Computer control tools are disabled for this session.`);
       }
+    } else if (process.platform === 'win32') {
+      // Only win32-x64 has a bundled runtime asset (runtimeManager). Say so
+      // instead of silently registering nothing.
+      reportStartupWarning(`Computer Use is not supported on Windows ${process.arch} (only x64 is bundled). Computer control tools are disabled for this session.`);
     }
 
     // Store additional directories for CYBER.md loading (controlled by env var)
@@ -3871,7 +3890,9 @@ async function run(): Promise<CommanderCommand> {
           deepLinkBanner = createSystemMessage('Launched with a pre-filled prompt — review it before pressing Enter.', 'warning');
         }
       }
-      const initialMessages = deepLinkBanner ? [deepLinkBanner, ...hookMessages] : hookMessages.length > 0 ? hookMessages : undefined;
+      const startupWarningMessages = startupWarnings.map(warning => createSystemMessage(warning, 'warning'));
+      const replMessages = [...startupWarningMessages, ...(deepLinkBanner ? [deepLinkBanner] : []), ...hookMessages];
+      const initialMessages = replMessages.length > 0 ? replMessages : undefined;
       await launchRepl(root, {
         getFpsMetrics,
         stats,

@@ -6,7 +6,7 @@ use std::{
     process::{Command as StdCommand, Stdio},
     str,
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
+        atomic::{AtomicU32, AtomicU8, Ordering},
         Arc, Condvar, Mutex,
     },
     thread,
@@ -31,6 +31,8 @@ const TRAY_SHOW_ID: &str = "tray_show";
 const TRAY_QUIT_ID: &str = "tray_quit";
 const CYBER_CONFIG_DIR_ENV: &str = "CYBER_CONFIG_DIR";
 const LEGACY_CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
+const CYBER_PORTABLE_ROOT_ENV: &str = "CYBER_PORTABLE_ROOT";
+const CYBER_PORTABLE_MARKER: &str = ".cybercode-portable";
 const IMAGE_PREVIEW_MAX_BYTES: u64 = 10 * 1024 * 1024;
 const SCREENSHOT_FILE_PREFIX: &str = "cybercode-screenshot-";
 const SCREENSHOT_SOURCE_FILE_PREFIX: &str = "cybercode-screenshot-source-";
@@ -50,7 +52,16 @@ const COMPUTER_USE_HELPER_EXECUTABLE_NAME: &str = "CyberCodeComputerUse";
 #[cfg(target_os = "linux")]
 const COMPUTER_USE_HELPER_EXECUTABLE_NAME: &str = "cybercode-computer-use";
 static SCREENSHOT_SEQUENCE: AtomicU32 = AtomicU32::new(0);
-static AGENT_BROWSER_PREPARE_STARTED: AtomicBool = AtomicBool::new(false);
+const AGENT_BROWSER_DOCTOR_TIMEOUT: Duration = Duration::from_secs(60);
+const AGENT_BROWSER_INSTALL_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+const AGENT_BROWSER_PREPARE_IDLE: u8 = 0;
+const AGENT_BROWSER_PREPARE_RUNNING: u8 = 1;
+const AGENT_BROWSER_PREPARE_READY: u8 = 2;
+// IDLE -> RUNNING -> READY；失败回到 IDLE，下次调用可重试（旧实现用
+// AtomicBool 一次性置位，失败后永远不会再尝试）。
+static AGENT_BROWSER_PREPARE_STATE: AtomicU8 = AtomicU8::new(AGENT_BROWSER_PREPARE_IDLE);
+// 环形缓冲记录 doctor/install 的输出与失败原因，Release 下也有处可查。
+static AGENT_BROWSER_PREPARE_LOGS: Mutex<VecDeque<String>> = Mutex::new(VecDeque::new());
 
 #[derive(Default)]
 struct ServerState(Arc<Mutex<ServerStatus>>);
@@ -234,6 +245,58 @@ fn claude_config_home_dir() -> Result<PathBuf, String> {
         .ok_or_else(|| "home directory is unavailable".to_string())?;
 
     Ok(PathBuf::from(home).join(".cyber"))
+}
+
+fn portable_root_from_executable(executable: &Path) -> Option<PathBuf> {
+    let start = if executable.is_dir() {
+        executable
+    } else {
+        executable.parent()?
+    };
+
+    start.ancestors().find_map(|candidate| {
+        let marker = candidate.join(CYBER_PORTABLE_MARKER);
+        if marker.is_file() {
+            Some(
+                candidate
+                    .canonicalize()
+                    .unwrap_or_else(|_| candidate.to_path_buf()),
+            )
+        } else {
+            None
+        }
+    })
+}
+
+fn configure_portable_environment() {
+    let configured_root = std::env::var_os(CYBER_PORTABLE_ROOT_ENV)
+        .map(PathBuf::from)
+        .filter(|root| root.join(CYBER_PORTABLE_MARKER).is_file())
+        .map(|root| root.canonicalize().unwrap_or(root));
+    let portable_root = configured_root.or_else(|| {
+        std::env::current_exe()
+            .ok()
+            .and_then(|executable| portable_root_from_executable(&executable))
+    });
+    let Some(portable_root) = portable_root else {
+        return;
+    };
+
+    let config_dir = portable_root.join("data").join("config");
+    if let Err(error) = std::fs::create_dir_all(&config_dir) {
+        eprintln!(
+            "[desktop] could not prepare portable config directory {}: {error}",
+            config_dir.display()
+        );
+        return;
+    }
+    std::env::set_var(CYBER_PORTABLE_ROOT_ENV, &portable_root);
+    std::env::set_var(CYBER_CONFIG_DIR_ENV, &config_dir);
+    std::env::set_var(LEGACY_CLAUDE_CONFIG_DIR_ENV, &config_dir);
+    eprintln!(
+        "[desktop] portable runtime detected at {}",
+        portable_root.display()
+    );
 }
 
 #[cfg(target_os = "macos")]
@@ -1462,7 +1525,7 @@ fn resolve_terminal_cwd(cwd: Option<String>) -> Result<PathBuf, String> {
     if path.is_dir() {
         Ok(path)
     } else {
-        Err(format!("terminal cwd does not exist: {}", path.display()))
+        Err(format!("terminal cwd is not a directory: {}", path.display()))
     }
 }
 
@@ -1627,7 +1690,10 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
         .env("CYBER_CODEGRAPH_ASSET_DIR", &codegraph_asset_dir_arg)
         .env("CYBER_RTK_PATH", &rtk_binary_arg)
         .env("CYBER_AGENT_BROWSER_PATH", &agent_browser_binary_arg)
-        .env("CYBER_COMPUTER_USE_RUNTIME_ROOT", &computer_use_runtime_root_arg);
+        .env(
+            "CYBER_COMPUTER_USE_RUNTIME_ROOT",
+            &computer_use_runtime_root_arg,
+        );
     if let Some(computer_use_helper) = computer_use_helper {
         sidecar = sidecar.env(
             "CYBER_COMPUTER_USE_HELPER_PATH",
@@ -1768,6 +1834,11 @@ fn resolve_browser_executable() -> Option<PathBuf> {
                 root.join("Microsoft/Edge/Application/msedge.exe"),
                 root.join("BraveSoftware/Brave-Browser/Application/brave.exe"),
                 root.join("Chromium/Application/chrome.exe"),
+                // 国内常见 Chromium 系浏览器的默认安装路径
+                root.join("360Chrome/Chrome/Application/360chrome.exe"),
+                root.join("360/360se6/Application/360se.exe"),
+                root.join("Tencent/QQBrowser/QQBrowser.exe"),
+                root.join("SogouExplorer/SogouExplorer.exe"),
             ]);
         }
     } else {
@@ -1781,52 +1852,217 @@ fn resolve_browser_executable() -> Option<PathBuf> {
         ]);
     }
 
+    // Windows 上注册表 App Paths 比固定路径猜解更可靠（覆盖自定义安装目录）。
+    #[cfg(windows)]
+    if let Some(path) = resolve_browser_from_registry() {
+        return Some(path);
+    }
+
     candidates.into_iter().find(|path| path.is_file())
 }
 
+/// 通过 `reg query HKLM/HKCU ...\App Paths\<exe>` 查系统登记的浏览器路径。
+#[cfg(windows)]
+fn resolve_browser_from_registry() -> Option<PathBuf> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    for (hive, exe_name) in [
+        ("HKLM", "chrome.exe"),
+        ("HKCU", "chrome.exe"),
+        ("HKLM", "msedge.exe"),
+        ("HKCU", "msedge.exe"),
+        ("HKLM", "brave.exe"),
+        ("HKCU", "brave.exe"),
+        ("HKLM", "chromium.exe"),
+        ("HKCU", "chromium.exe"),
+    ] {
+        let key =
+            format!(r"{hive}\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}");
+        let Ok(output) = StdCommand::new("reg")
+            .args(["query", &key, "/ve"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        else {
+            continue;
+        };
+        if !output.status.success() {
+            continue;
+        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            // 形如："    (默认)    REG_SZ    C:\...\chrome.exe"
+            let Some(pos) = line.find("REG_SZ") else {
+                continue;
+            };
+            let path = PathBuf::from(line[pos + "REG_SZ".len()..].trim());
+            if path.is_file() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+fn push_agent_browser_prepare_log(line: &str) {
+    let line = line.trim_end();
+    if line.is_empty() {
+        return;
+    }
+    let Ok(mut guard) = AGENT_BROWSER_PREPARE_LOGS.lock() else {
+        return;
+    };
+    if guard.len() >= SERVER_STARTUP_LOG_LIMIT {
+        guard.pop_front();
+    }
+    guard.push_back(line.to_string());
+}
+
+#[tauri::command]
+fn get_agent_browser_prepare_logs() -> Vec<String> {
+    AGENT_BROWSER_PREPARE_LOGS
+        .lock()
+        .map(|guard| guard.iter().cloned().collect())
+        .unwrap_or_default()
+}
+
+/// 运行 agent-browser 子命令：捕获输出、强制超时，避免旧实现 Stdio::null
+/// 全程静默、无超时导致失败后毫无线索。返回输出尾部（成功）或错误+输出尾部。
+fn run_agent_browser_command(binary: &Path, args: &[&str], timeout: Duration) -> Result<String, String> {
+    let mut command = StdCommand::new(binary);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = command
+        .spawn()
+        .map_err(|err| format!("spawn agent-browser {}: {err}", args.join(" ")))?;
+
+    // 单独线程持续 drain 管道，避免子进程写满管道缓冲区后死锁。
+    let mut stdout_pipe = child.stdout.take();
+    let mut stderr_pipe = child.stderr.take();
+    let stdout_reader = thread::spawn(move || {
+        let mut buffer = String::new();
+        if let Some(pipe) = stdout_pipe.as_mut() {
+            let _ = pipe.read_to_string(&mut buffer);
+        }
+        buffer
+    });
+    let stderr_reader = thread::spawn(move || {
+        let mut buffer = String::new();
+        if let Some(pipe) = stderr_pipe.as_mut() {
+            let _ = pipe.read_to_string(&mut buffer);
+        }
+        buffer
+    });
+
+    let deadline = Instant::now() + timeout;
+    let result = loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => break Ok(()),
+            Ok(Some(status)) => break Err(format!("exited with status {status}")),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break Err(format!("timed out after {} seconds", timeout.as_secs()));
+                }
+                thread::sleep(Duration::from_millis(200));
+            }
+            Err(err) => break Err(format!("wait failed: {err}")),
+        }
+    };
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    let combined = format!("{stdout}{stderr}");
+    let tail = combined
+        .lines()
+        .rev()
+        .take(20)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    match result {
+        Ok(()) => Ok(tail),
+        Err(err) if tail.trim().is_empty() => Err(err),
+        Err(err) => Err(format!("{err}\nLast output:\n{tail}")),
+    }
+}
+
 fn prepare_agent_browser_runtime(binary: &Path, has_system_browser: bool) {
-    if has_system_browser
-        || AGENT_BROWSER_PREPARE_STARTED.swap(true, Ordering::SeqCst)
-        || !binary.is_file()
+    if has_system_browser || !binary.is_file() {
+        return;
+    }
+    // 只有 IDLE 才能启动新一轮准备；失败会回到 IDLE 允许重试，READY 后短路。
+    if AGENT_BROWSER_PREPARE_STATE
+        .compare_exchange(
+            AGENT_BROWSER_PREPARE_IDLE,
+            AGENT_BROWSER_PREPARE_RUNNING,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        )
+        .is_err()
     {
         return;
     }
 
     let binary = binary.to_path_buf();
     thread::spawn(move || {
-        let healthy = StdCommand::new(&binary)
-            .args(["doctor", "--offline", "--quick"])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map(|status| status.success())
-            .unwrap_or(false);
-        if healthy {
-            return;
-        }
-
-        eprintln!(
-            "[agent-browser] no compatible browser found; preparing Chrome for Testing in the background"
+        let result = prepare_agent_browser_runtime_inner(&binary);
+        AGENT_BROWSER_PREPARE_STATE.store(
+            if result.is_ok() {
+                AGENT_BROWSER_PREPARE_READY
+            } else {
+                AGENT_BROWSER_PREPARE_IDLE
+            },
+            Ordering::SeqCst,
         );
-        match StdCommand::new(&binary)
-            .arg("install")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-        {
-            Ok(status) if status.success() => {
-                eprintln!("[agent-browser] browser runtime is ready");
-            }
-            Ok(status) => {
-                eprintln!(
-                    "[agent-browser] browser runtime preparation exited with status {status}"
-                );
-            }
-            Err(error) => {
-                eprintln!("[agent-browser] browser runtime preparation failed: {error}");
-            }
-        }
     });
+}
+
+fn prepare_agent_browser_runtime_inner(binary: &Path) -> Result<(), String> {
+    match run_agent_browser_command(
+        binary,
+        &["doctor", "--offline", "--quick"],
+        AGENT_BROWSER_DOCTOR_TIMEOUT,
+    ) {
+        Ok(_) => return Ok(()),
+        Err(error) => {
+            push_agent_browser_prepare_log(&format!("[doctor] {error}"));
+        }
+    }
+
+    let line = "no compatible browser found; preparing Chrome for Testing in the background";
+    eprintln!("[agent-browser] {line}");
+    push_agent_browser_prepare_log(line);
+
+    match run_agent_browser_command(binary, &["install"], AGENT_BROWSER_INSTALL_TIMEOUT) {
+        Ok(output) => {
+            eprintln!("[agent-browser] browser runtime is ready");
+            push_agent_browser_prepare_log("[install] browser runtime is ready");
+            if !output.trim().is_empty() {
+                push_agent_browser_prepare_log(&format!("[install] {output}"));
+            }
+            Ok(())
+        }
+        Err(error) => {
+            eprintln!("[agent-browser] browser runtime preparation failed: {error}");
+            push_agent_browser_prepare_log(&format!("[install] {error}"));
+            Err(error)
+        }
+    }
 }
 
 fn build_server_shutdown_request(authority: &str, auth_token: &str) -> String {
@@ -2048,14 +2284,14 @@ fn kill_windows_sidecars() {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_server_shutdown_request, completed_screenshot_path,
-        decode_screenshot_png_data_url, decode_terminal_output, default_utf8_locale,
-        ensure_utf8_locale, parse_env_block, screenshot_temp_path, wait_for_server,
+        build_server_shutdown_request, completed_screenshot_path, decode_screenshot_png_data_url,
+        decode_terminal_output, default_utf8_locale, ensure_utf8_locale, parse_env_block,
+        portable_root_from_executable, screenshot_temp_path, wait_for_server,
         SERVER_CONNECTION_WAIT_TIMEOUT, SERVER_STARTUP_WAIT_TIMEOUT,
     };
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn server_wait_returns_immediately_after_sidecar_exit() {
@@ -2074,6 +2310,32 @@ mod tests {
     fn frontend_wait_outlasts_the_sidecar_startup_window() {
         assert_eq!(SERVER_STARTUP_WAIT_TIMEOUT, Duration::from_secs(60));
         assert!(SERVER_CONNECTION_WAIT_TIMEOUT > SERVER_STARTUP_WAIT_TIMEOUT);
+    }
+
+    #[test]
+    fn portable_root_is_detected_from_a_directly_launched_nested_executable() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("cybercode-portable-{unique}"));
+        let executable = root
+            .join("apps")
+            .join("windows-x64")
+            .join("CyberCode")
+            .join("CyberCode.exe");
+        std::fs::create_dir_all(executable.parent().expect("executable parent"))
+            .expect("create executable directory");
+        std::fs::write(root.join(".cybercode-portable"), "cybercode-portable-v1\n")
+            .expect("create portable marker");
+        std::fs::write(&executable, []).expect("create executable fixture");
+
+        assert_eq!(
+            portable_root_from_executable(&executable),
+            Some(root.canonicalize().expect("canonical portable root"))
+        );
+
+        std::fs::remove_dir_all(root).expect("remove portable fixture");
     }
 
     #[test]
@@ -2202,6 +2464,8 @@ mod tests {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    configure_portable_environment();
+
     let builder = tauri::Builder::default()
         .manage(ServerState::default())
         .manage(AdapterState::default())
@@ -2215,6 +2479,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_server_url,
             get_server_connection,
+            get_agent_browser_prepare_logs,
             restart_adapters_sidecar,
             prepare_for_update_install,
             open_skills_config_dir,

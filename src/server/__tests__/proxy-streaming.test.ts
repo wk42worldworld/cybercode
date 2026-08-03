@@ -248,6 +248,113 @@ describe('openaiChatStreamToAnthropic', () => {
     )
     expect(firstBlockStop).toBeLessThan(toolBlockStart)
   })
+
+  test('abrupt EOF without finish_reason emits error, no end_turn (llama.cpp crash/OOM)', async () => {
+    // llama.cpp dies mid-generation: partial content, then connection closes
+    // with no finish_reason chunk and no [DONE] marker.
+    const sseChunks = [
+      'data: {"id":"c8","object":"chat.completion.chunk","created":0,"model":"local-llama","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}\n\n',
+      'data: {"id":"c8","object":"chat.completion.chunk","created":0,"model":"local-llama","choices":[{"index":0,"delta":{"content":"Partial ans"},"finish_reason":null}]}\n\n',
+    ]
+
+    const upstream = makeStream(sseChunks)
+    const events = await collectSse(openaiChatStreamToAnthropic(upstream, 'local-llama'))
+    const types = events.map((e) => e.event)
+
+    // Partial content is preserved
+    expect(types[0]).toBe('message_start')
+    const textDeltas = events.filter((e) => e.event === 'content_block_delta')
+    expect(textDeltas.map((e) => (e.data.delta as Record<string, unknown>).text)).toContain('Partial ans')
+
+    // Error event emitted, and NO fake completion
+    const errEvent = events.find((e) => e.event === 'error')
+    expect(errEvent).toBeDefined()
+    expect((errEvent!.data.error as Record<string, unknown>).type).toBe('api_error')
+    expect(String((errEvent!.data.error as Record<string, unknown>).message)).toContain('finish_reason')
+    expect(types).not.toContain('message_delta')
+    expect(types).not.toContain('message_stop')
+  })
+
+  test('connection error mid-stream emits error, no end_turn', async () => {
+    const encoder = new TextEncoder()
+    const upstream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(
+          'data: {"id":"c9","object":"chat.completion.chunk","created":0,"model":"local-llama","choices":[{"index":0,"delta":{"content":"Half"},"finish_reason":null}]}\n\n',
+        ))
+        controller.error(new Error('socket hang up'))
+      },
+    })
+
+    const events = await collectSse(openaiChatStreamToAnthropic(upstream, 'local-llama'))
+    const types = events.map((e) => e.event)
+
+    const errEvent = events.find((e) => e.event === 'error')
+    expect(errEvent).toBeDefined()
+    expect(String((errEvent!.data.error as Record<string, unknown>).message)).toContain('socket hang up')
+    expect(types).not.toContain('message_delta')
+    expect(types).not.toContain('message_stop')
+  })
+
+  test('[DONE] without finish_reason still finalizes (provider compat)', async () => {
+    const sseChunks = [
+      'data: {"id":"c10","object":"chat.completion.chunk","created":0,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":null}]}\n\n',
+      'data: [DONE]\n\n',
+    ]
+
+    const upstream = makeStream(sseChunks)
+    const events = await collectSse(openaiChatStreamToAnthropic(upstream, 'gpt-4'))
+    const types = events.map((e) => e.event)
+    expect(types).toContain('message_stop')
+    expect(types).not.toContain('error')
+  })
+
+  test('local upstream EOF error mentions the local model server (isLocal=true)', async () => {
+    const sseChunks = [
+      'data: {"id":"c11","object":"chat.completion.chunk","created":0,"model":"local-llama","choices":[{"index":0,"delta":{"content":"Half"},"finish_reason":null}]}\n\n',
+    ]
+
+    const events = await collectSse(openaiChatStreamToAnthropic(makeStream(sseChunks), 'local-llama', true))
+    const errEvent = events.find((e) => e.event === 'error')
+    expect(errEvent).toBeDefined()
+    const message = String((errEvent!.data.error as Record<string, unknown>).message)
+    expect(message).toContain('finish_reason')
+    expect(message).toContain('local model server may have crashed or run out of memory')
+  })
+
+  test('remote upstream EOF error does not blame a local model server (isLocal=false)', async () => {
+    const sseChunks = [
+      'data: {"id":"c12","object":"chat.completion.chunk","created":0,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Half"},"finish_reason":null}]}\n\n',
+    ]
+
+    const events = await collectSse(openaiChatStreamToAnthropic(makeStream(sseChunks), 'gpt-4'))
+    const errEvent = events.find((e) => e.event === 'error')
+    expect(errEvent).toBeDefined()
+    const message = String((errEvent!.data.error as Record<string, unknown>).message)
+    expect(message).toContain('finish_reason')
+    expect(message).toContain('upstream connection ended mid-response')
+    expect(message).not.toContain('local model server')
+  })
+
+  test('remote upstream connection error does not blame a local model server', async () => {
+    const encoder = new TextEncoder()
+    const upstream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(
+          'data: {"id":"c13","object":"chat.completion.chunk","created":0,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Half"},"finish_reason":null}]}\n\n',
+        ))
+        controller.error(new Error('socket hang up'))
+      },
+    })
+
+    const events = await collectSse(openaiChatStreamToAnthropic(upstream, 'gpt-4'))
+    const errEvent = events.find((e) => e.event === 'error')
+    expect(errEvent).toBeDefined()
+    const message = String((errEvent!.data.error as Record<string, unknown>).message)
+    expect(message).toContain('socket hang up')
+    expect(message).toContain('upstream connection ended mid-response')
+    expect(message).not.toContain('local model server')
+  })
 })
 
 // ─── OpenAI Responses SSE → Anthropic SSE ──────────────────────

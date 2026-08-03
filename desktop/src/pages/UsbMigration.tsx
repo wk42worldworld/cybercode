@@ -13,6 +13,7 @@ import {
   RotateCcw,
   ShieldAlert,
   Usb,
+  Wrench,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -20,14 +21,18 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { ApiError } from '../api/client'
 import {
   usbMigrationApi,
+  type PortablePathRepairResult,
+  type PortablePathStatus,
   type UsbMigrationJob,
   type UsbMigrationPlatform,
+  type UsbMigrationRecoveryStatus,
   type UsbMigrationScan,
 } from '../api/usbMigration'
 import {
@@ -67,14 +72,38 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
   const [includeApplications, setIncludeApplications] = useState(true)
   const [securityConfirmed, setSecurityConfirmed] = useState(false)
   const [job, setJob] = useState<UsbMigrationJob | null>(null)
+  const [starting, setStarting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [recoveryStatus, setRecoveryStatus] = useState<UsbMigrationRecoveryStatus | null>(null)
   const [startError, setStartError] = useState<string | null>(null)
   const [replaceConfirmation, setReplaceConfirmation] = useState(false)
+  const [portablePathStatus, setPortablePathStatus] = useState<PortablePathStatus | null>(null)
+  const [portablePathRepair, setPortablePathRepair] = useState<PortablePathRepairResult | null>(null)
+  const [portablePathRepairing, setPortablePathRepairing] = useState(false)
+  const [portablePathError, setPortablePathError] = useState<string | null>(null)
+  const scanAbortController = useRef<AbortController | null>(null)
+  const startInFlight = useRef(false)
+  const loadRequestId = useRef(0)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const load = useCallback(async (force = false) => {
+    if (!mountedRef.current) return
+    scanAbortController.current?.abort()
+    const controller = new AbortController()
+    scanAbortController.current = controller
+    const requestId = ++loadRequestId.current
     setLoading(true)
     setLoadError(null)
     try {
-      const next = await usbMigrationApi.scan(force)
+      const next = await usbMigrationApi.scan(force, controller.signal)
+      if (!mountedRef.current || requestId !== loadRequestId.current) return
       setScan(next)
       setSelectedProjectIds(new Set())
       const availablePlatforms = PLATFORM_ORDER.filter(
@@ -87,15 +116,68 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
       setSelectedPlatforms(new Set(defaultPlatform ? [defaultPlatform] : []))
       setIncludeApplications(!!defaultPlatform)
     } catch (error) {
+      if (!mountedRef.current || controller.signal.aborted || requestId !== loadRequestId.current) return
       setLoadError(errorMessage(error, t('usbMigration.scanFailed')))
     } finally {
-      setLoading(false)
+      if (scanAbortController.current === controller) {
+        scanAbortController.current = null
+      }
+      if (mountedRef.current && requestId === loadRequestId.current) setLoading(false)
     }
   }, [t])
 
   useEffect(() => {
     void load()
+    return () => {
+      scanAbortController.current?.abort()
+      scanAbortController.current = null
+      loadRequestId.current += 1
+    }
   }, [load])
+
+  const cancelScan = useCallback(() => {
+    scanAbortController.current?.abort()
+    scanAbortController.current = null
+    loadRequestId.current += 1
+    setLoading(false)
+    setLoadError(t('usbMigration.scanCancelled'))
+  }, [t])
+
+  useEffect(() => {
+    let disposed = false
+    usbMigrationApi.getPortablePathStatus()
+      .then(status => {
+        if (!disposed) setPortablePathStatus(status)
+      })
+      .catch(() => {
+        // Older sidecars do not expose portable path repair yet.
+      })
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let timer: number | null = null
+    const refresh = async () => {
+      try {
+        const status = await usbMigrationApi.getRecoveryStatus()
+        if (disposed) return
+        setRecoveryStatus(status)
+        if (status.state === 'running') {
+          timer = window.setTimeout(() => void refresh(), 500)
+        }
+      } catch {
+        // Older sidecars do not expose interrupted migration recovery state.
+      }
+    }
+    void refresh()
+    return () => {
+      disposed = true
+      if (timer !== null) window.clearTimeout(timer)
+    }
+  }, [])
 
   useEffect(() => {
     if (!job || !['queued', 'running'].includes(job.status)) return
@@ -105,14 +187,29 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
         const next = await usbMigrationApi.getJob(job.id)
         if (disposed) return
         setJob(next)
+        if (!['queued', 'running'].includes(next.status)) setCancelling(false)
         if (next.status === 'completed') {
           addToast({
             type: 'success',
             message: t('usbMigration.completedToast'),
           })
         }
-      } catch {
-        // Keep the last visible progress snapshot; the next poll may reconnect.
+      } catch (error) {
+        if (disposed) return
+        if (error instanceof ApiError && error.status === 404) {
+          setCancelling(false)
+          setJob(current => current?.id === job.id
+            ? {
+                ...current,
+                status: 'failed',
+                stage: 'failed',
+                currentItem: null,
+                error: t('usbMigration.interrupted'),
+                completedAt: new Date().toISOString(),
+              }
+            : current)
+        }
+        // Other failures can be transient while the sidecar reconnects.
       }
     }
     void refresh()
@@ -156,18 +253,23 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
         multiple: false,
         title: t('usbMigration.chooseDestination'),
       })
+      if (!mountedRef.current) return
       if (typeof selected === 'string') {
         setDestinationPath(selected)
         setStartError(null)
         setReplaceConfirmation(false)
       }
     } catch (error) {
-      setStartError(errorMessage(error, t('usbMigration.destinationFailed')))
+      if (mountedRef.current) {
+        setStartError(errorMessage(error, t('usbMigration.destinationFailed')))
+      }
     }
   }
 
   const startMigration = async (replaceExisting = false) => {
-    if (!scan) return
+    if (!scan || startInFlight.current) return
+    startInFlight.current = true
+    setStarting(true)
     setStartError(null)
     try {
       const next = await usbMigrationApi.start({
@@ -177,27 +279,68 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
         includeApplications,
         replaceExisting,
       })
+      if (!mountedRef.current) return
       setReplaceConfirmation(false)
+      setCancelling(false)
       setJob(next)
     } catch (error) {
+      if (!mountedRef.current) return
       if (apiErrorCode(error) === 'PORTABLE_BUNDLE_EXISTS') {
         setReplaceConfirmation(true)
       }
       setStartError(errorMessage(error, t('usbMigration.startFailed')))
+    } finally {
+      startInFlight.current = false
+      if (mountedRef.current) setStarting(false)
     }
   }
 
   const cancelMigration = async () => {
-    if (!job) return
+    if (!job || cancelling) return
+    setCancelling(true)
     try {
-      setJob(await usbMigrationApi.cancel(job.id))
+      const next = await usbMigrationApi.cancel(job.id)
+      if (!mountedRef.current) return
+      setJob(next)
+      if (!['queued', 'running'].includes(next.status)) setCancelling(false)
     } catch (error) {
+      if (!mountedRef.current) return
+      setCancelling(false)
       setStartError(errorMessage(error, t('usbMigration.cancelFailed')))
+    }
+  }
+
+  const repairPortablePaths = async () => {
+    setPortablePathRepairing(true)
+    setPortablePathError(null)
+    try {
+      const result = await usbMigrationApi.repairPortableProjectPaths()
+      if (!mountedRef.current) return
+      setPortablePathRepair(result)
+      setPortablePathStatus(result)
+      addToast({
+        type: result.failedSessions > 0 ? 'warning' : 'success',
+        message: result.failedSessions > 0
+          ? t('usbMigration.pathRepairPartialToast', {
+              repaired: result.repairedSessions,
+              failed: result.failedSessions,
+            })
+          : t('usbMigration.pathRepairToast', {
+              count: result.repairedSessions,
+            }),
+      })
+    } catch (error) {
+      if (mountedRef.current) {
+        setPortablePathError(errorMessage(error, t('usbMigration.pathRepairFailed')))
+      }
+    } finally {
+      if (mountedRef.current) setPortablePathRepairing(false)
     }
   }
 
   const reset = () => {
     setJob(null)
+    setCancelling(false)
     setStartError(null)
     setReplaceConfirmation(false)
   }
@@ -205,6 +348,7 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
   const canStart = !!scan
     && !!destinationPath
     && securityConfirmed
+    && !starting
     && (!includeApplications || (
       !!scan.release
       && selectedPlatformList.length > 0
@@ -212,10 +356,26 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
 
   const content = (
     <>
+      {recoveryStatus && recoveryStatus.state !== 'idle' && (
+        <RecoveryStatusCard status={recoveryStatus} />
+      )}
+      {portablePathStatus?.active && (
+        <PortablePathRepairCard
+          status={portablePathStatus}
+          result={portablePathRepair}
+          repairing={portablePathRepairing}
+          error={portablePathError}
+          onRepair={() => void repairPortablePaths()}
+        />
+      )}
       <MigrationSteps active={job ? (job.status === 'completed' ? 3 : 2) : 1} />
 
       {loading ? (
-        <LoadingState label={t('usbMigration.scanning')} />
+        <LoadingState
+          label={t('usbMigration.scanning')}
+          cancelLabel={t('usbMigration.cancelScan')}
+          onCancel={cancelScan}
+        />
       ) : loadError ? (
         <ErrorState
           message={loadError}
@@ -229,6 +389,7 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
             <ProgressState
               job={job}
               error={startError}
+              cancelling={cancelling}
               onCancel={() => void cancelMigration()}
               onReset={reset}
             />
@@ -444,6 +605,7 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
                   <Button
                     variant="primary"
                     size="md"
+                    loading={starting}
                     icon={<RefreshCw size={16} />}
                     onClick={() => void startMigration(true)}
                   >
@@ -455,6 +617,7 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
                   variant="primary"
                   size="md"
                   disabled={!canStart}
+                  loading={starting}
                   icon={<Usb size={17} />}
                   onClick={() => void startMigration()}
                 >
@@ -477,6 +640,67 @@ export function UsbMigration({ embedded = false }: { embedded?: boolean } = {}) 
     >
       {content}
     </SettingsPage>
+  )
+}
+
+function PortablePathRepairCard({
+  status,
+  result,
+  repairing,
+  error,
+  onRepair,
+}: {
+  status: PortablePathStatus
+  result: PortablePathRepairResult | null
+  repairing: boolean
+  error: string | null
+  onRepair: () => void
+}) {
+  const t = useTranslation()
+  return (
+    <section className="mb-[12px] flex flex-wrap items-center gap-[12px] rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[14px] py-[12px]">
+      <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-[7px] bg-[var(--color-brand)]/10 text-[var(--color-brand)]">
+        <Wrench size={17} />
+      </span>
+      <div className="min-w-[220px] flex-1">
+        <p className="text-[13px] font-bold text-[var(--color-text-primary)]">
+          {t('usbMigration.pathRepairTitle')}
+        </p>
+        <p className="mt-[2px] text-[11px] leading-[17px] text-[var(--color-text-tertiary)]">
+          {result
+            ? result.failedSessions > 0
+              ? t('usbMigration.pathRepairPartialResult', {
+                  scanned: result.scannedSessions,
+                  repaired: result.repairedSessions,
+                  failed: result.failedSessions,
+                })
+              : t('usbMigration.pathRepairResult', {
+                  scanned: result.scannedSessions,
+                  repaired: result.repairedSessions,
+                })
+            : t('usbMigration.pathRepairDescription')}
+        </p>
+        {status.rootPath && (
+          <p className="mt-[2px] truncate font-mono text-[10px] text-[var(--color-text-tertiary)]">
+            {status.rootPath}
+          </p>
+        )}
+        {error && (
+          <p className="mt-[4px] text-[11px] text-[var(--color-error)]">{error}</p>
+        )}
+      </div>
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={repairing || status.projectCount === 0}
+        icon={<RefreshCw size={14} className={repairing ? 'animate-spin' : ''} />}
+        onClick={onRepair}
+      >
+        {repairing
+          ? t('usbMigration.pathRepairing')
+          : t('usbMigration.pathRepairAction')}
+      </Button>
+    </section>
   )
 }
 
@@ -518,14 +742,76 @@ function MigrationSteps({ active }: { active: 1 | 2 | 3 }) {
   )
 }
 
-function LoadingState({ label }: { label: string }) {
+function RecoveryStatusCard({ status }: { status: UsbMigrationRecoveryStatus }) {
+  const t = useTranslation()
+  const running = status.state === 'running'
+  const completed = status.state === 'completed'
+  const waiting = status.state === 'waiting-for-drive'
+  const Icon = running ? RefreshCw : completed ? Check : waiting ? Usb : CircleAlert
+  const title = running
+    ? t('usbMigration.recoveryRunningTitle')
+    : completed
+      ? t('usbMigration.recoveryCompletedTitle')
+      : waiting
+        ? t('usbMigration.recoveryWaitingTitle')
+        : t('usbMigration.recoveryFailedTitle')
+  const description = running
+    ? t('usbMigration.recoveryRunningDescription')
+    : completed
+      ? t('usbMigration.recoveryCompletedDescription', { count: status.recoveredJobs })
+      : waiting
+        ? t('usbMigration.recoveryWaitingDescription', { count: status.waitingJobs })
+        : t('usbMigration.recoveryFailedDescription', { count: status.failedJobs })
+  const tone = completed
+    ? 'text-[var(--color-success)]'
+    : waiting
+      ? 'text-[var(--color-warning)]'
+      : status.state === 'failed'
+        ? 'text-[var(--color-error)]'
+        : 'text-[var(--color-brand)]'
+
+  return (
+    <section className="flex items-start gap-[11px] rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[15px] py-[13px]">
+      <Icon size={18} className={`mt-[1px] shrink-0 ${tone} ${running ? 'animate-spin' : ''}`} />
+      <div className="min-w-0 flex-1">
+        <h2 className="text-[13px] font-bold text-[var(--color-text-primary)]">{title}</h2>
+        <p className="mt-[2px] text-[11px] leading-[17px] text-[var(--color-text-secondary)]">
+          {description}
+        </p>
+        {status.state === 'failed' && status.lastError && (
+          <p className="mt-[5px] break-words text-[11px] leading-[17px] text-[var(--color-error)]">
+            {status.lastError}
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function LoadingState({
+  label,
+  cancelLabel,
+  onCancel,
+}: {
+  label: string
+  cancelLabel: string
+  onCancel: () => void
+}) {
   return (
     <div className="rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container)] px-[18px] py-[22px]">
       <div className="flex items-center gap-[10px]">
         <RefreshCw size={17} className="animate-spin text-[var(--color-brand)]" />
-        <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+        <span className="min-w-0 flex-1 text-[13px] font-semibold text-[var(--color-text-primary)]">
           {label}
         </span>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<X size={15} />}
+          onClick={onCancel}
+        >
+          {cancelLabel}
+        </Button>
       </div>
       <div className="mt-[14px] h-[4px] overflow-hidden rounded-full bg-[var(--color-surface-container-low)]">
         <div className="h-full w-2/5 animate-pulse rounded-full bg-[var(--color-brand)]" />
@@ -566,11 +852,13 @@ function ErrorState({
 function ProgressState({
   job,
   error,
+  cancelling,
   onCancel,
   onReset,
 }: {
   job: UsbMigrationJob
   error: string | null
+  cancelling: boolean
   onCancel: () => void
   onReset: () => void
 }) {
@@ -596,7 +884,9 @@ function ProgressState({
               ? t('usbMigration.failed')
               : cancelled
                 ? t('usbMigration.cancelled')
-                : stageLabel(job.stage, t)}
+                : cancelling
+                  ? t('usbMigration.cancelling')
+                  : stageLabel(job.stage, t)}
           </h2>
           <p className="mt-[3px] truncate text-[11px] text-[var(--color-text-tertiary)]">
             {job.currentItem || job.portablePath}
@@ -633,8 +923,14 @@ function ProgressState({
 
       <div className="mt-[16px] flex justify-end">
         {active ? (
-          <Button variant="secondary" size="sm" onClick={onCancel}>
-            {t('usbMigration.cancel')}
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={cancelling}
+            disabled={cancelling}
+            onClick={onCancel}
+          >
+            {cancelling ? t('usbMigration.cancelling') : t('usbMigration.cancel')}
           </Button>
         ) : (
           <Button

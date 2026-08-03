@@ -499,7 +499,7 @@ function NodePicker({
   return (
     <Dialog
       title="Agent node"
-      subtitle="Connect another agent through CyberCode's models or smart routes."
+      subtitle="Connect another agent through CyberCode's models or agent routes."
       color="permission"
       onCancel={() => onDone(status ? formatStatus(status) : 'Agent node unchanged.', { display: 'system' })}
     >

@@ -1,7 +1,7 @@
 import { type Database } from 'bun:sqlite'
 import { sanitizePath as sanitizePortablePath } from '../utils/sessionStoragePortable.js'
 import { openSessionSearchDb } from './db.js'
-import { ensureSessionSearchIndexFresh } from './indexer.js'
+import { refreshSessionSearchIndexWithinBudget } from './indexer.js'
 
 export type SessionSearchMessage = {
   id: number
@@ -65,6 +65,7 @@ type SessionRow = {
   title: string
   created_at: string
   modified_at: string
+  file_path: string
   message_count: number
 }
 
@@ -86,7 +87,6 @@ type MatchRow = MessageRow & {
 }
 
 const CJK_RE = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/
-
 function isCjkQuery(query: string): boolean {
   return CJK_RE.test(query)
 }
@@ -162,6 +162,13 @@ function getMessagesForSession(db: Database, sessionKey: string): MessageRow[] {
     .all(sessionKey) as MessageRow[]
 }
 
+function getActiveSessionKey(db: Database, session: SessionRow): string {
+  const active = db.query<{ session_key: string }, [string]>(`
+    SELECT session_key FROM indexed_files WHERE file_path = ? LIMIT 1
+  `).get(session.file_path)
+  return active?.session_key ?? session.session_key
+}
+
 function windowAround(params: {
   messages: MessageRow[]
   anchorId: number
@@ -184,8 +191,13 @@ function windowAround(params: {
 
 function getAnchoredHit(db: Database, match: MatchRow): SessionSearchHit | null {
   const session = db
-    .query('SELECT * FROM sessions WHERE session_key = ?')
-    .get(match.session_key) as SessionRow | null
+    .query(`
+      SELECT * FROM sessions
+      WHERE session_id = ? AND project_path = ?
+      ORDER BY modified_at DESC
+      LIMIT 1
+    `)
+    .get(match.session_id, match.project_path) as SessionRow | null
   if (!session) return null
   const messages = getMessagesForSession(db, match.session_key)
   const window = windowAround({ messages, anchorId: match.id, window: 5 })
@@ -247,6 +259,14 @@ function searchWithFts(params: {
         snippet(${ftsTable}, 0, '>>>', '<<<', '...', 32) AS snippet
        FROM ${ftsTable}
        JOIN messages m ON m.id = ${ftsTable}.rowid
+       JOIN indexed_files i
+         ON i.session_key = m.session_key
+        AND i.session_id = m.session_id
+        AND i.project_path = m.project_path
+       JOIN sessions s
+         ON s.session_id = i.session_id
+        AND s.project_path = i.project_path
+        AND s.file_path = i.file_path
        WHERE ${where.join(' AND ')}
        ORDER BY bm25(${ftsTable})
        LIMIT ?`,
@@ -286,6 +306,14 @@ function searchWithLike(params: {
         m.content_text, m.timestamp, m.model, m.line_no,
         substr(m.content_text, 1, 240) AS snippet
        FROM messages m
+       JOIN indexed_files i
+         ON i.session_key = m.session_key
+        AND i.session_id = m.session_id
+        AND i.project_path = m.project_path
+       JOIN sessions s
+         ON s.session_id = i.session_id
+        AND s.project_path = i.project_path
+        AND s.file_path = i.file_path
        WHERE ${where.join(' AND ')}
        ORDER BY m.timestamp DESC, m.id DESC
        LIMIT ?`,
@@ -307,7 +335,7 @@ export async function discoverSessionSearch(params: {
   const ownDb = !params.db
   const db = params.db ?? openSessionSearchDb()
   try {
-    await ensureSessionSearchIndexFresh({ project, db })
+    await refreshSessionSearchIndexWithinBudget({ project })
     let rows: MatchRow[] = []
     try {
       rows = searchWithFts({ ...params, project, query, limit, db })
@@ -350,7 +378,7 @@ export async function browseSessionSearch(params: {
   const ownDb = !params.db
   const db = params.db ?? openSessionSearchDb()
   try {
-    await ensureSessionSearchIndexFresh({ project, db })
+    await refreshSessionSearchIndexWithinBudget({ project })
     const where: string[] = []
     const values: unknown[] = []
     if (project) {
@@ -399,12 +427,12 @@ export async function readSessionSearch(params: {
   const ownDb = !params.db
   const db = params.db ?? openSessionSearchDb()
   try {
-    await ensureSessionSearchIndexFresh({ db })
+    await refreshSessionSearchIndexWithinBudget()
     const session = getSessionRow(db, params)
     if (!session) return null
     const head = normalizeLimit(params.head, 20, 100)
     const tail = normalizeLimit(params.tail, 10, 100)
-    const messages = getMessagesForSession(db, session.session_key)
+    const messages = getMessagesForSession(db, getActiveSessionKey(db, session))
     const truncated = messages.length > head + tail
     const rows = truncated ? [...messages.slice(0, head), ...messages.slice(-tail)] : messages
     return {
@@ -433,10 +461,10 @@ export async function scrollSessionSearch(params: {
   const ownDb = !params.db
   const db = params.db ?? openSessionSearchDb()
   try {
-    await ensureSessionSearchIndexFresh({ db })
+    await refreshSessionSearchIndexWithinBudget()
     const session = getSessionRow(db, params)
     if (!session) return null
-    const messages = getMessagesForSession(db, session.session_key)
+    const messages = getMessagesForSession(db, getActiveSessionKey(db, session))
     const view = windowAround({
       messages,
       anchorId: params.aroundMessageId,

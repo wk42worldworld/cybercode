@@ -63,4 +63,41 @@ describe('skillsApi', () => {
       expect.objectContaining({ method: 'POST', body: '{}' }),
     )
   })
+
+  it('uses the Skill marketplace endpoints with project scope', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(
+      new Response(JSON.stringify({ ok: true, catalog: { items: [], sources: [] } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await skillsApi.marketplace('/workspace/project', true)
+    await skillsApi.installMarketplaceItem('vercel:skills/react', 'project', '/workspace/project')
+    await skillsApi.uninstallMarketplaceItem('vercel:skills/react', 'project', '/workspace/project')
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://127.0.0.1:3456/api/skills/marketplace?cwd=%2Fworkspace%2Fproject&refresh=true',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://127.0.0.1:3456/api/skills/marketplace/install',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          itemId: 'vercel:skills/react',
+          scope: 'project',
+          cwd: '/workspace/project',
+        }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://127.0.0.1:3456/api/skills/marketplace/uninstall',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
 })

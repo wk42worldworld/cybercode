@@ -161,6 +161,15 @@ export async function closeAgentBrowserSession(
   )
 }
 
+export function describeAgentBrowserUnavailableReason(): string | null {
+  if (resolveAgentBrowserBinary()) return null
+  const configuredPath = process.env.CYBER_AGENT_BROWSER_PATH?.trim()
+  if (configuredPath) {
+    return `the binary at CYBER_AGENT_BROWSER_PATH (${configuredPath}) does not exist`
+  }
+  return 'the agent-browser binary was not found next to the CyberCode executable or on PATH'
+}
+
 export function setupAgentBrowserMCP(): {
   mcpConfig: Record<string, ScopedMcpServerConfig>
   allowedTools: string[]

@@ -27,6 +27,7 @@ type ModelAutoSyncResponse = {
   result?: ProviderModelSyncResult
   warning?: string
 }
+type WarmupResponse = { ok: boolean; started?: boolean }
 type AuthStatusResponse = {
   hasAuth: boolean
   source: 'cybercode-provider' | 'original-settings' | 'env' | 'none'
@@ -101,6 +102,13 @@ export const providersApi = {
     return api.put<ModelAutoSyncResponse>(
       `/api/providers/${encodeURIComponent(id)}/models/auto-sync`,
       { enabled },
+    )
+  },
+
+  warmupProvider(id: string, modelId?: string) {
+    return api.post<WarmupResponse>(
+      `/api/providers/${encodeURIComponent(id)}/warmup`,
+      modelId ? { modelId } : undefined,
     )
   },
 }

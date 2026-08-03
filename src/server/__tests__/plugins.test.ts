@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { handlePluginsApi } from '../api/plugins.js'
+import { shouldDeletePluginData } from '../services/pluginService.js'
 
 let tmpDir: string
 let originalConfigDir: string | undefined
@@ -74,5 +75,10 @@ describe('Plugins API', () => {
     expect(typeof body.summary.enabled).toBe('number')
     expect(typeof body.summary.skills).toBe('number')
     expect(typeof body.summary.errors).toBe('number')
+  })
+
+  it('maps keepData to the inverse deleteDataDir flag', () => {
+    expect(shouldDeletePluginData(true)).toBe(false)
+    expect(shouldDeletePluginData(false)).toBe(true)
   })
 })

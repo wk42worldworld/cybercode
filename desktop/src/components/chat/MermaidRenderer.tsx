@@ -4,6 +4,7 @@ import mermaid from 'mermaid'
 import { Modal } from '../shared/Modal'
 import { CopyButton } from '../shared/CopyButton'
 import { Icon } from '../shared/Icon'
+import { useTranslation } from '../../i18n'
 
 type Props = {
   code: string
@@ -93,6 +94,7 @@ function parseSvgMetrics(svg: string): SvgMetrics | null {
 }
 
 export function MermaidRenderer({ code }: Props) {
+  const t = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const previewContentRef = useRef<HTMLDivElement>(null)
@@ -233,7 +235,7 @@ export function MermaidRenderer({ code }: Props) {
       <div className="my-4 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-error)]/50">
         <div className="flex items-center gap-2 border-b border-[var(--color-error)]/20 bg-[var(--color-error-container)] px-3 py-1.5">
           <Icon name="error" size={14} className="text-[var(--color-error)]" />
-          <span className="label-micro text-[var(--color-error)]">Mermaid Error</span>
+          <span className="label-micro text-[var(--color-error)]">{t('chat.mermaidError')}</span>
         </div>
         <div className="bg-[var(--color-error-container)]/30 px-3 py-2 font-[var(--font-mono)] text-[11px] text-[var(--color-error)]">
           {error}

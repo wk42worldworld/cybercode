@@ -8,8 +8,10 @@ export function isComputerUseSupportedPlatform(
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch,
 ): platform is 'darwin' | 'win32' | 'linux' {
+  // runtimeManager only bundles a win32-x64 asset — win32-arm64 must not
+  // register the tools, or every call fails downstream with no runtime.
   return platform === 'darwin' ||
-    platform === 'win32' ||
+    (platform === 'win32' && arch === 'x64') ||
     (platform === 'linux' && arch === 'x64')
 }
 

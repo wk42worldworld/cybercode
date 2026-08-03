@@ -12,6 +12,7 @@
  * POST   /api/providers/:id/activate — activate a saved provider
  * POST   /api/providers/official     — activate official (clear env)
  * POST   /api/providers/:id/test     — test a saved provider
+ * POST   /api/providers/:id/warmup   — pre-load a local provider's model
  * POST   /api/providers/:id/models/sync — synchronize the saved model catalog
  * PUT    /api/providers/:id/models/auto-sync — toggle periodic model synchronization
  * POST   /api/providers/test         — test unsaved config
@@ -36,6 +37,7 @@ import {
 } from '../services/providerModelSyncService.js'
 import { getSourceMetadata } from '../routing/sourceCatalog.js'
 import { peekModelsDevModels } from '../services/modelsDevCatalog.js'
+import { startProviderWarmup } from '../services/providerWarmupService.js'
 
 const providerService = new ProviderService()
 const MASKED_API_KEY = '••••••••'
@@ -135,6 +137,20 @@ export async function handleProvidersApi(
         return await handleCreate(req)
       }
       throw methodNotAllowed(req.method)
+    }
+
+    // POST /api/providers/:id/warmup — pre-load a local model (fire-and-forget)
+    if (action === 'warmup') {
+      if (req.method !== 'POST') throw methodNotAllowed(req.method)
+      let modelId: string | undefined
+      try {
+        const body = await req.json() as { modelId?: unknown }
+        if (typeof body?.modelId === 'string') modelId = body.modelId
+      } catch { /* no body is fine — uses the provider's main model */ }
+      const provider = await providerService.getProvider(id)
+      const result = startProviderWarmup(provider, modelId)
+      if (!result.ok) return Response.json(result)
+      return Response.json(result, { status: 202 })
     }
 
     // /api/providers/:id/activate

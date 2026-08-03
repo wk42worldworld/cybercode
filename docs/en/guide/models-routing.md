@@ -1,4 +1,4 @@
-# Models, Sync, and Smart Routing
+# Models, Sync, and Agent Routing
 
 CyberCode organizes model access into clear provider groups while sharing the same local configuration between the desktop app and terminal TUI. Custom providers appear in their own group first, followed by official API-key providers, major aggregators, OAuth, web sessions, image/video/audio providers, and local models. Custom compatible endpoints are no longer mixed with LM Studio or Ollama.
 
@@ -65,9 +65,9 @@ The TUI exposes the same controls:
 /provider auto-sync on|off [provider ID or name]
 ```
 
-## Build a smart route
+## Build an agent route
 
-Open **Models & Routing → Smart Routing**, create a route, add one or more available model targets, and select a strategy. CyberCode uses target availability, health history, and failure cooldowns to choose each attempt. If one target fails, it can move to the next target within the route's maximum-attempt limit.
+Open **Models & Agent Routing → Agent Routing**, create a route, add one or more available model targets, and select a strategy. CyberCode uses target availability, health history, and failure cooldowns to choose each attempt. If one target fails, it can move to the next target within the route's maximum-attempt limit.
 
 Only configured and currently usable targets participate. Targets with a missing key, disconnected OAuth session, disabled state, or an explicit non-routable flag are excluded.
 
@@ -86,7 +86,7 @@ The TUI can manage and activate routes directly:
 
 ## Share models with another agent
 
-The **Node** turns configured models and smart routes into independently authenticated OpenAI Chat Completions and Anthropic Messages endpoints. Receiving agents never receive the original provider keys. See [Agent Node](./agent-node.md) for setup, TUI commands, and verification.
+The **Node** turns configured models and agent routes into independently authenticated OpenAI Chat Completions and Anthropic Messages endpoints. Receiving agents never receive the original provider keys. See [Agent Node](./agent-node.md) for setup, TUI commands, and verification.
 
 ## Desktop and TUI ownership
 

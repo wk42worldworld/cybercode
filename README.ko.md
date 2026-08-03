@@ -149,7 +149,7 @@ Claude 공식 경로, Anthropic 호환 API, OpenAI 호환 공급자, 로컬 모�
 
 모델 및 라우팅 설정은 공식 API Key와 주요 aggregator, OAuth, 웹 세션, 이미지·비디오·오디오, 로컬/사용자 지정 endpoint 순서로 구성됩니다. 이름은 UI 언어를 따르고 같은 preset의 여러 Key는 함께 관리할 수 있지만 Kimi Code와 Kimi처럼 다른 제품은 별도 항목으로 유지됩니다.
 
-호환 `/models` endpoint는 수동 가져오기와 약 24시간 간격의 자동 동기화를 지원하며 직접 입력한 모델을 보존합니다. 스마트 route는 health, 실패 cooldown, failover를 관리합니다. Agent node는 원래 공급자 Key를 공개하지 않고 별도 `cc_...` Key로 OpenAI Chat Completions와 Anthropic Messages endpoint를 다른 Agent에 제공합니다.
+호환 `/models` endpoint는 수동 가져오기와 약 24시간 간격의 자동 동기화를 지원하며 직접 입력한 모델을 보존합니다. 에이전트 route는 health, 실패 cooldown, failover를 관리합니다. Agent node는 원래 공급자 Key를 공개하지 않고 별도 `cc_...` Key로 OpenAI Chat Completions와 Anthropic Messages endpoint를 다른 Agent에 제공합니다.
 
 웹 세션은 사용자가 명시적으로 제공한 Cookie/token만 사용하며 브라우저 데이터 읽기, CAPTCHA 처리, 계정 또는 지역 제한 우회를 하지 않습니다. 데스크톱과 TUI는 설정을 공유하며 TUI에서도 추가 proxy 없이 `/provider sync`, `/routing`, `/node`를 사용할 수 있습니다. [자세한 가이드](https://wk42worldworld.github.io/cybercode/ko/guide/models-routing).
 
@@ -174,7 +174,7 @@ CyberCode는 클라이언트, 서버, 데스크톱 셸, adapter, 기억, 검색,
 | 코딩 워크플로 | 파일 편집, 터미널 도구, 프로젝트 검색, 권한 모드, 슬래시 명령, 첨부, rewind, branch, 세션 재개 |
 | Agent 지능 | 영구 기억, 자기 진화 검토, 재사용 가능한 Skills, 하위 Agent, Agent Teams, 백그라운드 작업, worktree |
 | 컨텍스트 효율 | 동적 컨텍스트 윈도우, 자동 압축, Lite 정리, 스마트 가지치기, Lazy Programmer, Caveman, RTK, Code Graph |
-| 모델 연결 | 공식 API Key, aggregator, OAuth, 웹 세션, 미디어 목록, 로컬/사용자 지정 endpoint, 모델 동기화, 스마트 route, Agent node |
+| 모델 연결 | 공식 API Key, aggregator, OAuth, 웹 세션, 미디어 목록, 로컬/사용자 지정 endpoint, 모델 동기화, 에이전트 route, Agent node |
 | Web 및 도구 | 공급자 독립형 WebSearch, WebFetch, MCP, 플러그인, Computer Use, 환경 기반 도구 가용성 |
 | 인터페이스 | 크로스플랫폼 데스크톱 앱, 터미널 TUI, `--print` 헤드리스 모드, Telegram, Feishu |
 | 자동화 | 일회성 / 반복 예약 작업, 원격 승인, 백그라운드 Agent, 기계 판독형 JSON 출력 |

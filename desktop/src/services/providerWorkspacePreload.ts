@@ -21,6 +21,9 @@ export function preloadProviderWorkspace(): Promise<void> {
     mediaProvidersApi.catalog(),
     gatewayApi.status(),
     useRoutingStore.getState().fetchDashboard({ quiet: true }),
+    // Warm the lazily-loaded route graph editor chunk so the routing tab
+    // opens without a Suspense fallback flash.
+    import('../components/providers/route-graph/RouteGraphEditor'),
   ]).then(() => {})
 
   preloadPromise = request

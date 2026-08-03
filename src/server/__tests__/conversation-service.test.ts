@@ -369,7 +369,7 @@ describe('ConversationService', () => {
     expect(args).toContain('--replay-user-messages')
   })
 
-  test('sendMessage forwards steering metadata to the SDK session', () => {
+  test('immediate steering interrupts the active turn before forwarding the new input', () => {
     const service = new ConversationService() as any
     const sent: any[] = []
 
@@ -389,30 +389,55 @@ describe('ConversationService', () => {
       sdkMessages: [],
       initMessage: null,
       pendingPermissionRequests: new Map(),
+      isGenerating: true,
+      generationEpoch: 1,
     })
 
+    const interrupted = service.requestImmediateSteer('session-steer')
     const result = service.sendMessage(
       'session-steer',
       '补充一下当前任务',
       undefined,
       {
         uuid: '123e4567-e89b-12d3-a456-426614174000',
-        priority: 'next',
+        priority: 'now',
       },
     )
 
+    expect(interrupted).toBe(true)
     expect(result).toBe(true)
-    expect(sent).toHaveLength(1)
+    expect(sent).toHaveLength(2)
     expect(sent[0]).toMatchObject({
+      type: 'control_request',
+      request: { subtype: 'interrupt' },
+    })
+    expect(sent[1]).toMatchObject({
       type: 'user',
       uuid: '123e4567-e89b-12d3-a456-426614174000',
-      priority: 'next',
+      priority: 'now',
       message: {
         role: 'user',
         content: [{ type: 'text', text: '补充一下当前任务' }],
       },
     })
-    expect(Number.isNaN(Date.parse(sent[0].timestamp))).toBe(false)
+    expect(Number.isNaN(Date.parse(sent[1].timestamp))).toBe(false)
+  })
+
+  test('immediate steering leaves an idle SDK session untouched', () => {
+    const service = new ConversationService() as any
+    const sent: any[] = []
+    service.sessions.set('session-idle-steer', {
+      sdkSocket: {
+        send(data: string) {
+          sent.push(JSON.parse(data))
+        },
+      },
+      pendingOutbound: [],
+      isGenerating: false,
+    })
+
+    expect(service.requestImmediateSteer('session-idle-steer')).toBe(false)
+    expect(sent).toEqual([])
   })
 
   test('stopGeneration waits for the interrupted turn result without killing the reusable CLI', async () => {

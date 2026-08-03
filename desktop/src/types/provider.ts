@@ -94,6 +94,8 @@ export type ProviderTestStepResult = {
   modelUsed?: string
   modelMatched?: boolean
   httpStatus?: number
+  /** 'lightweight' = local liveness probe, 'deep' = full inference round-trip */
+  verificationMethod?: 'lightweight' | 'deep'
 }
 
 export type ProviderModelCheckResult = {

@@ -63,6 +63,7 @@ jobs:
       # Tauri runs build:sidecars again through beforeBuildCommand. Keep the
       # runtime embedded for both the explicit preparation and that nested run.
       CYBERCODE_EMBED_COMPUTER_USE_RUNTIME: '1'
+      CYBERCODE_P2P_BUILTIN_SIGNAL_URL: ${{ vars.CYBERCODE_P2P_SIGNAL_URL }}
 
     steps:
       - name: Checkout
@@ -210,6 +211,22 @@ jobs:
 
       - name: Validate built-in tool result contracts
         run: bun test src/tools/toolContract.test.ts
+
+      - name: Validate P2P signaling endpoint
+        shell: bash
+        run: |
+          if [[ ! "${CYBERCODE_P2P_BUILTIN_SIGNAL_URL:-}" =~ ^https:// ]]; then
+            echo "::error::Repository variable CYBERCODE_P2P_SIGNAL_URL must contain the public HTTPS signaling endpoint."
+            exit 1
+          fi
+          health_payload="$(curl --fail --silent --show-error --retry 3 --max-time 10 \
+            "${CYBERCODE_P2P_BUILTIN_SIGNAL_URL%/}/health")"
+          HEALTH_PAYLOAD="$health_payload" bun -e '
+            const health = JSON.parse(process.env.HEALTH_PAYLOAD || "{}")
+            if (health.status !== "ok" || health.transport !== "webrtc-signaling") {
+              throw new Error("P2P endpoint returned an unexpected health payload")
+            }
+          '
 
       - name: Validate desktop sidecar helpers
         working-directory: desktop
@@ -869,6 +886,43 @@ jobs:
 
           echo "Validated packaged runtime resources for $LABEL ($GRAMMAR_COUNT Code Graph grammars)"
 
+      - name: Sign portable release asset
+        shell: bash
+        working-directory: desktop
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          LABEL: ${{ matrix.label }}
+          ASSET_SUFFIX: ${{ matrix.asset_suffix }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          OUT="$RUNNER_TEMP/release-assets"
+          case "$LABEL" in
+            macOS-ARM64|macOS-x64)
+              # Tauri already signs the app updater archive used by portable mode.
+              asset="$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}_app.app.tar.gz"
+              ;;
+            Linux-x64)
+              asset="$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}_portable.AppImage"
+              bunx --no-install tauri signer sign "$asset"
+              ;;
+            Windows-x64)
+              asset="$OUT/CyberCode_${VERSION}_${ASSET_SUFFIX}_portable.zip"
+              bunx --no-install tauri signer sign "$asset"
+              ;;
+            *)
+              echo "::error::Unknown release label: $LABEL"
+              exit 1
+              ;;
+          esac
+
+          if [ ! -s "${asset}.sig" ]; then
+            echo "::error::Portable release signature is missing: ${asset}.sig"
+            exit 1
+          fi
+
       - name: Upload release assets artifact
         uses: actions/upload-artifact@v6
         with:
@@ -955,10 +1009,12 @@ jobs:
             "CyberCode_${VERSION}_linux_x64_deb.deb"
             "CyberCode_${VERSION}_linux_x64_deb.deb.sig"
             "CyberCode_${VERSION}_linux_x64_portable.AppImage"
+            "CyberCode_${VERSION}_linux_x64_portable.AppImage.sig"
             "CyberCode_${VERSION}_linux_x64.zip"
             "CyberCode_${VERSION}_windows_x64_nsis.exe"
             "CyberCode_${VERSION}_windows_x64_nsis.exe.sig"
             "CyberCode_${VERSION}_windows_x64_portable.zip"
+            "CyberCode_${VERSION}_windows_x64_portable.zip.sig"
             "CyberCode_${VERSION}_windows_x64.zip"
           )
 
@@ -1004,7 +1060,8 @@ jobs:
 
           const macArm = `CyberCode_${version}_macos_arm64_app.app.tar.gz`
           const macX64 = `CyberCode_${version}_macos_x64_app.app.tar.gz`
-          const linux = `CyberCode_${version}_linux_x64_deb.deb`
+          const linuxAppImage = `CyberCode_${version}_linux_x64_portable.AppImage`
+          const linuxDeb = `CyberCode_${version}_linux_x64_deb.deb`
           const windows = `CyberCode_${version}_windows_x64_nsis.exe`
           const portableAssets = {
             'macos-arm64': {
@@ -1034,8 +1091,9 @@ jobs:
               'darwin-aarch64-app': asset(assetBaseUrl, macArm),
               'darwin-x86_64': asset(assetBaseUrl, macX64),
               'darwin-x86_64-app': asset(assetBaseUrl, macX64),
-              'linux-x86_64': asset(assetBaseUrl, linux),
-              'linux-x86_64-deb': asset(assetBaseUrl, linux),
+              'linux-x86_64': asset(assetBaseUrl, linuxAppImage),
+              'linux-x86_64-appimage': asset(assetBaseUrl, linuxAppImage),
+              'linux-x86_64-deb': asset(assetBaseUrl, linuxDeb),
               'windows-x86_64': asset(assetBaseUrl, windows),
               'windows-x86_64-nsis': asset(assetBaseUrl, windows),
             },
@@ -1050,7 +1108,7 @@ jobs:
           }
 
           const portableManifest = {
-            schemaVersion: 1,
+            schemaVersion: 2,
             version,
             generatedAt: new Date().toISOString(),
             platforms: Object.fromEntries(
@@ -1063,6 +1121,7 @@ jobs:
                     ...definition,
                     size: bytes.byteLength,
                     sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+                    signature: sig(definition.filename),
                     urls: [
                       `${baseUrl}/${definition.filename}`,
                       `https://gh-proxy.com/${baseUrl}/${definition.filename}`,

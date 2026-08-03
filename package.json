@@ -9,6 +9,8 @@
   "scripts": {
     "cybercode": "bun run ./bin/cybercode",
     "start": "bun run ./bin/cybercode",
+    "p2p:signal": "bun run src/server/p2p/relayMain.ts",
+    "p2p:relay": "bun run p2p:signal",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
@@ -60,6 +62,7 @@
     "picomatch": "^4.0.4",
     "proper-lockfile": "^4.1.2",
     "qrcode": "^1.5.4",
+    "reflect-metadata": "0.2.2",
     "react": "^19.2.4",
     "react-reconciler": "^0.33.0",
     "semver": "^7.7.4",
@@ -75,6 +78,7 @@
     "usehooks-ts": "^3.1.1",
     "vscode-jsonrpc": "^8.2.1",
     "vscode-languageserver-types": "^3.17.5",
+    "werift": "0.22.4",
     "wrap-ansi": "^10.0.0",
     "ws": "^8.20.0",
     "xss": "^1.0.15",

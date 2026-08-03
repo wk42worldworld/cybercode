@@ -1,4 +1,4 @@
-import { createHash } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { homedir } from 'os'
 import {
   readFile,
@@ -14,6 +14,17 @@ import {
   resolve,
 } from 'path'
 import type { Database } from 'bun:sqlite'
+import {
+  backgroundScheduler,
+  type BackgroundScheduler,
+} from '../server/background/scheduler.js'
+import type { BackgroundTaskContext } from '../server/background/types.js'
+import {
+  KNOWLEDGE_FILE_WORKER_THRESHOLD_BYTES,
+  chunkKnowledgeText,
+  processKnowledgeFile,
+  type KnowledgeChunk,
+} from './chunker.js'
 import { openKnowledgeDb } from './db.js'
 import type {
   KnowledgeDocument,
@@ -26,9 +37,8 @@ import type {
 
 const MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024
 const MAX_SOURCE_FILES = 5_000
-const CHUNK_TARGET_CHARS = 5_000
-const CHUNK_OVERLAP_CHARS = 300
 const SEARCH_LIMIT_MAX = 100
+const CHUNK_WRITE_BATCH_SIZE = 8
 
 const IGNORED_DIRECTORIES = new Set([
   '.git',
@@ -83,6 +93,7 @@ type DocumentRow = {
   mtime_ms: number
   indexed_at: string
   error: string | null
+  is_active: number
 }
 
 type IndexedFile = {
@@ -94,20 +105,56 @@ type ParsedDocument = {
   mode: KnowledgeDocumentIndexMode
   content: string
   error: string | null
+  chunks?: KnowledgeChunk[]
+  contentHash?: string
+}
+
+type KnowledgeServiceOptions = {
+  backgroundScheduler?: BackgroundScheduler
+  parseDocument?: (
+    filePath: string,
+    sizeBytes: number,
+    signal?: AbortSignal,
+  ) => Promise<ParsedDocument>
 }
 
 export class KnowledgeService {
   private readonly db: Database
+  private readonly backgroundScheduler: BackgroundScheduler
+  private readonly schedulerResourceKey: string
+  private readonly parseDocumentImpl: NonNullable<KnowledgeServiceOptions['parseDocument']>
   private readonly jobs = new Map<string, Promise<void>>()
+  private readonly jobIds = new Map<string, string>()
+  private readonly rerunRequested = new Set<string>()
   private readonly cancelled = new Set<string>()
+  private readonly removing = new Set<string>()
+  private readonly removalJobs = new Map<string, Promise<void>>()
 
-  constructor(dbPath?: string) {
+  constructor(dbPath?: string, options: KnowledgeServiceOptions = {}) {
     this.db = openKnowledgeDb(dbPath)
+    this.backgroundScheduler = options.backgroundScheduler ?? backgroundScheduler
+    this.schedulerResourceKey = `knowledge-db:${resolve(dbPath ?? 'default')}`
+    this.parseDocumentImpl = options.parseDocument ?? parseDocument
     this.db.exec(`
       UPDATE knowledge_sources
       SET status = 'pending', error = NULL
       WHERE status = 'indexing'
     `)
+    this.db.exec(`
+      UPDATE knowledge_sources
+      SET status = 'pending', error = NULL
+      WHERE status <> 'removing' AND id IN (
+        SELECT DISTINCT source_id FROM knowledge_documents WHERE is_active = 0
+      )
+    `)
+    const interruptedRemovals = this.db.query<{ id: string }, []>(`
+      SELECT id FROM knowledge_sources WHERE status = 'removing'
+    `).all()
+    for (const { id } of interruptedRemovals) {
+      this.removing.add(id)
+      this.cancelled.add(id)
+      void this.scheduleSourceRemoval(id).catch(() => undefined)
+    }
   }
 
   listSources(): KnowledgeSource[] {
@@ -123,6 +170,10 @@ export class KnowledgeService {
   }
 
   getSource(id: string): KnowledgeSource | null {
+    return this.getSourceRaw(id)
+  }
+
+  private getSourceRaw(id: string): KnowledgeSource | null {
     const row = this.db.query<SourceRow, [string]>(`
       SELECT * FROM knowledge_sources WHERE id = ?
     `).get(id)
@@ -137,6 +188,7 @@ export class KnowledgeService {
     if (cleanPaths.length === 0) throw new Error('At least one source path is required')
 
     const sourceIds: string[] = []
+    const indexJobs: Promise<void>[] = []
     for (const inputPath of cleanPaths) {
       const normalizedPath = await validateSourcePath(inputPath)
       const sourceStat = await stat(normalizedPath)
@@ -144,7 +196,11 @@ export class KnowledgeService {
       const id = stableId(normalizedPath)
       const now = new Date().toISOString()
 
+      const removal = this.removalJobs.get(id)
+      if (removal) await removal
+
       this.cancelled.delete(id)
+      this.removing.delete(id)
       this.db.query(`
         INSERT INTO knowledge_sources (
           id, path, name, kind, status, error, created_at, updated_at
@@ -157,11 +213,12 @@ export class KnowledgeService {
           updated_at = excluded.updated_at
       `).run(id, normalizedPath, basename(normalizedPath), kind, now, now)
       sourceIds.push(id)
-      this.scheduleIndex(id)
+      const job = this.scheduleIndex(id, true)
+      if (job) indexJobs.push(job)
     }
 
     if (options.waitForIndex) {
-      await Promise.all(sourceIds.map((id) => this.jobs.get(id)))
+      await Promise.all(indexJobs)
     }
     return sourceIds
       .map((id) => this.getSource(id))
@@ -179,21 +236,75 @@ export class KnowledgeService {
       SET status = 'pending', error = NULL, updated_at = ?
       WHERE id = ?
     `).run(new Date().toISOString(), id)
-    this.scheduleIndex(id)
-    if (options.waitForIndex) await this.jobs.get(id)
+    const job = this.scheduleIndex(id, true)
+    if (options.waitForIndex) await job
     const source = this.getSource(id)
     if (!source) throw new Error('Knowledge source not found')
     return source
   }
 
-  removeSource(id: string): boolean {
-    const exists = Boolean(this.getSource(id))
+  async removeSource(id: string): Promise<boolean> {
+    const activeRemoval = this.removalJobs.get(id)
+    if (activeRemoval) {
+      await activeRemoval
+      return true
+    }
+    const exists = Boolean(this.getSourceRaw(id))
     if (!exists) return false
+    this.removing.add(id)
     this.cancelled.add(id)
-    this.deleteSourceIndex(id)
-    this.db.query('DELETE FROM knowledge_sources WHERE id = ?').run(id)
-    this.checkpoint()
+    this.db.query(`
+      UPDATE knowledge_sources
+      SET status = 'removing', error = NULL, updated_at = ?
+      WHERE id = ?
+    `).run(new Date().toISOString(), id)
+    const jobId = this.jobIds.get(id)
+    if (jobId) this.backgroundScheduler.cancel(jobId, 'Knowledge source was removed')
+    await this.scheduleSourceRemoval(id)
     return true
+  }
+
+  private scheduleSourceRemoval(id: string): Promise<void> {
+    const existingRemoval = this.removalJobs.get(id)
+    if (existingRemoval) return existingRemoval
+    const activeJob = this.jobs.get(id)
+    const removal = Promise.resolve(activeJob)
+      .catch(() => undefined)
+      .then(() => this.backgroundScheduler.enqueue({
+        type: 'knowledge-remove',
+        key: `${this.schedulerResourceKey}:${id}`,
+        priority: 1,
+        lane: 'sqlite-write',
+        resourceKey: this.schedulerResourceKey,
+        dedupe: 'join',
+        run: context => this.finalizeSourceRemoval(id, context),
+      }).promise)
+      .catch(error => {
+        if (!this.getSourceRaw(id)) return
+        if (isAbortError(error)) throw error
+        this.removing.delete(id)
+        this.cancelled.delete(id)
+        this.db.query(`
+          UPDATE knowledge_sources
+          SET status = 'error', error = ?, updated_at = ?
+          WHERE id = ?
+        `).run(
+          error instanceof Error ? error.message : String(error),
+          new Date().toISOString(),
+          id,
+        )
+        throw error
+      })
+      .finally(() => {
+        this.removalJobs.delete(id)
+        const source = this.getSourceRaw(id)
+        if (source && source.status !== 'removing') {
+          this.removing.delete(id)
+          this.cancelled.delete(id)
+        }
+      })
+    this.removalJobs.set(id, removal)
+    return removal
   }
 
   listDocuments(options: { sourceId?: string; limit?: number } = {}): KnowledgeDocument[] {
@@ -201,16 +312,19 @@ export class KnowledgeService {
     const rows = options.sourceId
       ? this.db.query<DocumentRow, [string, number]>(`
           SELECT * FROM knowledge_documents
-          WHERE source_id = ?
+          WHERE source_id = ? AND is_active = 1
           ORDER BY relative_path COLLATE NOCASE
           LIMIT ?
         `).all(options.sourceId, limit)
       : this.db.query<DocumentRow, [number]>(`
           SELECT * FROM knowledge_documents
+          WHERE is_active = 1
           ORDER BY indexed_at DESC, relative_path COLLATE NOCASE
           LIMIT ?
         `).all(limit)
-    return rows.map(mapDocument)
+    return rows
+      .filter(row => !this.removing.has(row.source_id))
+      .map(mapDocument)
   }
 
   search(query: string, options: { sourceId?: string; limit?: number } = {}): KnowledgeSearchResult[] {
@@ -235,6 +349,7 @@ export class KnowledgeService {
     }
 
     return [...resultMap.values()]
+      .filter(result => !this.removing.has(result.sourceId))
       .sort((a, b) => a.score - b.score)
       .slice(0, limit)
   }
@@ -255,18 +370,22 @@ export class KnowledgeService {
         COALESCE(SUM(CASE WHEN status IN ('pending', 'indexing') THEN 1 ELSE 0 END), 0) AS indexing_count
       FROM knowledge_sources
     `).get()
-    return {
+    const stats = {
       sourceCount: row?.source_count ?? 0,
       documentCount: row?.document_count ?? 0,
       chunkCount: row?.chunk_count ?? 0,
       sizeBytes: row?.size_bytes ?? 0,
       indexingCount: row?.indexing_count ?? 0,
     }
+    return stats
   }
 
   async waitForIdleForTesting(): Promise<void> {
-    while (this.jobs.size > 0) {
-      await Promise.all([...this.jobs.values()])
+    while (this.jobs.size > 0 || this.removalJobs.size > 0) {
+      await Promise.allSettled([
+        ...this.jobs.values(),
+        ...this.removalJobs.values(),
+      ])
     }
   }
 
@@ -275,29 +394,101 @@ export class KnowledgeService {
     this.db.close()
   }
 
-  private scheduleIndex(id: string): void {
-    if (this.jobs.has(id)) return
-    const job = this.indexSource(id)
-      .catch((error) => {
-        if (this.cancelled.has(id) || !this.getSource(id)) return
-        const now = new Date().toISOString()
-        this.db.query(`
-          UPDATE knowledge_sources
-          SET status = 'error', error = ?, updated_at = ?
-          WHERE id = ?
-        `).run(error instanceof Error ? error.message : String(error), now, id)
-      })
-      .finally(() => {
-        this.jobs.delete(id)
-        this.cancelled.delete(id)
-      })
+  private scheduleIndex(
+    id: string,
+    rerunIfActive = false,
+  ): Promise<void> | undefined {
+    if (this.removing.has(id)) return undefined
+    const active = this.jobs.get(id)
+    if (active) {
+      if (rerunIfActive) this.rerunRequested.add(id)
+      return active
+    }
+
+    const job = Promise.resolve().then(() => this.runIndexRounds(id))
     this.jobs.set(id, job)
+    return job
   }
 
-  private async indexSource(id: string): Promise<void> {
+  private async runIndexRounds(id: string): Promise<void> {
+    try {
+      while (!this.removing.has(id) && this.getSourceRaw(id)) {
+        this.rerunRequested.delete(id)
+        let handle
+        try {
+          handle = this.backgroundScheduler.enqueue({
+            type: 'knowledge-index',
+            key: `${this.schedulerResourceKey}:${id}`,
+            priority: 2,
+            lane: 'sqlite-write',
+            resourceKey: this.schedulerResourceKey,
+            dedupe: 'join',
+            run: context => this.indexSource(id, context),
+          })
+        } catch (error) {
+          this.recordIndexFailure(id, error)
+          return
+        }
+
+        this.jobIds.set(id, handle.id)
+        let interrupted = false
+        try {
+          await handle.promise
+        } catch (error) {
+          interrupted = this.recordIndexFailure(id, error)
+        } finally {
+          if (this.jobIds.get(id) === handle.id) this.jobIds.delete(id)
+        }
+
+        if (
+          interrupted
+          || this.cancelled.has(id)
+          || this.removing.has(id)
+          || !this.getSourceRaw(id)
+        ) {
+          return
+        }
+        if (!this.rerunRequested.has(id)) return
+        this.markSourcePending(id)
+      }
+    } finally {
+      this.jobs.delete(id)
+      this.jobIds.delete(id)
+      this.rerunRequested.delete(id)
+      if (!this.removing.has(id)) this.cancelled.delete(id)
+    }
+  }
+
+  private recordIndexFailure(id: string, error: unknown): boolean {
+    if (this.removing.has(id) || !this.getSourceRaw(id)) return true
+    if (isRecoverableIndexInterruption(error)) {
+      if (!this.cancelled.has(id)) this.markSourcePending(id)
+      return true
+    }
+    if (this.cancelled.has(id)) return true
+    const now = new Date().toISOString()
+    this.db.query(`
+      UPDATE knowledge_sources
+      SET status = 'error', error = ?, updated_at = ?
+      WHERE id = ?
+    `).run(error instanceof Error ? error.message : String(error), now, id)
+    return false
+  }
+
+  private markSourcePending(id: string): void {
+    this.db.query(`
+      UPDATE knowledge_sources
+      SET status = 'pending', error = NULL, updated_at = ?
+      WHERE id = ? AND status <> 'removing'
+    `).run(new Date().toISOString(), id)
+  }
+
+  private async indexSource(id: string, context: BackgroundTaskContext): Promise<void> {
     const source = this.getSource(id)
-    if (!source || this.cancelled.has(id)) return
+    if (!source) return
+    this.throwIfIndexCancelled(id, context)
     const startedAt = new Date().toISOString()
+    this.throwIfIndexCancelled(id, context)
     this.db.query(`
       UPDATE knowledge_sources
       SET status = 'indexing', error = NULL, updated_at = ?
@@ -308,40 +499,64 @@ export class KnowledgeService {
     try {
       files = source.kind === 'file'
         ? [{ path: source.path, relativePath: basename(source.path) }]
-        : await collectFiles(source.path)
+        : await collectFiles(source.path, context.signal)
+      this.throwIfIndexCancelled(id, context)
     } catch (error) {
+      context.signal.throwIfAborted()
       throw new Error(`Unable to scan source: ${error instanceof Error ? error.message : String(error)}`)
     }
 
-    if (this.cancelled.has(id) || !this.getSource(id)) return
+    this.throwIfIndexCancelled(id, context)
+    if (!this.getSource(id)) return
+    await this.cleanupInactiveDocuments(id, context.yieldIfNeeded, context.signal)
+    this.throwIfIndexCancelled(id, context)
     const currentPaths = new Set(files.map((file) => file.path))
     const existingRows = this.db.query<DocumentRow, [string]>(`
-      SELECT * FROM knowledge_documents WHERE source_id = ?
+      SELECT * FROM knowledge_documents WHERE source_id = ? AND is_active = 1
     `).all(id)
     const existingByPath = new Map(existingRows.map((row) => [row.path, row]))
 
     for (const existing of existingRows) {
-      if (!currentPaths.has(existing.path)) this.deleteDocument(existing.id)
+      this.throwIfIndexCancelled(id, context)
+      if (!currentPaths.has(existing.path)) {
+        this.db.query('UPDATE knowledge_documents SET is_active = 0 WHERE id = ?').run(existing.id)
+        await this.deleteDocumentBatched(existing.id, context.yieldIfNeeded, context.signal)
+      }
     }
 
-    for (const file of files) {
-      if (this.cancelled.has(id) || !this.getSource(id)) return
-      await this.indexFile(source, file, existingByPath.get(file.path))
+    for (const [index, file] of files.entries()) {
+      this.throwIfIndexCancelled(id, context)
+      if (!this.getSource(id)) return
+      await this.indexFile(source, file, existingByPath.get(file.path), context)
+      this.throwIfIndexCancelled(id, context)
+      context.report({
+        stage: 'indexing',
+        completed: index + 1,
+        total: files.length,
+        message: file.relativePath,
+      })
+      await context.checkpoint({ sourceId: id, completedFiles: index + 1 })
+      this.throwIfIndexCancelled(id, context)
     }
 
-    if (this.cancelled.has(id) || !this.getSource(id)) return
+    this.throwIfIndexCancelled(id, context)
+    if (!this.getSource(id)) return
     const counts = this.db.query<{
       document_count: number
       chunk_count: number
       size_bytes: number
     }, [string, string, string]>(`
       SELECT
-        (SELECT COUNT(*) FROM knowledge_documents WHERE source_id = ?) AS document_count,
-        (SELECT COUNT(*) FROM knowledge_chunks WHERE source_id = ?) AS chunk_count,
-        (SELECT COALESCE(SUM(size_bytes), 0) FROM knowledge_documents WHERE source_id = ?) AS size_bytes
+        (SELECT COUNT(*) FROM knowledge_documents WHERE source_id = ? AND is_active = 1) AS document_count,
+        (SELECT COUNT(*) FROM knowledge_chunks c
+          JOIN knowledge_documents d ON d.id = c.document_id
+          WHERE c.source_id = ? AND d.is_active = 1) AS chunk_count,
+        (SELECT COALESCE(SUM(size_bytes), 0) FROM knowledge_documents
+          WHERE source_id = ? AND is_active = 1) AS size_bytes
     `).get(id, id, id)
     const now = new Date().toISOString()
     const documentCount = counts?.document_count ?? 0
+    this.throwIfIndexCancelled(id, context)
     this.db.query(`
       UPDATE knowledge_sources
       SET status = ?, error = NULL, document_count = ?, chunk_count = ?,
@@ -356,81 +571,133 @@ export class KnowledgeService {
       now,
       id,
     )
+    this.throwIfIndexCancelled(id, context)
     this.checkpoint()
   }
 
   private async indexFile(
     source: KnowledgeSource,
     file: IndexedFile,
-    existing?: DocumentRow,
+    existing: DocumentRow | undefined,
+    context: BackgroundTaskContext,
   ): Promise<void> {
+    this.throwIfIndexCancelled(source.id, context)
     let fileStat
     try {
       fileStat = await stat(file.path)
+      this.throwIfIndexCancelled(source.id, context)
     } catch {
-      if (existing) this.deleteDocument(existing.id)
+      this.throwIfIndexCancelled(source.id, context)
+      if (existing) {
+        this.db.query('UPDATE knowledge_documents SET is_active = 0 WHERE id = ?').run(existing.id)
+        await this.deleteDocumentBatched(existing.id, context.yieldIfNeeded, context.signal)
+      }
       return
     }
     if (!fileStat.isFile()) return
     if (existing && existing.mtime_ms === fileStat.mtimeMs && existing.size_bytes === fileStat.size) return
 
-    const parsed = await parseDocument(file.path, fileStat.size)
+    const parsed = await this.parseDocumentImpl(file.path, fileStat.size, context.signal)
+    this.throwIfIndexCancelled(source.id, context)
     const title = basename(file.path)
     const extension = extname(file.path).toLowerCase()
-    const documentId = stableId(`${source.id}\0${file.path}`)
+    const stableDocumentId = stableId(`${source.id}\0${file.path}`)
+    const documentId = `${stableDocumentId}:staging:${randomUUID()}`
     const indexedAt = new Date().toISOString()
-    const contentHash = parsed.content
+    const contentHash = parsed.contentHash ?? (parsed.content
       ? createHash('sha256').update(parsed.content).digest('hex')
-      : `${fileStat.size}:${fileStat.mtimeMs}`
+      : `${fileStat.size}:${fileStat.mtimeMs}`)
 
-    if (existing) this.deleteDocument(existing.id)
-    this.db.query(`
-      INSERT INTO knowledge_documents (
-        id, source_id, path, relative_path, title, extension, index_mode,
-        size_bytes, mtime_ms, content_hash, indexed_at, error
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      documentId,
-      source.id,
-      file.path,
-      file.relativePath,
-      title,
-      extension,
-      parsed.mode,
-      fileStat.size,
-      fileStat.mtimeMs,
-      contentHash,
-      indexedAt,
-      parsed.error,
-    )
+    const chunks = parsed.chunks ?? (parsed.content
+      ? await chunkKnowledgeText(parsed.content, {
+          signal: context.signal,
+          yieldIfNeeded: context.yieldIfNeeded,
+        })
+      : [{ heading: '', content: `${title}\n${file.relativePath}` }])
+    this.throwIfIndexCancelled(source.id, context)
+    let stagingCreated = false
+    let activated = false
+    try {
+      this.db.query(`
+        INSERT INTO knowledge_documents (
+          id, source_id, path, relative_path, title, extension, index_mode,
+          size_bytes, mtime_ms, content_hash, indexed_at, error, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      `).run(
+        documentId,
+        source.id,
+        file.path,
+        file.relativePath,
+        title,
+        extension,
+        parsed.mode,
+        fileStat.size,
+        fileStat.mtimeMs,
+        contentHash,
+        indexedAt,
+        parsed.error,
+      )
+      stagingCreated = true
 
-    const chunks = parsed.content
-      ? chunkText(parsed.content)
-      : [{ heading: '', content: `${title}\n${file.relativePath}` }]
-    const insertChunk = this.db.query(`
-      INSERT INTO knowledge_chunks (source_id, document_id, ordinal, heading, content)
-      VALUES (?, ?, ?, ?, ?)
-    `)
-    const insertFts = this.db.query(`
-      INSERT INTO knowledge_fts (
-        rowid, chunk_id, source_id, document_id, title, path, content
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
-    const insertTrigram = this.db.query(`
-      INSERT INTO knowledge_fts_trigram (
-        rowid, chunk_id, source_id, document_id, title, path, content
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `)
+      const insertChunk = this.db.query(`
+        INSERT INTO knowledge_chunks (source_id, document_id, ordinal, heading, content)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+      const insertFts = this.db.query(`
+        INSERT INTO knowledge_fts (
+          rowid, chunk_id, source_id, document_id, title, path, content
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `)
+      const insertTrigram = this.db.query(`
+        INSERT INTO knowledge_fts_trigram (
+          rowid, chunk_id, source_id, document_id, title, path, content
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `)
+      const insertBatch = this.db.transaction((batch: Array<[number, typeof chunks[number]]>) => {
+        for (const [index, chunk] of batch) {
+          this.throwIfIndexCancelled(source.id, context)
+          const result = insertChunk.run(source.id, documentId, index, chunk.heading, chunk.content)
+          const chunkId = Number(result.lastInsertRowid)
+          const searchableContent = chunk.heading
+            ? `${chunk.heading}\n${chunk.content}`
+            : chunk.content
+          insertFts.run(chunkId, chunkId, source.id, documentId, title, file.relativePath, searchableContent)
+          insertTrigram.run(chunkId, chunkId, source.id, documentId, title, file.relativePath, searchableContent)
+        }
+      })
 
-    chunks.forEach((chunk, index) => {
-      const result = insertChunk.run(source.id, documentId, index, chunk.heading, chunk.content)
-      const chunkId = Number(result.lastInsertRowid)
-      const searchableContent = chunk.heading
-        ? `${chunk.heading}\n${chunk.content}`
-        : chunk.content
-      insertFts.run(chunkId, chunkId, source.id, documentId, title, file.relativePath, searchableContent)
-      insertTrigram.run(chunkId, chunkId, source.id, documentId, title, file.relativePath, searchableContent)
-    })
+      for (let offset = 0; offset < chunks.length; offset += CHUNK_WRITE_BATCH_SIZE) {
+        this.throwIfIndexCancelled(source.id, context)
+        const batch = chunks
+          .slice(offset, offset + CHUNK_WRITE_BATCH_SIZE)
+          .map((chunk, index) => [offset + index, chunk] as [number, typeof chunk])
+        insertBatch(batch)
+        await context.yieldIfNeeded()
+        this.throwIfIndexCancelled(source.id, context)
+      }
+
+      this.throwIfIndexCancelled(source.id, context)
+      this.db.transaction(() => {
+        if (existing) {
+          this.db.query(`
+            UPDATE knowledge_documents SET is_active = 0
+            WHERE id = ? AND is_active = 1
+          `).run(existing.id)
+        }
+        this.db.query(`
+          UPDATE knowledge_documents SET is_active = 1 WHERE id = ?
+        `).run(documentId)
+      })()
+      activated = true
+    } finally {
+      if (stagingCreated && !activated) {
+        await this.deleteDocumentBatched(documentId, context.yieldIfNeeded).catch(() => undefined)
+      }
+    }
+
+    if (existing) {
+      await this.deleteDocumentBatched(existing.id, context.yieldIfNeeded).catch(() => undefined)
+    }
   }
 
   private searchFts(
@@ -454,7 +721,7 @@ export class KnowledgeService {
         FROM ${table} f
         JOIN knowledge_sources s ON s.id = f.source_id
         JOIN knowledge_documents d ON d.id = f.document_id
-        WHERE ${table} MATCH ? ${sourceClause}
+        WHERE ${table} MATCH ? AND d.is_active = 1 ${sourceClause}
         ORDER BY score
         LIMIT ?
       `
@@ -484,6 +751,7 @@ export class KnowledgeService {
       JOIN knowledge_sources s ON s.id = c.source_id
       JOIN knowledge_documents d ON d.id = c.document_id
       WHERE (c.content LIKE ? ESCAPE '\\' OR d.title LIKE ? ESCAPE '\\' OR d.path LIKE ? ESCAPE '\\')
+        AND d.is_active = 1
         ${sourceClause}
       ORDER BY d.indexed_at DESC
       LIMIT ?
@@ -496,25 +764,77 @@ export class KnowledgeService {
     return rows.map(mapSearchResult)
   }
 
-  private deleteSourceIndex(sourceId: string): void {
+  private async cleanupInactiveDocuments(
+    sourceId: string,
+    yieldIfNeeded: () => Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const documents = this.db.query<{ id: string }, [string]>(`
+      SELECT id FROM knowledge_documents
+      WHERE source_id = ? AND is_active = 0
+    `).all(sourceId)
+    for (const document of documents) {
+      signal?.throwIfAborted()
+      await this.deleteDocumentBatched(document.id, yieldIfNeeded, signal)
+    }
+  }
+
+  private async deleteSourceIndex(
+    sourceId: string,
+    context: BackgroundTaskContext,
+  ): Promise<void> {
     const documents = this.db.query<{ id: string }, [string]>(`
       SELECT id FROM knowledge_documents WHERE source_id = ?
     `).all(sourceId)
-    for (const document of documents) this.deleteDocument(document.id)
+    for (const document of documents) {
+      context.signal.throwIfAborted()
+      await this.deleteDocumentBatched(
+        document.id,
+        context.yieldIfNeeded,
+        context.signal,
+      )
+    }
   }
 
-  private deleteDocument(documentId: string): void {
+  private async deleteDocumentBatched(
+    documentId: string,
+    yieldIfNeeded: () => Promise<void>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    signal?.throwIfAborted()
     const chunks = this.db.query<{ id: number }, [string]>(`
       SELECT id FROM knowledge_chunks WHERE document_id = ?
     `).all(documentId)
     const deleteFts = this.db.query('DELETE FROM knowledge_fts WHERE rowid = ?')
     const deleteTrigram = this.db.query('DELETE FROM knowledge_fts_trigram WHERE rowid = ?')
-    for (const chunk of chunks) {
-      deleteFts.run(chunk.id)
-      deleteTrigram.run(chunk.id)
+    const deleteChunk = this.db.query('DELETE FROM knowledge_chunks WHERE id = ?')
+    const deleteBatch = this.db.transaction((batch: Array<{ id: number }>) => {
+      for (const chunk of batch) {
+        signal?.throwIfAborted()
+        deleteFts.run(chunk.id)
+        deleteTrigram.run(chunk.id)
+        deleteChunk.run(chunk.id)
+      }
+    })
+    for (let offset = 0; offset < chunks.length; offset += 32) {
+      signal?.throwIfAborted()
+      deleteBatch(chunks.slice(offset, offset + 32))
+      await yieldIfNeeded()
     }
-    this.db.query('DELETE FROM knowledge_chunks WHERE document_id = ?').run(documentId)
+    signal?.throwIfAborted()
     this.db.query('DELETE FROM knowledge_documents WHERE id = ?').run(documentId)
+  }
+
+  private async finalizeSourceRemoval(
+    id: string,
+    context: BackgroundTaskContext,
+  ): Promise<void> {
+    await this.deleteSourceIndex(id, context)
+    context.signal.throwIfAborted()
+    this.db.query('DELETE FROM knowledge_sources WHERE id = ?').run(id)
+    this.checkpoint()
+    this.cancelled.delete(id)
+    this.removing.delete(id)
   }
 
   private checkpoint(): void {
@@ -524,6 +844,24 @@ export class KnowledgeService {
       // The active journal mode may not support checkpoints.
     }
   }
+
+  private throwIfIndexCancelled(id: string, context: BackgroundTaskContext): void {
+    context.signal.throwIfAborted()
+    if (!this.cancelled.has(id) && !this.removing.has(id)) return
+    const error = new Error('Knowledge indexing was cancelled')
+    error.name = 'AbortError'
+    throw error
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function isRecoverableIndexInterruption(error: unknown): boolean {
+  return isAbortError(error)
+    || (error instanceof Error
+      && error.message === 'Background scheduler is shutting down')
 }
 
 async function validateSourcePath(inputPath: string): Promise<string> {
@@ -542,19 +880,26 @@ async function validateSourcePath(inputPath: string): Promise<string> {
   return normalizedPath
 }
 
-async function collectFiles(rootPath: string): Promise<IndexedFile[]> {
+async function collectFiles(
+  rootPath: string,
+  signal?: AbortSignal,
+): Promise<IndexedFile[]> {
   const files: IndexedFile[] = []
   const queue = [rootPath]
   while (queue.length > 0 && files.length < MAX_SOURCE_FILES) {
+    signal?.throwIfAborted()
     const directory = queue.shift()!
     let entries
     try {
       entries = await readdir(directory, { withFileTypes: true })
+      signal?.throwIfAborted()
     } catch {
+      signal?.throwIfAborted()
       continue
     }
     entries.sort((a, b) => a.name.localeCompare(b.name))
     for (const entry of entries) {
+      signal?.throwIfAborted()
       if (files.length >= MAX_SOURCE_FILES) break
       if (entry.isSymbolicLink()) continue
       const entryPath = resolve(directory, entry.name).normalize('NFC')
@@ -571,7 +916,12 @@ async function collectFiles(rootPath: string): Promise<IndexedFile[]> {
   return files
 }
 
-async function parseDocument(filePath: string, sizeBytes: number): Promise<ParsedDocument> {
+async function parseDocument(
+  filePath: string,
+  sizeBytes: number,
+  signal?: AbortSignal,
+): Promise<ParsedDocument> {
+  signal?.throwIfAborted()
   const extension = extname(filePath).toLowerCase()
   if (sizeBytes > MAX_TEXT_FILE_BYTES) {
     return {
@@ -588,7 +938,19 @@ async function parseDocument(filePath: string, sizeBytes: number): Promise<Parse
     }
   }
 
+  if (sizeBytes >= KNOWLEDGE_FILE_WORKER_THRESHOLD_BYTES) {
+    const processed = await processKnowledgeFile(filePath, { signal })
+    return {
+      mode: processed.mode,
+      content: '',
+      chunks: processed.mode === 'text' ? processed.chunks : undefined,
+      contentHash: processed.contentHash ?? undefined,
+      error: processed.error,
+    }
+  }
+
   const fileBuffer = await readFile(filePath)
+  signal?.throwIfAborted()
   const sample = fileBuffer.subarray(0, Math.min(fileBuffer.length, 8_192))
   if (sample.includes(0)) {
     return {
@@ -602,52 +964,6 @@ async function parseDocument(filePath: string, sizeBytes: number): Promise<Parse
     content: fileBuffer.toString('utf8').replace(/\r\n?/g, '\n').trim(),
     error: null,
   }
-}
-
-function chunkText(content: string): Array<{ heading: string; content: string }> {
-  if (!content) return []
-  const sections = splitMarkdownSections(content)
-  const chunks: Array<{ heading: string; content: string }> = []
-  for (const section of sections) {
-    let cursor = 0
-    while (cursor < section.content.length) {
-      let end = Math.min(section.content.length, cursor + CHUNK_TARGET_CHARS)
-      if (end < section.content.length) {
-        const paragraphBoundary = section.content.lastIndexOf('\n\n', end)
-        const lineBoundary = section.content.lastIndexOf('\n', end)
-        const boundary = Math.max(paragraphBoundary, lineBoundary)
-        if (boundary > cursor + Math.floor(CHUNK_TARGET_CHARS * 0.55)) end = boundary
-      }
-      const value = section.content.slice(cursor, end).trim()
-      if (value) chunks.push({ heading: section.heading, content: value })
-      if (end >= section.content.length) break
-      cursor = Math.max(cursor + 1, end - CHUNK_OVERLAP_CHARS)
-    }
-  }
-  return chunks
-}
-
-function splitMarkdownSections(content: string): Array<{ heading: string; content: string }> {
-  const lines = content.split('\n')
-  const sections: Array<{ heading: string; content: string }> = []
-  let heading = ''
-  let body: string[] = []
-  const flush = () => {
-    const value = body.join('\n').trim()
-    if (value) sections.push({ heading, content: value })
-    body = []
-  }
-  for (const line of lines) {
-    const match = /^(#{1,6})\s+(.+)$/.exec(line)
-    if (match) {
-      flush()
-      heading = match[2]!.trim()
-    } else {
-      body.push(line)
-    }
-  }
-  flush()
-  return sections.length > 0 ? sections : [{ heading: '', content }]
 }
 
 function stableId(value: string): string {

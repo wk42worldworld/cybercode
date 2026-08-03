@@ -84,13 +84,13 @@ export function AssistantMessage({
             onPointerLeave={scheduleHideActions}
             className={
               layout === 'document'
-                ? 'pointer-events-auto w-full rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[var(--color-text-primary)]'
+                ? 'pointer-events-auto w-full rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
                 : useStableBubbleWidth
-                  ? 'pointer-events-auto w-full max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[var(--color-text-primary)]'
-                  : 'pointer-events-auto w-fit max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[24px] py-[16px] text-[var(--color-text-primary)]'
+                  ? 'pointer-events-auto w-full max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
+                  : 'pointer-events-auto w-fit max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
             }
           >
-            <div className="chat-bubble-text text-[15px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
+            <div className="chat-bubble-text text-[14px] font-normal leading-relaxed tracking-normal text-[var(--color-text-primary)]">
               {isStreaming ? (
                 <SmoothStreamingText
                   content={content}

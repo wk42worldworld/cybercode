@@ -55,6 +55,10 @@ type StreamState = {
   messageStartSent: boolean
   messageDeltaSent: boolean
   messageStopSent: boolean
+  // True once the upstream sent a finish_reason chunk — the signal that the
+  // completion terminated normally (llama.cpp sends finish_reason:"stop"
+  // before [DONE]; a crash/OOM disconnect never does).
+  sawFinishReason: boolean
 
   // Holding pattern: hold message_delta until usage arrives
   // (some providers send finish_reason and usage in separate chunks)
@@ -80,6 +84,7 @@ function createState(model: string): StreamState {
     messageStartSent: false,
     messageDeltaSent: false,
     messageStopSent: false,
+    sawFinishReason: false,
     heldMessageDelta: null,
   }
 }
@@ -88,11 +93,20 @@ function createState(model: string): StreamState {
 
 /**
  * Transform an OpenAI Chat Completions SSE stream into an Anthropic Messages SSE stream.
+ *
+ * `isLocal` only affects mid-stream failure wording: local inference servers
+ * (ollama, llama.cpp) point at crash/OOM, remote providers get generic copy.
  */
 export function openaiChatStreamToAnthropic(
   upstream: ReadableStream<Uint8Array>,
   model: string,
+  isLocal = false,
 ): ReadableStream<Uint8Array> {
+  // This transform is shared by every openai_chat provider — only blame the
+  // "local model server" when the upstream actually is one.
+  const midStreamFailureHint = isLocal
+    ? 'The local model server may have crashed or run out of memory.'
+    : 'The upstream connection ended mid-response.'
   const encoder = new TextEncoder()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -102,6 +116,8 @@ export function openaiChatStreamToAnthropic(
     async start(controller) {
       const reader = upstream.getReader()
       let errored = false
+      // True once the upstream sent the terminal `data: [DONE]` marker.
+      let sawDoneMarker = false
 
       try {
         while (true) {
@@ -117,6 +133,7 @@ export function openaiChatStreamToAnthropic(
             if (!trimmed || trimmed.startsWith(':')) continue
 
             if (trimmed === 'data: [DONE]') {
+              sawDoneMarker = true
               finalizeStream(state)
               flushQueue(state, controller, encoder)
               continue
@@ -137,13 +154,39 @@ export function openaiChatStreamToAnthropic(
           }
         }
       } catch (err) {
+        // Connection error mid-stream (e.g. llama.cpp crashed/OOM and the
+        // socket was reset): surface a protocol-level error instead of
+        // silently finalizing, so downstream reports a failed response
+        // rather than a truncated "success".
         errored = true
-        controller.error(err)
+        flushQueue(state, controller, encoder)
+        emitStreamError(
+          controller,
+          encoder,
+          `Upstream stream connection lost: ${err instanceof Error ? err.message : String(err)}. ${midStreamFailureHint}`,
+        )
+        controller.close()
       } finally {
         if (!errored) {
-          finalizeStream(state)
-          flushQueue(state, controller, encoder)
-          controller.close()
+          if (state.sawFinishReason || sawDoneMarker) {
+            // Normal termination (finish_reason chunk and/or [DONE] marker):
+            // finalize as before, synthesizing end_turn if needed.
+            finalizeStream(state)
+            flushQueue(state, controller, encoder)
+            controller.close()
+          } else {
+            // Stream hit EOF without any finish_reason or [DONE] marker —
+            // the upstream died mid-response. Do NOT synthesize end_turn;
+            // emit an Anthropic error event so the SDK throws and the UI
+            // shows the failure instead of silently truncating the reply.
+            flushQueue(state, controller, encoder)
+            emitStreamError(
+              controller,
+              encoder,
+              `Upstream stream ended mid-response without a finish_reason. ${midStreamFailureHint}`,
+            )
+            controller.close()
+          }
         }
       }
     },
@@ -165,6 +208,26 @@ function flushQueue(
     controller.enqueue(encoder.encode(formatSse(item.event, item.data)))
   }
   state.queue.length = 0
+}
+
+/**
+ * Emit an Anthropic `error` SSE event (no message_delta/message_stop).
+ * The Anthropic SDK throws an APIError when it receives this event, so
+ * downstream surfaces a real failure instead of a silently truncated reply.
+ */
+function emitStreamError(
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder,
+  message: string,
+): void {
+  controller.enqueue(
+    encoder.encode(
+      formatSse('error', {
+        type: 'error',
+        error: { type: 'api_error', message },
+      }),
+    ),
+  )
 }
 
 // ─── Message lifecycle events ──────────────────────────────
@@ -459,6 +522,8 @@ function handleFinishReason(
   state: StreamState,
 ): void {
   if (state.messageDeltaSent) return
+
+  state.sawFinishReason = true
 
   // CRITICAL: close ALL content blocks BEFORE message_delta
   closeAllOpenBlocks(state)

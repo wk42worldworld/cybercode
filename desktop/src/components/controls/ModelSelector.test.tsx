@@ -8,7 +8,34 @@ import { useRoutingStore } from '../../stores/routingStore'
 import { useSessionRuntimeStore } from '../../stores/sessionRuntimeStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import type { SavedProvider } from '../../types/provider'
+import type { RouteGraph } from '../../types/routing'
 import { ModelSelector } from './ModelSelector'
+
+const publishedRouteGraph: RouteGraph = {
+  version: 1,
+  source: 'legacy',
+  nodes: [
+    {
+      id: 'start',
+      type: 'routeGraphNode',
+      position: { x: 0, y: 0 },
+      data: { kind: 'start', config: {} },
+    },
+    {
+      id: 'output',
+      type: 'routeGraphNode',
+      position: { x: 200, y: 0 },
+      data: { kind: 'output', config: {} },
+    },
+  ],
+  edges: [{
+    id: 'start-output',
+    source: 'start',
+    target: 'output',
+    type: 'smoothstep',
+    data: { kind: 'flow' },
+  }],
+}
 
 function makeProvider(overrides: Partial<SavedProvider>): SavedProvider {
   return {
@@ -198,6 +225,7 @@ describe('ModelSelector', () => {
             allowExperimental: false,
             maxAttempts: 2,
             targets: [],
+            graph: publishedRouteGraph,
           }],
         },
         sources: [],
@@ -233,6 +261,49 @@ describe('ModelSelector', () => {
     })
   })
 
+  it('does not offer an unpublished draft even if stale availability marks it ready', () => {
+    useRoutingStore.setState({
+      dashboard: {
+        config: {
+          version: 2,
+          enabled: true,
+          profiles: [{
+            id: 'draft-route',
+            name: 'Draft route',
+            enabled: true,
+            strategy: 'priority',
+            strictFree: false,
+            allowExperimental: false,
+            maxAttempts: 2,
+            targets: [],
+            draftGraph: publishedRouteGraph,
+          }],
+        },
+        sources: [],
+        health: [],
+        events: [],
+        routeAvailability: {
+          'draft-route': { candidateCount: 2, available: true },
+        },
+      },
+    })
+
+    render(
+      <ModelSelector
+        runtimeValue={{ providerId: null, modelId: 'claude-opus-4-8' }}
+        onRuntimeChange={vi.fn()}
+        compact
+        variant="pill"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Opus 4\.8/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /Routes/ }))
+
+    expect(screen.queryByText('Draft route')).not.toBeInTheDocument()
+    expect(screen.getByText(/No available routes/)).toBeInTheDocument()
+  })
+
   it('shows the real strategy for untouched legacy routes', () => {
     useRoutingStore.setState({
       dashboard: {
@@ -249,6 +320,7 @@ describe('ModelSelector', () => {
             allowExperimental: false,
             maxAttempts: 3,
             targets: [{ providerId: 'legacy-provider' }],
+            graph: publishedRouteGraph,
           }],
         },
         sources: [],
@@ -322,6 +394,103 @@ describe('ModelSelector', () => {
 
     expect(screen.getByText('kimi-k2.6')).toBeInTheDocument()
     expect(screen.queryByText('deepseek-v3')).not.toBeInTheDocument()
+  })
+
+  it('warms up the selected model when choosing a local provider model', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ ok: true, started: true }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      useProviderStore.setState({
+        providers: [
+          makeProvider({
+            id: 'ollama-local',
+            presetId: 'ollama',
+            name: 'Ollama',
+            baseUrl: 'http://127.0.0.1:11434',
+            models: {
+              main: 'qwen3:8b',
+              haiku: '',
+              sonnet: '',
+              opus: '',
+            },
+          }),
+        ],
+      })
+
+      render(
+        <ModelSelector
+          runtimeValue={{ providerId: null, modelId: 'claude-opus-4-8' }}
+          onRuntimeChange={vi.fn()}
+          compact
+          variant="pill"
+        />,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Opus 4\.8/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Ollama/ }))
+      fireEvent.click(screen.getByText('qwen3:8b').closest('button')!)
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          'http://127.0.0.1:3456/api/providers/ollama-local/warmup',
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({ modelId: 'qwen3:8b' }),
+          }),
+        )
+      })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('does not warm up remote provider models on selection', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ ok: true, started: true }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      useProviderStore.setState({
+        providers: [
+          makeProvider({
+            id: 'kimi',
+            presetId: 'kimi',
+            name: 'Kimi',
+            models: {
+              main: 'kimi-k2.6',
+              haiku: '',
+              sonnet: '',
+              opus: '',
+            },
+          }),
+        ],
+      })
+      const onRuntimeChange = vi.fn()
+
+      render(
+        <ModelSelector
+          runtimeValue={{ providerId: null, modelId: 'claude-opus-4-8' }}
+          onRuntimeChange={onRuntimeChange}
+          compact
+          variant="pill"
+        />,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: /Opus 4\.8/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Kimi/ }))
+      fireEvent.click(screen.getByText('kimi-k2.6').closest('button')!)
+
+      await waitFor(() => expect(onRuntimeChange).toHaveBeenCalled())
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('refreshes route availability whenever the runtime selector is reopened', async () => {

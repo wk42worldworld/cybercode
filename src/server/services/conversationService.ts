@@ -22,6 +22,7 @@ import {
   CYBERCODE_PROVIDER_BASE_URL_ENV,
   CYBERCODE_PROVIDER_ID_ENV,
 } from '../../utils/model/imageCapabilityRegistry.js'
+import { CYBERCODE_LOCAL_MODEL_PERFORMANCE_ENV } from '../../utils/localModelPerformance.js'
 import { codeGraphService } from './codeGraphService.js'
 import { shouldAutoApproveBypassPermission } from './permissionPolicy.js'
 import { routingService } from '../routing/routingService.js'
@@ -404,6 +405,12 @@ export class ConversationService {
       request_id: crypto.randomUUID(),
       request: { subtype: 'interrupt' },
     })
+  }
+
+  requestImmediateSteer(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId)
+    if (!session?.isGenerating) return false
+    return this.sendInterrupt(sessionId)
   }
 
   stopGeneration(
@@ -906,6 +913,7 @@ export class ConversationService {
       CYBERCODE_PROVIDER_BASE_URL_ENV,
       CYBERCODE_PROVIDER_ID_ENV,
       CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
+      CYBERCODE_LOCAL_MODEL_PERFORMANCE_ENV,
     ] as const
 
     const cleanEnv = { ...process.env }

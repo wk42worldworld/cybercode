@@ -68,7 +68,7 @@ OpenAI Chat Completions 和 OpenAI Responses 的协议转换已经内置在 Cybe
 
 桌面端与 TUI 共用厂商配置。你也可以在桌面端打开“设置 → 模型厂商”进行高级配置、连接测试和不同角色的模型映射，保存后 TUI 会直接识别。
 
-模型目录同步、OAuth、网页会话、媒体提供商、智能路由和 Agent 节点的完整说明，请看 [模型接入、同步与智能路由](./models-routing.md)。TUI 也支持 `/provider sync`、`/routing` 和 `/node`，不需要另外安装代理服务。
+模型目录同步、OAuth、网页会话、媒体提供商、智能体路由和 Agent 节点的完整说明，请看 [模型接入、同步与智能体路由](./models-routing.md)。TUI 也支持 `/provider sync`、`/routing` 和 `/node`，不需要另外安装代理服务。
 
 ### 本地模型说明
 

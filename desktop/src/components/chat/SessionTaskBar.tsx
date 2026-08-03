@@ -59,8 +59,14 @@ export function SessionTaskBar({ sessionId }: { sessionId?: string } = {}) {
     <div className="shrink-0 px-[24px]">
       <div
         data-chat-content-column
-        className="mx-auto w-full max-w-[878px] overflow-hidden mb-1 rounded-[var(--radius-md)]"
-        style={{ backgroundColor: 'var(--color-surface-container-low)' }}
+        className="mx-auto w-full max-w-[878px] overflow-hidden mb-2 rounded-[var(--radius-md)]"
+        style={{
+          // --color-surface-container-low is rgba(0,0,0,0.02) in light themes;
+          // composite it over the opaque base so messages don't bleed through.
+          backgroundColor: 'var(--color-surface-container-lowest)',
+          backgroundImage:
+            'linear-gradient(var(--color-surface-container-low), var(--color-surface-container-low))',
+        }}
       >
         <div className="flex items-stretch">
           {/* Left accent vertical line */}

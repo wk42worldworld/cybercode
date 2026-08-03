@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Activity,
   Check,
@@ -26,11 +27,43 @@ import {
   isUneditedLegacyRouteProfile,
   routeBuilderModeFor,
 } from '../../utils/routingRoutes'
+import {
+  buildRouteGraphTemplate,
+  cloneRouteGraph,
+  routeGraphToLegacyFields,
+} from '../../utils/routeGraph'
 import { Button } from '../shared/Button'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { SettingsRow, SettingsSection, Switch } from '../settings/SettingsLayout'
 import { ProviderLogo } from './ProviderLogo'
-import { RouteBuilderDialog } from './RouteBuilderDialog'
+
+const RouteGraphEditor = lazy(async () => {
+  const module = await import('./route-graph/RouteGraphEditor')
+  return { default: module.RouteGraphEditor }
+})
+
+type RouteContextMenuState = {
+  routeId: string
+  left: number
+  top: number
+}
+
+const ROUTE_CONTEXT_MENU_WIDTH = 184
+const ROUTE_CONTEXT_MENU_HEIGHT = 112
+const ROUTE_CONTEXT_MENU_GUTTER = 8
+
+function routeContextMenuPosition(event: React.MouseEvent): Pick<RouteContextMenuState, 'left' | 'top'> {
+  return {
+    left: Math.max(
+      ROUTE_CONTEXT_MENU_GUTTER,
+      Math.min(event.clientX, window.innerWidth - ROUTE_CONTEXT_MENU_WIDTH - ROUTE_CONTEXT_MENU_GUTTER),
+    ),
+    top: Math.max(
+      ROUTE_CONTEXT_MENU_GUTTER,
+      Math.min(event.clientY, window.innerHeight - ROUTE_CONTEXT_MENU_HEIGHT - ROUTE_CONTEXT_MENU_GUTTER),
+    ),
+  }
+}
 
 function profileTranslationKey(id: string, suffix: 'name' | 'description') {
   return `settings.routing.profile.${id}.${suffix}` as never
@@ -43,6 +76,32 @@ function translatedOrFallback(
 ): string {
   const translated = t(key as never)
   return translated === key ? fallback : translated
+}
+
+function buildNewGraphRoute(
+  name: string,
+  routes: RouteProfile[],
+  sources: RoutingSource[],
+): RouteProfile {
+  const id = createRouteId(name, routes.map((entry) => entry.id))
+  const draftGraph = buildRouteGraphTemplate('stable-fallback', sources)
+  return {
+    id,
+    name,
+    enabled: false,
+    strictFree: false,
+    allowExperimental: false,
+    ...routeGraphToLegacyFields(draftGraph),
+    draftGraph,
+    draftRevision: 1,
+  }
+}
+
+function preferredBlueprintRouteId(routes: RouteProfile[]): string | null {
+  return routes.find((profile) => profile.graph && profile.enabled)?.id
+    ?? routes.find((profile) => profile.graph)?.id
+    ?? routes[0]?.id
+    ?? null
 }
 
 export function isRoutingTargetCoolingDown(
@@ -72,40 +131,6 @@ export function summarizeRoutingHealth(
     active: health.filter((entry) => !isRoutingTargetCoolingDown(entry, now)).length,
     latency: latencySuccesses > 0 ? Math.round(latencyTotal / latencySuccesses) : 0,
   }
-}
-
-export function SourceAccessBadges({ source }: { source?: RoutingSource }) {
-  const t = useTranslation()
-  if (!source) return null
-
-  const credentialKey = source.auth === 'api-key'
-    ? (source.configured ? 'apiKeySaved' : 'apiKeyRequired')
-    : source.auth === 'oauth'
-      ? 'oauth'
-      : source.auth === 'local'
-        ? 'local'
-        : 'none'
-  const credentialTone = source.auth === 'none'
-    ? 'positive'
-    : source.auth === 'api-key' && !source.configured
-      ? 'warning'
-      : 'muted'
-
-  return (
-    <>
-      <AccessBadge tone={source.cost === 'mixed' ? 'warning' : source.cost === 'paid' ? 'neutral' : source.cost === 'unknown' ? 'muted' : 'positive'}>
-        {t(`settings.routing.cost.${source.cost}` as never)}
-      </AccessBadge>
-      <AccessBadge tone={credentialTone}>
-        {t(`settings.routing.requirement.${credentialKey}` as never)}
-      </AccessBadge>
-      {source.risk !== 'stable' && (
-        <AccessBadge tone="warning">
-          {t(`settings.routing.risk.${source.risk}` as never)}
-        </AccessBadge>
-      )}
-    </>
-  )
 }
 
 function AccessBadge({
@@ -139,45 +164,173 @@ export function SmartRoutingPanel({
     dashboard,
     isLoading,
     isSaving,
+    isPreviewing,
+    isPublishing,
+    previews,
     error,
     fetchDashboard,
     updateConfig,
     updateProfile,
+    updateProfileDraft,
+    previewProfile,
+    publishProfile,
   } = useRoutingStore()
-  const [builderOpen, setBuilderOpen] = useState(false)
-  const [editingRoute, setEditingRoute] = useState<RouteProfile | null>(null)
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(() => (
+    preferredBlueprintRouteId(dashboard?.config.profiles ?? [])
+  ))
   const [routeToDelete, setRouteToDelete] = useState<RouteProfile | null>(null)
+  const [routeContextMenu, setRouteContextMenu] = useState<RouteContextMenuState | null>(null)
+  const autoCreateAttemptedRef = useRef(false)
+  const routeManagerRequestedRef = useRef(false)
 
   useEffect(() => {
     void fetchDashboard()
   }, [fetchDashboard])
 
+  useEffect(() => {
+    if (!routeContextMenu) return
+    const closeOnPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (!(target instanceof Element) || !target.closest('[data-route-context-menu]')) {
+        setRouteContextMenu(null)
+      }
+    }
+    const closeOnKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setRouteContextMenu(null)
+    }
+    const closeMenu = () => setRouteContextMenu(null)
+    document.addEventListener('pointerdown', closeOnPointerDown)
+    document.addEventListener('keydown', closeOnKeyDown)
+    window.addEventListener('resize', closeMenu)
+    window.addEventListener('scroll', closeMenu, true)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnPointerDown)
+      document.removeEventListener('keydown', closeOnKeyDown)
+      window.removeEventListener('resize', closeMenu)
+      window.removeEventListener('scroll', closeMenu, true)
+    }
+  }, [routeContextMenu])
+
+  useEffect(() => {
+    if (!dashboard) return
+    if (dashboard.config.profiles.length > 0) {
+      const routeStillExists = dashboard.config.profiles.some((profile) => (
+        profile.id === editingRouteId
+      ))
+      if (!routeStillExists && !routeManagerRequestedRef.current) {
+        setEditingRouteId(preferredBlueprintRouteId(dashboard.config.profiles))
+      }
+      return
+    }
+    const sources = dashboard.sources.filter((source) => (
+      source.routable && source.providerId && source.models.length > 0
+    ))
+    if (sources.length === 0 || autoCreateAttemptedRef.current) return
+    autoCreateAttemptedRef.current = true
+    const routeProfile = buildNewGraphRoute(
+      t('settings.routing.graph.newRouteName'),
+      dashboard.config.profiles,
+      sources,
+    )
+    routeManagerRequestedRef.current = false
+    setEditingRouteId(routeProfile.id)
+    void updateConfig({
+      ...dashboard.config,
+      profiles: [routeProfile],
+    }).then(() => {
+      if (useRoutingStore.getState().error) setEditingRouteId(null)
+    })
+  }, [dashboard, editingRouteId, t, updateConfig])
+
+  const saveEditorDraft = useCallback(async (graph: Parameters<typeof updateProfileDraft>[1], name: string) => {
+    if (!editingRouteId) return
+    await useRoutingStore.getState().updateProfileDraft(editingRouteId, graph, { name })
+  }, [editingRouteId])
+
+  const previewEditor = useCallback(async (graph: Parameters<typeof previewProfile>[1]) => {
+    if (!editingRouteId) return null
+    return useRoutingStore.getState().previewProfile(editingRouteId, graph)
+  }, [editingRouteId])
+
+  const publishEditor = useCallback(async (
+    graph: Parameters<typeof publishProfile>[1],
+    name: string,
+  ) => {
+    if (!editingRouteId) return false
+    return useRoutingStore.getState().publishProfile(editingRouteId, graph, name)
+  }, [editingRouteId])
+
+  const rollbackEditor = useCallback(async () => {
+    if (!editingRouteId) return false
+    return useRoutingStore.getState().rollbackProfile(editingRouteId)
+  }, [editingRouteId])
+
+  const setEditorRouteUsage = useCallback(async (enabled: boolean) => {
+    if (!editingRouteId) return
+    const state = useRoutingStore.getState()
+    const currentDashboard = state.dashboard
+    const currentProfile = currentDashboard?.config.profiles.find((profile) => (
+      profile.id === editingRouteId
+    ))
+    if (!currentDashboard || !currentProfile?.graph) return
+    await state.updateConfig({
+      ...currentDashboard.config,
+      enabled: enabled ? true : currentDashboard.config.enabled,
+      profiles: currentDashboard.config.profiles.map((profile) => (
+        profile.id === editingRouteId ? { ...profile, enabled } : profile
+      )),
+    })
+  }, [editingRouteId])
+
   if (isLoading && !dashboard) return <LoadingState />
   if (!dashboard) return <EmptyState text={error || t('settings.routing.loadFailed')} />
 
   const routes = dashboard.config.profiles
+  const publishedRoutes = routes.filter((profile) => Boolean(profile.graph))
+  const draftRoutes = routes.filter((profile) => !profile.graph)
   const routableSources = dashboard.sources.filter((source) => (
     source.routable && source.providerId && source.models.length > 0
   ))
+  const editingRoute = editingRouteId
+    ? routes.find((routeProfile) => routeProfile.id === editingRouteId) ?? null
+    : null
+  const contextRoute = routeContextMenu
+    ? routes.find((routeProfile) => routeProfile.id === routeContextMenu.routeId) ?? null
+    : null
+  const availableEditorRoutes = publishedRoutes.flatMap((routeProfile) => {
+    const availability = dashboard.routeAvailability[routeProfile.id]
+    if (!availability || availability.candidateCount <= 0) return []
+    const isDefault = isUneditedLegacyRouteProfile(routeProfile)
+    return [{
+      id: routeProfile.id,
+      name: isDefault
+        ? translatedOrFallback(
+            t,
+            profileTranslationKey(routeProfile.id, 'name'),
+            routeProfile.name,
+          )
+        : routeProfile.name,
+      isDefault,
+      isCurrent: routeProfile.id === editingRouteId,
+      isActive: availability.available,
+      candidateCount: availability.candidateCount,
+    }]
+  })
 
   const openCreate = () => {
-    setEditingRoute(null)
-    setBuilderOpen(true)
+    const name = t('settings.routing.graph.newRouteName')
+    const routeProfile = buildNewGraphRoute(name, routes, routableSources)
+    routeManagerRequestedRef.current = false
+    setEditingRouteId(routeProfile.id)
+    void updateConfig({
+      ...dashboard.config,
+      profiles: [...routes, routeProfile],
+    })
   }
 
   const openEdit = (routeProfile: RouteProfile) => {
-    setEditingRoute(routeProfile)
-    setBuilderOpen(true)
-  }
-
-  const saveRoute = async (routeProfile: RouteProfile) => {
-    const profiles = editingRoute
-      ? routes.map((entry) => entry.id === editingRoute.id ? routeProfile : entry)
-      : [...routes, routeProfile]
-    await updateConfig({ ...dashboard.config, profiles })
-    if (useRoutingStore.getState().error) return
-    setBuilderOpen(false)
-    setEditingRoute(null)
+    routeManagerRequestedRef.current = false
+    setEditingRouteId(routeProfile.id)
   }
 
   const duplicateRoute = (routeProfile: RouteProfile) => {
@@ -188,6 +341,11 @@ export function SmartRoutingPanel({
       name: copyName,
       enabled: false,
       targets: routeProfile.targets.map((target) => ({ ...target })),
+      graph: routeProfile.graph ? cloneRouteGraph(routeProfile.graph) : undefined,
+      draftGraph: routeProfile.draftGraph ? cloneRouteGraph(routeProfile.draftGraph) : undefined,
+      draftName: routeProfile.draftName,
+      previousGraph: routeProfile.previousGraph ? cloneRouteGraph(routeProfile.previousGraph) : undefined,
+      draftRevision: routeProfile.draftRevision ? routeProfile.draftRevision + 1 : undefined,
     }
     void updateConfig({
       ...dashboard.config,
@@ -195,18 +353,106 @@ export function SmartRoutingPanel({
     })
   }
 
-  const deleteRoute = async () => {
-    if (!routeToDelete) return
-    await updateConfig({
-      ...dashboard.config,
-      profiles: routes.filter((entry) => entry.id !== routeToDelete.id),
+  const deleteRouteById = async (routeId: string): Promise<boolean> => {
+    const state = useRoutingStore.getState()
+    const currentDashboard = state.dashboard
+    if (!currentDashboard) return false
+    const currentRoutes = currentDashboard.config.profiles
+    if (!currentRoutes.some((entry) => entry.id === routeId)) return true
+
+    const remainingRoutes = currentRoutes.filter((entry) => entry.id !== routeId)
+    const deletingCurrentRoute = editingRouteId === routeId
+    const previousAutoCreateAttempted = autoCreateAttemptedRef.current
+    if (remainingRoutes.length === 0) autoCreateAttemptedRef.current = true
+    if (deletingCurrentRoute) {
+      routeManagerRequestedRef.current = remainingRoutes.length === 0
+      setEditingRouteId(preferredBlueprintRouteId(remainingRoutes))
+    }
+
+    await state.updateConfig({
+      ...currentDashboard.config,
+      profiles: remainingRoutes,
     })
-    if (useRoutingStore.getState().error) return
-    setRouteToDelete(null)
+    if (useRoutingStore.getState().error) {
+      autoCreateAttemptedRef.current = previousAutoCreateAttempted
+      if (deletingCurrentRoute) {
+        routeManagerRequestedRef.current = false
+        setEditingRouteId(routeId)
+      }
+      return false
+    }
+    return true
   }
 
+  const deleteRoute = async () => {
+    if (!routeToDelete) return
+    if (await deleteRouteById(routeToDelete.id)) setRouteToDelete(null)
+  }
+
+  if (editingRoute) {
+    return (
+      <Suspense fallback={<LoadingState />}>
+        <RouteGraphEditor
+          profile={editingRoute}
+          sources={routableSources}
+          preview={previews[editingRoute.id]}
+          isSaving={isSaving}
+          isPreviewing={isPreviewing}
+          isPublishing={isPublishing}
+          globallyEnabled={dashboard.config.enabled}
+          routeEnabled={editingRoute.enabled}
+          error={error}
+          onBack={() => {
+            routeManagerRequestedRef.current = true
+            setEditingRouteId(null)
+          }}
+          onSaveDraft={saveEditorDraft}
+          onPreview={previewEditor}
+          onPublish={publishEditor}
+          onRollback={rollbackEditor}
+          onUsageChange={setEditorRouteUsage}
+          availableRoutes={availableEditorRoutes}
+          onSelectRoute={(routeId) => {
+            routeManagerRequestedRef.current = false
+            setEditingRouteId(routeId)
+          }}
+          onDeleteRoute={deleteRouteById}
+        />
+      </Suspense>
+    )
+  }
+
+  const renderRouteItems = (profiles: RouteProfile[]) => (
+    <div className="divide-y divide-[var(--color-border-separator)]">
+      {profiles.map((routeProfile) => (
+        <RouteListItem
+          key={routeProfile.id}
+          profile={routeProfile}
+          sources={routableSources}
+          candidateCount={dashboard.routeAvailability[routeProfile.id]?.candidateCount ?? 0}
+          globallyEnabled={dashboard.config.enabled}
+          disabled={isSaving}
+          onChange={(next) => void updateProfile(next)}
+          onEdit={() => openEdit(routeProfile)}
+          onDuplicate={() => duplicateRoute(routeProfile)}
+          onDelete={() => setRouteToDelete(routeProfile)}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            setRouteContextMenu({
+              routeId: routeProfile.id,
+              ...routeContextMenuPosition(event),
+            })
+          }}
+        />
+      ))}
+    </div>
+  )
+
   return (
-    <div className="flex flex-col gap-[14px]">
+    <div
+      className="flex flex-col gap-[14px]"
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <section className="overflow-hidden rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-container)]">
         <header className="routing-global-header flex min-h-[76px] items-center justify-between gap-[18px] px-[18px] py-[14px]">
           <div className="min-w-0">
@@ -257,21 +503,28 @@ export function SmartRoutingPanel({
         </header>
 
         {routes.length > 0 ? (
-          <div className="divide-y divide-[var(--color-border-separator)]">
-            {routes.map((routeProfile) => (
-              <RouteListItem
-                key={routeProfile.id}
-                profile={routeProfile}
-                sources={routableSources}
-                candidateCount={dashboard.routeAvailability[routeProfile.id]?.candidateCount ?? 0}
-                globallyEnabled={dashboard.config.enabled}
-                disabled={isSaving}
-                onChange={(next) => void updateProfile(next)}
-                onEdit={() => openEdit(routeProfile)}
-                onDuplicate={() => duplicateRoute(routeProfile)}
-                onDelete={() => setRouteToDelete(routeProfile)}
-              />
-            ))}
+          <div>
+            <RouteGroupHeader
+              title={t('settings.routing.publishedRoutes')}
+              count={publishedRoutes.length}
+              testId="published-routes"
+            />
+            {publishedRoutes.length > 0 ? renderRouteItems(publishedRoutes) : (
+              <p className="border-t border-[var(--color-border-separator)] px-[18px] py-[18px] text-[11px] text-[var(--color-text-tertiary)]">
+                {t('settings.routing.noPublishedRoutes')}
+              </p>
+            )}
+
+            {draftRoutes.length > 0 && (
+              <div className="border-t border-[var(--color-border)]">
+                <RouteGroupHeader
+                  title={t('settings.routing.draftRoutes')}
+                  count={draftRoutes.length}
+                  testId="draft-routes"
+                />
+                {renderRouteItems(draftRoutes)}
+              </div>
+            )}
           </div>
         ) : (
           <RouteEmptyState
@@ -284,26 +537,6 @@ export function SmartRoutingPanel({
 
       {error && <p className="text-[12px] text-[var(--color-error)]">{error}</p>}
 
-      <RouteBuilderDialog
-        open={builderOpen}
-        route={editingRoute}
-        sources={routableSources}
-        existingRouteIds={routes.map((routeProfile) => routeProfile.id)}
-        saving={isSaving}
-        onClose={() => {
-          if (isSaving) return
-          setBuilderOpen(false)
-          setEditingRoute(null)
-        }}
-        onSave={saveRoute}
-        onOpenSources={onOpenSources
-          ? () => {
-              setBuilderOpen(false)
-              onOpenSources()
-            }
-          : undefined}
-      />
-
       <ConfirmDialog
         open={routeToDelete !== null}
         onClose={() => setRouteToDelete(null)}
@@ -314,7 +547,84 @@ export function SmartRoutingPanel({
         cancelLabel={t('common.cancel')}
         confirmVariant="danger"
         loading={isSaving}
+        size="compact"
       />
+
+      {routeContextMenu && contextRoute && createPortal(
+        <div
+          data-route-context-menu
+          data-testid="route-context-menu"
+          role="menu"
+          aria-label={t('settings.routing.routeActions')}
+          className="native-ui-text fixed z-[10000] w-[184px] max-w-[calc(100vw-16px)] overflow-hidden rounded-[7px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] p-[4px] shadow-[var(--shadow-dropdown)]"
+          style={{ left: routeContextMenu.left, top: routeContextMenu.top }}
+          onContextMenu={(event) => event.preventDefault()}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            autoFocus
+            onClick={() => {
+              setRouteContextMenu(null)
+              openEdit(contextRoute)
+            }}
+            className="flex h-[32px] w-full items-center gap-[9px] rounded-[5px] px-[9px] text-left text-[11px] font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+          >
+            <Pencil size={15} className="text-[var(--color-text-tertiary)]" />
+            <span>{t('settings.routing.editRoute')}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setRouteContextMenu(null)
+              duplicateRoute(contextRoute)
+            }}
+            className="flex h-[32px] w-full items-center gap-[9px] rounded-[5px] px-[9px] text-left text-[11px] font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
+          >
+            <Copy size={15} className="text-[var(--color-text-tertiary)]" />
+            <span>{t('settings.routing.duplicateRoute')}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setRouteContextMenu(null)
+              setRouteToDelete(contextRoute)
+            }}
+            className="flex h-[32px] w-full items-center gap-[9px] rounded-[5px] px-[9px] text-left text-[11px] font-semibold text-[var(--color-text-primary)] hover:bg-[color-mix(in_srgb,var(--color-error)_9%,transparent)] hover:text-[var(--color-error)]"
+          >
+            <Trash2 size={15} className="text-[var(--color-error)]" />
+            <span>{t('settings.routing.deleteRoute')}</span>
+          </button>
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
+function RouteGroupHeader({
+  title,
+  count,
+  testId,
+}: {
+  title: string
+  count: number
+  testId: string
+}) {
+  return (
+    <div
+      data-testid={testId}
+      className="flex min-h-[36px] items-center justify-between bg-[var(--color-surface-container-low)] px-[18px] py-[8px]"
+    >
+      <span className="text-[11px] font-bold text-[var(--color-text-secondary)]">
+        {title}
+      </span>
+      <span className="font-mono text-[10px] font-semibold text-[var(--color-text-tertiary)]">
+        {count}
+      </span>
     </div>
   )
 }
@@ -329,6 +639,7 @@ function RouteListItem({
   onEdit,
   onDuplicate,
   onDelete,
+  onContextMenu,
 }: {
   profile: RouteProfile
   sources: RoutingSource[]
@@ -339,6 +650,7 @@ function RouteListItem({
   onEdit: () => void
   onDuplicate: () => void
   onDelete: () => void
+  onContextMenu: (event: React.MouseEvent<HTMLElement>) => void
 }) {
   const t = useTranslation()
   const mode = routeBuilderModeFor(profile.strategy)
@@ -363,7 +675,17 @@ function RouteListItem({
   const behaviorName = isLegacyProfile
     ? t(`settings.routing.strategy.${profile.strategy}.name` as never)
     : t(`settings.routing.mode.${mode}.name` as never)
-  const configuredTargets = profile.targets.map((target) => {
+  const graphTargets = profile.graph && profile.graph.source !== 'legacy'
+    ? profile.graph.nodes.flatMap((node) => (
+        node.data.kind === 'model' && node.data.config.providerId
+          ? [{
+              providerId: node.data.config.providerId,
+              modelId: node.data.config.modelId,
+            }]
+          : []
+      ))
+    : []
+  const configuredTargets = (graphTargets.length > 0 ? graphTargets : profile.targets).map((target) => {
     const source = sources.find((item) => item.providerId === target.providerId)
     return {
       target,
@@ -371,9 +693,23 @@ function RouteListItem({
       modelId: target.modelId ?? source?.models[0]?.id ?? '',
     }
   })
+  const isPublished = Boolean(profile.graph)
+  const isActive = isPublished && globallyEnabled && profile.enabled && candidateCount > 0
+  const publishedTime = profile.publishedAt
+    ? new Date(profile.publishedAt).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : null
 
   return (
-    <article className={`routing-route-item px-[16px] py-[15px] ${profile.enabled ? '' : 'opacity-60'}`}>
+    <article
+      className={`routing-route-item px-[16px] py-[15px] ${profile.enabled || !isPublished ? '' : 'opacity-60'}`}
+      onContextMenu={onContextMenu}
+    >
       <div className="routing-route-layout flex flex-col gap-[13px]">
         <div className="flex min-w-0 flex-1 items-start gap-[11px]">
           <span className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)]">
@@ -387,13 +723,29 @@ function RouteListItem({
               <AccessBadge tone="neutral">
                 {behaviorName}
               </AccessBadge>
-              <AccessBadge tone={candidateCount > 0 ? 'positive' : 'warning'}>
-                {t('settings.routing.readyCount', { count: candidateCount })}
+              <AccessBadge tone={isActive ? 'positive' : isPublished ? 'neutral' : 'warning'}>
+                {t(isActive
+                  ? 'settings.routing.routeActive'
+                  : isPublished
+                    ? 'settings.routing.graph.published'
+                    : 'settings.routing.graph.draft')}
               </AccessBadge>
+              {isPublished && (
+                <AccessBadge tone={candidateCount > 0 ? 'positive' : 'warning'}>
+                  {t('settings.routing.readyCount', { count: candidateCount })}
+                </AccessBadge>
+              )}
             </div>
             <p className="mt-[3px] text-[10px] leading-[16px] text-[var(--color-text-tertiary)]">
               {routeDescription}
             </p>
+            {(publishedTime || !isPublished) && (
+              <p className="mt-[3px] text-[10px] leading-[16px] text-[var(--color-text-tertiary)]">
+                {publishedTime
+                  ? t('settings.routing.publishedAt', { time: publishedTime })
+                  : t('settings.routing.publishRequired')}
+              </p>
+            )}
 
             <div className="mt-[8px] flex min-w-0 items-center gap-[8px]">
               {configuredTargets.length > 0 ? (
@@ -443,10 +795,13 @@ function RouteListItem({
               <Trash2 size={14} />
             </RouteActionButton>
           </div>
-          <div className="ml-[4px] border-l border-[var(--color-border-separator)] pl-[12px]">
+          <div
+            className="border-l border-[var(--color-border-separator)] pl-[12px]"
+            style={{ marginLeft: 4 }}
+          >
             <Switch
               checked={profile.enabled}
-              disabled={disabled || !globallyEnabled}
+              disabled={disabled || !globallyEnabled || !isPublished}
               accent
               ariaLabel={profileName}
               onChange={(enabled) => onChange({ ...profile, enabled })}
@@ -647,15 +1002,6 @@ function EmptyState({ text }: { text: string }) {
       {text}
     </div>
   )
-}
-
-export function findRoutingSource(
-  sources: RoutingSource[] | undefined,
-  providerId: string | undefined,
-  presetId: string,
-): RoutingSource | undefined {
-  if (providerId) return sources?.find((source) => source.providerId === providerId)
-  return sources?.find((source) => source.id === `preset:${presetId}`)
 }
 
 // Exported unions keep translation maps exhaustive at callsites.

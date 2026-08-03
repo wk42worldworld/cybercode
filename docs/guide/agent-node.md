@@ -1,6 +1,6 @@
 # 节点接入
 
-CyberCode 可以把已配置的模型和智能路由，通过一个受权限约束的节点提供给其他 Agent。节点同时支持 OpenAI Chat Completions 和 Anthropic Messages 协议。供应商 API Key 不会交给外部 Agent；外部 Agent 只拿到单独生成的节点密钥。
+CyberCode 可以把已配置的模型和智能体路由，通过一个受权限约束的节点提供给其他 Agent。节点同时支持 OpenAI Chat Completions 和 Anthropic Messages 协议。供应商 API Key 不会交给外部 Agent；外部 Agent 只拿到单独生成的节点密钥。
 
 ## 在 CyberCode 中准备节点
 
@@ -112,7 +112,7 @@ TUI 中可以使用：
 | Anthropic、Anthropic Compatible、Anthropic Messages | Anthropic |
 | 两种协议都有 | 优先选择该 Agent 原生推荐的协议 |
 
-协议只决定请求格式，不决定最终使用哪家模型。OpenAI 和 Anthropic 两种协议都可以使用 CyberCode 已授权的模型与智能路由。
+协议只决定请求格式，不决定最终使用哪家模型。OpenAI 和 Anthropic 两种协议都可以使用 CyberCode 已授权的模型与智能体路由。
 
 ## 第二步：弄清 Key 和 Model
 
@@ -124,7 +124,7 @@ TUI 中可以使用：
 
 ### Model 填什么
 
-填写 `auto`。CyberCode 会根据这把 Key 的默认目标选择模型或智能路由，普通用户不需要再填写其他模型标识。
+填写 `auto`。CyberCode 会根据这把 Key 的默认目标选择模型或智能体路由，普通用户不需要再填写其他模型标识。
 
 ## 使用 OpenAI 协议接入
 
@@ -159,7 +159,7 @@ Anthropic 客户端通常会在 Base URL 后自动追加 `/v1/messages`，因此
 
 | 目的 | Model 填写值 | 效果 |
 | --- | --- | --- |
-| 固定使用一条智能路由 | `route/<路由ID>`，例如 `route/coding` | 由该路由动态选择供应商和模型 |
+| 固定使用一条智能体路由 | `route/<路由ID>`，例如 `route/coding` | 由该路由动态选择供应商和模型 |
 | 固定直连一个模型 | `<供应商别名>/<模型ID>`，例如 `kimi/kimi-k2.6` | 始终调用指定供应商下的具体模型 |
 
 请在节点页面展开 **高级：固定模型或路由** 后复制完整 ID，或使用带节点 Key 的 `GET /v1/models` 查询。不要凭显示名称手动猜测。

@@ -28,7 +28,7 @@ import {
   getInlineFileAttachmentsWithoutPath,
 } from './attachmentPolicy.js'
 import { openSessionSearchDb } from '../../sessionSearch/db.js'
-import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
+import { refreshSessionSearchIndexWithinBudget } from '../../sessionSearch/indexer.js'
 import { buildPastSessionPromptContext } from '../../sessionSearch/promptContext.js'
 import { buildProjectMemoryPromptContext } from '../../sessionSearch/projectMemory.js'
 import { appendProjectMemoryContext } from '../../sessionSearch/projectMemoryContext.js'
@@ -85,6 +85,7 @@ const runtimeSelectionTokens = new Map<string, object>()
 const sessionStartupPromises = new Map<string, Promise<void>>()
 const mediaRecoveryPromises = new Map<string, Promise<void>>()
 const pendingImageTurns = new Map<string, PendingImageTurn[]>()
+const pendingSteerStages = new Map<string, Map<string, 'queued' | 'processing'>>()
 const imageFallbackSessions = new Set<string>()
 const prewarmPendingSessions = new Set<string>()
 const prewarmedSessions = new Set<string>()
@@ -470,9 +471,9 @@ async function buildContentWithInitialProjectMemory(
       ),
     ].join('\n')
 
+    await refreshSessionSearchIndexWithinBudget({ priority: 2 })
     const db = openSessionSearchDb()
     try {
-      await ensureSessionSearchIndexFresh({ db })
       const promptMemoryConfig = await readPromptMemoryConfig()
       const contexts: string[] = []
       const memoryContext = buildProjectMemoryPromptContext({
@@ -511,12 +512,11 @@ async function handleUserSteer(
 ) {
   const { sessionId } = ws.data
   const steerId = message.steerId.trim()
-  const priority = message.priority === 'later' ? 'later' : 'next'
-
-  await waitForSessionStop(sessionId)
-  sessionStopRequested.delete(sessionId)
-  sessionStopCompleted.delete(sessionId)
-  await waitForMediaRecovery(sessionId)
+  const priority = message.priority === 'now'
+    ? 'now'
+    : message.priority === 'later'
+      ? 'later'
+      : 'next'
 
   if (!steerId) {
     sendMessage(ws, {
@@ -549,6 +549,15 @@ async function handleUserSteer(
     })
     return
   }
+
+  if (priority === 'now' && !sessionStopRequested.has(sessionId)) {
+    conversationService.requestImmediateSteer(sessionId)
+  }
+
+  await waitForSessionStop(sessionId)
+  sessionStopRequested.delete(sessionId)
+  sessionStopCompleted.delete(sessionId)
+  await waitForMediaRecovery(sessionId)
 
   const pendingRuntimeTransition = runtimeTransitionPromises.get(sessionId)
   if (pendingRuntimeTransition) {
@@ -597,6 +606,9 @@ async function handleUserSteer(
     message.attachments,
     imageAttachmentRoute,
   )
+  const steerStages = pendingSteerStages.get(sessionId) ?? new Map()
+  steerStages.set(steerId, 'queued')
+  pendingSteerStages.set(sessionId, steerStages)
   const sent = conversationService.sendMessage(
     sessionId,
     content,
@@ -604,14 +616,24 @@ async function handleUserSteer(
     { uuid: steerId, priority, imageAttachmentMode: imageAttachmentRoute.mode },
   )
 
-  if (!sent) unregisterLastPendingImageTurn(sessionId)
+  if (!sent) {
+    unregisterLastPendingImageTurn(sessionId)
+    steerStages.delete(steerId)
+    if (steerStages.size === 0) pendingSteerStages.delete(sessionId)
+  }
 
   sendMessage(ws, {
     type: 'steer_status',
     steerId,
     status: sent ? 'queued' : 'failed',
     ...(sent
-      ? { message: priority === 'next' ? 'Queued for the current task.' : 'Queued for the next turn.' }
+      ? {
+          message: priority === 'now'
+            ? 'Applying this input to the running task now.'
+            : priority === 'next'
+              ? 'Queued for the current task.'
+              : 'Queued for the next turn.',
+        }
       : { message: 'CLI process is not running. The session may have ended or the process crashed.' }),
   })
 }
@@ -635,6 +657,11 @@ async function handleCancelSteer(
 
   try {
     const cancelled = await conversationService.cancelAsyncMessage(sessionId, steerId)
+    if (cancelled) {
+      const steerStages = pendingSteerStages.get(sessionId)
+      steerStages?.delete(steerId)
+      if (steerStages?.size === 0) pendingSteerStages.delete(sessionId)
+    }
     sendMessage(ws, {
       type: 'steer_status',
       steerId,
@@ -1158,6 +1185,7 @@ function cleanupSessionRuntimeState(sessionId: string) {
   sessionStartupPromises.delete(sessionId)
   mediaRecoveryPromises.delete(sessionId)
   pendingImageTurns.delete(sessionId)
+  pendingSteerStages.delete(sessionId)
   imageFallbackSessions.delete(sessionId)
   clearPrewarmState(sessionId)
 }
@@ -2020,6 +2048,37 @@ function rebindSessionOutput(
 
     if (!stopping && handleRecoverableImageFailure(ws, sessionId, cliMsg)) {
       return
+    }
+
+    const steerStages = pendingSteerStages.get(sessionId)
+    if (
+      steerStages
+      && cliMsg?.type === 'user'
+      && typeof cliMsg.uuid === 'string'
+      && steerStages.has(cliMsg.uuid)
+    ) {
+      steerStages.set(cliMsg.uuid, 'processing')
+      sendMessage(ws, {
+        type: 'steer_status',
+        steerId: cliMsg.uuid,
+        status: 'processing',
+        message: 'The running task is applying this input.',
+      })
+    }
+
+    if (steerStages && cliMsg?.type === 'result') {
+      const processedIds = [...steerStages.entries()]
+        .filter(([, stage]) => stage === 'processing')
+        .map(([steerId]) => steerId)
+      for (const steerId of processedIds) {
+        steerStages.delete(steerId)
+        sendMessage(ws, {
+          type: 'steer_status',
+          steerId,
+          status: 'processed',
+        })
+      }
+      if (steerStages.size === 0) pendingSteerStages.delete(sessionId)
     }
 
     const serverMsgs = translateCliMessage(cliMsg, sessionId)

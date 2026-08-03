@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useTabStore } from '../../stores/tabStore'
 import type { ChatState } from '../../types/chat'
 import type { Locale } from '../../i18n/localeConfig'
+import { useIsLocalSessionProvider } from './localProvider'
 
 function formatElapsed(seconds: number, locale: Locale): string {
   if (seconds < 60) {
@@ -119,12 +120,17 @@ export function StreamingIndicator({ sessionId }: StreamingIndicatorProps = {}) 
   const statusVerb = sessionState?.statusVerb ?? ''
   const elapsedSeconds = sessionState?.elapsedSeconds ?? 0
   const tokenUsage = sessionState?.tokenUsage ?? { input_tokens: 0, output_tokens: 0 }
+  const isLocal = useIsLocalSessionProvider(sessionId ?? globalActiveTabId ?? undefined)
 
   const animatedTokens = useAnimatedNumber(tokenUsage.output_tokens, 600)
 
   if (chatState === 'idle') return null
 
-  const verb = resolveStreamingVerb(statusVerb, chatState, locale, t)
+  // Local models (ollama / llama.cpp / LM Studio) can cold-load for tens of
+  // seconds before the first token; swap the playful verb for a clear hint.
+  const verb = chatState === 'thinking' && isLocal
+    ? t('streaming.localModelLoading')
+    : resolveStreamingVerb(statusVerb, chatState, locale, t)
 
   return (
     <div

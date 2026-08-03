@@ -242,7 +242,10 @@ describe('AgentMigration', () => {
     fireEvent.click(await screen.findByTestId('target-agent-picker'))
     fireEvent.click(await screen.findByRole('option', { name: /Claude Code/ }))
 
-    await waitFor(() => expect(agentMigrationApi.scan).toHaveBeenCalledWith('claude-code'))
+    await waitFor(() => expect(agentMigrationApi.scan).toHaveBeenCalledWith(
+      'claude-code',
+      expect.any(AbortSignal),
+    ))
     expect(screen.getByTestId('target-agent-picker')).toHaveAttribute('data-target-agent', 'claude-code')
     fireEvent.click(await screen.findByRole('button', { name: '迁移推荐项到 Claude Code（1）' }))
     await waitFor(() => {
@@ -296,6 +299,23 @@ describe('AgentMigration', () => {
     expect(screen.getByRole('button', { name: 'Codex' })).toBeDisabled()
   })
 
+  it('cancels an in-flight scan and leaves a visible retry action', async () => {
+    vi.mocked(agentMigrationApi.scan).mockImplementation((_targetAgentId, signal) =>
+      new Promise<AgentMigrationScan>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true })
+      }))
+    render(<AgentMigration />)
+
+    const cancel = await screen.findByRole('button', { name: '取消扫描' })
+    const signal = vi.mocked(agentMigrationApi.scan).mock.calls[0]?.[1]
+    expect(signal?.aborted).toBe(false)
+    fireEvent.click(cancel)
+
+    expect(signal?.aborted).toBe(true)
+    expect(await screen.findByText('没有检测到支持的 Agent。')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: '重新检测' }).length).toBeGreaterThan(0)
+  })
+
   it('shows and disables an incompatible destination type before migration', async () => {
     const fixture = scanFixture()
     const item = fixture.agents.find(agent => agent.id === 'openclaw')!.items[0]!
@@ -331,10 +351,12 @@ describe('AgentMigration', () => {
 
     await waitFor(() => expect(screen.getByTestId('target-agent-picker')).toHaveAttribute('data-target-agent', 'cybercode'))
     expect(agentMigrationApi.scan).toHaveBeenCalledTimes(2)
-    expect(vi.mocked(agentMigrationApi.scan).mock.calls).toEqual([
-      ['cybercode'],
-      ['claude-code'],
+    const scanCalls = vi.mocked(agentMigrationApi.scan).mock.calls
+    expect(scanCalls.map(([targetAgentId]) => targetAgentId)).toEqual([
+      'cybercode',
+      'claude-code',
     ])
+    expect(scanCalls.every(([, signal]) => signal instanceof AbortSignal)).toBe(true)
     expect(screen.getByRole('heading', { name: 'Codex' })).toBeInTheDocument()
   })
 

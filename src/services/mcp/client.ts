@@ -211,6 +211,21 @@ export function isMcpSessionExpiredError(error: Error): boolean {
 const DEFAULT_MCP_TOOL_TIMEOUT_MS = 100_000_000
 
 /**
+ * Timeout for interactive MCP servers (agent-browser, computer-use) whose
+ * tools drive a live browser/desktop session. 27.8 hours is indistinguishable
+ * from "no response" for these, so cap them at 10 minutes by default.
+ */
+const INTERACTIVE_MCP_TOOL_TIMEOUT_MS = 10 * 60 * 1000
+
+/**
+ * MCP servers whose tool calls get INTERACTIVE_MCP_TOOL_TIMEOUT_MS instead of
+ * the (effectively infinite) default.
+ */
+function isInteractiveMcpServer(name: string): boolean {
+  return name === 'agent-browser' || name === 'computer-use'
+}
+
+/**
  * Cap on MCP tool descriptions and server instructions sent to the model.
  * OpenAPI-generated MCP servers have been observed dumping 15-60KB of endpoint
  * docs into tool.description; this caps the p95 tail without losing the intent.
@@ -219,13 +234,19 @@ const MAX_MCP_DESCRIPTION_LENGTH = 2048
 
 /**
  * Gets the timeout for MCP tool calls in milliseconds.
- * Uses MCP_TOOL_TIMEOUT environment variable if set, otherwise defaults to ~27.8 hours.
+ * Uses MCP_TOOL_TIMEOUT environment variable if set. Otherwise interactive
+ * servers (agent-browser, computer-use) default to 10 minutes and all other
+ * servers default to ~27.8 hours.
  */
-function getMcpToolTimeoutMs(): number {
-  return (
-    parseInt(process.env.MCP_TOOL_TIMEOUT || '', 10) ||
-    DEFAULT_MCP_TOOL_TIMEOUT_MS
-  )
+function getMcpToolTimeoutMs(serverName?: string): number {
+  const envOverride = parseInt(process.env.MCP_TOOL_TIMEOUT || '', 10)
+  if (envOverride) {
+    return envOverride
+  }
+  if (serverName !== undefined && isInteractiveMcpServer(serverName)) {
+    return INTERACTIVE_MCP_TOOL_TIMEOUT_MS
+  }
+  return DEFAULT_MCP_TOOL_TIMEOUT_MS
 }
 
 import { isClaudeInChromeMCPServer } from '../../utils/claudeInChrome/common.js'
@@ -1722,6 +1743,30 @@ export function areMcpConfigsEqual(
 const MCP_FETCH_CACHE_SIZE = 20
 
 /**
+ * Last tool-fetch error per MCP server, keyed by server name. Populated when
+ * fetchToolsForClient fails (which otherwise silently yields zero tools, so
+ * e.g. computer_* tools vanish with no trace) and cleared on the next
+ * successful fetch. Queryable by /status or UI via getMcpToolFetchError(s).
+ */
+const mcpToolFetchErrors = new Map<string, string>()
+
+/**
+ * Returns the most recent tools/list failure for a server, or undefined if
+ * the last fetch succeeded (or never ran).
+ */
+export function getMcpToolFetchError(serverName: string): string | undefined {
+  return mcpToolFetchErrors.get(serverName)
+}
+
+/**
+ * Returns a snapshot of all servers whose last tool fetch failed, for /status
+ * or UI surfaces that warn about partially-initialized MCP servers.
+ */
+export function getMcpToolFetchErrors(): ReadonlyMap<string, string> {
+  return new Map(mcpToolFetchErrors)
+}
+
+/**
  * Encode MCP tool input for the auto-mode security classifier.
  * Exported so the auto-mode eval scripts can mirror production encoding
  * for `mcp__*` tool stubs without duplicating this logic.
@@ -1749,6 +1794,9 @@ export const fetchToolsForClient = memoizeWithLRU(
         { method: 'tools/list' },
         ListToolsResultSchema,
       )) as ListToolsResult
+
+      // Fetch succeeded — clear any previously recorded failure for this server
+      mcpToolFetchErrors.delete(client.name)
 
       // Sanitize tool data from MCP server
       const toolsToProcess = recursivelySanitizeUnicode(result.tools)
@@ -1984,6 +2032,9 @@ export const fetchToolsForClient = memoizeWithLRU(
         })
         .filter(isIncludedMcpTool)
     } catch (error) {
+      // Record the failure so it is discoverable via getMcpToolFetchError(s)
+      // instead of the server's tools silently disappearing from the session.
+      mcpToolFetchErrors.set(client.name, errorMessage(error))
       logMCPError(client.name, `Failed to fetch tools: ${errorMessage(error)}`)
       return []
     }
@@ -3062,7 +3113,7 @@ async function callMCPTool({
 
     // Use Promise.race with our own timeout to handle cases where SDK's
     // internal timeout doesn't work (e.g., SSE stream breaks mid-request)
-    const timeoutMs = getMcpToolTimeoutMs()
+    const timeoutMs = getMcpToolTimeoutMs(name)
     let timeoutId: NodeJS.Timeout | undefined
 
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -3200,7 +3251,13 @@ async function callMCPTool({
           )
         }
       }
-      return { content: undefined }
+      return {
+        // Return explicit error content instead of an empty result so the
+        // model (and the user) can see the tool call was aborted rather than
+        // appearing to hang or return nothing. The tool-result shape here has
+        // no isError field, so the message itself carries the failure.
+        content: `Request aborted by user: MCP server "${name}" tool "${tool}" did not complete.`,
+      }
     }
 
     if (e instanceof Error && e.name !== 'AbortError') {

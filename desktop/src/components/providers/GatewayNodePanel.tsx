@@ -43,9 +43,11 @@ import {
   type GatewayTargetKind,
   type GatewayTargetPickerMode,
 } from './GatewayTargetPicker'
+import { P2PModelSharingPanel } from './P2PModelSharingPanel'
 
 type NodeDraft = Omit<GatewayConfigInput, 'publicBaseUrl'> & { publicBaseUrl: string }
 type KeyDraft = GatewayKeyUpdateInput
+type NodeView = 'gateway' | 'p2p'
 const AGENT_NODE_DOCS_ROOT = 'https://wk42worldworld.github.io/cybercode'
 const EXAMPLE_NODE_KEY = 'cc_REPLACE_WITH_YOUR_NODE_KEY'
 
@@ -952,6 +954,7 @@ function GatewayKeyTable({
 
 export function GatewayNodePanel() {
   const t = useTranslation()
+  const [nodeView, setNodeView] = useState<NodeView>('gateway')
   const peekedStatus = gatewayApi.peekStatus()
   const cachedStatus = normalizeGatewayStatus(peekedStatus)
   const [status, setStatus] = useState<GatewayStatus | null>(cachedStatus ?? null)
@@ -1201,6 +1204,48 @@ export function GatewayNodePanel() {
     setKeyDraft(selectedKey ? keyDraftFromKey(selectedKey) : null)
   }
 
+  const nodeNavigation = (
+    <div className="flex flex-col gap-[6px]">
+      <nav
+        aria-label={t('settings.p2p.nodeViews')}
+        className="grid grid-cols-2 gap-[6px] rounded-[8px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)] p-[4px]"
+        role="tablist"
+      >
+        {(['gateway', 'p2p'] as const).map((view) => (
+          <button
+            key={view}
+            type="button"
+            role="tab"
+            aria-selected={nodeView === view}
+            onClick={() => setNodeView(view)}
+            className={`flex min-h-[34px] items-center justify-center rounded-[6px] px-[12px] text-[12px] font-semibold transition-colors ${
+              nodeView === view
+                ? 'bg-[var(--color-surface-elevated)] text-[var(--color-text-primary)] shadow-[var(--shadow-sm)]'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            {t(`settings.p2p.nodeView.${view}` as never)}
+          </button>
+        ))}
+      </nav>
+      <p
+        aria-live="polite"
+        className="px-[4px] text-[11px] leading-[17px] text-[var(--color-text-tertiary)]"
+      >
+        {t(`settings.p2p.nodeViewDescription.${nodeView}` as never)}
+      </p>
+    </div>
+  )
+
+  if (nodeView === 'p2p') {
+    return (
+      <div className="flex max-w-[920px] flex-col gap-[16px]">
+        {nodeNavigation}
+        <P2PModelSharingPanel />
+      </div>
+    )
+  }
+
   const header = (
     <section className="border-b border-[var(--color-border-separator)] pb-[18px]">
       <div className="gateway-node-header flex flex-col gap-[14px]">
@@ -1255,6 +1300,7 @@ export function GatewayNodePanel() {
     return (
       <>
         <div className="flex max-w-[920px] flex-col gap-[16px]">
+          {nodeNavigation}
           {header}
           {isLoading ? (
             <GatewayLoadingSkeleton />
@@ -1274,6 +1320,7 @@ export function GatewayNodePanel() {
   return (
     <>
       <div className="flex max-w-[920px] flex-col gap-[16px]">
+        {nodeNavigation}
         {header}
 
       <SettingsSection title={t('settings.gateway.connection')}>

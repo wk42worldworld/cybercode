@@ -123,8 +123,13 @@ def bool_env(name: str, default: bool = False) -> bool:
 # ---------------------------------------------------------------------------
 
 def get_displays() -> list[dict[str, Any]]:
-    """Enumerate monitors via screeninfo, with DPI scale from ctypes."""
+    """Enumerate monitors via screeninfo, with per-monitor DPI from ctypes."""
     from screeninfo import get_monitors
+
+    # Must run before enumeration so screeninfo reports physical pixels —
+    # otherwise coordinates virtualize against the primary display's DPI and
+    # per-monitor scaling math below mixes units.
+    _set_dpi_awareness()
 
     displays: list[dict[str, Any]] = []
     for idx, m in enumerate(get_monitors()):
@@ -145,13 +150,59 @@ def get_displays() -> list[dict[str, Any]]:
     return displays
 
 
+_dpi_awareness_set = False
+
+
+def _set_dpi_awareness() -> None:
+    """Opt into per-monitor DPI awareness. Idempotent.
+
+    Without this Windows treats the process as DPI-unaware and virtualizes
+    coordinates against the primary display, so clicks and captures on
+    secondary monitors with different scaling land at the wrong offset.
+    """
+    global _dpi_awareness_set
+    if _dpi_awareness_set:
+        return
+    _dpi_awareness_set = True
+    import ctypes
+    try:
+        # PROCESS_PER_MONITOR_DPI_AWARE = 2 (Windows 8.1+). Fails with
+        # E_ACCESSDENIED if a manifest already set awareness — harmless.
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return
+    except Exception:
+        pass
+    try:
+        # Vista+ fallback: system DPI aware (primary DPI only).
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+
 def _get_monitor_scale(monitor: Any) -> float:
     """Get the DPI scale factor for a monitor. Returns 1.0 on failure."""
     try:
         import ctypes
-        # SetProcessDPIAware so we get real pixel values
-        ctypes.windll.user32.SetProcessDPIAware()
-        # Get DPI for the primary — simplified; per-monitor DPI is complex
+        from ctypes import wintypes
+
+        _set_dpi_awareness()
+        # Per-monitor DPI (Windows 8.1+): resolve the HMONITOR under the
+        # display's center point, then ask shcore for its effective DPI.
+        ctypes.windll.user32.MonitorFromPoint.restype = ctypes.c_void_p
+        center = wintypes.POINT(
+            monitor.x + monitor.width // 2,
+            monitor.y + monitor.height // 2,
+        )
+        hmonitor = ctypes.windll.user32.MonitorFromPoint(center, 2)  # MONITOR_DEFAULTTONEAREST
+        if hmonitor:
+            dpi_x = ctypes.c_uint()
+            dpi_y = ctypes.c_uint()
+            hr = ctypes.windll.shcore.GetDpiForMonitor(
+                hmonitor, 0, ctypes.byref(dpi_x), ctypes.byref(dpi_y),  # MDT_EFFECTIVE_DPI
+            )
+            if hr == 0 and dpi_x.value:
+                return dpi_x.value / 96.0
+        # Fallback: primary display DPI via GetDeviceCaps (pre-8.1 systems).
         hdc = ctypes.windll.user32.GetDC(0)
         dpi = ctypes.windll.gdi32.GetDeviceCaps(hdc, 88)  # LOGPIXELSX
         ctypes.windll.user32.ReleaseDC(0, hdc)

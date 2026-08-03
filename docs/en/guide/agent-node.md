@@ -1,6 +1,6 @@
 # Agent Node
 
-CyberCode can expose configured models and smart routes to other agents through a scoped node supporting both OpenAI Chat Completions and Anthropic Messages. Provider credentials remain inside CyberCode; the receiving agent only gets a separate node key.
+CyberCode can expose configured models and agent routes to other agents through a scoped node supporting both OpenAI Chat Completions and Anthropic Messages. Provider credentials remain inside CyberCode; the receiving agent only gets a separate node key.
 
 ## Prepare the node
 
@@ -112,7 +112,7 @@ In the agent that will connect to CyberCode, find **Add provider**, **Custom mod
 | Anthropic, Anthropic Compatible, Anthropic Messages | Anthropic |
 | Both protocols | Prefer the protocol recommended natively by that agent |
 
-The protocol controls only the request format. Both protocols can use every model and smart route authorized by the CyberCode node.
+The protocol controls only the request format. Both protocols can use every model and agent route authorized by the CyberCode node.
 
 ## Step 2: understand Key and Model
 
@@ -124,7 +124,7 @@ The complete node key is shown once. If the page now shows a masked value such a
 
 ### Model
 
-Enter `auto`. CyberCode resolves the default model or smart route configured for this key, so normal users do not need another model identifier.
+Enter `auto`. CyberCode resolves the default model or agent route configured for this key, so normal users do not need another model identifier.
 
 ## Connect with the OpenAI protocol
 
@@ -159,7 +159,7 @@ For direct models, the value before `/` is the readable provider node alias. Edi
 
 | Goal | Model value | Result |
 | --- | --- | --- |
-| Pin a smart route | `route/<route-id>`, for example `route/coding` | Lets that route choose its provider and model |
+| Pin an agent route | `route/<route-id>`, for example `route/coding` | Lets that route choose its provider and model |
 | Pin a direct model | `<provider-alias>/<model-id>`, for example `kimi/kimi-k2.6` | Always uses that exact provider model |
 
 Expand **Advanced: pin a model or route** in the node guide and copy the complete ID, or query `GET /v1/models` with the node key. Do not guess it from a display label.

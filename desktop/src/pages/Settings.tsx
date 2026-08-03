@@ -28,6 +28,7 @@ import { useSkillStore } from '../stores/skillStore'
 import { skillsApi, type SkillsConfig } from '../api/skills'
 import { SkillList } from '../components/skills/SkillList'
 import { SkillDetail } from '../components/skills/SkillDetail'
+import { SkillMarketplace } from '../components/skills/SkillMarketplace'
 import {
   SkillLearningModeControl,
   SkillLearningPanel,
@@ -37,6 +38,7 @@ import { useSkillLearningStore } from '../stores/skillLearningStore'
 import { usePluginStore } from '../stores/pluginStore'
 import { PluginList } from '../components/plugins/PluginList'
 import { PluginDetail } from '../components/plugins/PluginDetail'
+import { PluginMarketplace } from '../components/plugins/PluginMarketplace'
 import { useUIStore, type SettingsTab } from '../stores/uiStore'
 import { ClaudeOAuthDialog } from '../components/settings/ClaudeOfficialLogin'
 import { SettingsPage, SettingsSection, SettingsRow, SegmentedControl, Switch } from '../components/settings/SettingsLayout'
@@ -71,6 +73,7 @@ import {
   isValidCloudflareAccountId,
 } from '../components/providers/cloudflareWorkersAi'
 import { ProviderOAuthDialog } from '../components/providers/ProviderOAuthDialog'
+import { isLocalProvider } from '../components/chat/localProvider'
 import {
   EMPTY_PROVIDER_CATALOG_FILTERS,
   ProviderCatalogFilterBar,
@@ -809,7 +812,9 @@ export function ProviderSettings() {
       ? `${t('settings.providers.test')}…`
       : testSummary
         ? testSummary.success
-          ? t('settings.providers.connectivityOk', {
+          ? t(testSummary.lightweight
+              ? 'settings.providers.connectivityOkLightweight'
+              : 'settings.providers.connectivityOk', {
               latency: String(testSummary.latencyMs),
             })
           : t('settings.providers.connectivityFailed', {
@@ -1939,7 +1944,9 @@ function ProviderCatalogGroupDialog({
                       ? `${t('settings.providers.test')}…`
                       : testSummary
                         ? testSummary.success
-                          ? t('settings.providers.connectivityOk', {
+                          ? t(testSummary.lightweight
+                              ? 'settings.providers.connectivityOkLightweight'
+                              : 'settings.providers.connectivityOk', {
                               latency: String(testSummary.latencyMs),
                             })
                           : t('settings.providers.connectivityFailed', {
@@ -2056,6 +2063,7 @@ function summarizeProviderConnectionTest(result: ProviderTestResult): {
   success: boolean
   latencyMs: number
   error: string
+  lightweight: boolean
 } {
   const failedModel = result.modelChecks?.find((check) => !check.result.success)?.result
   const failedProxy = result.proxy?.success === false ? result.proxy : undefined
@@ -2067,6 +2075,7 @@ function summarizeProviderConnectionTest(result: ProviderTestResult): {
     success: !failure && result.allModelsPassed !== false,
     latencyMs: result.connectivity.latencyMs,
     error: failure?.error ?? '',
+    lightweight: result.connectivity.verificationMethod === 'lightweight',
   }
 }
 
@@ -2666,6 +2675,19 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
           )
         }
       }
+      if (savedProvider && isLocalProvider(savedProvider)) {
+        // Fire-and-forget: local backends (ollama / llama.cpp / LM Studio)
+        // cold-start slowly, so ask the server to preload the default model
+        // without blocking the dialog close.
+        const providerId = savedProvider.id
+        const providerName = savedProvider.name
+        const defaultModelId = savedProvider.models.main
+        void import('../api/providers')
+          .then(({ providersApi }) => providersApi.warmupProvider(providerId, defaultModelId))
+          .catch((error) => {
+            console.warn(`Warmup request for ${providerName} failed:`, error)
+          })
+      }
       await fetchSettings()
       onClose()
     } catch (err) {
@@ -2768,12 +2790,16 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
     try {
       let result: ProviderTestResult
       if (mode === 'edit' && provider && !apiKey.trim()) {
-        result = await useProviderStore.getState().testProvider(provider.id, {
+        // Match the create branch: never run the image probe from the Test button.
+        type TestOverrides = Parameters<ReturnType<typeof useProviderStore.getState>['testProvider']>[1]
+        const overrides: TestOverrides & { probeImages?: boolean } = {
           baseUrl: baseUrl.trim(),
           modelId: resolvedModels.main,
           models: resolvedModels,
           apiFormat,
-        })
+          probeImages: false,
+        }
+        result = await useProviderStore.getState().testProvider(provider.id, overrides)
       } else {
         if (requiresApiKey && !apiKey.trim()) return
         result = await testConfig({
@@ -2998,7 +3024,9 @@ function ProviderFormModal({ open, onClose, mode, provider, presets, initialPres
             <div className="mt-1">
               <span className={`text-[12px] ${connectionTestSummary.success ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
                 {connectionTestSummary.success
-                  ? t('settings.providers.connectivityOk', { latency: String(connectionTestSummary.latencyMs) })
+                  ? t(connectionTestSummary.lightweight
+                      ? 'settings.providers.connectivityOkLightweight'
+                      : 'settings.providers.connectivityOk', { latency: String(connectionTestSummary.latencyMs) })
                   : t('settings.providers.connectivityFailed', {
                       error: connectionTestSummary.error || t('settings.providers.requestFailed'),
                     })}
@@ -3946,7 +3974,7 @@ export function SkillSettings() {
   const t = useTranslation()
   const [config, setConfig] = useState<SkillsConfig | null>(null)
   const [openingConfig, setOpeningConfig] = useState(false)
-  const [skillView, setSkillView] = useState<'installed' | SkillLearningView>('installed')
+  const [skillView, setSkillView] = useState<'installed' | 'market' | SkillLearningView>('installed')
   const sessions = useSessionStore((s) => s.sessions)
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
   const overview = useSkillLearningStore((s) => s.overview)
@@ -4060,6 +4088,7 @@ export function SkillSettings() {
       <div className="inline-flex h-[38px] w-fit items-center gap-0.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-0.5">
         {([
           ['installed', t('settings.skills.learning.tab.installed'), undefined],
+          ['market', t('settings.skills.market.tab'), undefined],
           ['pending', t('settings.skills.learning.tab.pending'), overview?.pendingCandidates.length],
           [
             'learning',
@@ -4089,16 +4118,23 @@ export function SkillSettings() {
           </button>
         ))}
       </div>
-      {skillView === 'installed'
-        ? <SkillList />
-        : <SkillLearningPanel view={skillView} cwd={currentWorkDir} />}
+      {skillView === 'installed' && <SkillList />}
+      {skillView === 'market' && <SkillMarketplace cwd={currentWorkDir} />}
+      {(skillView === 'pending' || skillView === 'learning') && (
+        <SkillLearningPanel view={skillView} cwd={currentWorkDir} />
+      )}
     </div>
   )
 }
 
 export function PluginSettings() {
   const selectedPlugin = usePluginStore((s) => s.selectedPlugin)
+  const plugins = usePluginStore((s) => s.plugins)
+  const sessions = useSessionStore((s) => s.sessions)
+  const activeSessionId = useSessionStore((s) => s.activeSessionId)
   const t = useTranslation()
+  const [pluginView, setPluginView] = useState<'installed' | 'market'>('installed')
+  const currentWorkDir = sessions.find((session) => session.id === activeSessionId)?.workDir ?? undefined
 
   if (selectedPlugin) {
     return (
@@ -4110,7 +4146,33 @@ export function PluginSettings() {
 
   return (
     <SettingsPage icon="extension" title={t('settings.plugins.title')} description={t('settings.plugins.description')}>
-      <PluginList />
+      <div className="mb-4 inline-flex h-[36px] items-center gap-1 rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-1">
+        {([
+          ['installed', t('settings.plugins.tabs.installed'), plugins.length],
+          ['market', t('settings.plugins.tabs.market'), undefined],
+        ] as const).map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setPluginView(key)}
+            className={`flex h-[28px] items-center gap-1.5 rounded-[6px] px-3 text-[11px] font-semibold transition-colors ${
+              pluginView === key
+                ? 'bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]'
+            }`}
+            aria-pressed={pluginView === key}
+          >
+            {label}
+            {typeof count === 'number' && count > 0 && (
+              <span className="min-w-[18px] rounded-md bg-[var(--color-surface-container-high)] px-1 text-center text-[10px] leading-[18px] text-[var(--color-text-secondary)]">
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      {pluginView === 'installed' && <PluginList />}
+      {pluginView === 'market' && <PluginMarketplace cwd={currentWorkDir ?? undefined} />}
     </SettingsPage>
   )
 }

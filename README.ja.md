@@ -149,7 +149,7 @@ Claude 公式経路、Anthropic 互換 API、OpenAI 互換プロバイダー、�
 
 モデルとルーティング設定は、公式 API Key と主要 aggregator、OAuth、Web セッション、画像・動画・音声、ローカル / カスタム endpoint の順に整理されています。表示名は UI 言語に従い、同じ preset の複数 Key はまとめて管理できますが、Kimi Code と Kimi のような別製品は独立した入口を維持します。
 
-互換 `/models` endpoint は手動取り込みと約 24 時間ごとの自動同期に対応し、手入力したモデルを保持します。スマート route は health、失敗 cooldown、failover を管理します。Agent node は元の provider Key を公開せず、専用 `cc_...` Key で OpenAI Chat Completions と Anthropic Messages endpoint を他の Agent に提供します。
+互換 `/models` endpoint は手動取り込みと約 24 時間ごとの自動同期に対応し、手入力したモデルを保持します。エージェント route は health、失敗 cooldown、failover を管理します。Agent node は元の provider Key を公開せず、専用 `cc_...` Key で OpenAI Chat Completions と Anthropic Messages endpoint を他の Agent に提供します。
 
 Web セッションはユーザーが明示的に入力した Cookie / token だけを使用し、ブラウザーデータの読み取り、CAPTCHA、アカウントや地域制限の回避は行いません。デスクトップと TUI は設定を共有し、TUI でも `/provider sync`、`/routing`、`/node` を追加 proxy なしで利用できます。[詳しいガイド](https://wk42worldworld.github.io/cybercode/ja/guide/models-routing)。
 
@@ -174,7 +174,7 @@ CyberCode はクライアント、サーバー、デスクトップシェル、a
 | コーディングワークフロー | ファイル編集、ターミナル、プロジェクト検索、権限モード、スラッシュコマンド、添付、rewind、branch、セッション再開 |
 | Agent インテリジェンス | 永続メモリ、自己進化レビュー、再利用可能な Skills、サブ Agent、Agent Teams、バックグラウンドタスク、worktree |
 | コンテキスト効率 | 動的コンテキストウィンドウ、自動圧縮、Lite cleanup、smart pruning、Lazy Programmer、Caveman、RTK、Code Graph |
-| モデル接続 | 公式 API Key、aggregator、OAuth、Web セッション、メディア一覧、ローカル / カスタム endpoint、モデル同期、スマート route、Agent node |
+| モデル接続 | 公式 API Key、aggregator、OAuth、Web セッション、メディア一覧、ローカル / カスタム endpoint、モデル同期、エージェント route、Agent node |
 | Web とツール | プロバイダー非依存 WebSearch、WebFetch、MCP、プラグイン、Computer Use、環境に応じたツール可用性 |
 | UI | クロスプラットフォームデスクトップ、ターミナル TUI、`--print`、Telegram、Feishu |
 | 自動化 | 一度限り / 周期的な定期タスク、リモート承認、バックグラウンド Agent、JSON 出力 |

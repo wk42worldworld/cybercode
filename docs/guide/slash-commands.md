@@ -41,7 +41,7 @@
 | `/insights` | - | 生成会话使用分析报告。 |
 | `/model` | `[模型]` | 切换当前会话使用的模型。 |
 | `/provider` | `/providers`；`status`、`sync`、`auto-sync on|off` | 配置或切换模型提供商，并查看或同步支持 `/models` 的提供商目录。OpenAI 兼容接口会自动使用内置协议桥接。 |
-| `/routing` | `/route`；`status`、`create`、`use`、`strategy`、`reset-health` | 创建、检查和启用智能路由，并管理路由健康状态。 |
+| `/routing` | `/route`；`status`、`create`、`use`、`strategy`、`reset-health` | 创建、检查和启用智能体路由，并管理路由健康状态。 |
 | `/node` | `/agent-node`、`/gateway`；`status`、`start`、`stop`、`rotate`、`revoke` | 启动内置 Agent 节点，管理独立节点密钥、目标范围和请求上限。 |
 | `/effort` | `low`, `medium`, `high`, `max`, `auto` | 调整模型推理强度。 |
 | `/fast` | `on`, `off` | 在支持环境中切换快速模式。 |

@@ -11,6 +11,7 @@ import type { Dirent } from 'fs'
 import { readdir, stat } from 'fs/promises'
 import { basename, join } from 'path'
 import { getWorktreePathsPortable } from './getWorktreePathsPortable.js'
+import { resolvePortableProjectPath } from './portablePaths.js'
 import type { LiteSessionFile } from './sessionStoragePortable.js'
 import {
   canonicalizePath,
@@ -124,8 +125,13 @@ export function parseSessionInfoFromLite(
     extractLastJsonStringField(tail, 'gitBranch') ||
     extractJsonStringField(head, 'gitBranch') ||
     undefined
-  const sessionCwd =
-    extractJsonStringField(head, 'cwd') || projectPath || undefined
+  const sessionMetaLine =
+    tail.split('\n').findLast(line => line.startsWith('{"type":"session-meta"')) ||
+    head.split('\n').findLast(line => line.startsWith('{"type":"session-meta"'))
+  const storedWorkDir = sessionMetaLine
+    ? extractLastJsonStringField(sessionMetaLine, 'workDir')
+    : undefined
+  const sessionCwd = storedWorkDir || extractJsonStringField(head, 'cwd') || projectPath
   // Type-scope tag extraction to the {"type":"tag"} JSONL line to avoid
   // collision with tool_use inputs containing a `tag` parameter (git tag,
   // Docker tags, cloud resource tags). Mirrors sessionStorage.ts:608.
@@ -142,7 +148,7 @@ export function parseSessionInfoFromLite(
     customTitle,
     firstPrompt,
     gitBranch,
-    cwd: sessionCwd,
+    cwd: sessionCwd ? resolvePortableProjectPath(sessionCwd) : undefined,
     tag,
     createdAt,
   }

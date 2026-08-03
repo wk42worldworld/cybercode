@@ -60,7 +60,7 @@ TUI에서 다음 명령을 실행합니다.
 
 데스크톱 앱과 TUI는 공급자 설정을 공유합니다. 연결 테스트와 역할별 모델 매핑은 데스크톱 앱의 Settings -> Providers에서 설정할 수 있습니다.
 
-OAuth, 웹 세션, 미디어 공급자, 모델 동기화, 스마트 route, Agent node는 [모델 연결, 동기화, 스마트 라우팅](./models-routing.md)을 확인하세요. TUI에서도 추가 proxy 없이 `/provider sync`, `/routing`, `/node`를 사용할 수 있습니다.
+OAuth, 웹 세션, 미디어 공급자, 모델 동기화, 에이전트 route, Agent node는 [모델 연결, 동기화, 에이전트 라우팅](./models-routing.md)을 확인하세요. TUI에서도 추가 proxy 없이 `/provider sync`, `/routing`, `/node`를 사용할 수 있습니다.
 
 ### 로컬 모델 안내
 

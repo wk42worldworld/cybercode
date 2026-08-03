@@ -19,6 +19,13 @@ export type PortableProjectRegistry = {
   projects: PortableProjectEntry[]
 }
 
+export type PortableRuntimeInfo = {
+  active: boolean
+  rootPath: string | null
+  registryPath: string | null
+  projectCount: number
+}
+
 type RegistryCache = {
   filePath: string
   signature: string
@@ -28,7 +35,11 @@ type RegistryCache = {
 let registryCache: RegistryCache | null = null
 
 function normalizedForeignPath(value: string): string {
-  const normalized = value.trim().replace(/\\/g, '/').replace(/\/+/g, '/')
+  const slashNormalized = value.trim().replace(/\\/g, '/')
+  const scheme = slashNormalized.match(/^([a-zA-Z][a-zA-Z\d+.-]*:\/\/)(.*)$/)
+  const normalized = scheme
+    ? `${scheme[1]}${scheme[2]!.replace(/\/+/g, '/')}`
+    : slashNormalized.replace(/\/+/g, '/')
   if (normalized.length > 1) return normalized.replace(/\/+$/, '')
   return normalized
 }
@@ -142,6 +153,30 @@ export function loadPortableProjectRegistry(): PortableProjectRegistry | null {
   }
   registryCache = { filePath, signature, registry }
   return registry
+}
+
+export function getPortableRuntimeInfo(): PortableRuntimeInfo {
+  const rootPath = currentPortableRoot()
+  if (!rootPath) {
+    return {
+      active: false,
+      rootPath: null,
+      registryPath: null,
+      projectCount: 0,
+    }
+  }
+
+  const registry = loadPortableProjectRegistry()
+  return {
+    active: true,
+    rootPath,
+    registryPath: registryFilePath(),
+    projectCount: registry?.projects.length ?? 0,
+  }
+}
+
+export function isPortableProjectReference(value: string): boolean {
+  return normalizedForeignPath(value).startsWith(PORTABLE_PATH_SCHEME)
 }
 
 function resolvedRegistryPath(

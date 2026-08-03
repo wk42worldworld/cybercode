@@ -18,6 +18,7 @@ export type DropdownItem<T extends string> = {
   value: T
   label: string
   description?: string
+  badge?: string
   icon?: ReactNode
 }
 
@@ -36,6 +37,7 @@ type DropdownProps<T extends string> = {
   className?: string
   disabled?: boolean
   ariaLabel?: string
+  density?: 'default' | 'compact'
 }
 
 type DropdownPosition = {
@@ -69,6 +71,7 @@ export function Dropdown<T extends string>({
   className = '',
   disabled = false,
   ariaLabel,
+  density = 'default',
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<DropdownPosition | null>(null)
@@ -76,7 +79,8 @@ export function Dropdown<T extends string>({
   const menuRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const focusMenuOnOpenRef = useRef(false)
-  const menuId = useId()
+  const generatedMenuId = useId()
+  const menuId = `dropdown-${generatedMenuId.replace(/[^a-zA-Z0-9_-]/g, '')}`
 
   const focusTrigger = useCallback(() => {
     ref.current
@@ -119,7 +123,8 @@ export function Dropdown<T extends string>({
     const desiredLeft = align === 'right' ? rect.right - menuWidth : rect.left
     const spaceBelow = window.innerHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN
     const spaceAbove = rect.top - MENU_GAP - VIEWPORT_MARGIN
-    const estimatedHeight = Math.min(MENU_MAX_HEIGHT, Math.max(96, items.length * 58))
+    const itemEstimate = density === 'compact' ? 40 : 58
+    const estimatedHeight = Math.min(MENU_MAX_HEIGHT, Math.max(96, items.length * itemEstimate))
     const direction = (
       spaceBelow >= estimatedHeight ||
       spaceBelow >= spaceAbove
@@ -133,7 +138,7 @@ export function Dropdown<T extends string>({
       maxHeight: Math.max(48, Math.min(MENU_MAX_HEIGHT, availableHeight)),
       direction,
     })
-  }, [align, items.length, width])
+  }, [align, density, items.length, width])
 
   useEffect(() => {
     if (!open) return
@@ -149,10 +154,13 @@ export function Dropdown<T extends string>({
       event.stopImmediatePropagation()
       closeAndFocusTrigger()
     }
-    document.addEventListener('mousedown', handleClick)
+    // Capture phase: canvases like React Flow (d3-zoom) call
+    // stopImmediatePropagation() on bubbled mousedown, which would otherwise
+    // prevent this listener from ever seeing clicks on the pane.
+    document.addEventListener('mousedown', handleClick, true)
     document.addEventListener('keydown', handleEscape, true)
     return () => {
-      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('mousedown', handleClick, true)
       document.removeEventListener('keydown', handleEscape, true)
     }
   }, [closeAndFocusTrigger, open])
@@ -245,9 +253,10 @@ export function Dropdown<T extends string>({
           onClick={(event) => event.stopPropagation()}
           onKeyDown={handleMenuKeyDown}
           className={`
-            settings-ui native-ui-text fixed z-[10050] overflow-y-auto overscroll-contain rounded-[8px]
+            settings-ui native-ui-text fixed z-[10050] overflow-y-auto overscroll-contain
             border border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)]
-            p-[5px] shadow-[var(--shadow-dropdown)] animate-slide-down
+            shadow-[var(--shadow-dropdown)] animate-slide-down
+            ${density === 'compact' ? 'rounded-[7px] p-[4px]' : 'rounded-[8px] p-[5px]'}
           `}
           style={{
             left: position.left,
@@ -264,6 +273,7 @@ export function Dropdown<T extends string>({
               type="button"
               role="option"
               aria-selected={item.value === value}
+              data-value={item.value}
               tabIndex={-1}
               ref={(option) => {
                 optionRefs.current[i] = option
@@ -273,9 +283,13 @@ export function Dropdown<T extends string>({
                 closeAndFocusTrigger()
               }}
               className={`
-                flex min-h-[42px] w-full items-center gap-[10px] rounded-[6px] px-[10px] py-[7px] text-left
+                flex w-full items-center text-left
                 transition-colors hover:bg-[var(--color-surface-hover)]
                 focus-visible:bg-[var(--color-surface-hover)] focus-visible:outline-none
+                ${density === 'compact'
+                  ? 'min-h-[34px] gap-[8px] rounded-[5px] px-[8px] py-[5px]'
+                  : 'min-h-[42px] gap-[10px] rounded-[6px] px-[10px] py-[7px]'
+                }
                 ${item.value === value ? 'bg-[var(--color-surface-selected)]' : ''}
               `}
             >
@@ -287,22 +301,30 @@ export function Dropdown<T extends string>({
               <div className="min-w-0 flex-1">
                 <div
                   title={item.label}
-                  className="truncate text-[13px] font-semibold tracking-normal text-[var(--color-text-primary)]"
+                  className={`truncate font-semibold tracking-normal text-[var(--color-text-primary)] ${density === 'compact' ? 'text-[11px]' : 'text-[13px]'}`}
                 >
                   {item.label}
                 </div>
                 {item.description && (
                   <div
                     title={item.description}
-                    className="mt-0.5 truncate text-[11px] text-[var(--color-text-tertiary)]"
+                    className={`mt-0.5 truncate text-[var(--color-text-tertiary)] ${density === 'compact' ? 'text-[9px]' : 'text-[11px]'}`}
                   >
                     {item.description}
                   </div>
                 )}
               </div>
+              {item.badge && (
+                <span
+                  title={item.badge}
+                  className={`settings-dropdown-item-badge max-w-[44%] shrink-0 truncate rounded-[4px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[6px] py-[2px] font-bold leading-none text-[var(--color-text-secondary)] ${density === 'compact' ? 'text-[8px]' : 'text-[10px]'}`}
+                >
+                  {item.badge}
+                </span>
+              )}
               {item.value === value && (
                 <Check
-                  size={15}
+                  size={density === 'compact' ? 13 : 15}
                   strokeWidth={2.25}
                   className="shrink-0 text-[#1473e6] dark:text-[#68adff]"
                   aria-hidden="true"

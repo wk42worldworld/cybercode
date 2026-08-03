@@ -99,3 +99,54 @@ export type PluginReloadSummary = {
   lspServers: number
   errors: number
 }
+
+export type PluginMarketplaceInstallation = {
+  scope: Exclude<PluginScope, 'builtin'>
+  version?: string
+  updateAvailable: boolean
+}
+
+export type PluginMarketplaceLocalizedDescriptions = Partial<
+  Record<'en' | 'zh' | 'ja' | 'ko', string>
+>
+
+export type PluginMarketplaceItem = {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  localizedDescriptions?: PluginMarketplaceLocalizedDescriptions
+  version?: string
+  updatedAt?: string
+  popularity?: number
+  author?: string
+  category: string
+  tags: string[]
+  homepage?: string
+  iconUrl?: string
+  brandColor?: string
+  sourceId: string
+  sourceName: string
+  sourceUrl: string
+  features: string[]
+  compatible: boolean
+  compatibilityNote?: string
+  revision: string
+  installations: PluginMarketplaceInstallation[]
+}
+
+export type PluginMarketplaceSource = {
+  id: string
+  name: string
+  homepage: string
+  status: 'ready' | 'stale' | 'error'
+  itemCount: number
+  revision?: string
+  refreshedAt?: string
+  error?: string
+}
+
+export type PluginMarketplaceCatalog = {
+  items: PluginMarketplaceItem[]
+  sources: PluginMarketplaceSource[]
+}

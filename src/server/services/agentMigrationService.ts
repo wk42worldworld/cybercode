@@ -27,13 +27,17 @@ import {
   resolve,
   sep,
 } from 'path'
-import { ensureSessionSearchIndexFresh } from '../../sessionSearch/indexer.js'
+import { scheduleSessionSearchIndexRefresh } from '../../sessionSearch/indexer.js'
 import { clearCommandCaches } from '../../skills/loadSkillsDir.js'
 import {
   getClaudeConfigHomeDir,
   getProjectConfigPath,
 } from '../../utils/envUtils.js'
 import { sanitizePath } from '../../utils/sessionStoragePortable.js'
+import {
+  backgroundScheduler,
+  type BackgroundScheduler,
+} from '../background/scheduler.js'
 import { sessionService } from './sessionService.js'
 
 export type ExternalAgentId =
@@ -150,6 +154,7 @@ type AgentMigrationServiceOptions = {
   findExecutable?: (command: string) => string | null
   registerProject?: (projectPath: string) => Promise<boolean>
   refreshSearchIndex?: () => Promise<void>
+  backgroundScheduler?: BackgroundScheduler
 }
 
 type SourceProject = {
@@ -251,6 +256,8 @@ export class AgentMigrationService {
   private readonly findExecutable: (command: string) => string | null
   private readonly registerProject: (projectPath: string) => Promise<boolean>
   private readonly refreshSearchIndex: () => Promise<void>
+  private readonly backgroundScheduler: BackgroundScheduler
+  private readonly scanConsumers = new Map<string, number>()
   private migrationQueue: Promise<void> = Promise.resolve()
 
   constructor(options: AgentMigrationServiceOptions = {}) {
@@ -271,17 +278,97 @@ export class AgentMigrationService {
       await sessionService.createSession(projectPath)
       return true
     })
-    this.refreshSearchIndex = options.refreshSearchIndex ?? (() => ensureSessionSearchIndexFresh())
+    this.backgroundScheduler = options.backgroundScheduler ?? backgroundScheduler
+    this.refreshSearchIndex = options.refreshSearchIndex ?? (async () => {
+      scheduleSessionSearchIndexRefresh({
+        priority: 2,
+        scheduler: this.backgroundScheduler,
+      })
+    })
   }
 
-  async scan(targetAgentId: ExternalAgentId = 'cybercode'): Promise<AgentMigrationScan> {
-    const contexts = await this.buildScanContexts()
-    const targetContext = this.findContext(contexts, targetAgentId)
-    const agents = await Promise.all(contexts.map(context => this.scanAgent(context, targetContext)))
-    return {
-      scannedAt: new Date().toISOString(),
-      targetAgentId,
-      agents,
+  async scan(
+    targetAgentId: ExternalAgentId = 'cybercode',
+    signal?: AbortSignal,
+  ): Promise<AgentMigrationScan> {
+    signal?.throwIfAborted()
+    const handle = this.backgroundScheduler.enqueue({
+      type: 'agent-migration-scan',
+      key: targetAgentId,
+      priority: 1,
+      lane: 'disk-read',
+      resourceKey: `agent-migration:${this.homeDir}`,
+      dedupe: 'join',
+      run: async (context) => {
+        const contexts = await this.buildScanContexts()
+        const targetContext = this.findContext(contexts, targetAgentId)
+        const agents = new Array<DetectedExternalAgent>(contexts.length)
+        let nextIndex = 0
+        let completed = 0
+        const scanNext = async (): Promise<void> => {
+          while (nextIndex < contexts.length) {
+            if (context.signal.aborted) throw context.signal.reason
+            const index = nextIndex++
+            const agentContext = contexts[index]
+            agents[index] = await this.scanAgent(
+              agentContext,
+              targetContext,
+              context.signal,
+            )
+            completed += 1
+            context.report({
+              stage: 'scanning',
+              completed,
+              total: contexts.length,
+              message: agentContext.name,
+            })
+            await context.checkpoint({ agentId: agentContext.id, completed })
+          }
+        }
+        await Promise.all(
+          Array.from({ length: Math.min(2, contexts.length) }, () => scanNext()),
+        )
+        return {
+          scannedAt: new Date().toISOString(),
+          targetAgentId,
+          agents,
+        }
+      },
+    })
+
+    this.scanConsumers.set(
+      handle.id,
+      (this.scanConsumers.get(handle.id) ?? 0) + 1,
+    )
+    let callerAborted = false
+    let abortListener: (() => void) | undefined
+    const callerAbort = signal
+      ? new Promise<never>((_resolve, reject) => {
+          abortListener = () => {
+            if (callerAborted) return
+            callerAborted = true
+            reject(signal.reason instanceof Error
+              ? signal.reason
+              : new DOMException('Agent scan cancelled', 'AbortError'))
+          }
+          signal.addEventListener('abort', abortListener, { once: true })
+          if (signal.aborted) abortListener()
+        })
+      : null
+
+    try {
+      return await (callerAbort
+        ? Promise.race([handle.promise, callerAbort])
+        : handle.promise)
+    } finally {
+      if (abortListener) signal?.removeEventListener('abort', abortListener)
+      const remaining = Math.max(0, (this.scanConsumers.get(handle.id) ?? 1) - 1)
+      if (remaining === 0) {
+        this.scanConsumers.delete(handle.id)
+        if (callerAborted) handle.cancel(signal?.reason)
+      } else {
+        this.scanConsumers.set(handle.id, remaining)
+      }
     }
   }
 
@@ -623,18 +710,25 @@ export class AgentMigrationService {
   private async scanAgent(
     context: AgentScanContext,
     targetContext: AgentScanContext,
+    signal?: AbortSignal,
   ): Promise<DetectedExternalAgent> {
+    signal?.throwIfAborted()
     const executablePath = context.commands
       .map(command => this.findExecutable(command))
       .find((candidate): candidate is string => Boolean(candidate)) ?? null
     const existingRoots = await this.existingPaths(context.roots)
+    signal?.throwIfAborted()
     const existingWorkspaces = await this.existingPaths(context.workspaces ?? [])
+    signal?.throwIfAborted()
     const existingInstallRoots = await this.existingPaths(context.installRoots ?? [])
+    signal?.throwIfAborted()
     const canonicalCyberConfigDir = await this.canonicalPath(this.cyberConfigDir)
     const items = new Map<string, AgentMigrationItem>()
 
     const addItem = async (input: AgentMigrationItemInput) => {
+      signal?.throwIfAborted()
       const sourcePath = await this.safeExistingFile(input.sourcePath)
+      signal?.throwIfAborted()
       if (!sourcePath || (context.id !== 'cybercode' && this.isInside(sourcePath, canonicalCyberConfigDir))) return
       const sourceStat = await stat(sourcePath)
       const id = this.itemId(input.agentId, input.kind, sourcePath, input.projectPath)
@@ -647,6 +741,7 @@ export class AgentMigrationService {
         ? !skillMetrics.exceeded
         : sizeBytes <= MAX_ITEM_FILE_BYTES
       const destination = await this.migrationDestination(targetContext, { ...input, sourcePath })
+      signal?.throwIfAborted()
       const destinationPath = destination.path
       const destinationState = await this.inspectDestinationState(destination)
       const selectionIssue: MigrationSelectionIssue | undefined = !withinSizeLimit
@@ -674,12 +769,16 @@ export class AgentMigrationService {
     }
 
     await this.scanGlobalItems(context, addItem)
+    signal?.throwIfAborted()
     const sourceProjects = await this.discoverProjects(context)
+    signal?.throwIfAborted()
     const projects: AgentMigrationProject[] = []
 
     for (const sourceProject of sourceProjects.slice(0, MAX_PROJECTS)) {
+      signal?.throwIfAborted()
       const before = new Set(items.keys())
       await this.scanProjectItems(context.id, sourceProject, addItem)
+      signal?.throwIfAborted()
       const itemIds = [...items.keys()].filter(id => !before.has(id))
       projects.push({
         id: this.projectId(context.id, sourceProject.path),

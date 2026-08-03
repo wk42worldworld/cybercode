@@ -19,10 +19,15 @@ import { ensureDesktopCliLauncherInstalled } from './services/desktopCliLauncher
 import { codeGraphService } from './services/codeGraphService.js'
 import { startCybercodeUsageReporter } from '../services/cybercodeUsageAnalytics.js'
 import { conversationService } from './services/conversationService.js'
+import { usbMigrationService } from './services/usbMigrationService.js'
 import {
   startProviderModelSyncScheduler,
   stopProviderModelSyncScheduler,
 } from './services/providerModelSyncScheduler.js'
+import { backgroundScheduler } from './background/scheduler.js'
+import { scheduleSessionSearchIndexRefresh } from '../sessionSearch/indexer.js'
+import { drainPendingSessionSearchIndexRefresh } from '../sessionSearch/turnIndex.js'
+import { p2pService } from './p2p/p2pService.js'
 
 type StoppableServer = {
   stop(closeActiveConnections?: boolean): void
@@ -61,7 +66,15 @@ const PORT = SERVER_OPTIONS.port
 const HOST = SERVER_OPTIONS.host
 
 export function startServer(port = PORT, host = HOST) {
+  backgroundScheduler.start()
+  void usbMigrationService.recoverInterruptedMigrations().catch(error => {
+    console.warn(
+      '[Server] USB migration recovery deferred:',
+      error instanceof Error ? error.message : error,
+    )
+  })
   ProviderService.setServerPort(port)
+  p2pService.setServerPort(port)
   const localConnectHost =
     host === '0.0.0.0' || host === '127.0.0.1' || host === 'localhost'
       ? '127.0.0.1'
@@ -197,6 +210,28 @@ export function startServer(port = PORT, host = HOST) {
         }
       }
 
+      // Local OpenAI/Anthropic endpoint backed by an encrypted WebRTC data channel.
+      // Authentication is handled by the per-device P2P key inside the service.
+      if (url.pathname.startsWith('/p2p/connections/')) {
+        try {
+          const response = await p2pService.handlePeerHttpRequest(req, url)
+          const headers = new Headers(response.headers)
+          for (const [key, value] of Object.entries(corsHeaders(origin))) {
+            headers.set(key, value)
+          }
+          return new Response(response.body, {
+            status: response.status,
+            headers,
+          })
+        } catch (error) {
+          console.error('[Server] P2P tunnel error:', error)
+          return Response.json(
+            { error: { message: 'Internal P2P tunnel error', type: 'server_error' } },
+            { status: 500, headers: corsHeaders(origin) },
+          )
+        }
+      }
+
       // Proxy — protocol-translating reverse proxy for OpenAI-compatible APIs
       if (url.pathname.startsWith('/proxy/')) {
         if (authRequired) {
@@ -278,6 +313,7 @@ export function startServer(port = PORT, host = HOST) {
   })
 
   codeGraphService.restoreEnabledProjects()
+  scheduleSessionSearchIndexRefresh()
   startCybercodeUsageReporter('desktop')
 
   activeServer = server
@@ -299,6 +335,10 @@ async function cleanupAllSessions(): Promise<void> {
     )
   }
   await conversationService.stopAllSessions()
+  await usbMigrationService.shutdown({ timeoutMs: 2_500 })
+  await p2pService.shutdown()
+  await drainPendingSessionSearchIndexRefresh(1_500)
+  await backgroundScheduler.shutdown({ timeoutMs: 2_000 })
 }
 
 function cleanupAllSessionsSync(): void {
@@ -309,6 +349,9 @@ function cleanupAllSessionsSync(): void {
   for (const sessionId of conversationService.getActiveSessions()) {
     conversationService.stopSession(sessionId)
   }
+  usbMigrationService.abortActiveJobs()
+  void p2pService.shutdown()
+  void backgroundScheduler.shutdown({ timeoutMs: 0 })
 }
 
 function shutdownServer(

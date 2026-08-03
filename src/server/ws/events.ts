@@ -16,7 +16,7 @@ export type ClientMessage =
       steerId: string
       content: string
       attachments?: AttachmentRef[]
-      priority: 'next' | 'later'
+      priority: 'now' | 'next' | 'later'
     }
   | { type: 'cancel_steer'; steerId: string }
   | {

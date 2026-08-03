@@ -148,6 +148,12 @@ export interface ProviderTestStepResult {
   modelUsed?: string
   modelMatched?: boolean
   httpStatus?: number
+  /**
+   * How connectivity was verified:
+   * 'lightweight' = cheap liveness probe (GET model list, local providers only),
+   * 'deep' = full inference round-trip.
+   */
+  verificationMethod?: 'lightweight' | 'deep'
 }
 
 export interface ProviderModelCheckResult {

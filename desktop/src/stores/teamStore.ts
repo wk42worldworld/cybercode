@@ -297,20 +297,29 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
   },
 
   handleTeamUpdate: (teamName: string, members: TeamMemberStatus[]) => {
+    set((state) => ({
+      teams: state.teams.map((summary) => (
+        summary.name === teamName
+          ? { ...summary, memberCount: members.length }
+          : summary
+      )),
+    }))
+
     const team = get().activeTeam
     if (team && team.name === teamName) {
-      if (members.length === 0) return
-
       if (members.length > team.members.length) {
         get().fetchTeamDetail(teamName)
       }
 
+      if (members.length === 0) {
+        get().stopMemberPolling()
+        set({ activeTeam: { ...team, members: [] } })
+        return
+      }
+
       const colors = get().memberColors
       const existingMap = new Map(team.members.map((m) => [m.agentId, m]))
-      const incomingIds = new Set(members.map((m) => m.agentId))
-      const kept = team.members.filter((m) => !incomingIds.has(m.agentId))
       const updatedMembers: TeamMember[] = [
-        ...kept,
         ...members.map((m, i) => {
           const existing = existingMap.get(m.agentId)
           return {
@@ -333,7 +342,11 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
         if (viewedMember) {
           void get().refreshMemberSession(currentTabId)
           get().startMemberPolling(currentTabId)
+        } else {
+          get().stopMemberPolling()
         }
+      } else {
+        get().stopMemberPolling()
       }
     }
   },

@@ -14,6 +14,7 @@ type ConfirmDialogProps = {
   cancelLabel: string
   confirmVariant?: 'primary' | 'danger'
   loading?: boolean
+  size?: 'default' | 'compact'
 }
 
 export function ConfirmDialog({
@@ -26,6 +27,7 @@ export function ConfirmDialog({
   cancelLabel,
   confirmVariant = 'primary',
   loading = false,
+  size = 'default',
 }: ConfirmDialogProps) {
   const t = useTranslation()
 
@@ -54,7 +56,8 @@ export function ConfirmDialog({
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="viewport-overlay-surface relative flex max-h-[calc(100dvh-24px)] w-full max-w-[360px] flex-col overflow-hidden rounded-[8px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)] animate-modal-in"
+          className="viewport-overlay-surface relative flex max-h-[calc(100dvh-24px)] flex-col overflow-hidden rounded-[8px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] shadow-[var(--shadow-dropdown)] animate-modal-in"
+          style={{ width: size === 'compact' ? 300 : 360 }}
         >
           <div className="flex min-h-0 items-start justify-between gap-4 overflow-y-auto px-4 pb-3 pt-4">
             <div className="min-w-0">

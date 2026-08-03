@@ -5,8 +5,35 @@ import { errorMessage } from '../utils/errors.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getTranscriptPath } from '../utils/sessionStorage.js'
 import { indexSessionSearchTranscript } from './indexer.js'
+import {
+  backgroundScheduler,
+  type BackgroundScheduler,
+} from '../server/background/scheduler.js'
 
 const inFlightRefreshes = new Set<Promise<void>>()
+
+export function scheduleSessionSearchTranscriptRefresh(params: {
+  transcriptPath: string
+  sessionId: string
+  scheduler?: BackgroundScheduler
+  indexTranscript?: typeof indexSessionSearchTranscript
+}): Promise<void> {
+  const scheduler = params.scheduler ?? backgroundScheduler
+  const indexTranscript = params.indexTranscript ?? indexSessionSearchTranscript
+  return scheduler.enqueue({
+    type: 'session-search-turn-refresh',
+    key: params.transcriptPath,
+    priority: 2,
+    lane: 'sqlite-write',
+    resourceKey: 'session-search-db',
+    dedupe: 'replace',
+    run: schedulerContext => indexTranscript(params.transcriptPath, {
+      sessionId: params.sessionId,
+      signal: schedulerContext.signal,
+      yieldIfNeeded: schedulerContext.yieldIfNeeded,
+    }).then(() => undefined),
+  }).promise
+}
 
 async function executeSessionSearchIndexRefreshImpl(
   context: REPLHookContext,
@@ -15,10 +42,13 @@ async function executeSessionSearchIndexRefreshImpl(
     if (!isAutoMemoryEnabled()) return
     if (context.toolUseContext.agentId) return
 
-    await indexSessionSearchTranscript(getTranscriptPath(), {
+    const transcriptPath = getTranscriptPath()
+    await scheduleSessionSearchTranscriptRefresh({
+      transcriptPath,
       sessionId: getSessionId(),
     })
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return
     logForDebugging(
       `[session-search] turn-end index refresh failed: ${errorMessage(error)}`,
       { level: 'debug' },

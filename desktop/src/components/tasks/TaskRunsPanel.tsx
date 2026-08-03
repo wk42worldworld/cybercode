@@ -1,14 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTaskStore } from '../../stores/taskStore'
 import { useChatStore } from '../../stores/chatStore'
 import { useTabStore } from '../../stores/tabStore'
 import { useTranslation } from '../../i18n'
-import { parseRunOutput } from '../../lib/parseRunOutput'
+import {
+  parseRunOutput,
+  parseRunOutputAsync,
+  shouldParseRunOutputInWorker,
+} from '../../lib/parseRunOutput'
 import type { TaskRun } from '../../types/task'
 import { Icon } from '../shared/Icon'
 
 function RunOutput({ run }: { run: TaskRun }) {
   const t = useTranslation()
+  const rawOutput = run.error ? '' : run.output || ''
+  const usesWorker = shouldParseRunOutputInWorker(rawOutput)
+  const synchronousText = useMemo(
+    () => usesWorker ? null : parseRunOutput(rawOutput),
+    [rawOutput, usesWorker],
+  )
+  const [workerResult, setWorkerResult] = useState<{ raw: string; text: string } | null>(null)
+  const text = synchronousText
+    ?? (workerResult?.raw === rawOutput ? workerResult.text : null)
+
+  useEffect(() => {
+    if (!usesWorker) return
+    const controller = new AbortController()
+    parseRunOutputAsync(rawOutput, { signal: controller.signal })
+      .then((nextText) => {
+        if (!controller.signal.aborted) setWorkerResult({ raw: rawOutput, text: nextText })
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof Error && error.name === 'AbortError')) {
+          setWorkerResult({ raw: rawOutput, text: '' })
+        }
+      })
+    return () => controller.abort()
+  }, [rawOutput, usesWorker])
 
   // Show error prominently if present
   if (run.error) {
@@ -19,7 +47,17 @@ function RunOutput({ run }: { run: TaskRun }) {
     )
   }
 
-  const text = parseRunOutput(run.output || '')
+  if (text === null) {
+    return (
+      <div
+        aria-busy="true"
+        className="mt-2 h-[68px] overflow-hidden rounded-[10px] bg-[var(--color-surface-container)] p-2.5"
+      >
+        <div className="h-2 w-3/4 animate-pulse rounded-full bg-[var(--color-surface-container-highest)]" />
+        <div className="mt-2 h-2 w-1/2 animate-pulse rounded-full bg-[var(--color-surface-container-highest)]" />
+      </div>
+    )
+  }
 
   if (!text) {
     return (

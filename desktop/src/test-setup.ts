@@ -34,6 +34,36 @@ class ResizeObserverMock {
 
 globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver
 
+// XYFlow reads CSS transforms through DOMMatrixReadOnly when measuring nodes.
+// jsdom does not implement it, so expose the affine fields used by the library.
+class DOMMatrixReadOnlyMock {
+  readonly a = 1
+  readonly b = 0
+  readonly c = 0
+  readonly d = 1
+  readonly e = 0
+  readonly f = 0
+  readonly m11 = 1
+  readonly m12 = 0
+  readonly m21 = 0
+  readonly m22 = 1
+  readonly m41 = 0
+  readonly m42 = 0
+
+  constructor(_transform?: string | number[]) {}
+}
+
+Object.defineProperty(globalThis, 'DOMMatrixReadOnly', {
+  configurable: true,
+  value: DOMMatrixReadOnlyMock,
+})
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'DOMMatrixReadOnly', {
+    configurable: true,
+    value: DOMMatrixReadOnlyMock,
+  })
+}
+
 // IntersectionObserver is used by react-virtuoso for visibility tracking.
 class IntersectionObserverMock {
   readonly root: Element | null = null

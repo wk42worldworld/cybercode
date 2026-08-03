@@ -103,6 +103,11 @@ const skillSearchFeatureCheck = feature('EXPERIMENTAL_SKILL_SEARCH')
 /* eslint-enable @typescript-eslint/no-require-imports */
 import type { OutputStyleConfig } from './outputStyles.js'
 import { CYBER_RISK_INSTRUCTION } from './cyberRiskInstruction.js'
+import {
+  compactLocalSystemPromptParts,
+  LOCAL_MODEL_CORE_PROMPT,
+  shouldUseLocalModelPerformanceProfile,
+} from '../utils/localModelPerformance.js'
 
 export const CLAUDE_CODE_DOCS_MAP_URL =
   'https://code.claude.com/docs/en/claude_code_docs_map.md'
@@ -507,6 +512,29 @@ ${CYBER_RISK_INSTRUCTION}`,
       SUMMARIZE_TOOL_RESULTS_SECTION,
       getProactiveSection(),
     ].filter(s => s !== null)
+  }
+
+  if (shouldUseLocalModelPerformanceProfile()) {
+    const [promptMemory, memoryPrompt] = await Promise.all([
+      loadPromptMemory(),
+      loadMemoryPrompt(),
+    ])
+    return compactLocalSystemPromptParts([
+      LOCAL_MODEL_CORE_PROMPT,
+      getAgentWorkRulesSection(),
+      getSessionSpecificGuidanceSection(enabledTools, skillToolCommands) ?? '',
+      promptMemory,
+      memoryPrompt,
+      envInfo,
+      getLanguageSection(settings.language) ?? '',
+      getOutputStyleSection(outputStyleConfig) ?? '',
+      ponytailOptimizationService.getSystemPrompt() ?? '',
+      cavemanOptimizationService.getSystemPrompt() ?? '',
+      getMcpInstructionsSection(mcpClients) ?? '',
+      getScratchpadInstructions() ?? '',
+      getFunctionResultClearingSection(model) ?? '',
+      SUMMARIZE_TOOL_RESULTS_SECTION,
+    ])
   }
 
   const dynamicSections = [

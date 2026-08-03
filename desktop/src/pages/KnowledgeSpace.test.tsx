@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { knowledgeApi, type KnowledgeSource } from '../api/knowledge'
@@ -201,5 +201,47 @@ describe('KnowledgeSpace', () => {
 
     expect(await screen.findByText('README.md')).toBeInTheDocument()
     expect(knowledgeApi.search).toHaveBeenCalledWith('事件总线', source.id)
+  })
+
+  it('keeps a source visibly removing until the server confirms durable deletion', async () => {
+    let finishRemoval!: (value: { removed: boolean }) => void
+    const removal = new Promise<{ removed: boolean }>((resolve) => {
+      finishRemoval = resolve
+    })
+    vi.mocked(knowledgeApi.sources)
+      .mockResolvedValueOnce([source])
+      .mockResolvedValueOnce([])
+    vi.mocked(knowledgeApi.removeSource).mockReturnValue(removal)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<KnowledgeSpace />)
+    fireEvent.click((await screen.findAllByRole('button', { name: /notes/ }))[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: '移除来源' })[0]!)
+
+    await waitFor(() => expect(knowledgeApi.removeSource).toHaveBeenCalledWith(source.id))
+    expect(screen.getAllByText('正在删除').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: '重新索引' }).every((button) => button.hasAttribute('disabled'))).toBe(true)
+    expect(screen.getAllByRole('button', { name: '移除来源' }).every((button) => button.hasAttribute('disabled'))).toBe(true)
+
+    finishRemoval({ removed: true })
+    await waitFor(() => expect(knowledgeApi.sources).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /notes/ })).not.toBeInTheDocument())
+  })
+
+  it('does not publish a late load error after unmount', async () => {
+    let rejectSources!: (error: Error) => void
+    vi.mocked(knowledgeApi.sources).mockReturnValue(new Promise((_resolve, reject) => {
+      rejectSources = reject
+    }))
+
+    const view = render(<KnowledgeSpace />)
+    await waitFor(() => expect(knowledgeApi.sources).toHaveBeenCalledOnce())
+    view.unmount()
+    await act(async () => {
+      rejectSources(new Error('late knowledge failure'))
+      await Promise.resolve()
+    })
+
+    expect(useUIStore.getState().toasts).toEqual([])
   })
 })

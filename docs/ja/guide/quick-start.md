@@ -60,7 +60,7 @@ TUI で次を実行します。
 
 デスクトップ版と TUI はプロバイダー設定を共有します。詳細な接続テストや役割別モデルの割り当ては、デスクトップ版の Settings -> Providers で設定できます。
 
-OAuth、Web セッション、メディア provider、モデル同期、スマート route、Agent node は [モデル接続、同期、スマートルーティング](./models-routing.md) を参照してください。TUI でも追加 proxy なしで `/provider sync`、`/routing`、`/node` を使用できます。
+OAuth、Web セッション、メディア provider、モデル同期、エージェント route、Agent node は [モデル接続、同期、エージェントルーティング](./models-routing.md) を参照してください。TUI でも追加 proxy なしで `/provider sync`、`/routing`、`/node` を使用できます。
 
 ### ローカルモデルについて
 

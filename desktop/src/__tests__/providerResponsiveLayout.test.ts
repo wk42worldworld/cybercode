@@ -25,6 +25,9 @@ describe('provider workspace responsive layout', () => {
       'grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr))',
     )
     expect(desktopStylesRaw).toContain(
+      '@container settings-content (min-width: 760px) {\n  .provider-catalog-grid {\n    grid-template-columns: repeat(4, minmax(0, 1fr));',
+    )
+    expect(desktopStylesRaw).toContain(
       '.provider-settings-nav {\n    grid-template-columns: repeat(2, minmax(0, 1fr));',
     )
 

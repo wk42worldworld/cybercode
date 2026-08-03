@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { CodeGraphData, CodeGraphNode } from '../../api/tokenOptimization'
 import { buildSemanticLayout } from './CodeGraphVisualization'
+import {
+  CODE_GRAPH_FALLBACK_MAX_EDGES,
+  CODE_GRAPH_FALLBACK_MAX_NODES,
+  CODE_GRAPH_LAYOUT_WORKER_THRESHOLD,
+  requestCodeGraphLayout,
+  shouldUseCodeGraphLayoutWorker,
+  type LayoutWorkerLike,
+} from './codeGraphLayout'
 
 function node(overrides: Partial<CodeGraphNode> & Pick<CodeGraphNode, 'id' | 'name' | 'filePath'>): CodeGraphNode {
   return {
@@ -115,4 +123,134 @@ describe('CodeGraph semantic layout', () => {
     expect(hub).toMatchObject({ x: cluster.x, y: cluster.y })
     expect(second).toEqual(first)
   })
+
+  it('keeps small graphs synchronous and routes large graphs through a worker', async () => {
+    const small = graphData([
+      node({ id: 'small', name: 'small', filePath: 'src/small.ts' }),
+    ])
+    const large = graphData(Array.from({ length: CODE_GRAPH_LAYOUT_WORKER_THRESHOLD }, (_, index) =>
+      node({ id: `node:${index}`, name: `node${index}`, filePath: `src/${index}.ts` })))
+    let workerCreated = false
+
+    expect(shouldUseCodeGraphLayoutWorker(small)).toBe(false)
+    expect(shouldUseCodeGraphLayoutWorker(large)).toBe(true)
+    await expect(requestCodeGraphLayout(small, 'architecture', {
+      workerFactory: () => {
+        workerCreated = true
+        throw new Error('not expected')
+      },
+    })).resolves.toEqual(buildSemanticLayout(small, 'architecture'))
+    expect(workerCreated).toBe(false)
+  })
+
+  it('ignores stale worker replies and accepts the matching deterministic layout', async () => {
+    const data = graphData(Array.from({ length: CODE_GRAPH_LAYOUT_WORKER_THRESHOLD }, (_, index) =>
+      node({ id: `node:${index}`, name: `node${index}`, filePath: 'src/index.ts' })))
+    const expected = buildSemanticLayout(data, 'architecture')
+    let terminated = false
+    const worker = fakeLayoutWorker((message, instance) => {
+      instance.onmessage?.({ data: { id: message.id + 1, layout: { nodes: [], clusters: [] } } } as MessageEvent)
+      instance.onmessage?.({ data: { id: message.id, layout: expected } } as MessageEvent)
+    }, () => { terminated = true })
+
+    await expect(requestCodeGraphLayout(data, 'architecture', {
+      workerFactory: () => worker,
+    })).resolves.toEqual(expected)
+    expect(terminated).toBe(true)
+  })
+
+  it('cancels worker layout and uses a bounded subgraph on worker errors', async () => {
+    const base = graphData(Array.from({ length: CODE_GRAPH_LAYOUT_WORKER_THRESHOLD }, (_, index) =>
+      node({ id: `node:${index}`, name: `node${index}`, filePath: 'src/index.ts' })))
+    const data: CodeGraphData = {
+      ...base,
+      edges: Array.from({ length: 1000 }, (_, index) => ({
+        source: `node:${index % CODE_GRAPH_LAYOUT_WORKER_THRESHOLD}`,
+        target: `node:${(index + 1) % CODE_GRAPH_LAYOUT_WORKER_THRESHOLD}`,
+        kind: 'calls',
+        confidence: 'extracted',
+        provenance: null,
+        line: null,
+        crossCommunity: false,
+      })),
+    }
+    const controller = new AbortController()
+    let cancelledWorkerTerminated = false
+    const pendingWorker = fakeLayoutWorker(() => undefined, () => { cancelledWorkerTerminated = true })
+    const pending = requestCodeGraphLayout(data, 'files', {
+      signal: controller.signal,
+      workerFactory: () => pendingWorker,
+    })
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(cancelledWorkerTerminated).toBe(true)
+
+    const failedWorker = fakeLayoutWorker((_message, instance) => {
+      instance.onerror?.(new ErrorEvent('error'))
+    })
+    const fallback = await requestCodeGraphLayout(data, 'files', {
+      workerFactory: () => failedWorker,
+    })
+    const boundedNodeIds = new Set(
+      data.nodes.slice(0, CODE_GRAPH_FALLBACK_MAX_NODES).map(item => item.id),
+    )
+    const renderedEdgeCount = data.edges
+      .slice(0, CODE_GRAPH_FALLBACK_MAX_EDGES)
+      .filter(edge => boundedNodeIds.has(edge.source) && boundedNodeIds.has(edge.target))
+      .length
+    expect(fallback.nodes.length).toBeLessThanOrEqual(CODE_GRAPH_FALLBACK_MAX_NODES)
+    expect(fallback.renderEdges).toHaveLength(renderedEdgeCount)
+    expect(fallback.renderEdges!.length).toBeLessThanOrEqual(CODE_GRAPH_FALLBACK_MAX_EDGES)
+    expect(fallback.renderEdges!.every((edge) =>
+      boundedNodeIds.has(edge.source) && boundedNodeIds.has(edge.target),
+    )).toBe(true)
+    expect(fallback.fallback).toEqual({
+      reason: 'worker-error',
+      sourceNodeCount: data.nodes.length,
+      sourceEdgeCount: data.edges.length,
+      processedNodeCount: CODE_GRAPH_FALLBACK_MAX_NODES,
+      processedEdgeCount: renderedEdgeCount,
+    })
+  })
+
+  it('bounds worker creation, postMessage, and timeout fallbacks', async () => {
+    const data = graphData(Array.from({ length: CODE_GRAPH_LAYOUT_WORKER_THRESHOLD * 3 }, (_, index) =>
+      node({ id: `node:${index}`, name: `node${index}`, filePath: 'src/index.ts' })))
+    const unavailable = await requestCodeGraphLayout(data, 'architecture', {
+      workerFactory: () => { throw new Error('unavailable') },
+    })
+    expect(unavailable.fallback?.reason).toBe('worker-unavailable')
+    expect(unavailable.fallback?.processedNodeCount).toBe(CODE_GRAPH_FALLBACK_MAX_NODES)
+
+    const postFailed = await requestCodeGraphLayout(data, 'architecture', {
+      workerFactory: () => fakeLayoutWorker(() => { throw new Error('clone failed') }),
+    })
+    expect(postFailed.fallback?.reason).toBe('worker-post-failed')
+    expect(postFailed.nodes).toHaveLength(CODE_GRAPH_FALLBACK_MAX_NODES)
+
+    let terminated = false
+    const timedOut = await requestCodeGraphLayout(data, 'architecture', {
+      workerFactory: () => fakeLayoutWorker(() => undefined, () => { terminated = true }),
+      timeoutMs: 2,
+    })
+    expect(terminated).toBe(true)
+    expect(timedOut.fallback?.reason).toBe('worker-timeout')
+    expect(timedOut.nodes).toHaveLength(CODE_GRAPH_FALLBACK_MAX_NODES)
+  })
 })
+
+function fakeLayoutWorker(
+  respond: (message: { id: number }, worker: LayoutWorkerLike) => void,
+  terminate = () => undefined,
+): LayoutWorkerLike {
+  const worker: LayoutWorkerLike = {
+    onmessage: null,
+    onerror: null,
+    postMessage(message) {
+      respond(message, worker)
+    },
+    terminate,
+  }
+  return worker
+}

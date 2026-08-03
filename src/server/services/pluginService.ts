@@ -147,6 +147,10 @@ type HydratedPluginState = {
   errors: PluginError[]
 }
 
+export function shouldDeletePluginData(keepData: boolean): boolean {
+  return !keepData
+}
+
 export class PluginService {
   async listPlugins(cwd?: string): Promise<ApiPluginListResponse> {
     const { plugins, marketplaces } = await this.collectPluginState(cwd)
@@ -207,7 +211,11 @@ export class PluginService {
       throw ApiError.badRequest('Plugin uninstall requires a scope')
     }
 
-    const result = await uninstallPluginOp(pluginId, scope, keepData)
+    const result = await uninstallPluginOp(
+      pluginId,
+      scope,
+      shouldDeletePluginData(keepData),
+    )
     if (!result.success) {
       throw ApiError.badRequest(result.message)
     }

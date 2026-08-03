@@ -30,6 +30,7 @@ output/ui-checks/
 e2e-*.png
 
 # Desktop build output
+/build/
 desktop/dist/
 desktop/build-artifacts/
 desktop/playwright-report/

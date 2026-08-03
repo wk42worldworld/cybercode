@@ -13,6 +13,7 @@ const MOCK_DELETE_PROVIDER = vi.fn()
 const MOCK_GET_SETTINGS = vi.fn()
 const MOCK_UPDATE_SETTINGS = vi.fn()
 const MOCK_DISCOVER_MODELS = vi.fn()
+const MOCK_WARMUP_PROVIDER = vi.fn()
 const providerStoreState = {
   providers: [] as SavedProvider[],
   activeId: null as string | null,
@@ -48,6 +49,7 @@ vi.mock('../api/providers', () => ({
     getSettings: MOCK_GET_SETTINGS,
     updateSettings: MOCK_UPDATE_SETTINGS,
     discoverModels: MOCK_DISCOVER_MODELS,
+    warmupProvider: MOCK_WARMUP_PROVIDER,
   },
 }))
 
@@ -160,6 +162,8 @@ describe('Settings > General tab', () => {
     MOCK_GET_SETTINGS.mockResolvedValue({})
     MOCK_UPDATE_SETTINGS.mockResolvedValue({})
     MOCK_DISCOVER_MODELS.mockReset()
+    MOCK_WARMUP_PROVIDER.mockReset()
+    MOCK_WARMUP_PROVIDER.mockResolvedValue({ ok: true, started: true })
     providerStoreState.providers = []
     providerStoreState.activeId = null
     providerStoreState.hasLoadedProviders = true
@@ -252,6 +256,8 @@ describe('Settings > Providers tab', () => {
     MOCK_GET_SETTINGS.mockResolvedValue({})
     MOCK_UPDATE_SETTINGS.mockResolvedValue({})
     MOCK_DISCOVER_MODELS.mockReset()
+    MOCK_WARMUP_PROVIDER.mockReset()
+    MOCK_WARMUP_PROVIDER.mockResolvedValue({ ok: true, started: true })
     providerStoreState.syncProviderModels.mockReset()
     providerStoreState.setProviderModelAutoSync.mockReset()
     useSettingsStore.setState({ locale: 'en' })
@@ -282,8 +288,8 @@ describe('Settings > Providers tab', () => {
     const sidebar = screen.getByRole('complementary', { name: 'Model access views' })
     expect(within(sidebar).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
       'Model providers',
-      'Smart routing',
-      'Node',
+      'Agent routing',
+      'Model sharing',
       'Runtime status',
     ])
     expect(screen.queryByRole('heading', { name: 'Models & Routing' })).not.toBeInTheDocument()
@@ -1438,6 +1444,94 @@ describe('Settings > Providers tab', () => {
       expect(providerStoreState.createProvider).toHaveBeenCalled()
       expect(providerStoreState.syncProviderModels).toHaveBeenCalledWith('saved-deepseek')
     })
+    expect(MOCK_WARMUP_PROVIDER).not.toHaveBeenCalled()
+  }, 15_000)
+
+  it('warms up the default model after saving a local provider', async () => {
+    const savedProvider: SavedProvider = {
+      id: 'saved-ollama',
+      name: 'Ollama',
+      presetId: 'ollama',
+      apiKey: '',
+      baseUrl: 'http://127.0.0.1:11434',
+      apiFormat: 'openai_chat',
+      models: {
+        main: 'qwen3:8b',
+        haiku: 'qwen3:8b',
+        sonnet: 'qwen3:8b',
+        opus: 'qwen3:8b',
+      },
+    }
+    providerStoreState.providers = []
+    providerStoreState.presets = [{
+      id: 'ollama',
+      name: 'Ollama',
+      baseUrl: 'http://127.0.0.1:11434',
+      apiFormat: 'openai_chat',
+      defaultModels: savedProvider.models,
+      needsApiKey: false,
+      websiteUrl: 'https://ollama.com',
+    }]
+    providerStoreState.createProvider.mockResolvedValue(savedProvider)
+    useSettingsStore.setState({
+      fetchAll: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<ProviderSettings />)
+    fireEvent.click(screen.getByRole('button', { name: 'Configure Ollama' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', {
+      name: 'Add',
+    }))
+
+    await waitFor(() => {
+      expect(providerStoreState.createProvider).toHaveBeenCalled()
+      expect(MOCK_WARMUP_PROVIDER).toHaveBeenCalledWith('saved-ollama', 'qwen3:8b')
+    })
+  }, 15_000)
+
+  it('does not warm up remote providers after saving', async () => {
+    const savedProvider: SavedProvider = {
+      id: 'saved-remote',
+      name: 'DeepSeek',
+      presetId: 'deepseek',
+      apiKey: '***',
+      baseUrl: 'https://api.deepseek.com',
+      apiFormat: 'openai_chat',
+      models: {
+        main: 'deepseek-v4-pro',
+        haiku: 'deepseek-v4-pro',
+        sonnet: 'deepseek-v4-pro',
+        opus: 'deepseek-v4-pro',
+      },
+    }
+    providerStoreState.providers = []
+    providerStoreState.presets = [{
+      id: 'deepseek',
+      name: 'DeepSeek',
+      baseUrl: 'https://api.deepseek.com',
+      apiFormat: 'openai_chat',
+      defaultModels: savedProvider.models,
+      needsApiKey: false,
+      websiteUrl: 'https://platform.deepseek.com',
+    }]
+    providerStoreState.createProvider.mockResolvedValue(savedProvider)
+    useSettingsStore.setState({
+      fetchAll: vi.fn().mockResolvedValue(undefined),
+    })
+
+    render(<ProviderSettings />)
+    fireEvent.click(screen.getByRole('button', { name: 'Configure DeepSeek' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', {
+      name: 'Add',
+    }))
+
+    await waitFor(() => {
+      expect(providerStoreState.createProvider).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(useSettingsStore.getState().fetchAll).toHaveBeenCalled()
+    })
+    expect(MOCK_WARMUP_PROVIDER).not.toHaveBeenCalled()
   }, 15_000)
 
   it('shows Kimi Code and Kimi as separate API key entries', () => {

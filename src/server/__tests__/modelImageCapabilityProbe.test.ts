@@ -7,6 +7,7 @@ import type { SavedProvider } from '../types/provider.js'
 import {
   isImageInputUnsupportedError,
   probeProviderImageSupport,
+  resetUnknownImageProbeCacheForTests,
   resolveProviderImageSupportDynamically,
 } from '../services/modelImageCapabilityProbe.js'
 import {
@@ -39,6 +40,7 @@ beforeEach(() => {
   cacheDir = mkdtempSync(join(tmpdir(), 'cybercode-image-capability-'))
   process.env.CYBERCODE_IMAGE_CAPABILITY_CACHE_PATH = join(cacheDir, 'capabilities.json')
   resetImageCapabilityRegistryCacheForTests()
+  resetUnknownImageProbeCacheForTests()
 })
 
 afterEach(() => {
@@ -239,6 +241,30 @@ describe('dynamic model image capability', () => {
     expect(first.status).toBe('unsupported')
     expect(second.status).toBe('unsupported')
     expect(second.source).toBe('learned')
+  })
+
+  test('caches inconclusive probe results briefly instead of re-probing every message', async () => {
+    let calls = 0
+    const fetchImpl = (async () => {
+      calls++
+      return new Response(JSON.stringify({
+        error: { message: 'invalid thinking: only type=enabled is allowed for this model' },
+      }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch
+    const custom = provider()
+
+    const first = await resolveProviderImageSupportDynamically(custom, 'private-model', { fetchImpl })
+    const second = await resolveProviderImageSupportDynamically(custom, 'private-model', {
+      fetchImpl: (async () => {
+        throw new Error('cached unknown result should avoid another probe')
+      }) as typeof fetch,
+    })
+
+    expect(calls).toBe(1)
+    expect(first.status).toBe('unknown')
+    expect(first.supportsImages).toBe(false)
+    expect(second.status).toBe('unknown')
+    expect(second.supportsImages).toBe(false)
   })
 
   test('shares learned custom-model support with the CLI request layer', async () => {

@@ -2,7 +2,7 @@
  * Unit tests for ProviderService and Providers REST API
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test'
+import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as os from 'os'
@@ -878,14 +878,26 @@ describe('ProviderService', () => {
       const settings = await readSettings()
       const env = settings.env as Record<string, string>
       expect(env.ANTHROPIC_AUTH_TOKEN).toBe('lmstudio')
+      expect(env.CYBERCODE_LOCAL_MODEL_PERFORMANCE).toBe('1')
 
       const runtimeEnv = await svc.getProviderRuntimeEnv(provider.id)
       expect(runtimeEnv.ANTHROPIC_AUTH_TOKEN).toBe('lmstudio')
+      expect(runtimeEnv.CYBERCODE_LOCAL_MODEL_PERFORMANCE).toBe('1')
 
       await svc.activateOfficial()
       const clearedSettings = await readSettings()
       const clearedEnv = (clearedSettings.env as Record<string, string> | undefined) ?? {}
       expect(clearedEnv.ANTHROPIC_AUTH_TOKEN).toBeUndefined()
+      expect(clearedEnv.CYBERCODE_LOCAL_MODEL_PERFORMANCE).toBeUndefined()
+      expect(clearedSettings.model).toBeUndefined()
+    })
+
+    test('should not enable the local performance profile for cloud providers', async () => {
+      const svc = new ProviderService()
+      const provider = await svc.addProvider(sampleInput())
+
+      const runtimeEnv = await svc.getProviderRuntimeEnv(provider.id)
+      expect(runtimeEnv.CYBERCODE_LOCAL_MODEL_PERFORMANCE).toBeUndefined()
     })
 
     test('should not overwrite saved provider models when preset defaults change', async () => {
@@ -1150,9 +1162,222 @@ describe('ProviderService', () => {
         const result = await svc.testProvider(provider.id)
         expect(result.connectivity.success).toBe(true)
         expect(result.imageCapability).toBeUndefined()
-        expect(urls).toContain('http://localhost:11434/v1/messages')
+        expect(urls).toContain('http://localhost:11434/api/tags')
+        expect(urls).not.toContain('http://localhost:11434/v1/messages')
         expect(urls).not.toContain('http://localhost:11434/api/show')
       } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should verify reachable local providers with a lightweight probe', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const requests: Array<{ url: string; method: string }> = []
+
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push({ url: String(input), method: init?.method ?? 'GET' })
+        return Response.json({ models: [{ name: 'qwen3.6:latest' }] })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'http://127.0.0.1:11434',
+          apiKey: '',
+          modelId: 'qwen3.6',
+          presetId: 'ollama',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.connectivity.verificationMethod).toBe('lightweight')
+        expect(requests).toHaveLength(1)
+        expect(requests[0]).toEqual({ url: 'http://127.0.0.1:11434/api/tags', method: 'GET' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should fail the ollama liveness probe when the model is not installed', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const requests: Array<{ url: string; method: string }> = []
+
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push({ url: String(input), method: init?.method ?? 'GET' })
+        return Response.json({ models: [{ name: 'llama3.2:latest' }] })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'http://127.0.0.1:11434',
+          apiKey: '',
+          modelId: 'qwen3.6',
+          presetId: 'ollama',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(false)
+        expect(result.connectivity.verificationMethod).toBe('lightweight')
+        expect(result.connectivity.error).toContain("model 'qwen3.6' is not installed")
+        expect(result.connectivity.error).toContain('ollama pull qwen3.6')
+        // Definitive failure — no deep inference fallback should fire.
+        expect(requests).toHaveLength(1)
+        expect(requests[0]).toEqual({ url: 'http://127.0.0.1:11434/api/tags', method: 'GET' })
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should not fail the ollama liveness probe when the model list is unparseable', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+
+      globalThis.fetch = (async () => Response.json({ type: 'message' })) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'http://127.0.0.1:11434',
+          apiKey: '',
+          modelId: 'qwen3.6',
+          presetId: 'ollama',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.connectivity.verificationMethod).toBe('lightweight')
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should fall back to a deep inference check when the local liveness probe fails', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const urls: string[] = []
+
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input)
+        urls.push(url)
+        if (url.endsWith('/api/tags')) {
+          return new Response('not found', { status: 404 })
+        }
+        return Response.json({
+          type: 'message',
+          model: 'qwen3.6',
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'http://localhost:11434',
+          apiKey: '',
+          modelId: 'qwen3.6',
+          presetId: 'ollama',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.connectivity.verificationMethod).toBe('deep')
+        expect(urls).toContain('http://localhost:11434/api/tags')
+        expect(urls).toContain('http://localhost:11434/v1/messages')
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should keep the deep inference check for non-local providers', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const urls: string[] = []
+
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        urls.push(String(input))
+        return Response.json({
+          type: 'message',
+          model: 'private-model',
+          content: [{ type: 'text', text: 'ok' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://example.com/anthropic',
+          apiKey: 'sk-test',
+          modelId: 'private-model',
+          presetId: 'custom',
+          apiFormat: 'anthropic',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.connectivity.verificationMethod).toBe('deep')
+        expect(urls).toEqual(['https://example.com/anthropic/v1/messages'])
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should use a long proxy pipeline timeout for local providers', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const timeoutSpy = spyOn(AbortSignal, 'timeout')
+
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.endsWith('/api/tags')) {
+          return Response.json({ models: [{ name: 'qwen3.6:latest' }] })
+        }
+        return Response.json({
+          choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+        })
+      }) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'http://localhost:11434',
+          apiKey: '',
+          modelId: 'qwen3.6',
+          presetId: 'ollama',
+          apiFormat: 'openai_chat',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.connectivity.verificationMethod).toBe('lightweight')
+        expect(result.proxy?.success).toBe(true)
+        // Cold local models need the relaxed 180s budget, never the 30s one.
+        expect(timeoutSpy).toHaveBeenCalledWith(180_000)
+        expect(timeoutSpy).not.toHaveBeenCalledWith(30_000)
+      } finally {
+        timeoutSpy.mockRestore()
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    test('should keep the 30s proxy pipeline timeout for non-local providers', async () => {
+      const svc = new ProviderService()
+      const originalFetch = globalThis.fetch
+      const timeoutSpy = spyOn(AbortSignal, 'timeout')
+
+      globalThis.fetch = (async () => Response.json({
+        choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+      })) as typeof fetch
+
+      try {
+        const result = await svc.testProviderConfig({
+          baseUrl: 'https://example.com/v1',
+          apiKey: 'sk-test',
+          modelId: 'private-model',
+          presetId: 'custom',
+          apiFormat: 'openai_chat',
+        })
+
+        expect(result.connectivity.success).toBe(true)
+        expect(result.proxy?.success).toBe(true)
+        expect(timeoutSpy).toHaveBeenCalledWith(30_000)
+        expect(timeoutSpy).not.toHaveBeenCalledWith(180_000)
+      } finally {
+        timeoutSpy.mockRestore()
         globalThis.fetch = originalFetch
       }
     })

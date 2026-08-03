@@ -164,11 +164,11 @@ CyberCode 会从长期协作中提炼稳定的沟通偏好、项目知识和跨�
 
 大模型与路由配置现在把“自定义提供商”作为独立入口放在最前面，方便直接接入任意兼容端点；随后依次是官方 API Key、大型聚合站、OAuth、网页会话、图像/视频/音频与本地模型。自定义端点和本地推理服务不再混在同一组。卡片名称跟随界面语言显示；同一套已保存 Key 可以聚合管理，但 Kimi Code 与 Kimi 这类不同产品仍保留独立入口。
 
-支持兼容 `/models` 接口的提供商可以一键导入最新模型，也可以开启约每 24 小时运行一次的自动同步；同步会保留用户手动填写的模型。智能路由会把多个可用目标组成带健康检查、失败冷却和自动切换的模型链。Agent 节点则把这些模型和路由安全地暴露为 OpenAI Chat Completions 与 Anthropic Messages 接口，外部 Agent 只拿独立的 `cc_...` 节点密钥，不会接触原始供应商 Key。
+支持兼容 `/models` 接口的提供商可以一键导入最新模型，也可以开启约每 24 小时运行一次的自动同步；同步会保留用户手动填写的模型。智能体路由会把多个可用目标组成带健康检查、失败冷却和自动切换的模型链。Agent 节点则把这些模型和路由安全地暴露为 OpenAI Chat Completions 与 Anthropic Messages 接口，外部 Agent 只拿独立的 `cc_...` 节点密钥，不会接触原始供应商 Key。
 
 网页会话使用用户主动提供的 Cookie 或网页令牌，不读取浏览器数据、不代过验证码，也不绕过账号或地区限制；它的稳定性和服务条款风险高于官方 API。媒体目录优先展示中国提供商，连接测试不会触发付费生成，媒体模型也不会被误设为聊天默认模型。
 
-桌面端与终端 TUI 共用这套配置。TUI 可直接使用 `/provider sync`、`/routing` 和 `/node`，无需额外安装代理。[查看模型同步、智能路由与节点教程](https://wk42worldworld.github.io/cybercode/guide/models-routing)。
+桌面端与终端 TUI 共用这套配置。TUI 可直接使用 `/provider sync`、`/routing` 和 `/node`，无需额外安装代理。[查看模型同步、智能体路由与节点教程](https://wk42worldworld.github.io/cybercode/guide/models-routing)。
 
 ### 同一个 Agent，贯穿桌面、终端和远程渠道
 
@@ -191,7 +191,7 @@ CyberCode 将客户端、服务端、桌面壳、适配器、记忆、搜索、�
 | 编码工作流 | 文件编辑、终端工具、项目搜索、权限模式、反斜杠命令、附件、回退、分支与会话恢复 |
 | Agent 智能 | 永久记忆、自进化复盘、可复用 Skills、子 Agent、Agent Teams、后台任务与 worktree |
 | 上下文效率 | 动态上下文窗口感知、自动压缩、Lite 清理、智能裁剪、懒程序员、Caveman、RTK 与代码图谱 |
-| 模型接入 | 官方 API Key、聚合站、OAuth、网页会话、媒体目录、本地/自定义端点、模型同步、智能路由与 Agent 节点 |
+| 模型接入 | 官方 API Key、聚合站、OAuth、网页会话、媒体目录、本地/自定义端点、模型同步、智能体路由与 Agent 节点 |
 | 联网与工具 | 与供应商无关的 WebSearch 兜底、WebFetch、MCP、插件、Computer Use 与环境感知工具可用性 |
 | 使用界面 | 跨平台桌面端、终端 TUI、`--print` 无头模式、Telegram 与飞书 |
 | 自动化 | 一次性和周期性定时任务、远程授权、后台 Agent 与机器可读 JSON 输出 |

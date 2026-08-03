@@ -267,7 +267,11 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
       setGitInfo(null)
       return
     }
-    sessionsApi.getGitInfo(activeTabId, { projectPath }).then(setGitInfo).catch(() => setGitInfo(null))
+    let cancelled = false
+    sessionsApi.getGitInfo(activeTabId, { projectPath })
+      .then(info => { if (!cancelled) setGitInfo(info) })
+      .catch(() => { if (!cancelled) setGitInfo(null) })
+    return () => { cancelled = true }
   }, [activeTabId, projectPath, isMemberSession])
 
   useEffect(() => {

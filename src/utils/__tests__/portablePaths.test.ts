@@ -5,10 +5,12 @@ import { join } from 'node:path'
 import {
   _resetPortablePathCacheForTesting,
   CYBER_PORTABLE_ROOT_ENV,
+  isPortableProjectReference,
   resolvePortableProjectPath,
   toPortableProjectReference,
 } from '../portablePaths.js'
 import { _resetConfigHomeDirForTesting } from '../envUtils.js'
+import { parseSessionInfoFromLite } from '../listSessionsImpl.js'
 
 describe('portable project paths', () => {
   let root: string
@@ -91,7 +93,34 @@ describe('portable project paths', () => {
     const reference = toPortableProjectReference(currentPath)
 
     expect(reference).toBe('cybercode-portable://projects/cybercode-a1b2c3d4/src')
+    expect(isPortableProjectReference(reference)).toBe(true)
     expect(resolvePortableProjectPath(reference)).toBe(currentPath)
+  })
+
+  test('resolves repaired portable work directories in CLI session listings', () => {
+    const info = parseSessionInfoFromLite(
+      '11111111-1111-4111-8111-111111111111',
+      {
+        mtime: Date.now(),
+        size: 512,
+        head: `${JSON.stringify({
+          type: 'session-meta',
+          workDir: 'D:\\work\\cybercode',
+        })}\n${JSON.stringify({
+          type: 'user',
+          message: { role: 'user', content: 'continue portable work' },
+        })}\n`,
+        tail: `${JSON.stringify({
+          type: 'last-prompt',
+          lastPrompt: 'continue portable work',
+        })}\n${JSON.stringify({
+          type: 'session-meta',
+          workDir: 'cybercode-portable://projects/cybercode-a1b2c3d4',
+        })}\n`,
+      },
+    )
+
+    expect(info?.cwd).toBe(join(root, 'projects', 'cybercode-a1b2c3d4'))
   })
 
   test('leaves unrelated paths unchanged', () => {

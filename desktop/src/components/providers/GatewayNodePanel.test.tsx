@@ -12,6 +12,12 @@ const {
   statusMock,
   updateConfigMock,
   updateKeyMock,
+  p2pStartMock,
+  p2pStatusMock,
+  p2pJoinMock,
+  createProviderMock,
+  updateProviderMock,
+  activateProviderMock,
 } = vi.hoisted(() => ({
   copyTextMock: vi.fn(),
   createKeyMock: vi.fn(),
@@ -22,6 +28,12 @@ const {
   statusMock: vi.fn(),
   updateConfigMock: vi.fn(),
   updateKeyMock: vi.fn(),
+  p2pStartMock: vi.fn(),
+  p2pStatusMock: vi.fn(),
+  p2pJoinMock: vi.fn(),
+  createProviderMock: vi.fn(),
+  updateProviderMock: vi.fn(),
+  activateProviderMock: vi.fn(),
 }))
 
 vi.mock('../../api/gateway', () => ({
@@ -42,6 +54,28 @@ vi.mock('../chat/clipboard', () => ({
 
 vi.mock('../../lib/openExternalUrl', () => ({
   openExternalUrl: openExternalUrlMock,
+}))
+
+vi.mock('../../api/p2p', () => ({
+  p2pApi: {
+    status: p2pStatusMock,
+    startSharing: p2pStartMock,
+    stopSharing: vi.fn(),
+    join: p2pJoinMock,
+    revokePeer: vi.fn(),
+  },
+  isValidP2PPairingCode: (value: string) => /^[A-HJ-KM-NP-Z2-9]{8}$/.test(value),
+}))
+
+vi.mock('../../stores/providerStore', () => ({
+  useProviderStore: {
+    getState: () => ({
+      providers: [],
+      createProvider: createProviderMock,
+      updateProvider: updateProviderMock,
+      activateProvider: activateProviderMock,
+    }),
+  },
 }))
 
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -109,6 +143,18 @@ describe('GatewayNodePanel', () => {
     revokeKeyMock.mockReset()
     copyTextMock.mockReset()
     copyTextMock.mockResolvedValue(true)
+    p2pStatusMock.mockReset()
+    p2pStatusMock.mockResolvedValue({
+      state: 'unavailable',
+      reason: 'signal-not-configured',
+      peerCount: 0,
+      peers: [],
+    })
+    p2pStartMock.mockReset()
+    p2pJoinMock.mockReset()
+    createProviderMock.mockReset()
+    updateProviderMock.mockReset()
+    activateProviderMock.mockReset()
   })
 
   it('renders cached node data immediately while forcing a background refresh', async () => {
@@ -215,7 +261,7 @@ describe('GatewayNodePanel', () => {
 
     render(<GatewayNodePanel />)
 
-    expect(screen.getByText('Node')).toBeInTheDocument()
+    expect(screen.getByText('Model sharing')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Connection guide' }))
     const dialog = screen.getByRole('dialog', { name: 'Connect another agent to CyberCode' })
     expect(within(dialog).getByText('Choose the receiving agent protocol, then fill the four fields below.')).toBeInTheDocument()
@@ -586,5 +632,63 @@ describe('GatewayNodePanel', () => {
     await waitFor(() => expect(revokeKeyMock).toHaveBeenCalledWith('key-bob'))
     expect(screen.queryByText('Bob')).not.toBeInTheDocument()
     expect(screen.getByText('Alice')).toBeInTheDocument()
+  })
+
+  it('opens P2P sharing and starts it without asking for a server address', async () => {
+    statusMock.mockResolvedValue(makeStatus())
+    p2pStartMock.mockResolvedValue({
+      state: 'connected',
+      pairingCode: 'ABCD27KM',
+      peerCount: 0,
+      peers: [],
+    })
+
+    render(<GatewayNodePanel />)
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'P2P sharing' }))
+
+    expect(screen.getByRole('heading', { name: 'P2P model sharing' })).toBeInTheDocument()
+    expect(screen.getAllByText('Not connected').length).toBeGreaterThan(0)
+    expect(screen.getByText('No devices connected')).toBeInTheDocument()
+    expect(screen.getByText(/One 8-character code is enough/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Relay server URL')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Share my models' }))
+    const code = await screen.findByText('ABCD27KM')
+    expect(code).toBeInTheDocument()
+    expect(p2pStartMock).toHaveBeenCalledWith()
+    expect(screen.getByRole('button', { name: 'Copy code' })).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy code' }))
+    await waitFor(() => expect(copyTextMock).toHaveBeenCalledWith(code.textContent))
+  })
+
+  it('activates a paired provider with a real shared model instead of an auto placeholder', async () => {
+    statusMock.mockResolvedValue(makeStatus())
+    p2pJoinMock.mockResolvedValue({
+      sessionId: 'session-p2p',
+      peerId: 'peer-p2p',
+      nodeName: 'Workstation',
+      baseUrl: 'http://127.0.0.1:3456/p2p/connections/peer-p2p',
+      apiKey: 'ccn_p2p_secret',
+      models: ['shared/kimi-k2.6', 'shared/glm-5.2'],
+    })
+    createProviderMock.mockResolvedValue({ id: 'provider-p2p' })
+
+    render(<GatewayNodePanel />)
+    fireEvent.click(await screen.findByRole('tab', { name: 'P2P sharing' }))
+    fireEvent.change(screen.getByLabelText('Pairing code'), { target: { value: 'ABCD27KM' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+
+    await waitFor(() => expect(createProviderMock).toHaveBeenCalledWith(expect.objectContaining({
+      models: {
+        main: 'shared/kimi-k2.6',
+        haiku: 'shared/kimi-k2.6',
+        sonnet: 'shared/kimi-k2.6',
+        opus: 'shared/kimi-k2.6',
+      },
+      modelCatalog: [{ id: 'shared/kimi-k2.6' }, { id: 'shared/glm-5.2' }],
+    })))
+    expect(activateProviderMock).toHaveBeenCalledWith('provider-p2p')
   })
 })

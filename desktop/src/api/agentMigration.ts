@@ -93,10 +93,10 @@ export type AgentMigrationResult = {
 }
 
 export const agentMigrationApi = {
-  scan: (targetAgentId: ExternalAgentId = 'cybercode') =>
+  scan: (targetAgentId: ExternalAgentId = 'cybercode', signal?: AbortSignal) =>
     api.get<AgentMigrationScan>(
       `/api/agent-migration?targetAgentId=${encodeURIComponent(targetAgentId)}`,
-      { timeout: 120_000 },
+      { timeout: 120_000, signal },
     ),
 
   preview: (agentId: ExternalAgentId, itemId: string, targetAgentId: ExternalAgentId = 'cybercode') =>

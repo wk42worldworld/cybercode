@@ -41,7 +41,7 @@
 | `/insights` | - | CyberCode セッションの分析レポートを生成します。 |
 | `/model` | `[モデル]` | 現在のセッションで使うモデルを切り替えます。 |
 | `/provider` | `/providers`; `status`, `sync`, `auto-sync on|off` | Provider の設定・切り替え、状態確認、互換 `/models` 一覧の同期を行います。OpenAI 互換 API は内蔵 bridge を使用します。 |
-| `/routing` | `/route`; `status`, `create`, `use`, `strategy`, `reset-health` | スマート route の作成、確認、有効化、health のリセットを行います。 |
+| `/routing` | `/route`; `status`, `create`, `use`, `strategy`, `reset-health` | エージェント route の作成、確認、有効化、health のリセットを行います。 |
 | `/node` | `/agent-node`, `/gateway`; `status`, `start`, `stop`, `rotate`, `revoke` | 内蔵 Agent node を起動し、専用 Key、対象範囲、リクエスト上限を管理します。 |
 | `/effort` | `low`, `medium`, `high`, `max`, `auto` | モデルの推論強度を調整します。 |
 | `/fast` | `on`, `off` | 利用可能な場合に高速モードを切り替えます。 |

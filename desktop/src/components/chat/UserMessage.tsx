@@ -39,13 +39,13 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
             data-message-bubble="user"
             onPointerEnter={showActions}
             onPointerLeave={scheduleHideActions}
-            className="flex max-w-[85%] flex-col gap-[10px] rounded-[24px] rounded-tr-[8px] bg-[var(--color-message-user-bg)] px-[24px] py-[16px] text-[var(--color-message-user-fg)]"
+            className="flex max-w-[85%] flex-col gap-[10px] rounded-[24px] rounded-tr-[8px] bg-[var(--color-message-user-bg)] px-[18px] py-[12px] text-[var(--color-message-user-fg)]"
           >
             {hasAttachments && (
               <AttachmentGallery attachments={attachments!} variant="message" />
             )}
             {hasText && (
-              <div className="chat-bubble-text whitespace-pre-wrap break-words text-[15px] font-normal leading-relaxed tracking-normal">
+              <div className="chat-bubble-text whitespace-pre-wrap break-words text-[14px] font-normal leading-relaxed tracking-normal">
                 {content}
               </div>
             )}

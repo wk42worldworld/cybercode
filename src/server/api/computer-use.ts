@@ -15,14 +15,17 @@ import { createHash } from 'crypto'
 import path from 'path'
 import type { CuPermissionRequest } from '../../vendor/computer-use-mcp/types.js'
 import { computerUseApprovalService } from '../services/computerUseApprovalService.js'
+import { getActiveSessionIds, sendToSession } from '../ws/handler.js'
 import { detectPythonRuntime } from './computer-use-python.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { DEFAULT_DESKTOP_GRANT_FLAGS } from '../../utils/computerUse/preauthorizedConfig.js'
 import {
   getManagedComputerUsePythonPath,
   pauseComputerUseRuntimePreparation,
   refreshComputerUseRuntimeStatus,
   startComputerUseRuntimePreparation,
+  subscribeComputerUseRuntimeStatus,
   type ComputerUseRuntimeStatus,
 } from '../../utils/computerUse/runtimeManager.js'
 import {
@@ -132,6 +135,45 @@ async function ensureRuntimeFiles(): Promise<void> {
   await writeFile(getHelperPath(), helperContent, 'utf8')
 }
 
+// ============================================================================
+// Runtime preparation progress → chat visibility
+//
+// First computer-use tool calls can block on a ~36MB runtime download while
+// the chat UI only shows a spinner. Forward runtime phase changes to every
+// connected desktop session as a system_notification so the user sees what
+// the tool call is waiting on (and any failure reason).
+// ============================================================================
+
+const RUNTIME_NOTIFY_PROGRESS_STEP = 10
+let lastRuntimeNotify: { phase: string; percent: number } | null = null
+
+function broadcastRuntimeStatus(status: ComputerUseRuntimeStatus): void {
+  const previous = lastRuntimeNotify
+  const phaseChanged = !previous || previous.phase !== status.phase
+  const progressAdvanced =
+    status.phase === 'downloading' &&
+    previous?.phase === 'downloading' &&
+    status.progressPercent - previous.percent >= RUNTIME_NOTIFY_PROGRESS_STEP
+  if (!phaseChanged && !progressAdvanced) return
+  lastRuntimeNotify = { phase: status.phase, percent: status.progressPercent }
+
+  for (const sessionId of getActiveSessionIds()) {
+    sendToSession(sessionId, {
+      type: 'system_notification',
+      subtype: 'computer_use_runtime',
+      data: {
+        phase: status.phase,
+        progressPercent: status.progressPercent,
+        downloadedBytes: status.downloadedBytes,
+        totalBytes: status.totalBytes,
+        error: status.error,
+      },
+    })
+  }
+}
+
+subscribeComputerUseRuntimeStatus(broadcastRuntimeStatus)
+
 type EnvStatus = {
   platform: string
   supported: boolean
@@ -215,7 +257,16 @@ async function checkStatus(): Promise<EnvStatus> {
   let screenRecording: boolean | null = null
   let inputAvailable: boolean | null = null
   if (supported && activePython) {
-    try { await ensureRuntimeFiles() } catch {}
+    try {
+      await ensureRuntimeFiles()
+    } catch (error) {
+      // Helper materialization failing leaves every permission flag null.
+      // Keep the status endpoint alive but record the cause.
+      logForDebugging(
+        `computer-use status: failed to write runtime helper files: ${error instanceof Error ? error.message : String(error)}`,
+        { level: 'warn' },
+      )
+    }
     const helperPath = getHelperPath()
     if (await pathExists(helperPath)) {
       const permResult = await runCommand(activePython, [helperPath, 'check_permissions'])

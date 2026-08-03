@@ -40,8 +40,7 @@ export function anthropicToOpenaiResponses(body: AnthropicRequest): OpenAIRespon
     }
   }
 
-  // max_tokens — omit to let upstream provider use its own default/max.
-  // Claude Code sends very large values that exceed many providers' limits.
+  if (body.max_tokens <= 96) result.max_output_tokens = body.max_tokens
 
   // temperature & top_p
   if (body.temperature !== undefined) result.temperature = body.temperature

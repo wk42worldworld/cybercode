@@ -60,6 +60,11 @@ import {
   isKimiK3ModelId,
   requiresEnabledThinkingParamForModel,
 } from '../../utils/model/thinkingPolicy.js'
+import {
+  CYBERCODE_LOCAL_MODEL_PERFORMANCE_ENV,
+  isLocalInferenceBaseUrl,
+  isLocalInferenceProvider,
+} from '../../utils/localModelPerformance.js'
 import { providerOAuthService } from './providerOAuthService.js'
 import {
   CODEX_DEFAULT_MODEL_CONTEXT_WINDOWS,
@@ -91,6 +96,7 @@ const MANAGED_ENV_KEYS = [
   CYBERCODE_PROVIDER_BASE_URL_ENV,
   CYBERCODE_PROVIDER_ID_ENV,
   CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV,
+  CYBERCODE_LOCAL_MODEL_PERFORMANCE_ENV,
 ] as const
 
 const DEFAULT_INDEX: ProvidersIndex = { activeId: null, providers: [] }
@@ -1240,6 +1246,9 @@ export class ProviderService {
       ANTHROPIC_DEFAULT_OPUS_MODEL: provider.models.opus || mainModel,
       [CYBERCODE_PROVIDER_BASE_URL_ENV]: provider.baseUrl,
       [CYBERCODE_PROVIDER_ID_ENV]: provider.id,
+      ...(isLocalInferenceProvider(provider)
+        ? { [CYBERCODE_LOCAL_MODEL_PERFORMANCE_ENV]: '1' }
+        : {}),
       ...roleCapabilities,
       ...(Object.keys(modelContextWindowMap).length > 0
         ? { [CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV]: JSON.stringify(modelContextWindowMap) }
@@ -1335,6 +1344,8 @@ export class ProviderService {
     if (Object.keys(env).length === 0) {
       delete settings.env
     }
+    delete settings.model
+    delete settings.modelContext
 
     await this.writeSettings(settings)
   }
@@ -1508,6 +1519,12 @@ export class ProviderService {
     const checks = [...groupedModels.values()]
     const mainCheck = checks.find((check) => check.roles.includes('main')) ?? checks[0]!
 
+    // Local inference servers may need to load a cold model before they can
+    // answer a real inference request (which then burns the full 30s timeout).
+    // Verify them with a cheap liveness probe first and only fall back to the
+    // deep inference round-trip when the probe cannot reach the server.
+    const localLivenessUrl = buildLocalLivenessUrl(base, input.presetId)
+
     // ── Step 1: Basic connectivity ───────────────────────────
     // Directly call the upstream API to verify URL, key, and model.
     const step1 = await this.testConnectivity(
@@ -1516,6 +1533,7 @@ export class ProviderService {
       mainCheck.requestedModel,
       format,
       runtime,
+      localLivenessUrl,
     )
     const modelChecks = [{
       roles: mainCheck.roles,
@@ -1540,6 +1558,7 @@ export class ProviderService {
             check.requestedModel,
             format,
             runtime,
+            localLivenessUrl,
           ),
         })),
     )
@@ -1555,12 +1574,18 @@ export class ProviderService {
     if (format !== 'anthropic') {
       // ── Step 2: Full proxy pipeline ──────────────────────────
       // Anthropic request → transform → upstream → transform back → validate
+      // Local servers may need 30-60s to load a cold model, so give them a
+      // much longer budget than hosted APIs.
+      const proxyTimeoutMs = isLocalInferenceProvider({ presetId: input.presetId, baseUrl: base })
+        ? LOCAL_PROXY_PIPELINE_TIMEOUT_MS
+        : PROXY_PIPELINE_TIMEOUT_MS
       result.proxy = await this.testProxyPipeline(
         base,
         apiKey,
         mainCheck.requestedModel,
         format,
         runtime,
+        proxyTimeoutMs,
       )
     }
 
@@ -1592,9 +1617,35 @@ export class ProviderService {
     modelId: string,
     format: ApiFormat,
     runtime?: ProviderTestRuntime,
+    localLivenessUrl?: string,
   ): Promise<ProviderTestStepResult> {
     const start = Date.now()
     try {
+      if (localLivenessUrl) {
+        const liveness = await this.testLocalLiveness(localLivenessUrl, apiKey, modelId, runtime)
+        if (liveness.success) {
+          return {
+            success: true,
+            latencyMs: liveness.latencyMs,
+            modelUsed: modelId,
+            httpStatus: liveness.httpStatus,
+            verificationMethod: 'lightweight',
+          }
+        }
+        // Server answered but the requested model is not installed — report
+        // that directly instead of falling through to a slow deep check.
+        if (liveness.modelMissing) {
+          return {
+            success: false,
+            latencyMs: liveness.latencyMs,
+            error: liveness.error,
+            modelUsed: modelId,
+            httpStatus: liveness.httpStatus,
+            verificationMethod: 'lightweight',
+          }
+        }
+        // Liveness probe failed — fall through to the deep inference check.
+      }
       const { url, headers, body } = buildDirectTestRequest(
         base,
         apiKey,
@@ -1653,6 +1704,7 @@ export class ProviderService {
         modelUsed,
         modelMatched: modelUsed.trim().toLowerCase() === modelId.trim().toLowerCase(),
         httpStatus: response.status,
+        verificationMethod: 'deep',
       }
     } catch (err: unknown) {
       const latencyMs = Date.now() - start
@@ -1663,6 +1715,56 @@ export class ProviderService {
     }
   }
 
+  /**
+   * Lightweight liveness probe for local inference servers: GET the model
+   * list endpoint with a short timeout. For Ollama (/api/tags) the response
+   * doubles as the installed-model list, so the requested model is verified
+   * against it — a missing model is a definitive failure, not a fallback.
+   * Other servers keep the reachability-only semantics because OpenAI
+   * compatible /v1/models lists are not reliably complete.
+   */
+  private async testLocalLiveness(
+    url: string,
+    apiKey: string,
+    modelId: string,
+    runtime?: ProviderTestRuntime,
+  ): Promise<{ success: boolean; latencyMs: number; httpStatus?: number; error?: string; modelMissing?: boolean }> {
+    const start = Date.now()
+    try {
+      const response = await fetch(url, {
+        headers: buildOptionalBearerHeaders(apiKey, runtime?.headers),
+        signal: AbortSignal.timeout(LOCAL_LIVENESS_TIMEOUT_MS),
+      })
+      const latencyMs = Date.now() - start
+      if (!response.ok) {
+        return { success: false, latencyMs, httpStatus: response.status }
+      }
+      if (url.endsWith('/api/tags')) {
+        const body = await response.json().catch(() => null) as
+          { models?: Array<{ name?: string; model?: string }> } | null
+        // Only validate when the server actually returned a model list —
+        // an unparseable body keeps the reachability-only semantics.
+        if (Array.isArray(body?.models)) {
+          const installed = body.models
+            .flatMap((entry) => [entry?.name, entry?.model])
+            .filter((name): name is string => typeof name === 'string')
+          if (!installed.some((name) => ollamaModelNameMatches(name, modelId))) {
+            return {
+              success: false,
+              latencyMs,
+              httpStatus: response.status,
+              modelMissing: true,
+              error: `Server reachable, but model '${modelId}' is not installed — run \`ollama pull ${modelId}\` first`,
+            }
+          }
+        }
+      }
+      return { success: true, latencyMs, httpStatus: response.status }
+    } catch {
+      return { success: false, latencyMs: Date.now() - start }
+    }
+  }
+
   /** Step 2: Full proxy pipeline — Anthropic → transform → upstream → transform back → validate. */
   private async testProxyPipeline(
     base: string,
@@ -1670,6 +1772,7 @@ export class ProviderService {
     modelId: string,
     format: 'openai_chat' | 'openai_responses',
     runtime?: ProviderTestRuntime,
+    timeoutMs: number = PROXY_PIPELINE_TIMEOUT_MS,
   ): Promise<ProviderTestStepResult> {
     const start = Date.now()
     try {
@@ -1703,7 +1806,7 @@ export class ProviderService {
         method: 'POST',
         headers: buildOptionalBearerHeaders(apiKey, runtime?.headers),
         body: JSON.stringify(transformedBody),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(timeoutMs),
       })
 
       if (!response.ok) {
@@ -1733,7 +1836,7 @@ export class ProviderService {
     } catch (err: unknown) {
       const latencyMs = Date.now() - start
       if (err instanceof DOMException && err.name === 'TimeoutError') {
-        return { success: false, latencyMs, error: 'Proxy pipeline timed out (30s)', modelUsed: modelId }
+        return { success: false, latencyMs, error: `Proxy pipeline timed out (${Math.round(timeoutMs / 1000)}s)`, modelUsed: modelId }
       }
       return { success: false, latencyMs, error: err instanceof Error ? err.message : String(err), modelUsed: modelId }
     }
@@ -1741,6 +1844,52 @@ export class ProviderService {
 }
 
 // ─── Helpers ───────────────────────────────────────────────
+
+const LOCAL_LIVENESS_TIMEOUT_MS = 5_000
+const PROXY_PIPELINE_TIMEOUT_MS = 30_000
+// Cold model loads on local inference servers routinely take 30-60s.
+const LOCAL_PROXY_PIPELINE_TIMEOUT_MS = 180_000
+
+/**
+ * Ollama model matching: tags default to `:latest`, so 'qwen3.6' must match
+ * an installed 'qwen3.6:latest' entry (and vice versa).
+ */
+function ollamaModelNameMatches(installed: string, requested: string): boolean {
+  const have = installed.trim().toLowerCase()
+  const want = requested.trim().toLowerCase()
+  if (!have || !want) return false
+  if (have === want) return true
+  if (!want.includes(':') && have.split(':')[0] === want) return true
+  return false
+}
+
+/**
+ * Cheap liveness endpoint for local inference servers. Ollama exposes
+ * /api/tags; everything else is expected to serve GET /v1/models.
+ * Returns undefined for non-local targets so they keep the deep check.
+ */
+function buildLocalLivenessUrl(base: string, presetId?: string): string | undefined {
+  const isLocal =
+    isLocalInferenceProvider({ presetId, baseUrl: base }) ||
+    isLocalInferenceBaseUrl(base)
+  if (!isLocal) return undefined
+
+  const isOllama = presetId === 'ollama' || presetId === 'ollama-cloud' || (() => {
+    try {
+      return new URL(base).port === '11434'
+    } catch {
+      return false
+    }
+  })()
+  if (isOllama) {
+    try {
+      return `${new URL(base).origin}/api/tags`
+    } catch {
+      return `${base.replace(/\/+$/, '')}/api/tags`
+    }
+  }
+  return buildOpenAICompatibleUrl(base, 'models')
+}
 
 function buildDirectTestRequest(
   base: string,

@@ -19,6 +19,7 @@ import { openaiResponsesStreamToAnthropic } from './streaming/openaiResponsesStr
 import { buildOpenAICompatibleUrl } from './openaiCompatUrl.js'
 import type {
   AnthropicRequest,
+  OpenAIChatRequest,
   OpenAIChatResponse,
   OpenAIToolCall,
 } from './transform/types.js'
@@ -42,8 +43,56 @@ import {
   isWebSessionProvider,
 } from './webSession/handler.js'
 import { sanitizeErrorMessage } from './webSession/vendor/omniroute/open-sse/utils/error.js'
+import { prepareAnthropicRequestForProvider } from './localModelPerformance.js'
+import { executeRouteGraph } from './routeGraphExecutor.js'
+import { isLocalInferenceProvider, resolveOllamaKeepAlive } from '../../utils/localModelPerformance.js'
 
 const providerService = new ProviderService()
+
+// Streaming upstreams get 30s to send response headers. Local inference
+// servers (ollama, llama.cpp, ...) routinely spend 30-60s cold-loading a
+// model before the first byte, so they get a much longer TTFB budget.
+const STREAM_TTFB_TIMEOUT_MS = 30_000
+const DEFAULT_LOCAL_STREAM_TTFB_TIMEOUT_MS = 180_000
+
+function localStreamTtfbTimeoutMs(): number {
+  const override = Number.parseInt(
+    process.env.CYBERCODE_LOCAL_STREAM_TTFB_TIMEOUT_MS ?? '',
+    10,
+  )
+  return Number.isFinite(override) && override > 0
+    ? override
+    : DEFAULT_LOCAL_STREAM_TTFB_TIMEOUT_MS
+}
+
+// Local upstreams cannot recover from a timed-out cold load by retrying —
+// each retry replays the full prompt against the same loading model. Tell
+// the client's retry loop not to amplify the failure.
+const NO_RETRY_HEADERS = { 'x-should-retry': 'false' } as const
+
+// Raw local-upstream errors ("fetch failed", "This operation was aborted")
+// are meaningless to end users. Wrap them in actionable guidance that names
+// the server address and suggests the fix.
+function localUpstreamErrorMessage(err: unknown, baseUrl: string, model?: string): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  const name = err instanceof Error ? err.name : ''
+  const cause = err instanceof Error ? (err as { cause?: unknown }).cause : undefined
+  const causeCode = cause && typeof cause === 'object'
+    ? String((cause as { code?: unknown }).code ?? '')
+    : ''
+  const modelSuffix = model ? ` (model: ${model})` : ''
+  if (name === 'AbortError' || name === 'TimeoutError' || /abort/i.test(raw)) {
+    const timeoutSeconds = Math.round(localStreamTtfbTimeoutMs() / 1000)
+    return `Local model at ${baseUrl}${modelSuffix} did not respond within ${timeoutSeconds}s. The model may still be loading, or the server is overloaded. Try again, or increase CYBERCODE_LOCAL_STREAM_TTFB_TIMEOUT_MS.`
+  }
+  if (
+    /fetch failed|econnrefused|enotfound|econnreset|connection refused|socket hang up/i.test(raw) ||
+    ['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET'].includes(causeCode)
+  ) {
+    return `Cannot connect to local model server at ${baseUrl}${modelSuffix}. Make sure the server is running (e.g. \`ollama serve\`) and the address is correct.`
+  }
+  return `Local model request failed: ${raw}. Check the local model server at ${baseUrl}${modelSuffix}.`
+}
 
 export async function handleProxyRequest(req: Request, url: URL): Promise<Response> {
   const providerMatch = url.pathname.match(/^\/proxy\/providers\/([^/]+)\/v1\/messages$/)
@@ -129,7 +178,9 @@ export async function handleProxyRequest(req: Request, url: URL): Promise<Respon
     )
   }
 
-  const isStream = body.stream === true
+  const preparedRequest = prepareAnthropicRequestForProvider(config, body)
+  const requestBody = preparedRequest.body
+  const isStream = requestBody.stream === true
   const baseUrl = config.baseUrl.replace(/\/+$/, '')
   if (
     config.oauthProviderId &&
@@ -164,13 +215,13 @@ export async function handleProxyRequest(req: Request, url: URL): Promise<Respon
       return await forwardAnthropic(
         req,
         config,
-        body,
+        requestBody,
         apiKey,
         runtimeHeaders,
       )
     } else if (config.apiFormat === 'openai_chat') {
       return await handleOpenaiChat(
-        body,
+        requestBody,
         baseUrl,
         apiKey,
         isStream,
@@ -178,16 +229,19 @@ export async function handleProxyRequest(req: Request, url: URL): Promise<Respon
         runtimeHeaders,
         config.oauthProviderId,
         runtimeAuth ?? undefined,
+        preparedRequest.localModelPerformance,
+        resolveOllamaKeepAlive(config),
       )
     } else {
       return await handleOpenaiResponses(
-        body,
+        requestBody,
         baseUrl,
         apiKey,
         isStream,
         req.signal,
         runtimeHeaders,
         config.oauthProviderId,
+        preparedRequest.localModelPerformance,
       )
     }
   } catch (err) {
@@ -196,15 +250,21 @@ export async function handleProxyRequest(req: Request, url: URL): Promise<Respon
       `[provider-proxy] upstream request failed: ${err instanceof Error ? err.message : String(err)}`,
       { level: 'error' },
     )
+    const isLocal = preparedRequest.localModelPerformance
     return Response.json(
       {
         type: 'error',
         error: {
           type: 'api_error',
-          message: err instanceof Error ? err.message : String(err),
+          message: isLocal
+            ? localUpstreamErrorMessage(err, baseUrl, requestBody.model)
+            : err instanceof Error ? err.message : String(err),
         },
       },
-      { status: 502 },
+      {
+        status: 502,
+        headers: isLocal ? NO_RETRY_HEADERS : undefined,
+      },
     )
   }
 }
@@ -232,6 +292,26 @@ async function handleRoutedRequest(
     )
   }
 
+  if (plan.graphPlan) {
+    return executeRouteGraph({
+      routeId,
+      sessionId,
+      fingerprint: plan.fingerprint,
+      body,
+      plan: plan.graphPlan,
+      signal: req.signal,
+      forward: (target, routedBody, signal) => (
+        forwardToTarget(req, target, routedBody, signal)
+      ),
+      prime: (response, stream) => (
+        stream ? primeStreamingResponse(response) : primeNonStreamingResponse(response)
+      ),
+      isRetryableStatus: (status) => routingService.isRetryableStatus(status),
+      recordSuccess: (input) => routingService.recordSuccess(input),
+      recordFailure: (input) => routingService.recordFailure(input),
+    })
+  }
+
   let lastError = 'No route candidate was attempted'
   for (let index = 0; index < plan.targets.length; index += 1) {
     if (req.signal.aborted) return clientCancelledResponse()
@@ -247,9 +327,13 @@ async function handleRoutedRequest(
         return clientCancelledResponse()
       }
       if (response.ok) {
-        const readyResponse = body.stream === true
-          ? await primeStreamingResponse(response)
-          : await primeNonStreamingResponse(response)
+        // Local targets cold-load models for 30-60s before the first byte —
+        // the 30s first-chunk fuse in the prime helpers would cut them off.
+        const readyResponse = isLocalInferenceProvider(target.provider)
+          ? response
+          : body.stream === true
+            ? await primeStreamingResponse(response)
+            : await primeNonStreamingResponse(response)
         const latencyMs = Date.now() - startedAt
         routingService.recordSuccess({
           routeId,
@@ -342,11 +426,14 @@ async function forwardToTarget(
   req: Request,
   target: ResolvedRouteTarget,
   body: AnthropicRequest,
+  signal: AbortSignal = req.signal,
 ): Promise<Response> {
   const provider = target.provider
   if (isWebSessionProvider(provider)) {
-    return handleWebSessionRequest(provider, body, req.signal)
+    return handleWebSessionRequest(provider, body, signal)
   }
+  const preparedRequest = prepareAnthropicRequestForProvider(provider, body)
+  const requestBody = preparedRequest.body
   if (
     provider.oauthProviderId &&
     !providerOAuthService.matchesRuntimeTarget(
@@ -374,30 +461,40 @@ async function forwardToTarget(
   }
   const apiKey = runtimeAuth?.token ?? provider.apiKey
   if ((provider.apiFormat ?? 'anthropic') === 'anthropic') {
-    return forwardAnthropic(req, provider, body, apiKey, runtimeAuth?.headers)
+    return forwardAnthropic(
+      req,
+      provider,
+      requestBody,
+      apiKey,
+      runtimeAuth?.headers,
+      signal,
+    )
   }
 
   const baseUrl = provider.baseUrl.replace(/\/+$/, '')
   if (provider.apiFormat === 'openai_chat') {
     return handleOpenaiChat(
-      body,
+      requestBody,
       baseUrl,
       apiKey,
-      body.stream === true,
-      req.signal,
+      requestBody.stream === true,
+      signal,
       runtimeAuth?.headers,
       provider.oauthProviderId,
       runtimeAuth ?? undefined,
+      preparedRequest.localModelPerformance,
+      resolveOllamaKeepAlive(provider),
     )
   }
   return handleOpenaiResponses(
-    body,
+    requestBody,
     baseUrl,
     apiKey,
-    body.stream === true,
-    req.signal,
+    requestBody.stream === true,
+    signal,
     runtimeAuth?.headers,
     provider.oauthProviderId,
+    preparedRequest.localModelPerformance,
   )
 }
 
@@ -407,6 +504,7 @@ function forwardAnthropic(
   body: AnthropicRequest,
   apiKey = provider.apiKey,
   extraHeaders?: Record<string, string>,
+  signal: AbortSignal = req.signal,
 ): Promise<Response> {
   const baseUrl = provider.baseUrl.replace(/\/+$/, '')
   const headers: Record<string, string> = {
@@ -422,7 +520,7 @@ function forwardAnthropic(
     method: 'POST',
     headers,
     body: JSON.stringify(body),
-  }, body.stream === true, req.signal)
+  }, body.stream === true, signal, isLocalInferenceProvider(provider))
 }
 
 function buildOpenAICompatibleHeaders(
@@ -456,6 +554,7 @@ async function fetchUpstream(
   init: RequestInit,
   isStream: boolean,
   requestSignal?: AbortSignal,
+  isLocal = false,
 ): Promise<Response> {
   if (!isStream) {
     const timeoutSignal = AbortSignal.timeout(300_000)
@@ -466,7 +565,10 @@ async function fetchUpstream(
   }
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 30_000)
+  const ttfbTimeoutMs = isLocal
+    ? localStreamTtfbTimeoutMs()
+    : STREAM_TTFB_TIMEOUT_MS
+  const timer = setTimeout(() => controller.abort(), ttfbTimeoutMs)
   const signal = requestSignal
     ? AbortSignal.any([requestSignal, controller.signal])
     : controller.signal
@@ -685,12 +787,17 @@ async function handleOpenaiChat(
   extraHeaders?: Record<string, string>,
   oauthProviderId?: string,
   runtimeAuth?: ProviderRuntimeAuth,
+  localModelPerformance = false,
+  ollamaKeepAlive?: string,
 ): Promise<Response> {
   const isKimi = isKimiBaseUrl(baseUrl)
   const transformed = anthropicToOpenaiChat(body, {
     kimiThinking: isKimi,
     preserveReasoningContent: isKimi,
-  })
+  }) as OpenAIChatRequest & { keep_alive?: string }
+  // Ollama unloads models ~5min after the last request; keep_alive pins the
+  // warmed model. Ollama tolerates the unknown field on /v1/chat/completions.
+  if (ollamaKeepAlive) transformed.keep_alive = ollamaKeepAlive
   const native = oauthProviderId && runtimeAuth
     ? await executeNativeOAuthChat({
         providerId: oauthProviderId,
@@ -712,7 +819,7 @@ async function handleOpenaiChat(
       method: 'POST',
       headers: buildOpenAICompatibleHeaders(baseUrl, apiKey, extraHeaders),
       body: JSON.stringify(transformed),
-    }, isStream || forceUpstreamStream, requestSignal)
+    }, isStream || forceUpstreamStream, requestSignal, localModelPerformance)
 
   if (!upstream.ok) {
     const errText = await upstream.text().catch(() => '')
@@ -724,7 +831,14 @@ async function handleOpenaiChat(
           message: `Upstream returned HTTP ${upstream.status}: ${errText.slice(0, 500)}`,
         },
       },
-      { status: upstream.status },
+      {
+        status: upstream.status,
+        // A local 5xx (e.g. ollama OOM) is not transient — replaying the
+        // full prompt against the same failing server only amplifies it.
+        headers: localModelPerformance && upstream.status >= 500
+          ? NO_RETRY_HEADERS
+          : undefined,
+      },
     )
   }
 
@@ -732,11 +846,16 @@ async function handleOpenaiChat(
     if (!upstream.body) {
       return Response.json(
         { type: 'error', error: { type: 'api_error', message: 'Upstream returned no body for stream' } },
-        { status: 502 },
+        {
+          status: 502,
+          headers: localModelPerformance ? NO_RETRY_HEADERS : undefined,
+        },
       )
     }
-    const primedUpstream = await primeReadableStream(upstream.body)
-    const anthropicStream = openaiChatStreamToAnthropic(primedUpstream, body.model)
+    const upstreamStream = localModelPerformance
+      ? upstream.body
+      : await primeReadableStream(upstream.body)
+    const anthropicStream = openaiChatStreamToAnthropic(upstreamStream, body.model, localModelPerformance)
     return new Response(anthropicStream, {
       status: 200,
       headers: {
@@ -883,6 +1002,7 @@ async function handleOpenaiResponses(
   requestSignal?: AbortSignal,
   extraHeaders?: Record<string, string>,
   oauthProviderId?: string,
+  localModelPerformance = false,
 ): Promise<Response> {
   const baseRequest = anthropicToOpenaiResponses(body)
   const isCodex = oauthProviderId === 'codex'
@@ -901,7 +1021,7 @@ async function handleOpenaiResponses(
     method: 'POST',
     headers: buildOpenAICompatibleHeaders(baseUrl, apiKey, requestHeaders),
     body: JSON.stringify(transformed),
-  }, upstreamIsStream, requestSignal)
+  }, upstreamIsStream, requestSignal, localModelPerformance)
 
   if (!upstream.ok) {
     const errText = await upstream.text().catch(() => '')
@@ -921,11 +1041,16 @@ async function handleOpenaiResponses(
     if (!upstream.body) {
       return Response.json(
         { type: 'error', error: { type: 'api_error', message: 'Upstream returned no body for stream' } },
-        { status: 502 },
+        {
+          status: 502,
+          headers: localModelPerformance ? NO_RETRY_HEADERS : undefined,
+        },
       )
     }
-    const primedUpstream = await primeReadableStream(upstream.body)
-    const anthropicStream = openaiResponsesStreamToAnthropic(primedUpstream, body.model)
+    const upstreamStream = localModelPerformance
+      ? upstream.body
+      : await primeReadableStream(upstream.body)
+    const anthropicStream = openaiResponsesStreamToAnthropic(upstreamStream, body.model)
     return new Response(anthropicStream, {
       status: 200,
       headers: {

@@ -231,6 +231,44 @@ describe('historyParser.mapHistoryMessages', () => {
     expect(mapped[0]?.id).toBe('t-1')
     expect(mapped[1]?.id).toBe('has-id')
   })
+
+  it('generates deterministic block ids across remaps of the same history', () => {
+    const messages: MessageEntry[] = [
+      {
+        id: 'assistant-1',
+        type: 'assistant',
+        timestamp: '2026-04-06T00:00:00.000Z',
+        content: [
+          { type: 'thinking', thinking: 'internal reasoning' },
+          { type: 'text', text: '分析结果' },
+          { type: 'tool_use', name: 'Read', id: 'tool-1', input: { file_path: 'a.ts' } },
+        ],
+      },
+      {
+        id: 'user-1',
+        type: 'user',
+        timestamp: '2026-04-06T00:00:01.000Z',
+        content: [
+          { type: 'tool_result', tool_use_id: 'tool-1', content: 'ok', is_error: false },
+        ],
+      },
+    ]
+
+    // Two separate idGen counters: if any generated id leaked into the output,
+    // the two runs would diverge.
+    let firstCounter = 0
+    let secondCounter = 100
+    const first = mapHistoryMessages(messages, () => `gen-${++firstCounter}`)
+    const second = mapHistoryMessages(messages, () => `gen-${++secondCounter}`)
+
+    expect(first.map((m) => m.id)).toEqual([
+      'assistant-1:thinking:0',
+      'assistant-1:text:1',
+      'assistant-1:tool:tool-1',
+      'user-1:result:tool-1',
+    ])
+    expect(second.map((m) => m.id)).toEqual(first.map((m) => m.id))
+  })
 })
 
 describe('historyParser.reconstructAgentNotifications', () => {
