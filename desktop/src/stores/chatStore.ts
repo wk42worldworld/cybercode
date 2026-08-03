@@ -1866,6 +1866,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           lastModelActivityAt: null,
           pendingSteers: (session.pendingSteers ?? []).filter(isPendingSteerActionable),
         }))
+        useTabStore.getState().updateTabStatus(sessionId, 'idle')
         if (shouldAutoSendPending) {
           get().autoSendPendingSteers(sessionId)
         }

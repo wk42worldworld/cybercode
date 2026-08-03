@@ -37,6 +37,7 @@ export const zh: Record<TranslationKey, string> = {
   'sidebar.noMatching': '没有匹配的会话',
   'sidebar.sessionListFailed': '会话列表加载失败',
   'sidebar.missingDir': '目录缺失',
+  'sidebar.unviewedResult': '有新结果',
   'sidebar.confirmDelete': '确定要删除这个会话吗？此操作不可撤销。',
   'sidebar.openInNewTab': '在新标签页打开',
   'settings.back': '返回',

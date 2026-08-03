@@ -35,6 +35,7 @@ export const en = {
   'sidebar.noMatching': 'No matching sessions',
   'sidebar.sessionListFailed': 'Session list failed to load',
   'sidebar.missingDir': 'missing dir',
+  'sidebar.unviewedResult': 'New result available',
   'sidebar.confirmDelete': 'Delete this session? This cannot be undone.',
   'sidebar.openInNewTab': 'Open in new tab',
   'settings.back': 'Back',

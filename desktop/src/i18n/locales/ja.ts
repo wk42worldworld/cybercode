@@ -719,6 +719,7 @@ export const ja = {
   'sidebar.noMatching': '一致するセッションはありません',
   'sidebar.sessionListFailed': 'セッション一覧を読み込めませんでした',
   'sidebar.missingDir': 'フォルダなし',
+  'sidebar.unviewedResult': '新しい結果があります',
   'sidebar.confirmDelete': 'このセッションを削除しますか？この操作は元に戻せません。',
   'sidebar.openInNewTab': '新しいタブで開く',
   'settings.back': '戻る',

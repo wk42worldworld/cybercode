@@ -975,6 +975,11 @@ function SidebarSessionRow({
   const currentKey = sessionKey(session.id, session.projectPath)
   const isActive = currentKey === activeKey
   const useInverse = isActive && !selectionMode
+  const tabState = useTabStore(
+    (s) => s.tabs.find((tab) => tab.sessionId === session.id),
+  )
+  const isRunning = tabState?.status === 'running'
+  const hasUnviewedResult = !isRunning && tabState?.unviewedCompleted === true
   const displayTitle = getSessionDisplayTitle(session, t)
 
   return (
@@ -1018,9 +1023,17 @@ function SidebarSessionRow({
                   : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] group-hover/session:border-[var(--color-border)] group-hover/session:bg-[var(--color-surface-hover)]'
                 : useInverse
                 ? 'border-[var(--color-border-focus)] bg-[var(--color-inverse-surface)] text-[var(--color-inverse-on-surface)] shadow-none'
+                : isRunning
+                ? 'border-[var(--color-brand)]/40 bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-brand)_18%,transparent)] group-hover/session:border-[var(--color-brand)]/60 group-hover/session:bg-[var(--color-surface-hover)]'
                 : 'border-[var(--color-border-separator)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-secondary)] group-hover/session:border-[var(--color-border)] group-hover/session:bg-[var(--color-surface-hover)]'
             }`}
           >
+            {isRunning && !selectionMode && (
+              <span
+                aria-hidden
+                className={`pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-r-full ${useInverse ? 'bg-[var(--color-inverse-on-surface)]/70' : 'bg-[var(--color-brand)]'} motion-safe:animate-pulse`}
+              />
+            )}
             <div className="flex w-full items-center gap-[10px]">
               {selectionMode && (
                 <span className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center ${selected ? 'text-[var(--color-brand)]' : 'text-[var(--color-text-tertiary)]'}`}>
@@ -1037,6 +1050,27 @@ function SidebarSessionRow({
                   {session.workDir && !session.workDirExists && (
                     <span className="shrink-0 text-[9px] font-bold text-amber-500">
                       {t('sidebar.missingDir')}
+                    </span>
+                  )}
+                  {isRunning && (
+                    <span
+                      data-testid="sidebar-session-running"
+                      aria-label={t('settings.terminal.status.running')}
+                      title={t('settings.terminal.status.running')}
+                      className="relative mt-[3px] flex h-[11px] w-[11px] shrink-0 items-center justify-center"
+                    >
+                      <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-30 ${useInverse ? 'bg-[var(--color-inverse-on-surface)]' : 'bg-[var(--color-brand)]'}`} />
+                      <span className={`inline-flex h-[11px] w-[11px] animate-spin rounded-full border-2 border-t-transparent ${useInverse ? 'border-[var(--color-inverse-on-surface)]' : 'border-[var(--color-brand)]'}`} />
+                    </span>
+                  )}
+                  {hasUnviewedResult && (
+                    <span
+                      data-testid="sidebar-session-unviewed"
+                      aria-label={t('sidebar.unviewedResult')}
+                      title={t('sidebar.unviewedResult')}
+                      className={`mt-[3px] flex h-[11px] w-[11px] shrink-0 items-center justify-center rounded-full text-[8px] font-extrabold leading-none ${useInverse ? 'bg-[var(--color-inverse-on-surface)]/25 text-[var(--color-inverse-on-surface)]' : 'bg-green-500/20 text-green-500'}`}
+                    >
+                      !
                     </span>
                   )}
                   <span className={`mt-0.5 shrink-0 text-[10px] font-bold ${useInverse ? 'text-[var(--color-inverse-on-surface)]/45' : 'text-[var(--color-text-tertiary)]'}`}>

@@ -719,6 +719,7 @@ export const ko = {
   'sidebar.noMatching': '일치하는 세션이 없습니다',
   'sidebar.sessionListFailed': '세션 목록을 불러오지 못했습니다',
   'sidebar.missingDir': '폴더 없음',
+  'sidebar.unviewedResult': '새 결과 있음',
   'sidebar.confirmDelete': '이 세션을 삭제할까요? 이 작업은 되돌릴 수 없습니다.',
   'sidebar.openInNewTab': '새 탭에서 열기',
   'settings.back': '뒤로',
