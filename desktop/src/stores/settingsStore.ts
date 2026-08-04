@@ -4,6 +4,7 @@ import { modelsApi } from '../api/models'
 import type { PermissionMode, EffortLevel, ModelInfo, ThemeMode } from '../types/settings'
 import { isLocale, type Locale } from '../i18n/localeConfig'
 import { useUIStore } from './uiStore'
+import { isTauriRuntime } from '../lib/desktopRuntime'
 
 const LOCALE_STORAGE_KEY = 'cybercode-locale'
 
@@ -41,6 +42,7 @@ type SettingsStore = {
   locale: Locale
   theme: ThemeMode
   skipWebFetchPreflight: boolean
+  closeToTray: boolean
   isLoading: boolean
   error: string | null
 
@@ -51,6 +53,7 @@ type SettingsStore = {
   setLocale: (locale: Locale) => Promise<void>
   setTheme: (theme: ThemeMode) => Promise<void>
   setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
+  setCloseToTray: (enabled: boolean) => Promise<void>
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -62,6 +65,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   locale: getStoredLocale(),
   theme: useUIStore.getState().theme,
   skipWebFetchPreflight: true,
+  closeToTray: true,
   isLoading: false,
   error: null,
 
@@ -90,9 +94,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         effortLevel: level,
         theme,
         skipWebFetchPreflight: userSettings.skipWebFetchPreflight !== false,
+        closeToTray: userSettings.closeToTray !== false,
         isLoading: false,
         error: null,
       })
+      if (isTauriRuntime()) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('set_close_to_tray', { enabled: userSettings.closeToTray !== false }).catch(() => {})
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to load desktop settings'
@@ -152,6 +161,20 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       await settingsApi.updateUser({ skipWebFetchPreflight: enabled })
     } catch {
       set({ skipWebFetchPreflight: prev })
+    }
+  },
+
+  setCloseToTray: async (enabled) => {
+    const prev = get().closeToTray
+    set({ closeToTray: enabled })
+    try {
+      await settingsApi.updateUser({ closeToTray: enabled })
+      if (isTauriRuntime()) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('set_close_to_tray', { enabled })
+      }
+    } catch {
+      set({ closeToTray: prev })
     }
   },
 }))

@@ -1703,6 +1703,8 @@ export const en = {
   'settings.general.webFetchPreflightDescription': 'Desktop sessions skip CyberCode\'s domain preflight by default to avoid false failures on third-party providers and restricted networks.',
   'settings.general.webFetchPreflightEnabled': 'Skip WebFetch domain preflight',
   'settings.general.webFetchPreflightHint': 'Turn this off only if you explicitly want to restore the upstream safety preflight before each WebFetch request.',
+  'settings.general.closeToTrayTitle': 'Minimize to tray on close',
+  'settings.general.closeToTrayHint': 'When enabled, closing the window hides it to the system tray instead of quitting the app. Turn off to exit directly.',
 
   // ─── Empty Session ──────────────────────────────────────
   'empty.title': 'New session',

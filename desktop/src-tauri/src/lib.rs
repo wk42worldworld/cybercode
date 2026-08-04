@@ -90,6 +90,18 @@ struct AppExitState {
     is_quitting: Mutex<bool>,
 }
 
+struct CloseToTrayState {
+    enabled: Mutex<bool>,
+}
+
+impl Default for CloseToTrayState {
+    fn default() -> Self {
+        Self {
+            enabled: Mutex::new(true),
+        }
+    }
+}
+
 #[derive(Default)]
 struct ScreenshotCaptureSession {
     active: bool,
@@ -1108,7 +1120,22 @@ fn should_hide_to_tray(app: &AppHandle, label: &str) -> bool {
         return false;
     }
 
-    !is_app_quitting(app)
+    if is_app_quitting(app) {
+        return false;
+    }
+
+    app.try_state::<CloseToTrayState>()
+        .and_then(|state| state.enabled.lock().ok().map(|value| *value))
+        .unwrap_or(true)
+}
+
+#[tauri::command]
+fn set_close_to_tray(app: AppHandle, enabled: bool) {
+    if let Some(state) = app.try_state::<CloseToTrayState>() {
+        if let Ok(mut guard) = state.enabled.lock() {
+            *guard = enabled;
+        }
+    }
 }
 
 fn show_main_window(app: &AppHandle) {
@@ -2471,6 +2498,7 @@ pub fn run() {
         .manage(AdapterState::default())
         .manage(TerminalState::default())
         .manage(AppExitState::default())
+        .manage(CloseToTrayState::default())
         .manage(ScreenshotCaptureState::default())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
@@ -2491,7 +2519,8 @@ pub fn run() {
             terminal_spawn,
             terminal_write,
             terminal_resize,
-            terminal_kill
+            terminal_kill,
+            set_close_to_tray
         ]);
 
     // macOS: native menu bar (traffic-light overlay style)

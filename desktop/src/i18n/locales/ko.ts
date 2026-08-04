@@ -1096,6 +1096,8 @@ export const ko = {
   'settings.general.webFetchPreflightDescription': '데스크톱 세션은 타사 제공자와 제한된 네트워크에서의 오탐 실패를 피하기 위해 CyberCode의 도메인 사전 확인을 기본적으로 건너뜁니다.',
   'settings.general.webFetchPreflightEnabled': 'WebFetch 도메인 사전 확인 건너뛰기',
   'settings.general.webFetchPreflightHint': '각 WebFetch 요청 전에 상위 안전 확인을 복원하고 싶을 때만 끄세요.',
+  'settings.general.closeToTrayTitle': '닫기 시 트레이로 최소화',
+  'settings.general.closeToTrayHint': '활성화하면 창을 닫아도 앱을 종료하지 않고 시스템 트레이로 숨깁니다. 끄면 바로 종료합니다.',
 
   'settings.memory.title': '메모리와 자가 진화',
   'settings.memory.description': 'CyberCode가 이해한 사용자, 학습한 일하는 방법, 새 대화에서 사용할 메모리를 확인합니다.',

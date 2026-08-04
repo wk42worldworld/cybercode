@@ -22,5 +22,6 @@ export type UserSettings = {
   language?: string
   promptMemoryLanguage?: string
   skipWebFetchPreflight?: boolean
+  closeToTray?: boolean
   [key: string]: unknown
 }

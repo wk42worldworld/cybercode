@@ -1096,6 +1096,8 @@ export const ja = {
   'settings.general.webFetchPreflightDescription': 'デスクトップセッションでは、サードパーティプロバイダーや制限されたネットワークでの誤失敗を避けるため、CyberCode のドメイン事前チェックを既定でスキップします。',
   'settings.general.webFetchPreflightEnabled': 'WebFetch ドメイン事前チェックをスキップ',
   'settings.general.webFetchPreflightHint': '各 WebFetch リクエスト前の上流安全チェックを明示的に戻したい場合だけオフにしてください。',
+  'settings.general.closeToTrayTitle': '閉じる時にトレイへ最小化',
+  'settings.general.closeToTrayHint': '有効にすると、ウィンドウを閉じてもアプリを終了せずシステムトレイに隠します。オフにすると直接終了します。',
 
   'settings.memory.title': 'メモリと自己進化',
   'settings.memory.description': 'CyberCode が理解したあなたの特徴、学習した作業方法、新しい会話で使われるメモリを確認します。',

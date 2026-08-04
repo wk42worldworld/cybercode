@@ -1705,6 +1705,8 @@ export const zh: Record<TranslationKey, string> = {
   'settings.general.webFetchPreflightDescription': '桌面端默认跳过 CyberCode 的域名预检，避免第三方服务商或受限网络下出现误报失败。',
   'settings.general.webFetchPreflightEnabled': '跳过 WebFetch 域名预检',
   'settings.general.webFetchPreflightHint': '只有在你明确需要恢复上游默认安全预检时，才建议关闭这个选项。',
+  'settings.general.closeToTrayTitle': '关闭时最小化到托盘',
+  'settings.general.closeToTrayHint': '开启后，关闭窗口将隐藏到系统托盘而非退出程序。关闭此选项则直接退出。',
 
   // ─── Empty Session ──────────────────────────────────────
   'empty.title': '新建会话',

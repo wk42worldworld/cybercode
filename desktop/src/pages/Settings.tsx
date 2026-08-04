@@ -3219,6 +3219,8 @@ export function GeneralSettings() {
     setTheme,
     skipWebFetchPreflight,
     setSkipWebFetchPreflight,
+    closeToTray,
+    setCloseToTray,
   } = useSettingsStore()
   const t = useTranslation()
 
@@ -3255,6 +3257,17 @@ export function GeneralSettings() {
             checked={skipWebFetchPreflight}
             onChange={(next) => void setSkipWebFetchPreflight(next)}
             ariaLabel={t('settings.general.webFetchPreflightEnabled')}
+          />
+        </SettingsRow>
+        <SettingsRow
+          label={t('settings.general.closeToTrayTitle')}
+          hint={t('settings.general.closeToTrayHint')}
+          align="start"
+        >
+          <Switch
+            checked={closeToTray}
+            onChange={(next) => void setCloseToTray(next)}
+            ariaLabel={t('settings.general.closeToTrayTitle')}
           />
         </SettingsRow>
       </SettingsSection>
