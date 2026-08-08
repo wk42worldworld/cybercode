@@ -47,6 +47,7 @@ export type PendingSteer = {
   createdAt: number
   status: 'draft' | 'queued' | 'processing' | 'processed' | 'cancelled' | 'failed'
   priority?: 'now' | 'next' | 'later'
+  published?: boolean
   error?: string
 }
 
@@ -1303,15 +1304,59 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     )
     if (targets.length === 0) return
     clearTurnCompletionState(sessionId)
+    const targetIdSet = new Set(targets.map((steer) => steer.id))
+    const pendingAssistantDelta = priority === 'now' ? consumePendingDelta(sessionId) : ''
 
     set((s) => ({
-      sessions: updateSessionIn(s.sessions, sessionId, (current) => ({
-        pendingSteers: (current.pendingSteers ?? []).map((steer) =>
-          targets.some((target) => target.id === steer.id)
-            ? { ...steer, status: 'queued', priority, error: undefined }
-            : steer,
-        ),
-      })),
+      sessions: updateSessionIn(s.sessions, sessionId, (current) => {
+        let messages = current.messages
+        let streamingText = current.streamingText
+        let settlingAssistant = current.settlingAssistant
+
+        if (priority === 'now') {
+          messages = appendAssistantTextMessage(
+            messages,
+            `${current.streamingText}${pendingAssistantDelta}`,
+            Date.now(),
+          )
+          streamingText = ''
+          settlingAssistant = null
+
+          for (const steer of targets) {
+            if (messages.some((message) =>
+              message.type === 'user_text' && message.serverId === steer.id
+            )) continue
+            messages = [
+              ...messages,
+              {
+                id: `steer:${steer.id}`,
+                type: 'user_text',
+                content: steer.content,
+                attachments: steer.attachments,
+                timestamp: Date.now(),
+                serverId: steer.id,
+              },
+            ]
+          }
+        }
+
+        return {
+          messages,
+          streamingText,
+          settlingAssistant,
+          pendingSteers: (current.pendingSteers ?? []).map((steer) =>
+            targetIdSet.has(steer.id)
+              ? {
+                  ...steer,
+                  status: 'queued',
+                  priority,
+                  published: priority === 'now',
+                  error: undefined,
+                }
+              : steer,
+          ),
+        }
+      }),
     }))
 
     for (const steer of targets) {
@@ -2624,19 +2669,65 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'steer_status':
         update((session) => {
+          const steer = (session.pendingSteers ?? []).find((entry) => entry.id === msg.steerId)
+          const shouldPublish = Boolean(steer)
+            && (msg.status === 'processing' || msg.status === 'processed')
+            && !session.messages.some((message) =>
+              message.type === 'user_text' && message.serverId === msg.steerId
+            )
+          let messages = session.messages
+          let streamingText = session.streamingText
+          let settlingAssistant = session.settlingAssistant
+
+          if (shouldPublish && steer) {
+            if (msg.status === 'processing') {
+              const pendingAssistantText = `${session.streamingText}${consumePendingDelta(sessionId)}`
+              messages = appendAssistantTextMessage(messages, pendingAssistantText, Date.now())
+              streamingText = ''
+            }
+            messages = [
+              ...messages,
+              {
+                id: `steer:${msg.steerId}`,
+                type: 'user_text',
+                content: steer.content,
+                attachments: steer.attachments,
+                timestamp: Date.now(),
+                serverId: msg.steerId,
+              },
+            ]
+            settlingAssistant = null
+          }
+
+          if (
+            steer?.published
+            && (msg.status === 'failed' || msg.status === 'cancelled')
+          ) {
+            messages = messages.filter((message) =>
+              !(message.type === 'user_text' && message.serverId === msg.steerId)
+            )
+          }
+
           if (msg.status === 'cancelled' || msg.status === 'processed') {
             return {
               ...markConnectionActivity(),
+              messages,
+              streamingText,
+              settlingAssistant,
               pendingSteers: (session.pendingSteers ?? []).filter((steer) => steer.id !== msg.steerId),
             }
           }
           return {
             ...markConnectionActivity(),
+            messages,
+            streamingText,
+            settlingAssistant,
             pendingSteers: (session.pendingSteers ?? []).map((steer) =>
               steer.id === msg.steerId
                 ? {
                     ...steer,
                     status: msg.status,
+                    published: msg.status === 'failed' ? false : steer.published,
                     error: msg.status === 'failed' ? msg.message ?? 'Failed to queue input.' : undefined,
                   }
                 : steer,

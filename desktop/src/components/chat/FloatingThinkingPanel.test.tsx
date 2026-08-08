@@ -271,4 +271,51 @@ describe('FloatingThinkingPanel', () => {
       "Read context\n\nCheck files\n\nPlan edits",
     )
   })
+
+  it('removes invisible characters and pathological whitespace without flattening indentation', () => {
+    render(
+      <FloatingThinkingPanel
+        content={[
+          '\ufeffRead\u00a0context\u200b',
+          '\r',
+          '    keep indentation',
+          `Plan${' '.repeat(80)}edits`,
+          `${' '.repeat(40)}bounded indentation`,
+        ].join('\r')}
+        isActive
+        identityKey="thinking-whitespace"
+      />,
+    )
+
+    expect(screen.getByTestId('thinking-message-panel-content').textContent).toBe(
+      'Read context\n\n    keep indentation\nPlan edits\n    bounded indentation',
+    )
+  })
+
+  it('writes normalized plain text when copying a thinking selection', () => {
+    render(
+      <FloatingThinkingPanel
+        content="Read context\nPlan edits"
+        isActive
+        identityKey="thinking-copy"
+      />,
+    )
+
+    const content = screen.getByTestId('thinking-message-panel-content')
+    const textNode = content.firstChild!
+    const setData = vi.fn()
+    const getSelection = vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      anchorNode: textNode,
+      focusNode: textNode,
+      toString: () => `Read\u00a0context\u200b\n\n\nPlan${' '.repeat(80)}edits`,
+    } as unknown as Selection)
+
+    fireEvent.copy(content, {
+      clipboardData: { setData },
+    })
+
+    expect(setData).toHaveBeenCalledWith('text/plain', 'Read context\n\nPlan edits')
+    getSelection.mockRestore()
+  })
 })

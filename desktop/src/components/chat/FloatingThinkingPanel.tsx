@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type ClipboardEvent as ReactClipboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 
 import { useTranslation } from '../../i18n'
 import { Icon } from '../shared/Icon'
@@ -10,11 +17,31 @@ type FloatingThinkingPanelProps = {
 }
 
 const AUTO_FOLLOW_THRESHOLD = 12
+const ZERO_WIDTH_CHARACTERS = /[\u200b-\u200d\u2060\ufeff]/g
+const UNICODE_HORIZONTAL_SPACES = /[\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]/g
+
+function normalizeThinkingLine(line: string) {
+  const withoutTrailingSpace = line.replace(/ +$/g, '')
+  if (!withoutTrailingSpace.trim()) return ''
+
+  const leadingSpace = withoutTrailingSpace.match(/^ +/)?.[0] ?? ''
+  const safeIndent = leadingSpace.length > 8 ? '    ' : leadingSpace
+  const body = withoutTrailingSpace
+    .slice(leadingSpace.length)
+    .replace(/ {12,}/g, ' ')
+
+  return `${safeIndent}${body}`
+}
 
 function formatThinkingContent(content: string) {
   const normalized = content
-    .replace(/\r\n/g, '\n')
-    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\r\n?|\v|\f|\u0085|\u2028|\u2029/g, '\n')
+    .replace(ZERO_WIDTH_CHARACTERS, '')
+    .replace(UNICODE_HORIZONTAL_SPACES, ' ')
+    .replace(/\t/g, '  ')
+    .split('\n')
+    .map(normalizeThinkingLine)
+    .join('\n')
     .trim()
 
   if (!normalized) return ''
@@ -92,12 +119,31 @@ export function FloatingThinkingPanel({
     }
   }
 
+  const handleCopy = (event: ReactClipboardEvent<HTMLDivElement>) => {
+    const selection = window.getSelection()
+    if (
+      !selection
+      || selection.isCollapsed
+      || !selection.anchorNode
+      || !selection.focusNode
+      || !event.currentTarget.contains(selection.anchorNode)
+      || !event.currentTarget.contains(selection.focusNode)
+    ) return
+
+    const copiedText = formatThinkingContent(selection.toString())
+    if (!copiedText) return
+
+    event.preventDefault()
+    event.clipboardData.setData('text/plain', copiedText)
+  }
+
   if (!displayContent) return null
 
   return (
     <div
       data-thinking-message-shell
       className="flex w-full justify-center px-[24px] py-[8px]"
+      onCopy={handleCopy}
     >
       <div
         data-chat-content-column

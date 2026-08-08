@@ -46,7 +46,12 @@ export function PendingSteerBar({ sessionId }: PendingSteerBarProps) {
   const rowRefs = useRef(new Map<string, HTMLDivElement>())
   const dragStateRef = useRef<{ steerId: string; pointerId: number } | null>(null)
 
-  const visibleSteers = pendingSteers.filter((steer) => steer.status !== 'cancelled' && steer.status !== 'processed')
+  const visibleSteers = pendingSteers.filter((steer) =>
+    steer.published !== true
+    && steer.status !== 'processing'
+    && steer.status !== 'cancelled'
+    && steer.status !== 'processed'
+  )
   const reorderableSteers = visibleSteers.filter(isReorderableSteer)
   const draggedSteerIndex = visibleSteers.findIndex((steer) => steer.id === draggedSteerId)
   const showReorderHandles = reorderableSteers.length > 1

@@ -152,8 +152,40 @@ describe('PendingSteerBar', () => {
         id: 'steer-now',
         status: 'queued',
         priority: 'now',
+        published: true,
       },
     ])
+    expect(useChatStore.getState().sessions['join-session']?.messages).toContainEqual(
+      expect.objectContaining({
+        id: 'steer:steer-now',
+        type: 'user_text',
+        content: 'Apply this constraint immediately',
+      }),
+    )
+    expect(screen.queryByText('Apply this constraint immediately')).not.toBeInTheDocument()
+  })
+
+  it('removes an accepted steer from the cache bar while it is being processed', () => {
+    useChatStore.setState({
+      sessions: {
+        'processing-session': makeChatSession({
+          pendingSteers: [
+            {
+              id: 'steer-processing',
+              content: 'Apply the accepted requirement',
+              createdAt: 1,
+              status: 'processing',
+              priority: 'now',
+            },
+          ],
+        }),
+      },
+    })
+
+    const { container } = render(<PendingSteerBar sessionId="processing-session" />)
+
+    expect(container).toBeEmptyDOMElement()
+    expect(useChatStore.getState().sessions['processing-session']?.pendingSteers).toHaveLength(1)
   })
 
   it('reorders saved steers by dragging one row above another', () => {

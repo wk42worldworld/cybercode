@@ -132,6 +132,7 @@ function UnifiedToolGroup({
   const [manualOverride, setManualOverride] = useState<boolean | null>(null)
   const { toolCalls: allToolCalls, filesRead, commandsRun, filesModified } =
     getActivityCounts(toolCalls, childToolCallsByParent)
+  const isAgentActivityActive = Boolean(isStreaming) || Boolean(isTurnActive)
   const hasRunningAgent = allToolCalls.some((toolCall) => {
     if (normalizedToolName(toolCall.toolName) !== 'agent') return false
     const result = resultMap.get(toolCall.toolUseId)
@@ -139,7 +140,7 @@ function UnifiedToolGroup({
       hasResult: Boolean(result),
       isError: Boolean(result?.isError),
       isLaunchResult: isAgentLaunchResult(result?.content),
-      isStreaming: Boolean(isStreaming) && !result,
+      isStreaming: isAgentActivityActive,
       childCount: childToolCallsByParent.get(toolCall.toolUseId)?.length ?? 0,
       taskStatus: agentTaskNotifications[toolCall.toolUseId]?.status,
     })
@@ -258,7 +259,7 @@ function UnifiedToolGroup({
                 resultMap={resultMap}
                 childToolCallsByParent={childToolCallsByParent}
                 agentTaskNotification={agentTaskNotifications[toolCall.toolUseId]}
-                isStreaming={isExecuting && !resultMap.has(toolCall.toolUseId)}
+                isStreaming={isAgentActivityActive}
               />
             ) : (
               <div key={toolCall.id}>
@@ -526,7 +527,7 @@ function getAgentStatus({
   if (taskStatus === 'completed') return 'done'
   if (hasResult && isError && !isLaunchResult) return 'failed'
   if (hasResult && !isLaunchResult) return 'done'
-  if (isLaunchResult) return 'running'
+  if (isLaunchResult) return isStreaming ? 'running' : 'stopped'
   if (!isStreaming) return 'stopped'
   if (childCount > 0 || isStreaming) return 'running'
   return 'starting'

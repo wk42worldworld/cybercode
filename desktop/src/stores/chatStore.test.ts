@@ -675,8 +675,17 @@ describe('chatStore history mapping', () => {
         id: steerId,
         status: 'queued',
         priority: 'now',
+        published: true,
       },
     ])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toContainEqual(
+      expect.objectContaining({
+        id: `steer:${steerId}`,
+        type: 'user_text',
+        content: '补充一下这个约束',
+        serverId: steerId,
+      }),
+    )
 
     useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
       type: 'steer_status',
@@ -689,9 +698,13 @@ describe('chatStore history mapping', () => {
       {
         id: steerId,
         status: 'failed',
+        published: false,
         error: 'Queue rejected',
       },
     ])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).not.toContainEqual(
+      expect.objectContaining({ serverId: steerId }),
+    )
 
     useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
       type: 'steer_status',
@@ -752,6 +765,14 @@ describe('chatStore history mapping', () => {
         id: secondId,
         status: 'queued',
         priority: 'now',
+        published: true,
+      },
+    ])
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      {
+        id: `steer:${secondId}`,
+        type: 'user_text',
+        content: '第二条补充',
       },
     ])
   })
@@ -818,6 +839,153 @@ describe('chatStore history mapping', () => {
       attachments: undefined,
     })
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.pendingSteers).toEqual([])
+  })
+
+  it('publishes an immediate steer on click and keeps later confirmations idempotent', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          streamingText: 'The answer before the new requirement.',
+        }),
+      },
+    })
+
+    const steerId = useChatStore.getState().queuePendingSteer(
+      TEST_SESSION_ID,
+      'Also verify the image pipeline',
+      [{
+        type: 'image',
+        name: 'pipeline.png',
+        data: 'data:image/png;base64,AAAA',
+        mimeType: 'image/png',
+      }],
+    )
+    useChatStore.getState().sendPendingSteers(TEST_SESSION_ID, 'now', [steerId])
+
+    const clickedSession = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(clickedSession.streamingText).toBe('')
+    expect(clickedSession.messages).toMatchObject([
+      {
+        type: 'assistant_text',
+        content: 'The answer before the new requirement.',
+      },
+      {
+        id: `steer:${steerId}`,
+        type: 'user_text',
+        content: 'Also verify the image pipeline',
+        serverId: steerId,
+      },
+    ])
+    expect(clickedSession.pendingSteers).toMatchObject([
+      { id: steerId, status: 'queued', priority: 'now', published: true },
+    ])
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'queued',
+    })
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'processing',
+    })
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'processing',
+    })
+
+    const processingSession = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(processingSession.streamingText).toBe('')
+    expect(processingSession.messages).toMatchObject([
+      {
+        type: 'assistant_text',
+        content: 'The answer before the new requirement.',
+      },
+      {
+        id: `steer:${steerId}`,
+        type: 'user_text',
+        content: 'Also verify the image pipeline',
+        serverId: steerId,
+        attachments: [{
+          type: 'image',
+          name: 'pipeline.png',
+          data: 'data:image/png;base64,AAAA',
+          mimeType: 'image/png',
+        }],
+      },
+    ])
+    expect(processingSession.messages.filter((message) =>
+      message.type === 'user_text' && message.serverId === steerId
+    )).toHaveLength(1)
+    expect(processingSession.pendingSteers).toMatchObject([
+      { id: steerId, status: 'processing', priority: 'now', published: true },
+    ])
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'processed',
+    })
+
+    const completedSession = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(completedSession.pendingSteers).toEqual([])
+    expect(completedSession.messages.filter((message) =>
+      message.type === 'user_text' && message.serverId === steerId
+    )).toHaveLength(1)
+  })
+
+  it('publishes a processed steer when the processing event was missed', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          streamingText: 'Answer produced after the accepted input.',
+          pendingSteers: [{
+            id: 'steer-from-older-client',
+            content: 'Keep this visible in history',
+            createdAt: 1,
+            status: 'queued',
+            priority: 'now',
+          }],
+        }),
+      },
+    })
+
+    const steerId = 'steer-from-older-client'
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'steer_status',
+      steerId,
+      status: 'processed',
+    })
+
+    const session = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(session.pendingSteers).toEqual([])
+    expect(session.streamingText).toBe('Answer produced after the accepted input.')
+    expect(session.messages).toContainEqual(expect.objectContaining({
+      id: `steer:${steerId}`,
+      type: 'user_text',
+      content: 'Keep this visible in history',
+      serverId: steerId,
+    }))
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 1, output_tokens: 1 },
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.messages).toMatchObject([
+      {
+        id: `steer:${steerId}`,
+        type: 'user_text',
+        content: 'Keep this visible in history',
+      },
+      {
+        type: 'assistant_text',
+        content: 'Answer produced after the accepted input.',
+      },
+    ])
   })
 
   it('moves draft steering input back into the composer for editing', () => {

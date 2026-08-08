@@ -141,6 +141,69 @@ describe('chat blocks', () => {
     expect(container.querySelector('.tool-running-text')).toBeNull()
   })
 
+  it('stops animating an Agent launch receipt after its assistant turn ends', () => {
+    const agent = {
+      id: 'agent-call',
+      type: 'tool_use' as const,
+      toolName: 'Agent',
+      toolUseId: 'agent-tool',
+      input: { description: 'Analyze MessageList.tsx for rendering bugs' },
+      timestamp: Date.now(),
+    }
+    const launchResult = {
+      id: 'agent-launch-result',
+      type: 'tool_result' as const,
+      toolUseId: 'agent-tool',
+      content: [
+        {
+          type: 'text',
+          text: [
+            'Spawned successfully.',
+            'agent_id: agent-1-messagelist@chat-msg-analysis',
+            'The agent is now running and will receive instructions via mailbox.',
+          ].join('\n'),
+        },
+      ],
+      isError: false,
+      timestamp: Date.now(),
+    }
+
+    const { container, rerender } = render(
+      <ToolCallGroup
+        toolCalls={[agent]}
+        resultMap={new Map([['agent-tool', launchResult]])}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
+        isTurnActive={false}
+      />,
+    )
+
+    expect(container.querySelector('[data-tool-activity-container]')?.getAttribute('data-running')).toBeNull()
+    expect(container.querySelector('.tool-running-sweep')).toBeNull()
+    expect(container.querySelector('[data-tool-activity-container]')?.getAttribute('data-layout')).toBe('collapsed')
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(container.querySelectorAll('[data-running="true"]')).toHaveLength(0)
+    expect(container.querySelector('.tool-running-sweep')).toBeNull()
+    expect(container.textContent).toContain('Stopped')
+
+    rerender(
+      <ToolCallGroup
+        toolCalls={[agent]}
+        resultMap={new Map([['agent-tool', launchResult]])}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
+        isTurnActive
+      />,
+    )
+
+    expect(container.querySelector('[data-tool-activity-container]')?.getAttribute('data-running')).toBe('true')
+    expect(container.querySelectorAll('.tool-running-sweep').length).toBeGreaterThanOrEqual(2)
+    expect(container.textContent).toContain('Running')
+  })
+
   it('keeps parent tool calls in running text sweep while a child tool is executing', () => {
     const parent = {
       id: 'parent',

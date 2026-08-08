@@ -1381,10 +1381,11 @@ describe('MessageList nested tool calls', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy()
   })
 
-  it('keeps async launched agents in running state until a terminal notification arrives', () => {
+  it('keeps async launched agents running only while the assistant turn remains active', async () => {
     useChatStore.setState({
       sessions: {
         [ACTIVE_TAB]: makeSessionState({
+          chatState: 'thinking',
           messages: [
             {
               id: 'tool-agent',
@@ -1408,11 +1409,28 @@ describe('MessageList nested tool calls', () => {
       },
     })
 
-    render(<MessageList />)
+    const { container } = render(<MessageList />)
 
     expect(screen.getAllByText('Running').length).toBeGreaterThan(0)
     expect(screen.queryByText('Done')).toBeNull()
     expect(screen.queryByRole('button', { name: 'View result' })).toBeNull()
+
+    act(() => {
+      useChatStore.setState((state) => ({
+        sessions: {
+          ...state.sessions,
+          [ACTIVE_TAB]: {
+            ...state.sessions[ACTIVE_TAB]!,
+            chatState: 'idle',
+          },
+        },
+      }))
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-tool-activity-container]')?.getAttribute('data-running')).toBeNull()
+      expect(container.querySelector('.tool-running-sweep')).toBeNull()
+    })
   })
 
   it('renders copy controls for user messages and scopes assistant copy to a single reply', async () => {
