@@ -349,3 +349,57 @@ export async function autoCompactIfNeeded(
     return { wasCompacted: false, consecutiveFailures: nextFailures }
   }
 }
+
+/**
+ * Recover when the provider rejects a request that local token estimation
+ * considered safe. This commonly happens after switching to a model with a
+ * smaller or provider-specific context window.
+ *
+ * Unlike proactive autocompaction, this path deliberately skips the local
+ * threshold check: the provider's prompt-too-long response is authoritative.
+ */
+export async function compactOnPromptTooLong(
+  messages: Message[],
+  toolUseContext: ToolUseContext,
+  cacheSafeParams: CacheSafeParams,
+  querySource?: QuerySource,
+  hasAttempted = false,
+): Promise<CompactionResult | null> {
+  if (
+    hasAttempted ||
+    !isAutoCompactEnabled() ||
+    toolUseContext.abortController.signal.aborted ||
+    querySource === 'compact' ||
+    querySource === 'session_memory'
+  ) {
+    return null
+  }
+
+  try {
+    const compactionResult = await compactConversation(
+      messages,
+      toolUseContext,
+      cacheSafeParams,
+      true,
+      undefined,
+      true,
+      {
+        isRecompactionInChain: false,
+        turnsSincePreviousCompact: -1,
+        autoCompactThreshold: getAutoCompactThreshold(
+          toolUseContext.options.mainLoopModel,
+        ),
+        querySource,
+      },
+    )
+
+    setLastSummarizedMessageId(undefined)
+    runPostCompactCleanup(querySource)
+    return compactionResult
+  } catch (error) {
+    if (!hasExactErrorMessage(error, ERROR_MESSAGE_USER_ABORT)) {
+      logError(error)
+    }
+    return null
+  }
+}

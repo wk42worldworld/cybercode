@@ -70,17 +70,15 @@ describe('StreamingIndicator', () => {
 
     render(<StreamingIndicator sessionId="session-1" />)
     expect(screen.getByTestId('streaming-indicator')).toHaveTextContent(localized)
-    expect(screen.getByTestId('streaming-indicator')).toHaveTextContent('1分 5秒')
     const verb = screen.getByTestId('streaming-verb')
-    const elapsed = screen.getByTestId('streaming-elapsed')
     expect(verb.className).toContain('h-[18px]')
     expect(verb.className).toContain('text-[12px]')
     expect(verb.className).toContain('leading-[18px]')
-    expect(elapsed.className).toContain('h-[18px]')
-    expect(elapsed.className).toContain('text-[12px]')
-    expect(elapsed.className).toContain('leading-[18px]')
-    expect(elapsed.className).toContain('items-center')
-    expect(elapsed.className).not.toContain('font-mono')
+    expect(verb.className).toContain('ai-shimmer-text')
+    const elapsed = screen.getByTestId('streaming-elapsed')
+    expect(elapsed).toHaveTextContent('1分 5秒')
+    expect(elapsed.className).not.toContain('ai-shimmer-text')
+    expect(elapsed.className).not.toContain('ai-shimmer-muted')
   })
 
   it('provides a distinct Chinese translation for every built-in playful verb', () => {

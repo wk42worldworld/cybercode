@@ -1555,8 +1555,9 @@
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr) 28px;
   align-items: center;
   gap: 5px;
-  border-left: 2px solid color-mix(in srgb, #c026d3 55%, var(--color-border));
-  padding: 5px 5px 5px 7px;
+  border: 1px solid color-mix(in srgb, #c026d3 28%, var(--color-border));
+  border-radius: 6px;
+  padding: 5px;
   background: color-mix(in srgb, #c026d3 4%, transparent);
 }
 
@@ -1689,7 +1690,8 @@
   display: grid;
   gap: 4px;
   margin-bottom: 12px;
-  border-left: 2px solid var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  border-radius: 6px;
   padding: 8px 9px;
   background: color-mix(in srgb, var(--color-warning) 7%, transparent);
   color: var(--color-text-secondary);

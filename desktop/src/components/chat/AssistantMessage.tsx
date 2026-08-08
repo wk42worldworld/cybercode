@@ -1,9 +1,9 @@
-import type { UIMessage } from '../../types/chat'
+import type { AgentTaskNotification, UIMessage } from '../../types/chat'
 import { useTranslation } from '../../i18n'
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
 import { MessageActionBar } from './MessageActionBar'
 import { InlineImageGallery } from './InlineImageGallery'
-import { MessageExecutionLog } from './MessageExecutionLog'
+import { ToolCallGroup } from './ToolCallGroup'
 import { SmoothStreamingText } from './SmoothStreamingText'
 import { useMessageActionVisibility } from './useMessageActionVisibility'
 
@@ -19,7 +19,9 @@ type Props = {
   toolCalls?: ToolCall[]
   resultMap?: Map<string, ToolResult>
   childToolCallsByParent?: Map<string, ToolCall[]>
+  agentTaskNotifications?: Record<string, AgentTaskNotification>
   isToolExecutionActive?: boolean
+  keepToolActivityExpanded?: boolean
   onBranch?: () => void
   branchLabel?: string
   branchDisabledLabel?: string
@@ -46,7 +48,9 @@ export function AssistantMessage({
   toolCalls,
   resultMap,
   childToolCallsByParent,
+  agentTaskNotifications,
   isToolExecutionActive = true,
+  keepToolActivityExpanded = false,
   onBranch,
   branchLabel,
   branchDisabledLabel,
@@ -58,7 +62,6 @@ export function AssistantMessage({
     actionsVisible,
     showActions,
     scheduleHideActions,
-    hideActions,
   } = useMessageActionVisibility()
   const layout = !isStreaming && isDocumentLike(content) ? 'document' : 'bubble'
   const useStableBubbleWidth = layout === 'document' || content.length >= 48
@@ -75,7 +78,10 @@ export function AssistantMessage({
         className="flex w-full max-w-[878px] flex-col items-start"
       >
         <div
-          className="pointer-events-none relative w-full"
+          data-message-row="assistant"
+          onPointerEnter={showActions}
+          onPointerLeave={scheduleHideActions}
+          className="flex w-full items-end justify-start gap-[8px]"
         >
           <div
             data-message-hover-trigger
@@ -84,7 +90,7 @@ export function AssistantMessage({
             onPointerLeave={scheduleHideActions}
             className={
               layout === 'document'
-                ? 'pointer-events-auto w-full rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
+                ? 'pointer-events-auto min-w-0 flex-1 rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
                 : useStableBubbleWidth
                   ? 'pointer-events-auto w-full max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
                   : 'pointer-events-auto w-fit max-w-[85%] rounded-[24px] rounded-bl-[8px] border border-[var(--color-border)] bg-[var(--color-message-assistant-bg)] px-[18px] py-[12px] text-[var(--color-text-primary)]'
@@ -110,36 +116,45 @@ export function AssistantMessage({
               )}
             </div>
           </div>
+          {!isStreaming && (
+            <div
+              data-actions-visible={actionsVisible ? 'true' : 'false'}
+              className="message-action-visibility flex shrink-0 items-center"
+            >
+              <MessageActionBar
+                copyText={content}
+                copyLabel={t('chat.copyReply')}
+                onBranch={onBranch}
+                branchLabel={branchLabel}
+                branchDisabledLabel={branchDisabledLabel}
+                branching={isBranching}
+                branchDisabled={branchDisabled}
+                align="start"
+                onPointerEnter={showActions}
+                onPointerLeave={scheduleHideActions}
+              />
+            </div>
+          )}
         </div>
 
         {toolCalls && resultMap && (
-          <MessageExecutionLog
-            toolCalls={toolCalls}
-            resultMap={resultMap}
-            childToolCallsByParent={childToolCallsByParent}
-            isActive={isToolExecutionActive}
+          <div
+            data-message-hover-trigger
             onPointerEnter={showActions}
             onPointerLeave={scheduleHideActions}
-          />
+            className="mb-[6px] mt-[10px] w-full"
+          >
+            <ToolCallGroup
+              toolCalls={toolCalls}
+              resultMap={resultMap}
+              childToolCallsByParent={childToolCallsByParent ?? new Map()}
+              agentTaskNotifications={agentTaskNotifications ?? {}}
+              isStreaming={isToolExecutionActive ?? false}
+              isTurnActive={keepToolActivityExpanded}
+            />
+          </div>
         )}
 
-        <div
-          data-actions-visible={actionsVisible ? 'true' : 'false'}
-          className="message-action-visibility ml-[16px] min-h-6"
-        >
-          <MessageActionBar
-            copyText={isStreaming ? undefined : content}
-            copyLabel={t('chat.copyReply')}
-            onBranch={isStreaming ? undefined : onBranch}
-            branchLabel={branchLabel}
-            branchDisabledLabel={branchDisabledLabel}
-            branching={isBranching}
-            branchDisabled={branchDisabled}
-            align="start"
-            onPointerEnter={showActions}
-            onPointerLeave={hideActions}
-          />
-        </div>
       </div>
     </div>
   )

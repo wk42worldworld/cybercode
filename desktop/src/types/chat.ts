@@ -73,6 +73,7 @@ export type ServerMessage =
       request: ComputerUsePermissionRequest
     }
   | { type: 'message_complete'; usage: TokenUsage }
+  | { type: 'generation_stop_requested' }
   | { type: 'generation_stopped'; forced: boolean }
   | { type: 'thinking'; text: string }
   | { type: 'status'; state: ChatState; verb?: string; elapsed?: number; tokens?: number }

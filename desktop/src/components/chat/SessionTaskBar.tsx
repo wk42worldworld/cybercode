@@ -68,19 +68,7 @@ export function SessionTaskBar({ sessionId }: { sessionId?: string } = {}) {
             'linear-gradient(var(--color-surface-container-low), var(--color-surface-container-low))',
         }}
       >
-        <div className="flex items-stretch">
-          {/* Left accent vertical line */}
-          <div
-            className="w-0.5 shrink-0"
-            style={{
-              backgroundColor: allCompleted
-                ? 'var(--color-success)'
-                : 'var(--color-brand)',
-            }}
-          />
-
-          {/* Compact status bar — 28px tall */}
-          <div className="flex-1 flex items-center gap-2 px-2" style={{ height: 28 }}>
+        <div className="flex items-center gap-2 px-2" style={{ height: 30 }}>
             <button
               type="button"
               onClick={toggleExpanded}
@@ -122,20 +110,14 @@ export function SessionTaskBar({ sessionId }: { sessionId?: string } = {}) {
                 <Icon name="close" size={14} />
               </button>
             )}
-          </div>
         </div>
 
         {/* Expanded task list */}
         {expanded && (
-          <div className="flex items-stretch">
-            {/* Left accent line continues into expanded area */}
-            <div className="w-0.5 shrink-0 bg-[var(--color-border-separator)]" />
-
-            <div className="flex-1 px-3 pb-2 pt-1 flex flex-col gap-0.5 max-h-[240px] overflow-y-auto border-t border-[var(--color-border-separator)]">
-              {tasks.map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))}
-            </div>
+          <div className="flex max-h-[240px] flex-col gap-0.5 overflow-y-auto border-t border-[var(--color-border-separator)] px-3 pb-2 pt-1">
+            {tasks.map((task) => (
+              <TaskItem key={task.id} task={task} />
+            ))}
           </div>
         )}
       </div>

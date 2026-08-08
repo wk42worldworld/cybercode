@@ -1,6 +1,9 @@
 import { randomUUID } from 'crypto'
 import { queryModelWithStreaming } from '../services/api/claude.js'
-import { autoCompactIfNeeded } from '../services/compact/autoCompact.js'
+import {
+  autoCompactIfNeeded,
+  compactOnPromptTooLong,
+} from '../services/compact/autoCompact.js'
 import { microcompactMessages } from '../services/compact/microCompact.js'
 
 // -- deps
@@ -16,7 +19,7 @@ import { microcompactMessages } from '../services/compact/microCompact.js'
 // already importing query.ts (which imports everything), so there's no
 // new module-graph cost.
 //
-// Scope is intentionally narrow (4 deps) to prove the pattern. Followup
+// Scope is intentionally narrow (5 deps) to prove the pattern. Followup
 // PRs can add runTools, handleStopHooks, logEvent, queue ops, etc.
 export type QueryDeps = {
   // -- model
@@ -25,6 +28,7 @@ export type QueryDeps = {
   // -- compaction
   microcompact: typeof microcompactMessages
   autocompact: typeof autoCompactIfNeeded
+  compactOnPromptTooLong: typeof compactOnPromptTooLong
 
   // -- platform
   uuid: () => string
@@ -35,6 +39,7 @@ export function productionDeps(): QueryDeps {
     callModel: queryModelWithStreaming,
     microcompact: microcompactMessages,
     autocompact: autoCompactIfNeeded,
+    compactOnPromptTooLong,
     uuid: randomUUID,
   }
 }

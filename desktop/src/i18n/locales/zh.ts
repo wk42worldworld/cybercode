@@ -1705,6 +1705,18 @@ export const zh: Record<TranslationKey, string> = {
   'settings.general.webFetchPreflightDescription': '桌面端默认跳过 CyberCode 的域名预检，避免第三方服务商或受限网络下出现误报失败。',
   'settings.general.webFetchPreflightEnabled': '跳过 WebFetch 域名预检',
   'settings.general.webFetchPreflightHint': '只有在你明确需要恢复上游默认安全预检时，才建议关闭这个选项。',
+  'settings.general.completionSoundTitle': '任务完成提示音',
+  'settings.general.completionSoundDescription': '一轮回答完成时播放提示音。',
+  'settings.general.completionSoundChoice': '提示音',
+  'settings.general.completionSound.ding': '叮',
+  'settings.general.completionSound.bell': '铃声',
+  'settings.general.completionSound.knock': '木鱼',
+  'settings.general.completionSound.custom': '自定义',
+  'settings.general.completionSoundPreview': '试听',
+  'settings.general.completionSoundUpload': '选择音频文件',
+  'settings.general.completionSoundUploadHint': '支持 mp3、wav、ogg，不超过 5MB。',
+  'settings.general.completionSoundClear': '清除自定义音效',
+  'settings.general.completionSoundUploadFailed': '音频文件读取失败或格式不支持。',
 
   // ─── Empty Session ──────────────────────────────────────
   'empty.title': '新建会话',
@@ -1881,6 +1893,7 @@ export const zh: Record<TranslationKey, string> = {
   'chat.select': '选择',
   'chat.dismiss': '关闭',
   'chat.stopTitle': '停止生成 (Cmd+.)',
+  'chat.stoppingTitle': '正在停止生成…',
   'chat.scrollToTop': '回到顶部',
   'chat.scrollToBottom': '回到底部',
   'chat.historyLoadFailedTitle': '本地聊天记录读取失败',
@@ -1888,6 +1901,10 @@ export const zh: Record<TranslationKey, string> = {
   'chat.historyPreparing': '正在准备本地聊天记录…',
   'chat.historyLoading': '正在读取本地聊天记录…',
   'chat.historyLoadMore': '加载更多记录…',
+  'chat.anchorRailLabel': '消息导航',
+  'chat.anchorJumpToMessage': '跳转到这条消息',
+  'chat.anchorLoadingHistory': '正在加载历史消息…',
+  'chat.anchorJumpFailed': '未能定位到这条消息，请重新加载会话后重试。',
   'chat.mermaidError': 'Mermaid 渲染失败',
   'chat.copyPrompt': '复制提问',
   'chat.copyReply': '复制回复',
@@ -1994,6 +2011,7 @@ export const zh: Record<TranslationKey, string> = {
 
   // ─── Thinking Block ──────────────────────────────────────
   'thinking.label': '思考中',
+  'thinking.completeLabel': '思考结束',
 
   // ─── Tool Calls ──────────────────────────────────────
   'tool.errorOutput': '错误输出',
@@ -2013,6 +2031,15 @@ export const zh: Record<TranslationKey, string> = {
   'tool.showMore': '展开 {count} 个字符',
 
   // ─── Tool Group Verbs ──────────────────────────────────────
+  'toolGroup.activitySummary': '读取了 {read} 个文件 · 执行了 {commands} 条命令 · 修改了 {modified} 个文件',
+  'toolGroup.activityToolsOne': '调用了 1 次工具',
+  'toolGroup.activityToolsMany': '调用了 {count} 次工具',
+  'toolGroup.activityReadOne': '读取了 1 个文件',
+  'toolGroup.activityReadMany': '读取了 {count} 个文件',
+  'toolGroup.activityCommandsOne': '执行了 1 条命令',
+  'toolGroup.activityCommandsMany': '执行了 {count} 条命令',
+  'toolGroup.activityModifiedOne': '修改了 1 个文件',
+  'toolGroup.activityModifiedMany': '修改了 {count} 个文件',
   'toolGroup.readOne': '读取了 1 个文件',
   'toolGroup.readMany': '读取了 {count} 个文件',
   'toolGroup.createdOne': '创建了一个文件',
@@ -2326,6 +2353,7 @@ export const zh: Record<TranslationKey, string> = {
   'error.CLI_SESSION_CONFLICT': '会话已被其他进程占用。',
   'error.CLI_SPAWN_FAILED': 'CLI 子进程启动失败。',
   'error.CLI_ERROR': '处理过程中发生错误。',
+  'error.MODEL_NO_RESPONSE': '模型连接已结束，但没有返回答复。请重试；如果持续出现，请检查模型余额、接口兼容性和网络连接。',
   'error.MODEL_IMAGE_UNSUPPORTED': '当前模型不能读取图片。请切换到支持视觉的模型，或移除图片后只发送文字。',
   'error.WORKDIR_INVALID': '工作目录无效或不存在。',
   'error.PARSE_ERROR': '消息格式无效。',

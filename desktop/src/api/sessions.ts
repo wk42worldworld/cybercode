@@ -1,8 +1,13 @@
 import { api } from './client'
-import type { CreateSessionInput, SessionListItem, MessageEntry } from '../types/session'
+import type { CreateSessionInput, SessionListItem, MessageEntry, SessionMessageAnchor } from '../types/session'
 
 type SessionsResponse = { sessions: SessionListItem[]; total: number }
-type MessagesResponse = { messages: MessageEntry[]; hasMore: boolean }
+type MessagesResponse = {
+  messages: MessageEntry[]
+  hasMore: boolean
+  hasMoreAfter?: boolean
+  seekFound?: boolean
+}
 type CreateSessionResponse = { sessionId: string; session?: SessionListItem }
 type CreateProjectFolderResponse = { path: string; existed: boolean }
 type SessionLocatorParams = { projectPath?: string }
@@ -272,18 +277,22 @@ export const sessionsApi = {
 
   getMessages(
     sessionId: string,
-    params?: { limit?: number; before?: string; after?: string } & SessionLocatorParams,
-    requestOptions?: { timeout?: number },
+    params?: { limit?: number; before?: string; after?: string; seek?: string } & SessionLocatorParams,
+    requestOptions?: { timeout?: number; recoverConnection?: boolean },
   ) {
     const query = new URLSearchParams()
     if (params?.limit) query.set('limit', String(params.limit))
     if (params?.before) query.set('before', params.before)
     if (params?.after) query.set('after', params.after)
+    if (params?.seek) query.set('seek', params.seek)
     if (params?.projectPath) query.set('projectPath', params.projectPath)
     const qs = query.toString()
     return api.get<MessagesResponse>(
       `/api/sessions/${sessionId}/messages${qs ? `?${qs}` : ''}`,
-      { timeout: requestOptions?.timeout ?? 12_000 },
+      {
+        timeout: requestOptions?.timeout ?? 12_000,
+        recoverConnection: requestOptions?.recoverConnection,
+      },
     )
   },
 
@@ -390,6 +399,11 @@ export const sessionsApi = {
   getSlashCommands(sessionId: string, params?: SessionLocatorParams) {
     const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
     return api.get<{ commands: Array<{ name: string; description: string }> }>(`/api/sessions/${sessionId}/slash-commands${query}`)
+  },
+
+  getAnchors(sessionId: string, params?: SessionLocatorParams) {
+    const query = params?.projectPath ? `?projectPath=${encodeURIComponent(params.projectPath)}` : ''
+    return api.get<{ anchors: SessionMessageAnchor[] }>(`/api/sessions/${sessionId}/anchors${query}`)
   },
 
   getInspection(sessionId: string, options?: { includeContext?: boolean; timeout?: number } & SessionLocatorParams) {

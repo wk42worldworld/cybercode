@@ -32,6 +32,7 @@ const TRAY_QUIT_ID: &str = "tray_quit";
 const CYBER_CONFIG_DIR_ENV: &str = "CYBER_CONFIG_DIR";
 const LEGACY_CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
 const CYBER_PORTABLE_ROOT_ENV: &str = "CYBER_PORTABLE_ROOT";
+const CYBERCODE_DESKTOP_PARENT_PID_ENV: &str = "CYBERCODE_DESKTOP_PARENT_PID";
 const CYBER_PORTABLE_MARKER: &str = ".cybercode-portable";
 const IMAGE_PREVIEW_MAX_BYTES: u64 = 10 * 1024 * 1024;
 const SCREENSHOT_FILE_PREFIX: &str = "cybercode-screenshot-";
@@ -42,6 +43,7 @@ const SCREENSHOT_RESULT_MAX_BYTES: usize = 32 * 1024 * 1024;
 const SCREENSHOT_SELECTION_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const SERVER_STARTUP_WAIT_TIMEOUT: Duration = Duration::from_secs(60);
 const SERVER_CONNECTION_WAIT_TIMEOUT: Duration = Duration::from_secs(65);
+const SERVER_HEALTHCHECK_REQUEST_TIMEOUT: Duration = Duration::from_secs(1);
 const SERVER_SHUTDOWN_REQUEST_TIMEOUT: Duration = Duration::from_millis(500);
 const SERVER_GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(3500);
 const SERVER_GRACEFUL_SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -83,6 +85,7 @@ struct ServerConnection {
 struct ServerStatus {
     runtime: Option<ServerRuntime>,
     startup_error: Option<String>,
+    restart_in_progress: bool,
 }
 
 #[derive(Default)]
@@ -211,6 +214,92 @@ fn restart_adapters_sidecar(app: AppHandle) -> Result<(), String> {
     stop_adapters_sidecar(&app);
     spawn_and_track_adapters_sidecar(&app);
     Ok(())
+}
+
+#[tauri::command]
+async fn restart_server_sidecar(
+    app: AppHandle,
+    expected_url: String,
+) -> Result<ServerConnection, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(state) = app.try_state::<ServerState>() else {
+            return Err("desktop server state is unavailable".to_string());
+        };
+        let status = Arc::clone(&state.0);
+        let (should_restart, runtime) = {
+            let mut guard = status
+                .lock()
+                .map_err(|_| "desktop server state is unavailable".to_string())?;
+            if guard.restart_in_progress {
+                (false, None)
+            } else if let Some(runtime) = guard.runtime.as_ref() {
+                if runtime.url != expected_url {
+                    return Ok(ServerConnection {
+                        url: runtime.url.clone(),
+                        auth_token: runtime.auth_token.clone(),
+                    });
+                }
+                if server_url_is_healthy(&runtime.url) {
+                    return Ok(ServerConnection {
+                        url: runtime.url.clone(),
+                        auth_token: runtime.auth_token.clone(),
+                    });
+                }
+                guard.restart_in_progress = true;
+                guard.startup_error = None;
+                (true, guard.runtime.take())
+            } else {
+                guard.restart_in_progress = true;
+                guard.startup_error = None;
+                (true, None)
+            }
+        };
+
+        if !should_restart {
+            return wait_for_server_connection(status);
+        }
+
+        stop_adapters_sidecar(&app);
+        if let Some(runtime) = runtime {
+            stop_server_runtime(runtime);
+        }
+
+        match start_server_sidecar(&app) {
+            Ok(runtime) => {
+                let connection = ServerConnection {
+                    url: runtime.url.clone(),
+                    auth_token: runtime.auth_token.clone(),
+                };
+                let Some(state) = app.try_state::<ServerState>() else {
+                    stop_server_runtime(runtime);
+                    return Err("desktop server state is unavailable".to_string());
+                };
+                let Ok(mut guard) = state.0.lock() else {
+                    stop_server_runtime(runtime);
+                    return Err("desktop server state is unavailable".to_string());
+                };
+                guard.runtime = Some(runtime);
+                guard.startup_error = None;
+                guard.restart_in_progress = false;
+                drop(guard);
+
+                spawn_and_track_adapters_sidecar(&app);
+                Ok(connection)
+            }
+            Err(error) => {
+                if let Some(state) = app.try_state::<ServerState>() {
+                    if let Ok(mut guard) = state.0.lock() {
+                        guard.runtime = None;
+                        guard.startup_error = Some(error.clone());
+                        guard.restart_in_progress = false;
+                    }
+                }
+                Err(error)
+            }
+        }
+    })
+    .await
+    .map_err(|error| format!("desktop server restart task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -1525,7 +1614,10 @@ fn resolve_terminal_cwd(cwd: Option<String>) -> Result<PathBuf, String> {
     if path.is_dir() {
         Ok(path)
     } else {
-        Err(format!("terminal cwd is not a directory: {}", path.display()))
+        Err(format!(
+            "terminal cwd is not a directory: {}",
+            path.display()
+        ))
     }
 }
 
@@ -1638,6 +1730,10 @@ fn resolve_app_root(_app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+fn desktop_parent_pid_env_value() -> String {
+    std::process::id().to_string()
+}
+
 fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     let host = "127.0.0.1";
     let port = reserve_local_port()?;
@@ -1687,6 +1783,10 @@ fn start_server_sidecar(app: &AppHandle) -> Result<ServerRuntime, String> {
     sidecar = sidecar
         .env("SERVER_AUTH_TOKEN", &auth_token)
         .env("CYBERCODE_DESKTOP_PARENT_WATCH", "1")
+        .env(
+            CYBERCODE_DESKTOP_PARENT_PID_ENV,
+            desktop_parent_pid_env_value(),
+        )
         .env("CYBER_CODEGRAPH_ASSET_DIR", &codegraph_asset_dir_arg)
         .env("CYBER_RTK_PATH", &rtk_binary_arg)
         .env("CYBER_AGENT_BROWSER_PATH", &agent_browser_binary_arg)
@@ -1877,8 +1977,7 @@ fn resolve_browser_from_registry() -> Option<PathBuf> {
         ("HKLM", "chromium.exe"),
         ("HKCU", "chromium.exe"),
     ] {
-        let key =
-            format!(r"{hive}\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}");
+        let key = format!(r"{hive}\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}");
         let Ok(output) = StdCommand::new("reg")
             .args(["query", &key, "/ve"])
             .creation_flags(CREATE_NO_WINDOW)
@@ -1928,7 +2027,11 @@ fn get_agent_browser_prepare_logs() -> Vec<String> {
 
 /// 运行 agent-browser 子命令：捕获输出、强制超时，避免旧实现 Stdio::null
 /// 全程静默、无超时导致失败后毫无线索。返回输出尾部（成功）或错误+输出尾部。
-fn run_agent_browser_command(binary: &Path, args: &[&str], timeout: Duration) -> Result<String, String> {
+fn run_agent_browser_command(
+    binary: &Path,
+    args: &[&str],
+    timeout: Duration,
+) -> Result<String, String> {
     let mut command = StdCommand::new(binary);
     command
         .args(args)
@@ -2071,6 +2174,33 @@ fn build_server_shutdown_request(authority: &str, auth_token: &str) -> String {
     )
 }
 
+fn server_url_is_healthy(url: &str) -> bool {
+    let Some(authority) = url.strip_prefix("http://") else {
+        return false;
+    };
+    let Ok(address) = authority.parse::<SocketAddr>() else {
+        return false;
+    };
+    let Ok(mut stream) = TcpStream::connect_timeout(&address, SERVER_HEALTHCHECK_REQUEST_TIMEOUT)
+    else {
+        return false;
+    };
+
+    let _ = stream.set_read_timeout(Some(SERVER_HEALTHCHECK_REQUEST_TIMEOUT));
+    let _ = stream.set_write_timeout(Some(SERVER_HEALTHCHECK_REQUEST_TIMEOUT));
+    let request = format!("GET /health HTTP/1.1\r\nHost: {authority}\r\nConnection: close\r\n\r\n");
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+
+    let mut response = [0_u8; 128];
+    let Ok(read) = stream.read(&mut response) else {
+        return false;
+    };
+    let status = String::from_utf8_lossy(&response[..read]);
+    status.starts_with("HTTP/1.1 200") || status.starts_with("HTTP/1.0 200")
+}
+
 fn request_server_shutdown(runtime: &ServerRuntime) -> bool {
     let Some(authority) = runtime.url.strip_prefix("http://") else {
         return false;
@@ -2185,7 +2315,10 @@ fn start_adapters_sidecar(app: &AppHandle) -> Result<CommandChild, String> {
     for (key, value) in terminal_environment(&default_shell()) {
         sidecar = sidecar.env(key, value);
     }
-    let mut sidecar = sidecar.env("ADAPTER_SERVER_URL", &server_ws_url);
+    let mut sidecar = sidecar.env("ADAPTER_SERVER_URL", &server_ws_url).env(
+        CYBERCODE_DESKTOP_PARENT_PID_ENV,
+        desktop_parent_pid_env_value(),
+    );
     if !server_auth_token.is_empty() {
         sidecar = sidecar.env("SERVER_AUTH_TOKEN", &server_auth_token);
     }
@@ -2285,12 +2418,16 @@ fn kill_windows_sidecars() {
 mod tests {
     use super::{
         build_server_shutdown_request, completed_screenshot_path, decode_screenshot_png_data_url,
-        decode_terminal_output, default_utf8_locale, ensure_utf8_locale, parse_env_block,
-        portable_root_from_executable, screenshot_temp_path, wait_for_server,
+        decode_terminal_output, default_utf8_locale, desktop_parent_pid_env_value,
+        ensure_utf8_locale, parse_env_block, portable_root_from_executable, screenshot_temp_path,
+        server_url_is_healthy, wait_for_server, CYBERCODE_DESKTOP_PARENT_PID_ENV,
         SERVER_CONNECTION_WAIT_TIMEOUT, SERVER_STARTUP_WAIT_TIMEOUT,
     };
     use std::collections::HashMap;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
     use std::sync::{Arc, Mutex};
+    use std::thread;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -2310,6 +2447,18 @@ mod tests {
     fn frontend_wait_outlasts_the_sidecar_startup_window() {
         assert_eq!(SERVER_STARTUP_WAIT_TIMEOUT, Duration::from_secs(60));
         assert!(SERVER_CONNECTION_WAIT_TIMEOUT > SERVER_STARTUP_WAIT_TIMEOUT);
+    }
+
+    #[test]
+    fn managed_sidecars_receive_the_desktop_owner_pid() {
+        assert_eq!(
+            CYBERCODE_DESKTOP_PARENT_PID_ENV,
+            "CYBERCODE_DESKTOP_PARENT_PID"
+        );
+        assert_eq!(
+            desktop_parent_pid_env_value().parse::<u32>().unwrap(),
+            std::process::id()
+        );
     }
 
     #[test]
@@ -2346,6 +2495,23 @@ mod tests {
         assert!(request.contains("Host: 127.0.0.1:4567\r\n"));
         assert!(request.contains("Authorization: Bearer secret-token\r\n"));
         assert!(request.ends_with("Connection: close\r\n\r\n"));
+    }
+
+    #[test]
+    fn native_server_healthcheck_accepts_a_healthy_local_server() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind healthcheck fixture");
+        let address = listener.local_addr().expect("read fixture address");
+        let responder = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept healthcheck request");
+            let mut request = [0_u8; 256];
+            let _ = stream.read(&mut request).expect("read healthcheck request");
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+                .expect("write healthcheck response");
+        });
+
+        assert!(server_url_is_healthy(&format!("http://{address}")));
+        responder.join().expect("join healthcheck responder");
     }
 
     #[test]
@@ -2480,6 +2646,7 @@ pub fn run() {
             get_server_url,
             get_server_connection,
             get_agent_browser_prepare_logs,
+            restart_server_sidecar,
             restart_adapters_sidecar,
             prepare_for_update_install,
             open_skills_config_dir,

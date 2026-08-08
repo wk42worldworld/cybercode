@@ -2461,24 +2461,12 @@ function runHeadlessStreaming(
       return
     } finally {
       runPhase = 'finally_flush'
-      // Flush pending internal events before going idle
+      // Flush pending internal events before releasing the run mutex. The
+      // actual idle event is emitted only after all automatic follow-up
+      // sources below have confirmed that no more work can resume this turn.
       await structuredIO.flushInternalEvents()
       runPhase = 'finally_post_flush'
-      if (!isShuttingDown()) {
-        notifySessionStateChanged('idle')
-        // Drain so the idle session_state_changed SDK event (plus any
-        // terminal task_notification bookends emitted during bg-agent
-        // teardown) reach the output stream before we block on the next
-        // command. The do-while drain above only runs while
-        // waitingForAgents; once we're here the next drain would be the
-        // top of the next run(), which won't come if input is idle.
-        for (const event of drainSdkEvents()) {
-          output.enqueue(event)
-        }
-      }
       running = false
-      // Start idle timer when we finish processing and are waiting for input
-      idleTimeout.start()
     }
 
     // Proactive tick: if proactive is active and queue is empty, inject a tick
@@ -2686,6 +2674,18 @@ function runHeadlessStreaming(
         statusListeners.delete(rateLimitListener)
         output.done()
       }
+      return
+    }
+
+    if (!isShuttingDown()) {
+      notifySessionStateChanged('idle')
+      // No proactive tick, queued command, teammate message, or shutdown work
+      // can resume the turn now. Publish idle and any final task bookends as
+      // one terminal boundary before waiting for fresh user input.
+      for (const event of drainSdkEvents()) {
+        output.enqueue(event)
+      }
+      idleTimeout.start()
     }
   }
 

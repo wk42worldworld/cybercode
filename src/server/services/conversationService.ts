@@ -27,10 +27,14 @@ import { codeGraphService } from './codeGraphService.js'
 import { shouldAutoApproveBypassPermission } from './permissionPolicy.js'
 import { routingService } from '../routing/routingService.js'
 import { closeAgentBrowserSession } from '../../utils/agentBrowser/setup.js'
+import { CYBERCODE_DESKTOP_PARENT_PID_ENV } from '../../utils/parentProcessMonitor.js'
 import { sleep } from '../../utils/sleep.js'
 
 const SESSION_SHUTDOWN_GRACE_MS = 2500
 const SESSION_FORCE_KILL_SETTLE_MS = 250
+// WebSocketTransport replays at most 1,000 UUID-bearing messages after a
+// reconnect. Keep a larger rolling window so every replay stays idempotent.
+const SDK_MESSAGE_DEDUP_WINDOW = 2048
 
 type AttachmentRef = {
   type: 'file' | 'image'
@@ -58,6 +62,7 @@ type SessionProcess = {
   generationEpoch: number
   sdkToken: string
   sdkSocket: { send(data: string): void } | null
+  recentSdkMessageIds: Set<string>
   pendingOutbound: string[]
   stderrLines: string[]
   sdkMessages: any[]
@@ -213,7 +218,9 @@ export class ConversationService {
       proc = Bun.spawn(args, {
         cwd: workDir,
         env: childEnv,
-        stdin: 'pipe',
+        // Desktop messages travel over the SDK WebSocket. Leaving an unused
+        // pipe open makes an orphaned CLI retain another host-owned resource.
+        stdin: 'ignore',
         stdout: 'ignore',  // CLI communicates via SDK WebSocket, not stdout
         stderr: 'pipe',
       })
@@ -235,6 +242,7 @@ export class ConversationService {
       generationEpoch: 0,
       sdkToken: this.getSdkTokenFromUrl(sdkUrl),
       sdkSocket: null,
+      recentSdkMessageIds: new Set(),
       pendingOutbound: [],
       stderrLines: [],
       sdkMessages: [],
@@ -310,6 +318,11 @@ export class ConversationService {
 
   getSessionInitMessage(sessionId: string): any | null {
     return this.sessions.get(sessionId)?.initMessage ?? null
+  }
+
+  markGenerationSettled(sessionId: string): void {
+    const session = this.sessions.get(sessionId)
+    if (session) session.isGenerating = false
   }
 
   sendMessage(
@@ -405,12 +418,6 @@ export class ConversationService {
       request_id: crypto.randomUUID(),
       request: { subtype: 'interrupt' },
     })
-  }
-
-  requestImmediateSteer(sessionId: string): boolean {
-    const session = this.sessions.get(sessionId)
-    if (!session?.isGenerating) return false
-    return this.sendInterrupt(sessionId)
   }
 
   stopGeneration(
@@ -539,11 +546,32 @@ export class ConversationService {
     return true
   }
 
-  detachSdkConnection(sessionId: string): void {
+  detachSdkConnection(
+    sessionId: string,
+    socket?: { send(data: string): void },
+  ): void {
     const session = this.sessions.get(sessionId)
-    if (session) {
+    if (session && (!socket || session.sdkSocket === socket)) {
       session.sdkSocket = null
     }
+  }
+
+  private isDuplicateSdkMessage(session: SessionProcess, msg: any): boolean {
+    const messageId =
+      typeof msg?.uuid === 'string' && msg.uuid.trim()
+        ? msg.uuid
+        : null
+    if (!messageId) return false
+
+    const recentIds = session.recentSdkMessageIds ??= new Set<string>()
+    if (recentIds.has(messageId)) return true
+
+    recentIds.add(messageId)
+    while (recentIds.size > SDK_MESSAGE_DEDUP_WINDOW) {
+      const expiredId = recentIds.values().next().value
+      if (expiredId) recentIds.delete(expiredId)
+    }
+    return false
   }
 
   handleSdkPayload(sessionId: string, rawPayload: string): void {
@@ -558,6 +586,11 @@ export class ConversationService {
     for (const line of lines) {
       try {
         const msg = JSON.parse(line)
+        // Bun cannot read the replay acknowledgement upgrade header, so its
+        // WebSocket transport resends UUID-bearing buffered events after each
+        // reconnect. Applying them twice duplicates text, tools and terminal
+        // events in the desktop UI.
+        if (this.isDuplicateSdkMessage(session, msg)) continue
         session.sdkMessages.push(msg)
         if (session.sdkMessages.length > 40) {
           session.sdkMessages.splice(0, 20)
@@ -565,9 +598,7 @@ export class ConversationService {
         if (msg?.type === 'system' && msg.subtype === 'init') {
           session.initMessage = msg
         }
-        if (msg?.type === 'result') {
-          session.isGenerating = false
-        } else if (
+        if (
           msg?.type === 'system' &&
           msg.subtype === 'session_state_changed'
         ) {
@@ -963,6 +994,7 @@ export class ConversationService {
         : {}),
       ...(sdkUrl
         ? {
+            [CYBERCODE_DESKTOP_PARENT_PID_ENV]: String(process.pid),
             CYBERCODE_DESKTOP_AWAIT_MCP: '1',
             CYBERCODE_DESKTOP_AWAIT_MCP_TIMEOUT_MS: '5000',
             CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1',

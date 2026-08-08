@@ -67,6 +67,42 @@ type ChatInputProps = {
   isPanelActive?: boolean
 }
 
+function StopProgressIndicator() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="20"
+      height="20"
+      aria-hidden="true"
+      focusable="false"
+      className="stop-progress-indicator block h-[20px] w-[20px] shrink-0 text-[var(--color-brand)]"
+      data-testid="stop-generation-progress"
+    >
+      <circle
+        cx="10"
+        cy="10"
+        r="7.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        opacity="0.18"
+      />
+      <circle
+        cx="10"
+        cy="10"
+        r="7.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="14 33"
+        className="stop-progress-arc"
+        data-stop-progress-arc
+      />
+    </svg>
+  )
+}
+
 function isTauriRuntime() {
   return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 }
@@ -176,6 +212,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const activeTabId = sessionIdProp ?? globalActiveTabId
   const sessionState = useChatStore((s) => activeTabId ? s.sessions[activeTabId] : undefined)
   const chatState = sessionState?.chatState ?? 'idle'
+  const stopState = sessionState?.stopState ?? 'idle'
   const slashCommands = sessionState?.slashCommands ?? []
   const composerPrefill = sessionState?.composerPrefill ?? null
   const activeSession = useSessionStore((state) =>
@@ -189,6 +226,7 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
   const [gitInfo, setGitInfo] = useState<GitInfo | null>(null)
   const isMemberSession = !!memberInfo
   const isActive = chatState !== 'idle'
+  const isStopping = stopState !== 'idle'
   const isWorkspaceMissing = activeSession?.workDirExists === false
   const canSubmit = !isWorkspaceMissing && (input.trim().length > 0 || (!isMemberSession && attachments.length > 0))
   const isHeroComposer = variant === 'hero' && !isMemberSession
@@ -1292,11 +1330,22 @@ export function ChatInput({ variant = 'default', sessionId: sessionIdProp, proje
                     <button
                       type="button"
                       onClick={() => stopGeneration(activeTabId!)}
-                      title={t('chat.stopTitle')}
-                      aria-label={t('chat.stopTitle')}
-                      className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] text-[var(--color-text-secondary)] transition-colors duration-100 hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]"
+                      disabled={isStopping}
+                      title={isStopping ? t('chat.stoppingTitle') : t('chat.stopTitle')}
+                      aria-label={isStopping ? t('chat.stoppingTitle') : t('chat.stopTitle')}
+                      aria-busy={isStopping}
+                      data-stop-state={stopState}
+                      className={`flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-container-high)] transition-colors duration-100 ${
+                        isStopping
+                          ? 'cursor-wait text-[var(--color-text-secondary)]'
+                          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-inverse-surface)] hover:text-[var(--color-inverse-on-surface)]'
+                      }`}
                     >
-                      <Square size={16} strokeWidth={2.5} />
+                      {isStopping ? (
+                        <StopProgressIndicator />
+                      ) : (
+                        <Square size={16} strokeWidth={2.5} />
+                      )}
                     </button>
                   ) : (
                     <button

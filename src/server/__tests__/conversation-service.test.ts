@@ -330,6 +330,7 @@ describe('ConversationService', () => {
     expect(env.CYBERCODE_DESKTOP_SERVER_URL).toBe('http://127.0.0.1:3456')
     expect(env.SERVER_AUTH_TOKEN).toBe('desktop-server-token')
     expect(env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING).toBe('1')
+    expect(env.CYBERCODE_DESKTOP_PARENT_PID).toBe(String(process.pid))
   })
 
   test('uses bun entrypoint fallback on Windows dev mode', () => {
@@ -369,7 +370,7 @@ describe('ConversationService', () => {
     expect(args).toContain('--replay-user-messages')
   })
 
-  test('immediate steering interrupts the active turn before forwarding the new input', () => {
+  test('forwards immediate steering as one atomic priority message', () => {
     const service = new ConversationService() as any
     const sent: any[] = []
 
@@ -393,7 +394,6 @@ describe('ConversationService', () => {
       generationEpoch: 1,
     })
 
-    const interrupted = service.requestImmediateSteer('session-steer')
     const result = service.sendMessage(
       'session-steer',
       '补充一下当前任务',
@@ -404,14 +404,9 @@ describe('ConversationService', () => {
       },
     )
 
-    expect(interrupted).toBe(true)
     expect(result).toBe(true)
-    expect(sent).toHaveLength(2)
+    expect(sent).toHaveLength(1)
     expect(sent[0]).toMatchObject({
-      type: 'control_request',
-      request: { subtype: 'interrupt' },
-    })
-    expect(sent[1]).toMatchObject({
       type: 'user',
       uuid: '123e4567-e89b-12d3-a456-426614174000',
       priority: 'now',
@@ -420,24 +415,11 @@ describe('ConversationService', () => {
         content: [{ type: 'text', text: '补充一下当前任务' }],
       },
     })
-    expect(Number.isNaN(Date.parse(sent[1].timestamp))).toBe(false)
-  })
-
-  test('immediate steering leaves an idle SDK session untouched', () => {
-    const service = new ConversationService() as any
-    const sent: any[] = []
-    service.sessions.set('session-idle-steer', {
-      sdkSocket: {
-        send(data: string) {
-          sent.push(JSON.parse(data))
-        },
-      },
-      pendingOutbound: [],
-      isGenerating: false,
-    })
-
-    expect(service.requestImmediateSteer('session-idle-steer')).toBe(false)
-    expect(sent).toEqual([])
+    expect(Number.isNaN(Date.parse(sent[0].timestamp))).toBe(false)
+    expect(sent).not.toContainEqual(expect.objectContaining({
+      type: 'control_request',
+      request: expect.objectContaining({ subtype: 'interrupt' }),
+    }))
   })
 
   test('stopGeneration waits for the interrupted turn result without killing the reusable CLI', async () => {
@@ -566,6 +548,118 @@ describe('ConversationService', () => {
     expect(await stopping).toBe('superseded')
     expect(killCount).toBe(0)
     expect(service.hasSession('stop-superseded')).toBe(true)
+  })
+
+  test('keeps a generation active until the authoritative idle lifecycle event', () => {
+    const service = new ConversationService() as any
+    const sessionId = 'authoritative-idle'
+
+    service.sessions.set(sessionId, {
+      proc: null,
+      outputCallbacks: [],
+      workDir: process.cwd(),
+      permissionMode: 'default',
+      isGenerating: true,
+      generationEpoch: 1,
+      sdkToken: 'token',
+      sdkSocket: { send() {} },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    service.handleSdkPayload(sessionId, JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      is_error: false,
+    }))
+    expect(service.sessions.get(sessionId).isGenerating).toBe(true)
+
+    service.handleSdkPayload(sessionId, JSON.stringify({
+      type: 'system',
+      subtype: 'session_state_changed',
+      state: 'idle',
+    }))
+    expect(service.sessions.get(sessionId).isGenerating).toBe(false)
+  })
+
+  test('ignores UUID-bearing SDK events replayed after a reconnect', () => {
+    const service = new ConversationService() as any
+    const sessionId = 'sdk-replay-dedup'
+    const received: any[] = []
+
+    service.sessions.set(sessionId, {
+      proc: null,
+      outputCallbacks: [(message: any) => received.push(message)],
+      workDir: process.cwd(),
+      permissionMode: 'default',
+      isGenerating: true,
+      generationEpoch: 1,
+      sdkToken: 'token',
+      sdkSocket: { send() {} },
+      pendingOutbound: [],
+      stderrLines: [],
+      sdkMessages: [],
+      initMessage: null,
+      pendingPermissionRequests: new Map(),
+    })
+
+    const replayedBatch = [
+      {
+        type: 'stream_event',
+        uuid: 'stream-event-1',
+        event: {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: '只显示一次' },
+        },
+      },
+      {
+        type: 'result',
+        uuid: 'result-event-1',
+        subtype: 'success',
+        is_error: false,
+      },
+      {
+        type: 'system',
+        uuid: 'idle-event-1',
+        subtype: 'session_state_changed',
+        state: 'idle',
+      },
+    ].map((message) => JSON.stringify(message)).join('\n')
+
+    service.handleSdkPayload(sessionId, replayedBatch)
+    service.handleSdkPayload(sessionId, replayedBatch)
+
+    expect(received.map((message) => message.uuid)).toEqual([
+      'stream-event-1',
+      'result-event-1',
+      'idle-event-1',
+    ])
+    expect(service.sessions.get(sessionId).sdkMessages).toHaveLength(3)
+    expect(service.sessions.get(sessionId).isGenerating).toBe(false)
+  })
+
+  test('does not detach a replacement SDK socket when the stale socket closes', () => {
+    const service = new ConversationService() as any
+    const sessionId = 'sdk-socket-handoff'
+    const staleSocket = { send() {} }
+    const replacementSocket = { send() {} }
+
+    service.sessions.set(sessionId, {
+      sdkSocket: staleSocket,
+      pendingOutbound: [],
+    })
+
+    service.attachSdkConnection(sessionId, replacementSocket)
+    service.detachSdkConnection(sessionId, staleSocket)
+
+    expect(service.sessions.get(sessionId).sdkSocket).toBe(replacementSocket)
+
+    service.detachSdkConnection(sessionId, replacementSocket)
+    expect(service.sessions.get(sessionId).sdkSocket).toBeNull()
   })
 
   test('sendMessage materializes inline non-vision images as tool file references', async () => {

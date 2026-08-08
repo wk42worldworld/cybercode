@@ -148,15 +148,10 @@ export function PermissionDialog({ requestId, toolName, input, description }: Pr
     <div
       data-permission-kind={isPlanApproval ? 'plan' : 'tool'}
       data-permission-state="pending"
-      className={`mb-2 flex w-full overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)] ${
+      className={`mb-2 w-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border-separator)] bg-[var(--color-surface-container)] ${
         isPlanApproval ? 'max-w-[640px]' : 'max-w-[720px]'
       }`}
     >
-      {/* Left accent vertical line — same style as ToolCallBlock. */}
-      <div className={`w-0.5 shrink-0 animate-accent-pulse-line ${
-        isPlanApproval ? 'bg-[var(--color-brand)]' : 'bg-[var(--color-warning)]'
-      }`} />
-
       <div className="min-w-0 flex-1">
         {/* Header: tool name + current decision state. */}
         <div className="flex items-center gap-2 px-3 py-2">

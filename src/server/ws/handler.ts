@@ -41,6 +41,8 @@ import { recordLearnedImageSupport } from '../../utils/model/imageCapabilityRegi
 import type { SavedProvider } from '../types/provider.js'
 import { routingService } from '../routing/routingService.js'
 import { CYBERCODE_MODEL_CONTEXT_WINDOWS_ENV } from '../../utils/modelContextWindows.js'
+import { TurnCompletionGate } from './turnCompletionGate.js'
+import { resolveCliResultError } from './cliResultError.js'
 
 const settingsService = new SettingsService()
 const providerService = new ProviderService()
@@ -93,6 +95,8 @@ const prewarmIdleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const DEFAULT_PREWARM_IDLE_TIMEOUT_MS = 5 * 60_000
 const PROMPT_MEMORY_AUTO_REVIEW_TOOL_USE_ID = 'prompt_memory_auto_review'
 const IMAGE_ATTACHMENT_EXT_RE = /\.(?:png|jpe?g|webp|gif|bmp|heic|heif|tiff?)(?:"|\s|$)/i
+const TURN_COMPLETION_SETTLE_MS = 75
+const TURN_COMPLETION_FALLBACK_MS = 1_500
 type ImageAttachmentMode = 'vision' | 'file-reference'
 type ImageAttachmentRoute = {
   mode: ImageAttachmentMode
@@ -104,6 +108,11 @@ type PendingImageTurn = {
   attachments: AttachmentRef[]
   route: ImageAttachmentRoute
   retryCount: number
+}
+
+type PendingTurnCompletion = {
+  messages: ServerMessage[]
+  isError: boolean
 }
 
 export function getSlashCommands(sessionId: string): Array<{ name: string; description: string }> {
@@ -121,6 +130,24 @@ export type WebSocketData = {
 
 // Active WebSocket sessions
 const activeSessions = new Map<string, ServerWebSocket<WebSocketData>>()
+
+const turnCompletionGate = new TurnCompletionGate<PendingTurnCompletion>({
+  settleMs: TURN_COMPLETION_SETTLE_MS,
+  fallbackMs: TURN_COMPLETION_FALLBACK_MS,
+  onFlush: (sessionId, completion) => {
+    conversationService.markGenerationSettled(sessionId)
+    for (const message of completion.messages) {
+      sendToSession(sessionId, message)
+    }
+    if (completion.isError) {
+      pendingImageTurns.delete(sessionId)
+    } else {
+      finalizeSuccessfulImageTurns(sessionId)
+    }
+    const ws = activeSessions.get(sessionId)
+    if (ws) triggerTitleGeneration(ws, sessionId)
+  },
+})
 
 export const handleWebSocket = {
   open(ws: ServerWebSocket<WebSocketData>) {
@@ -233,7 +260,8 @@ export const handleWebSocket = {
 
     if (channel === 'sdk') {
       console.log(`[WS] SDK disconnected from session: ${sessionId} (${code}: ${reason})`)
-      conversationService.detachSdkConnection(sessionId)
+      // Ignore a stale close after a replacement SDK socket has attached.
+      conversationService.detachSdkConnection(sessionId, ws)
       return
     }
 
@@ -550,10 +578,6 @@ async function handleUserSteer(
     return
   }
 
-  if (priority === 'now' && !sessionStopRequested.has(sessionId)) {
-    conversationService.requestImmediateSteer(sessionId)
-  }
-
   await waitForSessionStop(sessionId)
   sessionStopRequested.delete(sessionId)
   sessionStopCompleted.delete(sessionId)
@@ -613,6 +637,9 @@ async function handleUserSteer(
     sessionId,
     content,
     message.attachments,
+    // Keep immediate steering atomic. The CLI enqueues a `now` message before
+    // aborting its active turn, so the follow-up cannot be stranded between a
+    // standalone interrupt and a later user-message write.
     { uuid: steerId, priority, imageAttachmentMode: imageAttachmentRoute.mode },
   )
 
@@ -685,6 +712,7 @@ async function handleDesktopClearCommand(
 ) {
   const { sessionId } = ws.data
 
+  turnCompletionGate.clear(sessionId)
   const workDir = conversationService.getSessionWorkDir(sessionId)
   conversationService.stopSession(sessionId)
   conversationService.clearOutputCallbacks(sessionId)
@@ -994,6 +1022,7 @@ async function restartSessionWithPermissionMode(
   mode: string,
 ): Promise<void> {
   try {
+    turnCompletionGate.clear(sessionId)
     sendMessage(ws, { type: 'status', state: 'thinking', verb: 'Restarting session with new permissions...' })
 
     // Persist the new mode first so it's read on restart
@@ -1028,6 +1057,7 @@ async function restartSessionWithRuntimeConfig(
   sessionId: string,
 ): Promise<void> {
   try {
+    turnCompletionGate.clear(sessionId)
     sendMessage(ws, {
       type: 'status',
       state: 'thinking',
@@ -1059,6 +1089,7 @@ async function restartSessionWithRuntimeConfig(
 
 function handleStopGeneration(ws: ServerWebSocket<WebSocketData>) {
   const { sessionId } = ws.data
+  sendMessage(ws, { type: 'generation_stop_requested' })
   if (sessionStopPromises.has(sessionId)) return
 
   console.log(`[WS] Stop generation requested for session: ${sessionId}`)
@@ -1078,14 +1109,17 @@ function handleStopGeneration(ws: ServerWebSocket<WebSocketData>) {
     if (result === 'superseded') return
 
     sessionStopCompleted.add(sessionId)
+    // stopGeneration resolves only after the interrupted CLI result arrives,
+    // so this is an explicit terminal boundary rather than a timing guess.
+    turnCompletionGate.flushNow(sessionId)
     pendingImageTurns.delete(sessionId)
     computerUseApprovalService.cancelSession(sessionId)
     cleanupStreamState(sessionId)
-    sendMessage(ws, {
+    sendToSession(sessionId, {
       type: 'generation_stopped',
       forced: result === 'killed',
     })
-    sendMessage(ws, { type: 'status', state: 'idle' })
+    sendToSession(sessionId, { type: 'status', state: 'idle' })
   })().catch((error) => {
     sessionStopRequested.delete(sessionId)
     sessionStopCompleted.delete(sessionId)
@@ -1174,6 +1208,7 @@ function cleanupStreamState(sessionId: string) {
 }
 
 function cleanupSessionRuntimeState(sessionId: string) {
+  turnCompletionGate.clear(sessionId)
   cleanupStreamState(sessionId)
   sessionStopRequested.delete(sessionId)
   sessionStopCompleted.delete(sessionId)
@@ -1401,11 +1436,7 @@ function extractCliErrorMessage(cliMsg: any): string | undefined {
     return cliMsg.message?.content?.[0]?.text || String(cliMsg.error)
   }
   if (cliMsg?.type !== 'result' || !cliMsg.is_error) return undefined
-  if (typeof cliMsg.result === 'string' && cliMsg.result.trim()) return cliMsg.result
-  if (Array.isArray(cliMsg.errors) && cliMsg.errors.length > 0) {
-    return cliMsg.errors.join('\n')
-  }
-  return 'Unknown image request error'
+  return resolveCliResultError(cliMsg).message
 }
 
 function recordImageCapabilityForTurns(
@@ -1835,18 +1866,17 @@ function translateCliMessage(cliMsg: any, sessionId: string): ServerMessage[] {
           return [{ type: 'message_complete', usage }]
         }
 
-        const resultMessage =
-          (typeof cliMsg.result === 'string' && cliMsg.result) ||
-          (Array.isArray(cliMsg.errors) && cliMsg.errors.length > 0
-            ? cliMsg.errors.join('\n')
-            : 'Unknown error')
-        recoverSessionAfterMediaRequestError(sessionId, resultMessage)
+        const resultError = resolveCliResultError(cliMsg)
+        recoverSessionAfterMediaRequestError(sessionId, resultError.message)
         // 错误和完成消息都发送
         return [
           {
             type: 'error',
-            message: resultMessage,
-            code: 'CLI_ERROR',
+            message: resultError.message,
+            code: resultError.code,
+            ...(resultError.retryable === undefined
+              ? {}
+              : { retryable: resultError.retryable }),
           },
           { type: 'message_complete', usage },
         ]
@@ -2050,6 +2080,31 @@ function rebindSessionOutput(
       return
     }
 
+    const sessionState =
+      cliMsg?.type === 'system' && cliMsg.subtype === 'session_state_changed'
+        ? cliMsg.state
+        : undefined
+    if (sessionState === 'idle') {
+      turnCompletionGate.noteIdle(sessionId)
+    } else if (
+      sessionState === 'running'
+      || sessionState === 'requires_action'
+      || cliMsg?.type === 'assistant'
+      || cliMsg?.type === 'user'
+      || cliMsg?.type === 'stream_event'
+      || cliMsg?.type === 'control_request'
+      || (
+        cliMsg?.type === 'system'
+        && (
+          cliMsg.subtype === 'task_started'
+          || cliMsg.subtype === 'task_progress'
+          || cliMsg.subtype === 'task_notification'
+        )
+      )
+    ) {
+      turnCompletionGate.noteActivity(sessionId)
+    }
+
     const steerStages = pendingSteerStages.get(sessionId)
     if (
       steerStages
@@ -2081,18 +2136,17 @@ function rebindSessionOutput(
       if (steerStages.size === 0) pendingSteerStages.delete(sessionId)
     }
 
+    if (cliMsg.type === 'result') {
+      turnCompletionGate.hold(sessionId, {
+        messages: translateCliMessage(cliMsg, sessionId),
+        isError: Boolean(cliMsg.is_error),
+      })
+      return
+    }
+
     const serverMsgs = translateCliMessage(cliMsg, sessionId)
     for (const msg of serverMsgs) {
       sendMessage(ws, msg)
-    }
-
-    if (cliMsg.type === 'result') {
-      if (cliMsg.is_error) {
-        pendingImageTurns.delete(sessionId)
-      } else {
-        finalizeSuccessfulImageTurns(sessionId)
-      }
-      triggerTitleGeneration(ws, sessionId)
     }
   })
 }

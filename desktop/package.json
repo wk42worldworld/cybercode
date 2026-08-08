@@ -16,7 +16,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:ui": "playwright test --ui",
-    "test:sidecars": "bun test ./scripts/sidecarTarget.test.ts ./scripts/computerUseSigning.test.ts ./scripts/linuxSidecarPackaging.test.ts ./sidecars/codegraphWal.test.ts ./sidecars/codegraph-runner.test.ts ./sidecars/htmlScriptExtraction.test.ts ./sidecars/launcherRouting.test.ts",
+    "test:sidecars": "bun test ./scripts/sidecarTarget.test.ts ./scripts/sidecarBuildConfig.test.ts ./scripts/computerUseSigning.test.ts ./scripts/linuxSidecarPackaging.test.ts ./sidecars/codegraphWal.test.ts ./sidecars/codegraph-runner.test.ts ./sidecars/htmlScriptExtraction.test.ts ./sidecars/launcherRouting.test.ts",
     "test:agent-routing-sidecar": "bun run ./scripts/smoke-test-agent-routing.ts",
     "test:ui": "vitest --ui",
     "lint": "tsc --noEmit"

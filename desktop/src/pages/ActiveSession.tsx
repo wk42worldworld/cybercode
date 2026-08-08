@@ -12,12 +12,10 @@ import { ChatInput } from '../components/chat/ChatInput'
 import { ComputerUsePermissionModal } from '../components/chat/ComputerUsePermissionModal'
 import { TeamStatusBar } from '../components/teams/TeamStatusBar'
 import { SessionTaskBar } from '../components/chat/SessionTaskBar'
-import { FloatingThinkingPanel } from '../components/chat/FloatingThinkingPanel'
 import { LongRunningNotice } from '../components/chat/LongRunningNotice'
 import { PendingSteerBar } from '../components/chat/PendingSteerBar'
 
 const TASK_POLL_INTERVAL_MS = 1000
-const THINKING_RECENT_GRACE_MS = 3200
 const RUNTIME_TRANSITION_STATUS_VERBS = new Set([
   'Switching provider and model...',
   'Restarting session with new permissions...',
@@ -199,7 +197,6 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
 
   const t = useTranslation()
   const messages = sessionState?.messages ?? []
-  const activeThinkingId = sessionState?.activeThinkingId ?? null
   const streamingText = sessionState?.streamingText ?? ''
   const statusVerb = sessionState?.statusVerb ?? ''
   const isRuntimeTransitionStatus = RUNTIME_TRANSITION_STATUS_VERBS.has(statusVerb)
@@ -228,9 +225,6 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
     ) break
   }
 
-  const latestUserMessage = latestUserMessageIndex >= 0
-    ? messages[latestUserMessageIndex] as Extract<UIMessage, { type: 'user_text' }>
-    : null
   const latestThinking = latestThinkingIndex >= 0
     ? messages[latestThinkingIndex] as Extract<UIMessage, { type: 'thinking' }>
     : null
@@ -242,39 +236,6 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
   const visibleProgressForCurrentTurn =
     latestVisibleProgressIndex >= 0 &&
     (latestUserMessageIndex === -1 || latestVisibleProgressIndex >= latestUserMessageIndex)
-  const latestThinkingIsFresh = latestThinking
-    ? Date.now() - latestThinking.timestamp <= THINKING_RECENT_GRACE_MS
-    : false
-  const fallbackThinking =
-    latestThinkingBelongsToCurrentTurn && (chatState !== 'idle' || latestThinkingIsFresh)
-      ? latestThinking
-      : null
-
-  // Active thinking content for the floating indicator. The id can be cleared
-  // by later stream events before the UI has had a chance to render it.
-  const activeThinkingCandidateIndex = activeThinkingId
-    ? messages.findIndex((m) => m.type === 'thinking' && m.id === activeThinkingId)
-    : -1
-  const activeThinkingCandidate = activeThinkingCandidateIndex >= 0
-    ? messages[activeThinkingCandidateIndex] as Extract<UIMessage, { type: 'thinking' }>
-    : null
-  const thinkingPanelIdentityKey = `${sessionId}:${latestUserMessage?.id ?? 'initial'}`
-  const isThinkingPanelDismissed =
-    sessionState?.dismissedThinkingPanelIdentityKey === thinkingPanelIdentityKey
-  const activeThinking =
-    !isRuntimeTransitionStatus &&
-    !isThinkingPanelDismissed &&
-    activeThinkingCandidate &&
-    (latestUserMessageIndex === -1 || activeThinkingCandidateIndex >= latestUserMessageIndex)
-      ? activeThinkingCandidate
-      : !isRuntimeTransitionStatus && !isThinkingPanelDismissed
-        ? fallbackThinking
-        : null
-  const thinkingPanelIsActive =
-    !isRuntimeTransitionStatus &&
-    !isThinkingPanelDismissed &&
-    chatState !== 'idle' &&
-    !assistantBodyStartedForCurrentTurn
   const measuredBottomOverlayHeight = Math.max(bottomOverlayHeight, composerHeight)
 
   if (!sessionId) return null
@@ -341,7 +302,13 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
             {!isMemberSession && session?.workDirExists === false && (
               <div className="w-full shrink-0 px-[24px] py-2">
                 <div data-chat-content-column className="mx-auto w-full max-w-[878px]">
-                  <div className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-[11px] text-amber-600">
+                  <div
+                    className="inline-flex max-w-full items-center gap-2 rounded-[16px] border border-amber-500/20 px-3 py-1.5 text-[11px] text-amber-600"
+                    style={{
+                      backgroundColor: 'var(--color-surface-container-lowest)',
+                      backgroundImage: 'linear-gradient(rgba(245,158,11,0.05), rgba(245,158,11,0.05))',
+                    }}
+                  >
                     <span>⚠</span>
                     <span className="truncate">
                       {t('session.workspaceUnavailable', { dir: session.workDir || 'directory no longer exists' })}
@@ -356,12 +323,6 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
               projectPath={resolvedProjectPath}
               isActive={isActive}
               bottomOverlayHeight={measuredBottomOverlayHeight}
-            />
-
-            <FloatingThinkingPanel
-              content={activeThinking?.content}
-              isActive={thinkingPanelIsActive}
-              identityKey={thinkingPanelIdentityKey}
             />
 
           </div>
@@ -385,7 +346,7 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
                   chatState={chatState}
                   elapsedSeconds={sessionState?.elapsedSeconds ?? 0}
                   hasVisibleResponse={
-                    Boolean(activeThinking?.content?.trim()) ||
+                    Boolean(latestThinkingBelongsToCurrentTurn && latestThinking?.content?.trim()) ||
                     assistantBodyStartedForCurrentTurn ||
                     visibleProgressForCurrentTurn
                   }
@@ -401,9 +362,17 @@ export function ActiveSession({ sessionId: sessionIdProp, projectPath, isActive 
                       role={computerUseRuntime.phase === 'error' ? 'alert' : 'status'}
                       className={`inline-flex max-w-full items-center gap-2 rounded-[16px] border px-3 py-1.5 text-[11px] ${
                         computerUseRuntime.phase === 'error'
-                          ? 'border-red-500/20 bg-red-500/5 text-red-600'
-                          : 'border-amber-500/20 bg-amber-500/5 text-amber-600'
+                          ? 'border-red-500/20 text-red-600'
+                          : 'border-amber-500/20 text-amber-600'
                       }`}
+                      style={{
+                        // Opaque base + translucent tint so messages never
+                        // bleed through behind the floating notice.
+                        backgroundColor: 'var(--color-surface-container-lowest)',
+                        backgroundImage: computerUseRuntime.phase === 'error'
+                          ? 'linear-gradient(rgba(239,68,68,0.05), rgba(239,68,68,0.05))'
+                          : 'linear-gradient(rgba(245,158,11,0.05), rgba(245,158,11,0.05))',
+                      }}
                     >
                       <span className="shrink-0 font-medium">
                         {t('chat.computerUseRuntime.label')}

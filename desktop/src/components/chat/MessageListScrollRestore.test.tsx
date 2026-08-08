@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render } from '@testing-library/react'
+import { act, fireEvent, render } from '@testing-library/react'
 import { MessageList } from './MessageList'
 import { mapHistoryMessages } from '../../stores/historyParser'
 import { useChatStore } from '../../stores/chatStore'
@@ -14,67 +14,24 @@ import type { PerSessionState } from '../../stores/chatStore'
 
 const ACTIVE_TAB = 'scroll-restore-tab'
 
-const scrollToIndexCalls: Array<{ index: unknown; align?: string; behavior?: string }> = []
-const autoscrollToBottomCalls: number[] = []
+/** Track scrollTop assignments on the native scroller element. */
+let scrollTopWrites: number[] = []
+let scrollTopValue = 0
 
-vi.mock('react-virtuoso', () => {
-  const React = require('react')
-  const VirtuosoMock = React.forwardRef(function VirtuosoMock(props: any, ref: any) {
-    const handleRef = {
-      scrollToIndex: (opts: any) => {
-        scrollToIndexCalls.push({
-          index: opts.index,
-          align: opts.align,
-          behavior: opts.behavior,
-        })
-      },
-      autoscrollToBottom: () => {
-        autoscrollToBottomCalls.push(1)
-      },
-    }
-    if (ref) {
-      if (typeof ref === 'function') {
-        ref(handleRef)
-      } else {
-        ref.current = handleRef
-      }
-    }
-
-    const ItemContainer = props.components?.List ?? 'div'
-    const Scroller = props.components?.Scroller ?? 'div'
-    const Header = props.components?.Header
-    const Footer = props.components?.Footer
-
-    const data = props.data ?? []
-    if (data.length > 0) {
-      const startIndex = props.firstItemIndex ?? 0
-      const endIndex = startIndex + data.length - 1
-      props.rangeChanged?.({ startIndex, endIndex })
-      props.itemsRendered?.(data.map((_: any, i: number) => ({ index: startIndex + i })))
-    }
-
-    return React.createElement(
-      Scroller,
-      { 'data-testid': 'virtuoso-scroller' },
-      Header && React.createElement(Header),
-      React.createElement(
-        ItemContainer,
-        null,
-        data.map((item: any, i: number) =>
-          React.createElement(
-            'div',
-            { key: props.firstItemIndex + i },
-            props.itemContent(props.firstItemIndex + i, item),
-          ),
-        ),
-      ),
-      Footer && React.createElement(Footer),
-    )
+function stubScrollTop() {
+  scrollTopWrites = []
+  scrollTopValue = 0
+  Object.defineProperty(HTMLElement.prototype, 'scrollTop', {
+    configurable: true,
+    get() {
+      return scrollTopValue
+    },
+    set(value: number) {
+      scrollTopValue = value
+      scrollTopWrites.push(value)
+    },
   })
-  return {
-    Virtuoso: Object.assign(VirtuosoMock, { displayName: 'Virtuoso' }),
-  }
-})
+}
 
 function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionState {
   return {
@@ -145,8 +102,7 @@ function buildMessages(prefix: string): UIMessage[] {
 describe('MessageList scroll restore', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    scrollToIndexCalls.length = 0
-    autoscrollToBottomCalls.length = 0
+    stubScrollTop()
     useSettingsStore.setState({ locale: 'en' })
     useTabStore.setState({
       activeTabId: ACTIVE_TAB,
@@ -235,7 +191,71 @@ describe('MessageList scroll restore', () => {
   })
 
   describe('MessageList full dataset replacement', () => {
-    it('scrolls to the latest item after renderItems are fully replaced with new ids', async () => {
+    it('stays pinned to the latest message while a reactivated session finishes laying out', () => {
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0)
+        return 0
+      })
+      vi.stubGlobal('cancelAnimationFrame', vi.fn())
+
+      let resizeObserverCallback: ResizeObserverCallback | null = null
+      let resizeObserverInstance: ResizeObserver | null = null
+      class ResizeObserverMock {
+        constructor(callback: ResizeObserverCallback) {
+          resizeObserverCallback = callback
+          resizeObserverInstance = this as unknown as ResizeObserver
+        }
+
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+      vi.stubGlobal('ResizeObserver', ResizeObserverMock)
+
+      useChatStore.setState({
+        sessions: {
+          [ACTIVE_TAB]: makeSessionState({
+            messages: buildMessages('reactivated'),
+          }),
+        },
+      })
+
+      const { container, rerender } = render(
+        <MessageList sessionId={ACTIVE_TAB} isActive={false} />,
+      )
+      const scroller = container.querySelector('[data-testid="virtuoso-scroller"]') as HTMLElement
+      let scrollHeight = 1_000
+      Object.defineProperty(scroller, 'scrollHeight', {
+        configurable: true,
+        get: () => scrollHeight,
+      })
+      Object.defineProperty(scroller, 'clientHeight', {
+        configurable: true,
+        value: 300,
+      })
+
+      rerender(<MessageList sessionId={ACTIVE_TAB} isActive />)
+      expect(scrollTopValue).toBe(700)
+      expect(resizeObserverCallback).not.toBeNull()
+
+      // Markdown, images, or the deferred history chunk can increase the
+      // content height after activation; the latest message must stay visible.
+      scrollHeight = 1_400
+      act(() => {
+        resizeObserverCallback?.([], resizeObserverInstance!)
+      })
+      expect(scrollTopValue).toBe(1_100)
+
+      // Explicit user navigation releases the activation lock.
+      fireEvent.wheel(scroller)
+      scrollHeight = 1_600
+      act(() => {
+        resizeObserverCallback?.([], resizeObserverInstance!)
+      })
+      expect(scrollTopValue).toBe(1_100)
+    })
+
+    it('keeps the user pinned to the bottom when renderItems are fully replaced while at bottom', async () => {
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         cb(0)
         return 0
@@ -252,7 +272,13 @@ describe('MessageList scroll restore', () => {
 
       render(<MessageList sessionId={ACTIVE_TAB} isActive />)
 
+      // Initial mount scrolls to the bottom (scrollHeight is 0 in jsdom, so 0).
+      expect(scrollTopWrites.length).toBeGreaterThan(0)
+      scrollTopWrites = []
+
       // Replace the entire dataset with new ids while preserving length/order.
+      // The user is at the bottom (isNearBottomRef true from initial mount),
+      // so the list re-pins to the bottom after replacement.
       act(() => {
         useChatStore.setState((state) => ({
           sessions: {
@@ -269,13 +295,16 @@ describe('MessageList scroll restore', () => {
         await new Promise((resolve) => window.setTimeout(resolve, 0))
       })
 
-      const lastScroll = scrollToIndexCalls[scrollToIndexCalls.length - 1]
-      expect(lastScroll).toBeDefined()
-      expect(lastScroll?.index).toBe('LAST')
-      expect(lastScroll?.align).toBe('end')
+      expect(scrollTopWrites.length).toBeGreaterThan(0)
     })
 
-    it('does not lock to bottom when __testInitialItemCount is set during replacement', () => {
+    it('does not force-scroll when the user has scrolled up to read history', async () => {
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        cb(0)
+        return 0
+      })
+      vi.stubGlobal('cancelAnimationFrame', vi.fn())
+
       useChatStore.setState({
         sessions: {
           [ACTIVE_TAB]: makeSessionState({
@@ -284,7 +313,17 @@ describe('MessageList scroll restore', () => {
         },
       })
 
-      render(<MessageList sessionId={ACTIVE_TAB} isActive __testInitialItemCount={100} />)
+      const { container } = render(<MessageList sessionId={ACTIVE_TAB} isActive />)
+      const scroller = container.querySelector('[data-testid="virtuoso-scroller"]') as HTMLElement
+      expect(scroller).toBeTruthy()
+
+      // Simulate the user scrolling up: fire a scroll event with scrollTop far
+      // from the bottom so isNearBottomRef flips to false.
+      scrollTopValue = 0
+      act(() => {
+        scroller.dispatchEvent(new Event('scroll'))
+      })
+      scrollTopWrites = []
 
       act(() => {
         useChatStore.setState((state) => ({
@@ -298,9 +337,12 @@ describe('MessageList scroll restore', () => {
         }))
       })
 
-      // With __testInitialItemCount the bottom lock is disabled, so no
-      // scrollToIndex calls are expected in jsdom.
-      expect(scrollToIndexCalls.length).toBe(0)
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 0))
+      })
+
+      // No forced scroll after replacement — the user's reading position is kept.
+      expect(scrollTopWrites.length).toBe(0)
     })
   })
 })

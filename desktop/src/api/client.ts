@@ -63,7 +63,7 @@ export class ApiError extends Error {
 
 function shouldRefreshLocalConnection(error: unknown): boolean {
   if (error instanceof ApiError) {
-    return error.status === 401 || error.status === 502 || error.status === 503 || error.status === 504
+    return error.status === 401
   }
   return error instanceof TypeError
 }
@@ -97,6 +97,7 @@ async function refreshLocalConnection(): Promise<boolean> {
 type RequestOptions = {
   timeout?: number
   signal?: AbortSignal
+  recoverConnection?: boolean
 }
 
 function createCallerAbortError(signal?: AbortSignal) {
@@ -113,7 +114,8 @@ function throwIfCallerAborted(signal?: AbortSignal) {
 
 async function request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<T> {
   const timeoutMs = options?.timeout ?? 30_000
-  const maxAttempts = method === 'GET' ? 2 : 1
+  const canRecoverConnection = method === 'GET' && options?.recoverConnection !== false
+  const maxAttempts = canRecoverConnection ? 2 : 1
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     throwIfCallerAborted(options?.signal)
@@ -121,8 +123,9 @@ async function request<T>(method: string, path: string, body?: unknown, options?
     const abortFromCaller = () => controller.abort()
     options?.signal?.addEventListener('abort', abortFromCaller, { once: true })
     const timeout = setTimeout(() => controller.abort(), timeoutMs)
+    const requestBaseUrl = baseUrl
     try {
-      const url = `${baseUrl}${path}`
+      const url = `${requestBaseUrl}${path}`
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
@@ -146,14 +149,21 @@ async function request<T>(method: string, path: string, body?: unknown, options?
         throw createCallerAbortError(options.signal)
       }
       if (controller.signal.aborted) {
+        if (canRecoverConnection && attempt === 0 && requestBaseUrl !== baseUrl) {
+          continue
+        }
         throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`)
       }
       if (
-        method === 'GET' &&
+        canRecoverConnection &&
         attempt === 0 &&
+        requestBaseUrl === baseUrl &&
         shouldRefreshLocalConnection(error) &&
         await refreshLocalConnection()
       ) {
+        continue
+      }
+      if (canRecoverConnection && attempt === 0 && requestBaseUrl !== baseUrl) {
         continue
       }
       throw error

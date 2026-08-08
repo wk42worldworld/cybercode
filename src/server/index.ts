@@ -295,7 +295,13 @@ export function startServer(port = PORT, host = HOST) {
       return new Response('Not Found', { status: 404 })
     },
 
-    websocket: handleWebSocket,
+    websocket: {
+      ...handleWebSocket,
+      // SDK sessions are intentionally long-lived and already use ping plus
+      // reconnect health checks. Bun's 120s default closed an otherwise
+      // healthy desktop session before the CLI's five-minute data keepalive.
+      idleTimeout: 600,
+    },
   })
 
   // Start watching ~/.cyber/teams/ for real-time WebSocket push

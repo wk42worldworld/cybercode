@@ -421,6 +421,7 @@ describe('native Code Graph service', () => {
     expect([server.command, ...server.args].join(' ')).not.toMatch(/\b(npm|npx|python)\b/i)
     expect(server.env.CYBER_CODEGRAPH_ASSET_DIR).toContain('resources/codegraph')
     expect(server.env.CODEGRAPH_WAL_VALVE_MB).toBe('64')
+    expect(server.env.CYBERCODE_DESKTOP_PARENT_PID).toBe(String(process.pid))
   })
 
   test('detects stable architecture communities and cross-module bridges', () => {

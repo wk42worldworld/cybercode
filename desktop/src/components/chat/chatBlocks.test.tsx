@@ -3,15 +3,16 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallBlock } from './ToolCallBlock'
 import { ToolCallGroup } from './ToolCallGroup'
-import { MessageExecutionLog } from './MessageExecutionLog'
 import { PermissionDialog } from './PermissionDialog'
 import { useChatStore } from '../../stores/chatStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { useTabStore } from '../../stores/tabStore'
 
 describe('chat blocks', () => {
   beforeEach(() => {
     useTabStore.setState({ activeTabId: 'active-tab', tabs: [{ sessionId: 'active-tab', title: 'Test', type: 'session' as const, status: 'idle' }] })
     useChatStore.setState({ sessions: {} })
+    useSettingsStore.setState({ locale: 'en' })
   })
 
   it('keeps thinking collapsed by default', () => {
@@ -181,7 +182,7 @@ describe('chat blocks', () => {
     expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
   })
 
-  it('adds running text sweep to the collapsed execution log Run row', () => {
+  it('adds running text sweep to the live tool group Run row', () => {
     const bash = {
       id: 'bash-call',
       type: 'tool_use' as const,
@@ -192,20 +193,237 @@ describe('chat blocks', () => {
     }
 
     const { container } = render(
-      <MessageExecutionLog
+      <ToolCallGroup
         toolCalls={[bash]}
         resultMap={new Map()}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming
       />,
     )
 
-    expect(container.textContent).toContain('Run')
+    expect(container.textContent).toContain('Bash')
     expect(container.textContent).toContain('cd /tmp/whisper_job')
-    expect(container.firstElementChild?.className).toContain('mt-2.5')
+    expect(container.querySelector('[data-tool-activity-summary]')?.textContent).toBe(
+      'Used 1 tool · Ran 1 command',
+    )
     expect(container.querySelector('[data-running="true"]')).toBeTruthy()
-    expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
+    expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(1)
+    const activityDot = container.querySelector('[data-tool-activity-status-dot]')
+    expect(activityDot?.className).toContain('h-2')
+    expect(activityDot?.className).toContain('w-2')
   })
 
-  it('stops an orphaned execution-log row after the session becomes idle', () => {
+  it('collapses completed activity into one counted summary and expands details on demand', () => {
+    const toolCalls = [
+      {
+        id: 'read-a',
+        type: 'tool_use' as const,
+        toolName: 'Read',
+        toolUseId: 'read-a-tool',
+        input: { file_path: '/tmp/example.ts' },
+        timestamp: Date.now(),
+      },
+      {
+        id: 'read-a-again',
+        type: 'tool_use' as const,
+        toolName: 'Read',
+        toolUseId: 'read-a-again-tool',
+        input: { file_path: '/tmp/example.ts' },
+        timestamp: Date.now(),
+      },
+      {
+        id: 'bash',
+        type: 'tool_use' as const,
+        toolName: 'Bash',
+        toolUseId: 'bash-tool',
+        input: { command: 'bun test' },
+        timestamp: Date.now(),
+      },
+      {
+        id: 'edit-a',
+        type: 'tool_use' as const,
+        toolName: 'Edit',
+        toolUseId: 'edit-a-tool',
+        input: { file_path: '/tmp/example.ts', old_string: 'a', new_string: 'b' },
+        timestamp: Date.now(),
+      },
+      {
+        id: 'write-a',
+        type: 'tool_use' as const,
+        toolName: 'Write',
+        toolUseId: 'write-a-tool',
+        input: { file_path: '/tmp/example.ts', content: 'b' },
+        timestamp: Date.now(),
+      },
+    ]
+    const resultMap = new Map(toolCalls.map((toolCall) => [
+      toolCall.toolUseId,
+      {
+        id: `${toolCall.id}-result`,
+        type: 'tool_result' as const,
+        toolUseId: toolCall.toolUseId,
+        content: 'ok',
+        isError: false,
+        timestamp: Date.now(),
+      },
+    ]))
+
+    const { container } = render(
+      <ToolCallGroup
+        toolCalls={toolCalls}
+        resultMap={resultMap}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
+      />,
+    )
+
+    expect(container.querySelector('[data-tool-activity-summary]')?.textContent).toBe(
+      'Used 5 tools · Read 1 file · Ran 1 command · Modified 1 file',
+    )
+    expect(container.querySelector('[data-tool-activity-details]')).toBeNull()
+    expect(container.textContent).not.toContain('bun test')
+    expect(container.querySelector('[class*="border-l-"]')).toBeNull()
+    const activityContainer = container.querySelector('[data-tool-activity-container]')
+    expect(activityContainer?.parentElement?.className).toContain('justify-center')
+    expect(activityContainer?.getAttribute('data-layout')).toBe('collapsed')
+    expect(activityContainer?.className).toContain('w-full')
+    expect(activityContainer?.className).toContain('rounded-[24px]')
+    expect(activityContainer?.className).toContain('border-[var(--color-border)]')
+    expect(activityContainer?.className).toContain('bg-[var(--color-surface-container-lowest)]')
+    expect(activityContainer?.className).not.toContain('shadow-')
+    const activityButton = container.querySelector('[data-tool-activity-container] > button') as HTMLButtonElement
+    expect(activityButton.className).toContain('justify-center')
+    expect(activityButton.className).toContain('text-center')
+    expect(activityButton.className).not.toContain('border-b')
+    expect(activityButton.className).toContain('h-[44px]')
+    expect(activityButton.className).toContain('px-[16px]')
+    expect(activityButton.firstElementChild?.hasAttribute('data-tool-activity-status')).toBe(true)
+    expect(activityButton.lastElementChild?.hasAttribute('data-tool-activity-disclosure')).toBe(true)
+    const collapsedWidthClasses = activityContainer?.className
+
+    fireEvent.click(activityButton)
+
+    expect(activityContainer?.getAttribute('data-layout')).toBe('expanded')
+    expect(activityContainer?.className).toBe(collapsedWidthClasses)
+    const activityDetails = container.querySelector('[data-tool-activity-details]')
+    expect(activityDetails?.className).toContain('border-t')
+    expect(activityDetails?.className).toContain('max-h-[284px]')
+    expect(activityDetails?.className).toContain('overflow-y-auto')
+    expect(activityDetails?.className).toContain('scrollbar-no-track')
+    expect(activityButton.className).toContain('text-center')
+    expect(activityButton.className).not.toContain('border-b')
+    expect(container.textContent).toContain('bun test')
+  })
+
+  it('keeps live activity expanded while counts update', () => {
+    const read = {
+      id: 'live-read',
+      type: 'tool_use' as const,
+      toolName: 'Read',
+      toolUseId: 'live-read-tool',
+      input: { file_path: '/tmp/live.ts' },
+      timestamp: Date.now(),
+    }
+    const edit = {
+      id: 'live-edit',
+      type: 'tool_use' as const,
+      toolName: 'Edit',
+      toolUseId: 'live-edit-tool',
+      input: { file_path: '/tmp/live.ts', old_string: 'a', new_string: 'b' },
+      timestamp: Date.now(),
+    }
+
+    const { container, rerender } = render(
+      <ToolCallGroup
+        toolCalls={[read]}
+        resultMap={new Map()}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming
+      />,
+    )
+
+    expect(container.querySelector('[data-tool-activity-summary]')?.textContent).toContain(
+      'Used 1 tool · Read 1 file',
+    )
+    const activityContainer = container.querySelector('[data-tool-activity-container]')
+    expect(activityContainer?.getAttribute('data-layout')).toBe('expanded')
+    expect(activityContainer?.className).toContain('w-full')
+    expect(container.querySelector('[data-tool-activity-details]')).toBeTruthy()
+
+    rerender(
+      <ToolCallGroup
+        toolCalls={[read, edit]}
+        resultMap={new Map()}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming
+      />,
+    )
+
+    expect(container.querySelector('[data-tool-activity-summary]')?.textContent).toContain(
+      'Used 2 tools · Read 1 file · Modified 1 file',
+    )
+    expect(container.querySelector('[data-tool-activity-details]')).toBeTruthy()
+  })
+
+  it('stays expanded between tool waves until the assistant turn finishes', () => {
+    const read = {
+      id: 'completed-read',
+      type: 'tool_use' as const,
+      toolName: 'Read',
+      toolUseId: 'completed-read-tool',
+      input: { file_path: '/tmp/completed.ts' },
+      timestamp: Date.now(),
+    }
+    const resultMap = new Map([
+      ['completed-read-tool', {
+        id: 'completed-read-result',
+        type: 'tool_result' as const,
+        toolUseId: 'completed-read-tool',
+        content: 'ok',
+        isError: false,
+        timestamp: Date.now(),
+      }],
+    ])
+
+    const { container, rerender } = render(
+      <ToolCallGroup
+        toolCalls={[read]}
+        resultMap={resultMap}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
+        isTurnActive
+      />,
+    )
+
+    const activityButton = container.querySelector('[data-tool-activity-container] > button') as HTMLButtonElement
+    expect(activityButton.getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelector('[data-tool-activity-details]')).toBeTruthy()
+    expect(container.querySelector('[data-running="true"]')).toBeNull()
+
+    fireEvent.click(activityButton)
+    expect(activityButton.getAttribute('aria-expanded')).toBe('true')
+
+    rerender(
+      <ToolCallGroup
+        toolCalls={[read]}
+        resultMap={resultMap}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
+        isTurnActive={false}
+      />,
+    )
+
+    expect(activityButton.getAttribute('aria-expanded')).toBe('false')
+    expect(container.querySelector('[data-tool-activity-details]')).toBeNull()
+  })
+
+  it('marks an orphaned tool group as stopped after the session becomes idle', () => {
     const webFetch = {
       id: 'fetch-log-call',
       type: 'tool_use' as const,
@@ -216,25 +434,27 @@ describe('chat blocks', () => {
     }
 
     const { container } = render(
-      <MessageExecutionLog
+      <ToolCallGroup
         toolCalls={[webFetch]}
         resultMap={new Map()}
-        isActive={false}
+        childToolCallsByParent={new Map()}
+        agentTaskNotifications={{}}
+        isStreaming={false}
       />,
     )
 
     expect(container.querySelector('[data-running="true"]')).toBeNull()
-    expect(container.querySelector('[data-interrupted="true"]')).toBeTruthy()
+    expect(container.querySelector('[title]') || container.querySelector('[data-running]')).toBeTruthy()
     expect(container.querySelector('.tool-running-text')).toBeNull()
   })
 
-  it('keeps collapsed execution log parent rows running while a child tool is executing', () => {
+  it('keeps tool group running while a nested child tool is executing', () => {
     const parent = {
       id: 'parent-log',
       type: 'tool_use' as const,
-      toolName: 'Agent',
+      toolName: 'Read',
       toolUseId: 'parent-log-tool',
-      input: { description: 'Transcribe meeting' },
+      input: { file_path: '/tmp/transcribe.md' },
       timestamp: Date.now(),
     }
     const child = {
@@ -248,7 +468,7 @@ describe('chat blocks', () => {
     }
 
     const { container } = render(
-      <MessageExecutionLog
+      <ToolCallGroup
         toolCalls={[parent]}
         resultMap={new Map([
           ['parent-log-tool', {
@@ -261,13 +481,13 @@ describe('chat blocks', () => {
           }],
         ])}
         childToolCallsByParent={new Map([['parent-log-tool', [child]]])}
+        agentTaskNotifications={{}}
+        isStreaming
       />,
     )
 
-    expect(container.textContent).toContain('Agent')
-    expect(container.textContent).toContain('Transcribe meeting')
-    expect(container.querySelector('[data-running="true"]')).toBeTruthy()
-    expect(container.querySelectorAll('.tool-running-text').length).toBeGreaterThanOrEqual(2)
+    expect(container.textContent).toContain('Read')
+    expect(container.querySelectorAll('[data-running="true"]').length).toBeGreaterThanOrEqual(2)
   })
 
   it('expands tool errors so full Computer Use gate messages are readable', () => {

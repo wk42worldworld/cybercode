@@ -19,6 +19,7 @@
  */
 
 import { parseLauncherArgs, resolveSidecarInvocation } from './launcherRouting'
+import { startParentProcessMonitor } from '../../src/utils/parentProcessMonitor'
 
 const rawArgs = process.argv.slice(2)
 const invocation = resolveSidecarInvocation(rawArgs)
@@ -30,6 +31,12 @@ const mode = invocation.mode
 const restArgs = invocation.restArgs
 
 if (mode === 'adapters') {
+  startParentProcessMonitor(() => {
+    console.warn(
+      '[CyberCode sidecar] desktop owner exited; stopping IM adapters',
+    )
+    process.kill(process.pid, 'SIGINT')
+  })
   await runAdapters(restArgs)
 } else if (mode === 'codegraph') {
   const { runCodeGraphMode } = await import('./codegraph-runner')
@@ -48,6 +55,9 @@ if (mode === 'adapters') {
       '../../src/server/index.ts'
     )
     startServer()
+    startParentProcessMonitor(() => {
+      void requestServerShutdown('desktop owner process exited')
+    })
     if (process.env.CYBERCODE_DESKTOP_PARENT_WATCH === '1') {
       let parentPipeClosed = false
       const handleParentPipeClosed = () => {

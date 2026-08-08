@@ -388,7 +388,7 @@ export function CodeGraphVisualization({ data }: { data: CodeGraphData }) {
       {layout.fallback && (
         <div
           role="status"
-          className="flex min-h-[36px] flex-wrap items-center gap-x-[10px] gap-y-[4px] border-l-2 border-[#ffba63] bg-[var(--color-surface-hover)] px-[10px] py-[7px] text-[11px] text-[var(--color-text-secondary)]"
+          className="flex min-h-[36px] flex-wrap items-center gap-x-[10px] gap-y-[4px] rounded-[6px] border border-[#ffba63]/40 bg-[var(--color-surface-hover)] px-[10px] py-[7px] text-[11px] text-[var(--color-text-secondary)]"
         >
           <strong className="text-[var(--color-text-primary)]">
             {t('tokenOptimization.graph.fallback.preview', {

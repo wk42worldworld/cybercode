@@ -54,15 +54,13 @@ export function MessageActionBar({
     <div
       data-message-actions
       data-align={align}
-      className={`pointer-events-none flex w-full ${
-        align === 'end' ? 'justify-end' : 'justify-start'
-      }`}
+      className="pointer-events-none inline-flex w-auto shrink-0"
     >
       <div
         data-message-action-cluster
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
-        className="pointer-events-auto flex items-center gap-[6px] pt-[8px]"
+        className="pointer-events-auto flex items-center gap-[6px]"
       >
         {hasRewind && (
           <button

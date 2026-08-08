@@ -30,7 +30,7 @@ const memberStatusConfig = {
 export function TeamStatusBar() {
   const t = useTranslation()
   const { activeTeam, openMemberSession } = useTeamStore()
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(false)
 
   if (!activeTeam) return null
 

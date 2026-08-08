@@ -16,11 +16,11 @@ function formatElapsed(seconds: number, locale: Locale): string {
     if (locale === 'ko') return `${seconds}초`
     return `${seconds}s`
   }
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  if (locale === 'zh' || locale === 'ja') return `${m}分 ${s}秒`
-  if (locale === 'ko') return `${m}분 ${s}초`
-  return `${m}m ${s}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  if (locale === 'zh' || locale === 'ja') return `${minutes}分 ${remainingSeconds}秒`
+  if (locale === 'ko') return `${minutes}분 ${remainingSeconds}초`
+  return `${minutes}m ${remainingSeconds}s`
 }
 
 const SERVER_VERB_KEYS: Record<string, TranslationKey> = {
@@ -152,7 +152,7 @@ export function StreamingIndicator({ sessionId }: StreamingIndicatorProps = {}) 
         <span
           data-testid="streaming-elapsed"
           aria-hidden="true"
-          className={`ai-shimmer-text ai-shimmer-muted inline-flex h-[18px] w-[76px] shrink-0 items-center whitespace-nowrap text-[12px] font-medium leading-[18px] tabular-nums ${elapsedSeconds > 0 ? '' : 'invisible'}`}
+          className={`inline-flex h-[18px] w-[76px] shrink-0 items-center whitespace-nowrap text-[12px] font-medium leading-[18px] tabular-nums text-[var(--color-text-tertiary)] ${elapsedSeconds > 0 ? '' : 'invisible'}`}
         >
           {formatElapsed(elapsedSeconds, locale)}
         </span>

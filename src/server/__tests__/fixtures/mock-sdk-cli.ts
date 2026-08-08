@@ -12,6 +12,20 @@ function emit(ws: WebSocket, payload: Record<string, unknown>) {
   ws.send(JSON.stringify(payload) + '\n')
 }
 
+function emitSessionState(ws: WebSocket, state: 'running' | 'idle') {
+  emit(ws, {
+    type: 'system',
+    subtype: 'session_state_changed',
+    state,
+    session_id: sessionId,
+  })
+}
+
+function emitCompletedResult(ws: WebSocket, payload: Record<string, unknown>) {
+  emit(ws, payload)
+  emitSessionState(ws, 'idle')
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -96,7 +110,7 @@ ws.addEventListener('message', (event) => {
         }
         const text = extractUserText(parsed)
         if (rejectDirectImage && /@"[^"]+\.(?:png|jpe?g|webp|gif)"/i.test(text)) {
-          emit(ws, {
+          emitCompletedResult(ws, {
             type: 'result',
             subtype: 'error',
             is_error: true,
@@ -115,7 +129,7 @@ ws.addEventListener('message', (event) => {
             content: 'Total cost: $0.0000\nTotal duration: 0s',
             session_id: sessionId,
           })
-          emit(ws, {
+          emitCompletedResult(ws, {
             type: 'result',
             subtype: 'success',
             is_error: false,
@@ -132,7 +146,7 @@ ws.addEventListener('message', (event) => {
             content: '## Context Usage\n\n| Type | Tokens |\n| --- | ---: |\n| System prompt | 123 |',
             session_id: sessionId,
           })
-          emit(ws, {
+          emitCompletedResult(ws, {
             type: 'result',
             subtype: 'success',
             is_error: false,
@@ -204,10 +218,52 @@ ws.addEventListener('message', (event) => {
           usage: { input_tokens: 3, output_tokens: 2 },
           session_id: sessionId,
         })
+        emitSessionState(ws, 'idle')
+
+        if (text === '__mock_completion_reentry__') {
+          await delay(10)
+          emitSessionState(ws, 'running')
+          emit(ws, {
+            type: 'stream_event',
+            event: { type: 'message_start' },
+            session_id: sessionId,
+          })
+          emit(ws, {
+            type: 'stream_event',
+            event: {
+              type: 'content_block_start',
+              index: 0,
+              content_block: { type: 'text', text: '' },
+            },
+            session_id: sessionId,
+          })
+          emit(ws, {
+            type: 'stream_event',
+            event: {
+              type: 'content_block_delta',
+              index: 0,
+              delta: { type: 'text_delta', text: 'Final follow-up after queue drain' },
+            },
+            session_id: sessionId,
+          })
+          emit(ws, {
+            type: 'stream_event',
+            event: { type: 'content_block_stop', index: 0 },
+            session_id: sessionId,
+          })
+          emitCompletedResult(ws, {
+            type: 'result',
+            subtype: 'success',
+            is_error: false,
+            result: 'Final follow-up after queue drain',
+            usage: { input_tokens: 5, output_tokens: 4 },
+            session_id: sessionId,
+          })
+        }
       }
 
       if (parsed.type === 'control_request' && parsed.request?.subtype === 'interrupt') {
-        emit(ws, {
+        emitCompletedResult(ws, {
           type: 'result',
           subtype: 'success',
           is_error: false,

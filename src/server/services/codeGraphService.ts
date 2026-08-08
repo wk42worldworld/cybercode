@@ -6,6 +6,7 @@ import {
   resolvePortableProjectPath,
   toPortableProjectReference,
 } from '../../utils/portablePaths.js'
+import { CYBERCODE_DESKTOP_PARENT_PID_ENV } from '../../utils/parentProcessMonitor.js'
 import {
   getCodeGraphVisualization,
   type CodeGraphVisualization as CodeGraphVisualizationData,
@@ -631,6 +632,7 @@ export class CodeGraphService {
       command: process.execPath,
       args,
       env: {
+        [CYBERCODE_DESKTOP_PARENT_PID_ENV]: String(process.pid),
         CYBER_CODEGRAPH_ASSET_DIR: this.getAssetDir(),
         CODEGRAPH_WAL_VALVE_MB: '64',
       },

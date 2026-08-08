@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MessageEntry } from '../types/session'
 import { useSessionRuntimeStore } from './sessionRuntimeStore'
 import { sessionsApi } from '../api/sessions'
 import { wsManager } from '../api/websocket'
+import { useSettingsStore } from './settingsStore'
 import { ApiError } from '../api/client'
 
 const {
@@ -67,6 +68,7 @@ vi.mock('../api/sessions', () => ({
   sessionsApi: {
     getMessages: vi.fn(async () => ({ messages: [], hasMore: false })),
     getSlashCommands: vi.fn(async () => ({ commands: [] })),
+    getAnchors: vi.fn(async () => ({ anchors: [] })),
   },
 }))
 
@@ -129,6 +131,7 @@ function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionS
     historyLoadState: 'loaded',
     allMessagesLoaded: true,
     chatState: 'idle',
+    turnCompletionPending: false,
     connectionState: 'connected',
     streamingText: '',
     streamingToolInput: '',
@@ -357,9 +360,18 @@ describe('chatStore history mapping', () => {
     })
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
       chatState: 'tool_executing',
+      stopState: 'requesting',
       activeToolUseId: 'browser-tool-1',
       usageRevision: 3,
     })
+
+    useChatStore.getState().stopGeneration(TEST_SESSION_ID)
+    expect(sendMock).toHaveBeenCalledTimes(1)
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'generation_stop_requested',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.stopState).toBe('stopping')
 
     useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
       type: 'generation_stopped',
@@ -368,6 +380,7 @@ describe('chatStore history mapping', () => {
 
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
       chatState: 'idle',
+      stopState: 'idle',
       streamingText: '',
       streamingToolInput: '',
       activeToolUseId: null,
@@ -991,6 +1004,45 @@ describe('chatStore history mapping', () => {
     useChatStore.getState().disconnectSession(sessionId)
   })
 
+  it('keeps recent history warm when older background sessions fill the cache', async () => {
+    const recentSessionId = 'protected-recent-session'
+    const backgroundIds = Array.from({ length: 96 }, (_, index) => `background-cache-${index}`)
+    const getMessagesMock = vi.mocked(sessionsApi.getMessages)
+    getMessagesMock.mockReset()
+    getMessagesMock.mockImplementation(async (sessionId) => ({
+      hasMore: false,
+      messages: [{
+        id: `${sessionId}-user`,
+        type: 'user',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        content: `history for ${sessionId}`,
+      }],
+    }))
+
+    await useChatStore.getState().prefetchHistory(recentSessionId, '-recent-project', {
+      priority: 'recent',
+    })
+    for (const sessionId of backgroundIds) {
+      await useChatStore.getState().prefetchHistory(sessionId, '-background-project', {
+        priority: 'background',
+      })
+    }
+    const callsBeforeOpen = getMessagesMock.mock.calls.length
+
+    useChatStore.getState().connectToSession(recentSessionId, '-recent-project')
+    await useChatStore.getState().loadHistory(recentSessionId, '-recent-project')
+
+    expect(getMessagesMock).toHaveBeenCalledTimes(callsBeforeOpen)
+    expect(useChatStore.getState().sessions[recentSessionId]?.messages).toMatchObject([
+      { type: 'user_text', content: `history for ${recentSessionId}` },
+    ])
+
+    useChatStore.getState().disconnectSession(recentSessionId)
+    for (const sessionId of backgroundIds) {
+      useChatStore.getState().disconnectSession(sessionId)
+    }
+  })
+
   it('does not let a stalled background prefetch block a foreground history load', async () => {
     vi.useFakeTimers()
     const sessionId = 'prefetch-priority-session'
@@ -1024,7 +1076,7 @@ describe('chatStore history mapping', () => {
       expect(getMessagesMock).toHaveBeenNthCalledWith(1, sessionId, {
         limit: 80,
         projectPath: '-project-priority',
-      }, { timeout: 4_000 })
+      }, { timeout: 4_000, recoverConnection: false })
       expect(getMessagesMock).toHaveBeenNthCalledWith(2, sessionId, {
         limit: 80,
         projectPath: '-project-priority',
@@ -1746,6 +1798,7 @@ describe('chatStore history mapping', () => {
   })
 
   it('keeps a completed reply in the visual handoff until its reveal catches up', () => {
+    vi.useFakeTimers()
     useChatStore.setState({
       sessions: {
         [TEST_SESSION_ID]: makeSessionState({
@@ -1777,6 +1830,8 @@ describe('chatStore history mapping', () => {
       completed!.settlingAssistant!.messageId,
     )
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.settlingAssistant).toBeNull()
+    vi.runOnlyPendingTimers()
+    vi.useRealTimers()
   })
 
   it('keeps delayed text blocks from one streamed assistant turn in a single message', () => {
@@ -2138,5 +2193,599 @@ describe('chatStore history mapping', () => {
     useChatStore.getState().connectToSession(TEST_SESSION_ID)
 
     expect(fetchSessionTasksMock).toHaveBeenCalledWith(TEST_SESSION_ID)
+  })
+})
+
+describe('completion sound on turn finish', () => {
+  const soundPlayMock = vi.fn().mockResolvedValue(undefined)
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    soundPlayMock.mockClear()
+    vi.stubGlobal('Audio', class {
+      currentTime = 0
+      constructor(public src: string) {}
+      play() { return soundPlayMock() }
+    })
+    useSettingsStore.setState({
+      completionSoundEnabled: true,
+      completionSoundId: 'ding',
+      completionSoundCustomData: null,
+    })
+  })
+
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  const completeTurn = () => {
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'message_complete',
+      usage: { input_tokens: 1, output_tokens: 1 },
+    })
+  }
+
+  const settleCompletionSound = () => {
+    vi.advanceTimersByTime(1_000)
+  }
+
+  it('plays when a working turn finishes', () => {
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }) },
+    })
+    completeTurn()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'thinking',
+      turnCompletionPending: true,
+    })
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'idle',
+      turnCompletionPending: false,
+    })
+  })
+
+  it('stays silent while a steer is queued or processing upstream', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          pendingSteers: [{
+            id: 'steer-queued',
+            content: 'Apply this immediately',
+            createdAt: 1,
+            status: 'queued',
+            priority: 'now',
+          }],
+        }),
+      },
+    })
+    completeTurn()
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+  })
+
+  it('stays silent when a draft steer auto-continues the turn', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          pendingSteers: [{
+            id: 'steer-draft',
+            content: 'Send this next',
+            createdAt: 1,
+            status: 'draft',
+          }],
+        }),
+      },
+    })
+    completeTurn()
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+  })
+
+  it('plays when only a failed steer remains for the user to retry', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          pendingSteers: [{
+            id: 'steer-failed',
+            content: 'Retry me manually',
+            createdAt: 1,
+            status: 'failed',
+          }],
+        }),
+      },
+    })
+    completeTurn()
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('idle')
+  })
+
+  it('waits for every launched background Agent task to reach a terminal state', () => {
+    const launchResult =
+      'Async agent launched successfully. The agent is working in the background. You will be notified automatically when it completes.'
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          messages: [
+            { id: 'user-1', type: 'user_text', content: 'Run both checks', timestamp: 1 },
+            { id: 'agent-use-1', type: 'tool_use', toolName: 'Agent', toolUseId: 'agent-1', input: {}, timestamp: 2 },
+            { id: 'agent-result-1', type: 'tool_result', toolUseId: 'agent-1', content: launchResult, isError: false, timestamp: 3 },
+            { id: 'agent-use-2', type: 'tool_use', toolName: 'Agent', toolUseId: 'agent-2', input: {}, timestamp: 4 },
+            { id: 'agent-result-2', type: 'tool_result', toolUseId: 'agent-2', content: launchResult, isError: false, timestamp: 5 },
+          ],
+        }),
+      },
+    })
+
+    completeTurn()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'tool_executing',
+      turnCompletionPending: true,
+    })
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'tool_executing',
+      verb: 'Background checks running',
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'system_notification',
+      subtype: 'task_notification',
+      data: { tool_use_id: 'agent-1', task_id: 'task-1', status: 'completed' },
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'tool_executing',
+      turnCompletionPending: false,
+    })
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('tool_executing')
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'system_notification',
+      subtype: 'task_notification',
+      data: { tool_use_id: 'agent-2', task_id: 'task-2', status: 'completed' },
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'thinking',
+      turnCompletionPending: true,
+    })
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('idle')
+  })
+
+  it('cancels an early completion candidate when the same turn resumes', () => {
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }) },
+    })
+
+    completeTurn()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+    vi.advanceTimersByTime(300)
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'content_start',
+      blockType: 'text',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'streaming',
+      turnCompletionPending: false,
+    })
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+
+    completeTurn()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('idle')
+  })
+
+  it('does not expose a transient idle status before the turn is stable', () => {
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }) },
+    })
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'idle',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'thinking',
+      turnCompletionPending: true,
+    })
+
+    vi.advanceTimersByTime(300)
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'thinking',
+      text: 'Continuing the same turn',
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'thinking',
+      turnCompletionPending: false,
+    })
+
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'status',
+      state: 'idle',
+    })
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('idle')
+  })
+
+  it('auto-sends input queued during the final settle window without exposing idle', () => {
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }) },
+    })
+    sendMock.mockClear()
+
+    completeTurn()
+    vi.advanceTimersByTime(300)
+    useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, 'Continue immediately')
+
+    settleCompletionSound()
+
+    expect(soundPlayMock).not.toHaveBeenCalled()
+    expect(sendMock).toHaveBeenLastCalledWith(TEST_SESSION_ID, {
+      type: 'user_message',
+      content: 'Continue immediately',
+      attachments: undefined,
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'thinking',
+      turnCompletionPending: false,
+      pendingSteers: [],
+    })
+  })
+
+  it('waits for background shell commands to report completion', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'streaming',
+          messages: [
+            { id: 'user-shell', type: 'user_text', content: 'Run the build', timestamp: 1 },
+            {
+              id: 'bash-use',
+              type: 'tool_use',
+              toolName: 'Bash',
+              toolUseId: 'bash-background',
+              input: { command: 'bun run build', run_in_background: true },
+              timestamp: 2,
+            },
+            {
+              id: 'bash-result',
+              type: 'tool_result',
+              toolUseId: 'bash-background',
+              content: 'Command running in background with ID: shell-1.',
+              isError: false,
+              timestamp: 3,
+            },
+          ],
+        }),
+      },
+    })
+
+    completeTurn()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('tool_executing')
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'system_notification',
+      subtype: 'task_notification',
+      data: { tool_use_id: 'bash-background', task_id: 'shell-1', status: 'completed' },
+    })
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('idle')
+  })
+
+  it('waits for unresolved tool calls before playing', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          chatState: 'tool_executing',
+          messages: [
+            { id: 'user-tool', type: 'user_text', content: 'Read it', timestamp: 1 },
+            { id: 'tool-use', type: 'tool_use', toolName: 'Read', toolUseId: 'read-1', input: {}, timestamp: 2 },
+          ],
+        }),
+      },
+    })
+
+    completeTurn()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('tool_executing')
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+
+    useChatStore.getState().handleServerMessage(TEST_SESSION_ID, {
+      type: 'tool_result',
+      toolUseId: 'read-1',
+      content: 'done',
+      isError: false,
+    })
+    completeTurn()
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('thinking')
+    settleCompletionSound()
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.chatState).toBe('idle')
+  })
+
+  it('stays silent when the sound is disabled', () => {
+    useSettingsStore.setState({ completionSoundEnabled: false })
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }) },
+    })
+    completeTurn()
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+  })
+
+  it('stays silent when the session was already idle', () => {
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'idle' }) },
+    })
+    completeTurn()
+    settleCompletionSound()
+    expect(soundPlayMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('chatStore history pagination EOF', () => {
+  beforeEach(() => {
+    vi.mocked(sessionsApi.getMessages).mockReset()
+  })
+
+  function seedSession(overrides: Partial<PerSessionState> = {}) {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          allMessagesLoaded: false,
+          historyBuffer: [],
+          recentBuffer: [],
+          messages: [{
+            id: 'ui-newest',
+            type: 'user_text',
+            content: 'newest loaded question',
+            timestamp: 100,
+            serverId: 'raw-newest',
+          }],
+          ...overrides,
+        }),
+      },
+    })
+  }
+
+  it('latches allMessagesLoaded when the server returns an empty final page', async () => {
+    seedSession()
+    vi.mocked(sessionsApi.getMessages).mockResolvedValueOnce({ messages: [], hasMore: false })
+
+    await useChatStore.getState().loadMoreHistory(TEST_SESSION_ID)
+
+    const session = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(session.allMessagesLoaded).toBe(true)
+    expect(session.messages).toHaveLength(1)
+    expect(sessionsApi.getMessages).toHaveBeenCalledWith(TEST_SESSION_ID, {
+      limit: 50,
+      before: 'raw-newest',
+      projectPath: undefined,
+    })
+
+    // A subsequent call must not hit the server again.
+    await useChatStore.getState().loadMoreHistory(TEST_SESSION_ID)
+    expect(sessionsApi.getMessages).toHaveBeenCalledTimes(1)
+  })
+
+  it('advances the raw cursor past pages that map to zero UI messages', async () => {
+    seedSession()
+    const getMessagesMock = vi.mocked(sessionsApi.getMessages)
+    getMessagesMock
+      // Page of entries that historyParser drops entirely (pure teammate
+      // messages), but the server says there is more.
+      .mockResolvedValueOnce({
+        hasMore: true,
+        messages: [{
+          id: 'raw-teammate-page',
+          type: 'user',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          content: '<teammate-message teammate_id="a">hi</teammate-message>',
+        }],
+      })
+      .mockResolvedValueOnce({ messages: [], hasMore: false })
+
+    await useChatStore.getState().loadMoreHistory(TEST_SESSION_ID)
+    let session = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(session.allMessagesLoaded).toBe(false)
+    expect(session.historyCursor).toBe('raw-teammate-page')
+    expect(session.messages).toHaveLength(1)
+
+    await useChatStore.getState().loadMoreHistory(TEST_SESSION_ID)
+    expect(getMessagesMock).toHaveBeenNthCalledWith(2, TEST_SESSION_ID, {
+      limit: 50,
+      before: 'raw-teammate-page',
+      projectPath: undefined,
+    })
+    session = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(session.allMessagesLoaded).toBe(true)
+  })
+})
+
+describe('chatStore loadHistoryUntil', () => {
+  beforeEach(() => {
+    vi.mocked(sessionsApi.getMessages).mockReset()
+  })
+
+  function seedSession() {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({
+          allMessagesLoaded: false,
+          historyBuffer: [],
+          recentBuffer: [],
+          messages: [{
+            id: 'ui-newest',
+            type: 'user_text',
+            content: 'newest loaded question',
+            timestamp: 100,
+            serverId: 'raw-newest',
+          }],
+        }),
+      },
+    })
+  }
+
+  it('pages until the target message enters the window', async () => {
+    seedSession()
+    vi.mocked(sessionsApi.getMessages)
+      // Seek attempt: server reports target not found, forcing the paging path.
+      .mockResolvedValueOnce({
+        hasMore: false,
+        seekFound: false,
+        messages: [],
+      })
+      .mockResolvedValueOnce({
+        hasMore: true,
+        messages: [{
+          id: 'raw-middle',
+          type: 'user',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          content: 'middle question',
+        }],
+      })
+      .mockResolvedValueOnce({
+        hasMore: false,
+        messages: [{
+          id: 'raw-target',
+          type: 'user',
+          timestamp: '2025-12-31T00:00:00.000Z',
+          content: 'target question',
+        }],
+      })
+
+    const found = await useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'raw-target')
+
+    expect(found).toBe(true)
+    const session = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(session.allMessagesLoaded).toBe(true)
+    expect(session.messages.map((m) => m.id)).toEqual(['raw-target', 'raw-middle', 'ui-newest'])
+  })
+
+  it('seeks directly to the target window in one request', async () => {
+    seedSession()
+    const seekSpy = vi.mocked(sessionsApi.getMessages).mockResolvedValueOnce({
+      hasMore: true,
+      hasMoreAfter: true,
+      seekFound: true,
+      messages: [
+        {
+          id: 'raw-older',
+          type: 'user',
+          timestamp: '2025-12-30T00:00:00.000Z',
+          content: 'older question',
+        },
+        {
+          id: 'raw-target',
+          type: 'user',
+          timestamp: '2025-12-31T00:00:00.000Z',
+          content: 'target question',
+        },
+        {
+          id: 'raw-newer',
+          type: 'user',
+          timestamp: '2026-01-01T00:00:00.000Z',
+          content: 'newer question',
+        },
+      ],
+    })
+
+    const found = await useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'raw-target')
+
+    expect(found).toBe(true)
+    // One seek request, zero paging requests.
+    expect(seekSpy).toHaveBeenCalledTimes(1)
+    expect(seekSpy).toHaveBeenCalledWith(
+      TEST_SESSION_ID,
+      expect.objectContaining({ seek: 'raw-target' }),
+    )
+    const session = useChatStore.getState().sessions[TEST_SESSION_ID]!
+    expect(session.messages.map((m) => m.id)).toEqual(['raw-older', 'raw-target', 'raw-newer'])
+    expect(session.historyCursor).toBe('raw-older')
+    expect(session.forwardCursor).toBe('raw-newer')
+    expect(session.hasMoreRecent).toBe(true)
+    expect(session.allMessagesLoaded).toBe(false)
+  })
+
+  it('resolves false when history is exhausted before the target appears', async () => {
+    seedSession()
+    vi.mocked(sessionsApi.getMessages).mockResolvedValueOnce({ messages: [], hasMore: false })
+
+    const found = await useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'missing')
+    expect(found).toBe(false)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]!.allMessagesLoaded).toBe(true)
+  })
+
+  it('stops early instead of burning the page budget on stuck empty hasMore pages', async () => {
+    seedSession()
+    // Server keeps returning empty pages that claim hasMore (unknown cursor in
+    // the transcript while recentHistory reports earlier entries): the cursor
+    // cannot advance, so the loop must bail immediately, not after 40 pages.
+    vi.mocked(sessionsApi.getMessages).mockResolvedValue({ messages: [], hasMore: true })
+
+    const found = await useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'missing')
+
+    expect(found).toBe(false)
+    expect(vi.mocked(sessionsApi.getMessages).mock.calls.length).toBeLessThanOrEqual(2)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]!.allMessagesLoaded).toBe(true)
+  })
+
+  it('serializes concurrent calls and dedupes already-loaded targets', async () => {
+    seedSession()
+    vi.mocked(sessionsApi.getMessages).mockResolvedValueOnce({
+      hasMore: false,
+      messages: [{
+        id: 'raw-target',
+        type: 'user',
+        timestamp: '2025-12-31T00:00:00.000Z',
+        content: 'target question',
+      }],
+    })
+
+    const [first, second] = await Promise.all([
+      useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'raw-target'),
+      useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'raw-target'),
+    ])
+
+    expect(first).toBe(true)
+    expect(second).toBe(true)
+    // The second call queued behind the first and found the target already
+    // loaded, so only one page was ever fetched.
+    expect(sessionsApi.getMessages).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolves immediately for a message that is already loaded', async () => {
+    seedSession()
+    const found = await useChatStore.getState().loadHistoryUntil(TEST_SESSION_ID, 'raw-newest')
+    expect(found).toBe(true)
+    expect(sessionsApi.getMessages).not.toHaveBeenCalled()
   })
 })

@@ -20,6 +20,7 @@ import {
   estimateCodeGraphTokens,
   limitTextToTokenBudget,
 } from '../../src/services/codeGraphTextBudget'
+import { startParentProcessMonitor } from '../../src/utils/parentProcessMonitor'
 
 type CodeGraphInstance = {
   close(): void
@@ -85,20 +86,27 @@ export async function runCodeGraphMode(rawArgs: string[]): Promise<void> {
   process.env.CALLER_DIR = projectPath
   process.env.PWD = projectPath
   setLogger(silentLogger)
+  const stopParentMonitor = startParentProcessMonitor(() => {
+    process.kill(process.pid, 'SIGTERM')
+  })
 
-  switch (command) {
-    case 'index':
-      await runIndex(projectPath, rebuild)
-      return
-    case 'watch':
-      await runWatcher(projectPath)
-      return
-    case 'mcp':
-      await runMcpServer(projectPath)
-      return
-    case 'preflight':
-      await runPreflight(projectPath, tokenBudget)
-      return
+  try {
+    switch (command) {
+      case 'index':
+        await runIndex(projectPath, rebuild)
+        return
+      case 'watch':
+        await runWatcher(projectPath)
+        return
+      case 'mcp':
+        await runMcpServer(projectPath)
+        return
+      case 'preflight':
+        await runPreflight(projectPath, tokenBudget)
+        return
+    }
+  } finally {
+    stopParentMonitor()
   }
 }
 

@@ -4,6 +4,10 @@ import { modelsApi } from '../api/models'
 import type { PermissionMode, EffortLevel, ModelInfo, ThemeMode } from '../types/settings'
 import { isLocale, type Locale } from '../i18n/localeConfig'
 import { useUIStore } from './uiStore'
+import {
+  completionSoundSetting,
+  type CompletionSoundSetting,
+} from '../utils/completionSound'
 
 const LOCALE_STORAGE_KEY = 'cybercode-locale'
 
@@ -41,6 +45,10 @@ type SettingsStore = {
   locale: Locale
   theme: ThemeMode
   skipWebFetchPreflight: boolean
+  completionSoundEnabled: boolean
+  completionSoundId: CompletionSoundSetting
+  completionSoundCustomName: string | null
+  completionSoundCustomData: string | null
   isLoading: boolean
   error: string | null
 
@@ -51,6 +59,9 @@ type SettingsStore = {
   setLocale: (locale: Locale) => Promise<void>
   setTheme: (theme: ThemeMode) => Promise<void>
   setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
+  setCompletionSoundEnabled: (enabled: boolean) => Promise<void>
+  setCompletionSoundId: (soundId: CompletionSoundSetting) => Promise<void>
+  setCompletionSoundCustom: (custom: { name: string; data: string } | null) => Promise<void>
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -62,6 +73,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   locale: getStoredLocale(),
   theme: useUIStore.getState().theme,
   skipWebFetchPreflight: true,
+  completionSoundEnabled: false,
+  completionSoundId: 'ding',
+  completionSoundCustomName: null,
+  completionSoundCustomData: null,
   isLoading: false,
   error: null,
 
@@ -90,6 +105,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         effortLevel: level,
         theme,
         skipWebFetchPreflight: userSettings.skipWebFetchPreflight !== false,
+        completionSoundEnabled: userSettings.completionSoundEnabled === true,
+        completionSoundId: completionSoundSetting(userSettings.completionSoundId),
+        completionSoundCustomName: typeof userSettings.completionSoundCustomName === 'string'
+          ? userSettings.completionSoundCustomName
+          : null,
+        completionSoundCustomData: typeof userSettings.completionSoundCustomData === 'string'
+          ? userSettings.completionSoundCustomData
+          : null,
         isLoading: false,
         error: null,
       })
@@ -152,6 +175,57 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       await settingsApi.updateUser({ skipWebFetchPreflight: enabled })
     } catch {
       set({ skipWebFetchPreflight: prev })
+    }
+  },
+
+  setCompletionSoundEnabled: async (enabled) => {
+    const prev = get().completionSoundEnabled
+    set({ completionSoundEnabled: enabled })
+    try {
+      await settingsApi.updateUser({ completionSoundEnabled: enabled })
+    } catch {
+      set({ completionSoundEnabled: prev })
+    }
+  },
+
+  setCompletionSoundId: async (soundId) => {
+    const prev = get().completionSoundId
+    set({ completionSoundId: soundId })
+    try {
+      await settingsApi.updateUser({ completionSoundId: soundId })
+    } catch {
+      set({ completionSoundId: prev })
+    }
+  },
+
+  setCompletionSoundCustom: async (custom) => {
+    const prevName = get().completionSoundCustomName
+    const prevData = get().completionSoundCustomData
+    const prevId = get().completionSoundId
+    // Clearing while "custom" is selected falls back to the default sound,
+    // otherwise the setting would point at a file that no longer exists.
+    const nextId = custom
+      ? 'custom' as const
+      : prevId === 'custom' ? 'ding' as const : prevId
+    set({
+      completionSoundCustomName: custom?.name ?? null,
+      completionSoundCustomData: custom?.data ?? null,
+      completionSoundId: nextId,
+    })
+    try {
+      // undefined-valued keys are dropped by JSON serialization on write,
+      // which is exactly how a cleared custom sound disappears from disk.
+      await settingsApi.updateUser({
+        completionSoundCustomName: custom?.name,
+        completionSoundCustomData: custom?.data,
+        completionSoundId: nextId,
+      })
+    } catch {
+      set({
+        completionSoundCustomName: prevName,
+        completionSoundCustomData: prevData,
+        completionSoundId: prevId,
+      })
     }
   },
 }))

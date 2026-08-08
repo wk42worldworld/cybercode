@@ -59,6 +59,7 @@ import {
 import { headlessProfilerCheckpoint } from './utils/headlessProfiler.js'
 import { registerStructuredOutputEnforcement } from './utils/hooks/hookHelpers.js'
 import { getInMemoryErrors } from './utils/log.js'
+import { logForDebugging } from './utils/debug.js'
 import { countToolCalls, SYNTHETIC_MESSAGES } from './utils/messages.js'
 import {
   getMainLoopModel,
@@ -1067,11 +1068,10 @@ export class QueryEngine {
     const result = messages.findLast(
       m => m.type === 'assistant' || m.type === 'user',
     )
-    // Capture for the error_during_execution diagnostic — isResultSuccessful
-    // is a type predicate (message is Message), so inside the false branch
-    // `result` narrows to never and these accesses don't typecheck.
-    const edeResultType = result?.type ?? 'undefined'
-    const edeLastContentType =
+    // Capture before the type predicate below narrows an invalid result. These
+    // details belong in debug logs, never in the user-visible errors array.
+    const resultType = result?.type ?? 'undefined'
+    const lastContentType =
       result?.type === 'assistant'
         ? (last(result.message.content)?.type ?? 'none')
         : 'n/a'
@@ -1089,6 +1089,14 @@ export class QueryEngine {
     }
 
     if (!isResultSuccessful(result, lastStopReason)) {
+      const allErrors = getInMemoryErrors()
+      const errorStart = errorLogWatermark
+        ? allErrors.lastIndexOf(errorLogWatermark) + 1
+        : 0
+      const turnErrors = allErrors.slice(errorStart).map(_ => _.error)
+      logForDebugging(
+        `[QueryEngine] error_during_execution result_type=${resultType} last_content_type=${lastContentType} stop_reason=${lastStopReason}`,
+      )
       yield {
         type: 'result',
         subtype: 'error_during_execution',
@@ -1107,21 +1115,9 @@ export class QueryEngine {
           initialAppState.fastMode,
         ),
         uuid: randomUUID(),
-        // Diagnostic prefix: these are what isResultSuccessful() checks — if
-        // the result type isn't assistant-with-text/thinking or user-with-
-        // tool_result, and stop_reason isn't end_turn, that's why this fired.
-        // errors[] is turn-scoped via the watermark; previously it dumped the
-        // entire process's logError buffer (ripgrep timeouts, ENOENT, etc).
-        errors: (() => {
-          const all = getInMemoryErrors()
-          const start = errorLogWatermark
-            ? all.lastIndexOf(errorLogWatermark) + 1
-            : 0
-          return [
-            `[ede_diagnostic] result_type=${edeResultType} last_content_type=${edeLastContentType} stop_reason=${lastStopReason}`,
-            ...all.slice(start).map(_ => _.error),
-          ]
-        })(),
+        // Keep only this turn's actual errors. Result-shape diagnostics are
+        // written to the debug log above and must not leak into chat output.
+        errors: turnErrors,
       }
       return
     }

@@ -1703,6 +1703,18 @@ export const en = {
   'settings.general.webFetchPreflightDescription': 'Desktop sessions skip CyberCode\'s domain preflight by default to avoid false failures on third-party providers and restricted networks.',
   'settings.general.webFetchPreflightEnabled': 'Skip WebFetch domain preflight',
   'settings.general.webFetchPreflightHint': 'Turn this off only if you explicitly want to restore the upstream safety preflight before each WebFetch request.',
+  'settings.general.completionSoundTitle': 'Completion sound',
+  'settings.general.completionSoundDescription': 'Play a sound when a reply finishes.',
+  'settings.general.completionSoundChoice': 'Sound',
+  'settings.general.completionSound.ding': 'Ding',
+  'settings.general.completionSound.bell': 'Bell',
+  'settings.general.completionSound.knock': 'Knock',
+  'settings.general.completionSound.custom': 'Custom',
+  'settings.general.completionSoundPreview': 'Preview',
+  'settings.general.completionSoundUpload': 'Choose audio file',
+  'settings.general.completionSoundUploadHint': 'mp3, wav, or ogg up to 5MB.',
+  'settings.general.completionSoundClear': 'Remove custom sound',
+  'settings.general.completionSoundUploadFailed': 'Could not read that audio file.',
 
   // ─── Empty Session ──────────────────────────────────────
   'empty.title': 'New session',
@@ -1879,6 +1891,7 @@ export const en = {
   'chat.select': 'select',
   'chat.dismiss': 'dismiss',
   'chat.stopTitle': 'Stop generation (Cmd+.)',
+  'chat.stoppingTitle': 'Stopping generation...',
   'chat.scrollToTop': 'Scroll to top',
   'chat.scrollToBottom': 'Scroll to bottom',
   'chat.historyLoadFailedTitle': 'Could not read local chat history',
@@ -1886,6 +1899,10 @@ export const en = {
   'chat.historyPreparing': 'Preparing local chat history...',
   'chat.historyLoading': 'Loading local chat history...',
   'chat.historyLoadMore': 'Loading more messages...',
+  'chat.anchorRailLabel': 'Message navigation',
+  'chat.anchorJumpToMessage': 'Jump to this message',
+  'chat.anchorLoadingHistory': 'Loading history…',
+  'chat.anchorJumpFailed': 'Could not locate this message. Reload the conversation and try again.',
   'chat.mermaidError': 'Mermaid render error',
   'chat.copyPrompt': 'Copy prompt',
   'chat.copyReply': 'Copy reply',
@@ -1992,6 +2009,7 @@ export const en = {
 
   // ─── Thinking Block ──────────────────────────────────────
   'thinking.label': 'Thinking',
+  'thinking.completeLabel': 'Thinking complete',
 
   // ─── Tool Calls ──────────────────────────────────────
   'tool.errorOutput': 'Error Output',
@@ -2011,6 +2029,15 @@ export const en = {
   'tool.showMore': 'Show {count} more characters',
 
   // ─── Tool Group Verbs ──────────────────────────────────────
+  'toolGroup.activitySummary': 'Read {read} files · Ran {commands} commands · Modified {modified} files',
+  'toolGroup.activityToolsOne': 'Used 1 tool',
+  'toolGroup.activityToolsMany': 'Used {count} tools',
+  'toolGroup.activityReadOne': 'Read 1 file',
+  'toolGroup.activityReadMany': 'Read {count} files',
+  'toolGroup.activityCommandsOne': 'Ran 1 command',
+  'toolGroup.activityCommandsMany': 'Ran {count} commands',
+  'toolGroup.activityModifiedOne': 'Modified 1 file',
+  'toolGroup.activityModifiedMany': 'Modified {count} files',
   'toolGroup.readOne': 'Read 1 file',
   'toolGroup.readMany': 'Read {count} files',
   'toolGroup.createdOne': 'created a file',
@@ -2596,6 +2623,7 @@ export const en = {
   'error.CLI_SESSION_CONFLICT': 'Session is already in use by another process.',
   'error.CLI_SPAWN_FAILED': 'Failed to spawn CLI subprocess.',
   'error.CLI_ERROR': 'An error occurred during processing.',
+  'error.MODEL_NO_RESPONSE': 'The model connection ended without returning a response. Please retry. If this keeps happening, check the model balance, API compatibility, and network connection.',
   'error.MODEL_IMAGE_UNSUPPORTED': 'The current model cannot read images. Switch to a vision-capable model, or remove the image and send text only.',
   'error.WORKDIR_INVALID': 'Working directory is invalid or does not exist.',
   'error.PARSE_ERROR': 'Invalid message format.',

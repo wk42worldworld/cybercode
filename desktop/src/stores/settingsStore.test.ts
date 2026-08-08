@@ -109,3 +109,57 @@ describe('settingsStore locale defaults', () => {
     expect(updateSpy).toHaveBeenCalledWith({ promptMemoryLanguage: 'Chinese' })
   })
 })
+
+describe('settingsStore completion sound', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    window.localStorage.clear()
+  })
+
+  it('persists enable toggle and sound selection', async () => {
+    const { settingsApi } = await import('../api/settings')
+    const updateSpy = vi.spyOn(settingsApi, 'updateUser').mockResolvedValue({ ok: true })
+    const { useSettingsStore } = await import('./settingsStore')
+
+    await useSettingsStore.getState().setCompletionSoundEnabled(true)
+    await useSettingsStore.getState().setCompletionSoundId('knock')
+
+    expect(useSettingsStore.getState().completionSoundEnabled).toBe(true)
+    expect(useSettingsStore.getState().completionSoundId).toBe('knock')
+    expect(updateSpy).toHaveBeenCalledWith({ completionSoundEnabled: true })
+    expect(updateSpy).toHaveBeenCalledWith({ completionSoundId: 'knock' })
+  })
+
+  it('rolls the selection back when persisting fails', async () => {
+    const { settingsApi } = await import('../api/settings')
+    vi.spyOn(settingsApi, 'updateUser').mockRejectedValue(new Error('offline'))
+    const { useSettingsStore } = await import('./settingsStore')
+
+    await useSettingsStore.getState().setCompletionSoundId('bell')
+
+    expect(useSettingsStore.getState().completionSoundId).toBe('ding')
+  })
+
+  it('falls back to the default sound when the selected custom file is cleared', async () => {
+    const { settingsApi } = await import('../api/settings')
+    const updateSpy = vi.spyOn(settingsApi, 'updateUser').mockResolvedValue({ ok: true })
+    const { useSettingsStore } = await import('./settingsStore')
+
+    await useSettingsStore.getState().setCompletionSoundCustom({
+      name: 'mine.mp3',
+      data: 'data:audio/mpeg;base64,AAAA',
+    })
+    expect(useSettingsStore.getState().completionSoundId).toBe('custom')
+    expect(useSettingsStore.getState().completionSoundCustomName).toBe('mine.mp3')
+
+    await useSettingsStore.getState().setCompletionSoundCustom(null)
+
+    expect(useSettingsStore.getState().completionSoundId).toBe('ding')
+    expect(useSettingsStore.getState().completionSoundCustomName).toBeNull()
+    expect(updateSpy).toHaveBeenLastCalledWith({
+      completionSoundCustomName: undefined,
+      completionSoundCustomData: undefined,
+      completionSoundId: 'ding',
+    })
+  })
+})

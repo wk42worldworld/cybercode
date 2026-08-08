@@ -29,8 +29,9 @@ import type { SessionListItem } from '../../types/session'
 const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)
 const COLLAPSED_PROJECTS_KEY = 'cybercode.sidebar.collapsedProjects.v1'
 const TEMPORARY_GROUP_KEY = '__temporary__'
-const BACKGROUND_HISTORY_PREFETCH_COUNT = 12
-const BACKGROUND_HISTORY_PREFETCH_WORKERS = 3
+const BACKGROUND_HISTORY_RECENT_COUNT = 30
+const BACKGROUND_HISTORY_RECENT_WORKERS = 3
+const BACKGROUND_HISTORY_OLDER_WORKERS = 1
 const SIDEBAR_PRIMARY_CONTROL_CLASSES =
   'box-border w-full appearance-none rounded-full border-2 border-[var(--color-sidebar-search-border)] bg-[var(--color-sidebar-search-bg)]'
 
@@ -123,20 +124,37 @@ export function Sidebar() {
   useEffect(() => {
     if (sessions.length === 0) return
     let cancelled = false
-    const queue = sessions.slice(0, BACKGROUND_HISTORY_PREFETCH_COUNT)
-    let cursor = 0
     const timer = window.setTimeout(() => {
-      const worker = async () => {
-        while (!cancelled) {
-          const session = queue[cursor]
-          cursor += 1
-          if (!session) return
-          await prefetchHistory(session.id, session.projectPath)
+      const runQueue = async (
+        queue: SessionListItem[],
+        workerCount: number,
+        priority: 'recent' | 'background',
+      ) => {
+        let cursor = 0
+        const worker = async () => {
+          while (!cancelled) {
+            const session = queue[cursor]
+            cursor += 1
+            if (!session) return
+            await prefetchHistory(session.id, session.projectPath, { priority })
+          }
         }
+        await Promise.all(Array.from({ length: workerCount }, () => worker()))
       }
-      void Promise.all(
-        Array.from({ length: BACKGROUND_HISTORY_PREFETCH_WORKERS }, () => worker()),
-      )
+
+      void (async () => {
+        await runQueue(
+          sessions.slice(0, BACKGROUND_HISTORY_RECENT_COUNT),
+          BACKGROUND_HISTORY_RECENT_WORKERS,
+          'recent',
+        )
+        if (cancelled) return
+        await runQueue(
+          sessions.slice(BACKGROUND_HISTORY_RECENT_COUNT),
+          BACKGROUND_HISTORY_OLDER_WORKERS,
+          'background',
+        )
+      })()
     }, 300)
 
     return () => {
@@ -1004,10 +1022,16 @@ function SidebarSessionRow({
             aria-label={selectionMode ? displayTitle : undefined}
             onClick={() => selectionMode ? onToggleSelection(session) : onOpen(session, displayTitle)}
             onPointerEnter={selectionMode ? undefined : () => {
-              void useChatStore.getState().prefetchHistory(session.id, session.projectPath)
+              void useChatStore.getState().prefetchHistory(session.id, session.projectPath, {
+                priority: 'interactive',
+              })
+              void useChatStore.getState().loadAnchors(session.id, session.projectPath)
             }}
             onFocus={selectionMode ? undefined : () => {
-              void useChatStore.getState().prefetchHistory(session.id, session.projectPath)
+              void useChatStore.getState().prefetchHistory(session.id, session.projectPath, {
+                priority: 'interactive',
+              })
+              void useChatStore.getState().loadAnchors(session.id, session.projectPath)
             }}
             onContextMenu={selectionMode
               ? undefined

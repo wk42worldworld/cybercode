@@ -11,6 +11,7 @@ import { isEnvTruthy } from '../utils/envUtils.js'
 import { errorMessage } from '../utils/errors.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 import { logError } from '../utils/log.js'
+import { startParentProcessMonitor } from '../utils/parentProcessMonitor.js'
 import { writeToStdout } from '../utils/process.js'
 import { getSessionIngressAuthToken } from '../utils/sessionIngressAuth.js'
 import {
@@ -40,6 +41,7 @@ export class RemoteIO extends StructuredIO {
   private readonly isDebug: boolean = false
   private ccrClient: CCRClient | null = null
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null
+  private stopParentMonitor: (() => void) | null = null
 
   constructor(
     streamUrl: string,
@@ -50,6 +52,14 @@ export class RemoteIO extends StructuredIO {
     super(inputStream, replayUserMessages)
     this.inputStream = inputStream
     this.url = new URL(streamUrl)
+
+    this.stopParentMonitor = startParentProcessMonitor(() => {
+      logForDebugging(
+        '[remote-io] Desktop server parent exited; stopping orphaned CLI',
+      )
+      this.close()
+      void gracefulShutdown(0, 'other')
+    })
 
     // Prepare headers with session token if available
     const headers: Record<string, string> = {}
@@ -245,6 +255,8 @@ export class RemoteIO extends StructuredIO {
    * Clean up connections gracefully
    */
   close(): void {
+    this.stopParentMonitor?.()
+    this.stopParentMonitor = null
     if (this.keepAliveTimer) {
       clearInterval(this.keepAliveTimer)
       this.keepAliveTimer = null

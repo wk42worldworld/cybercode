@@ -49,6 +49,8 @@ describe('query Goal mode loop', () => {
       autocompact: (async () => ({
         wasCompacted: false,
       })) as QueryDeps['autocompact'],
+      compactOnPromptTooLong: (async () =>
+        null) as QueryDeps['compactOnPromptTooLong'],
       callModel: (async function* (input) {
         modelCallCount++
         modelInputs.push(input.messages)

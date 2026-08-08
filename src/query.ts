@@ -186,6 +186,13 @@ function isWithheldMaxOutputTokens(
   return msg?.type === 'assistant' && msg.apiError === 'max_output_tokens'
 }
 
+function isPromptTooLongError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return message
+    .toLowerCase()
+    .includes(PROMPT_TOO_LONG_ERROR_MESSAGE.toLowerCase())
+}
+
 export type QueryParams = {
   messages: Message[]
   systemPrompt: SystemPrompt
@@ -636,20 +643,22 @@ async function* queryLoop(
         (contextCollapse?.isContextCollapseEnabled() ?? false) &&
         isAutoCompactEnabled()
     }
+    const promptTooLongRecoveryEnabled =
+      isAutoCompactEnabled() &&
+      querySource !== 'compact' &&
+      querySource !== 'session_memory'
+
     // Hoist media-recovery gate once per turn. Withholding (inside the
     // stream loop) and recovery (after) must agree; CACHED_MAY_BE_STALE can
     // flip during the 5-30s stream, and withhold-without-recover would eat
-    // the message. PTL doesn't hoist because its withholding is ungated —
-    // it predates the experiment and is already the control-arm baseline.
+    // the message.
     const mediaRecoveryEnabled =
       reactiveCompact?.isReactiveCompactEnabled() ?? false
     if (
       !compactionResult &&
       querySource !== 'compact' &&
       querySource !== 'session_memory' &&
-      !(
-        reactiveCompact?.isReactiveCompactEnabled() && isAutoCompactEnabled()
-      ) &&
+      !promptTooLongRecoveryEnabled &&
       !collapseOwnsIt
     ) {
       const { isAtBlockingLimit } = calculateTokenWarningState(
@@ -840,6 +849,13 @@ async function* queryLoop(
               withheld = true
             }
             if (
+              promptTooLongRecoveryEnabled &&
+              message.type === 'assistant' &&
+              isPromptTooLongMessage(message)
+            ) {
+              withheld = true
+            }
+            if (
               mediaRecoveryEnabled &&
               reactiveCompact?.isWithheldMediaSizeError(message)
             ) {
@@ -981,47 +997,64 @@ async function* queryLoop(
         }
       }
     } catch (error) {
-      logError(error)
       const errorMessage =
         error instanceof Error ? error.message : String(error)
-      logEvent('tengu_query_error', {
-        assistantMessages: assistantMessages.length,
-        toolUses: assistantMessages.flatMap(_ =>
-          _.message.content.filter(content => content.type === 'tool_use'),
-        ).length,
 
-        queryChainId: queryChainIdForAnalytics,
-        queryDepth: queryTracking.depth,
-      })
-
-      // Handle image size/resize errors with user-friendly messages
+      // Some compatible providers throw prompt-too-long instead of yielding
+      // a synthetic assistant error. Normalize it into the same recovery path
+      // when no partial assistant output has escaped.
       if (
-        error instanceof ImageSizeError ||
-        error instanceof ImageResizeError
+        promptTooLongRecoveryEnabled &&
+        assistantMessages.length === 0 &&
+        isPromptTooLongError(error)
       ) {
-        yield createAssistantAPIErrorMessage({
-          content: error.message,
+        assistantMessages.push(
+          createAssistantAPIErrorMessage({
+            content: PROMPT_TOO_LONG_ERROR_MESSAGE,
+            error: 'invalid_request',
+          }),
+        )
+      } else {
+        logError(error)
+        logEvent('tengu_query_error', {
+          assistantMessages: assistantMessages.length,
+          toolUses: assistantMessages.flatMap(_ =>
+            _.message.content.filter(content => content.type === 'tool_use'),
+          ).length,
+
+          queryChainId: queryChainIdForAnalytics,
+          queryDepth: queryTracking.depth,
         })
-        return { reason: 'image_error' }
+
+        // Handle image size/resize errors with user-friendly messages
+        if (
+          error instanceof ImageSizeError ||
+          error instanceof ImageResizeError
+        ) {
+          yield createAssistantAPIErrorMessage({
+            content: error.message,
+          })
+          return { reason: 'image_error' }
+        }
+
+        // Generally queryModelWithStreaming should not throw errors but instead
+        // yield them as synthetic assistant messages. However if it does throw
+        // due to a bug, we may end up in a state where we have already emitted
+        // a tool_use block but will stop before emitting the tool_result.
+        yield* yieldMissingToolResultBlocks(assistantMessages, errorMessage)
+
+        // Surface the real error instead of a misleading "[Request interrupted
+        // by user]" — this path is a model/runtime failure, not a user action.
+        // SDK consumers were seeing phantom interrupts on e.g. Node 18's missing
+        // Array.prototype.with(), masking the actual cause.
+        yield createAssistantAPIErrorMessage({
+          content: errorMessage,
+        })
+
+        // To help track down bugs, log loudly for ants
+        logAntError('Query error', error)
+        return { reason: 'model_error', error }
       }
-
-      // Generally queryModelWithStreaming should not throw errors but instead
-      // yield them as synthetic assistant messages. However if it does throw
-      // due to a bug, we may end up in a state where we have already emitted
-      // a tool_use block but will stop before emitting the tool_result.
-      yield* yieldMissingToolResultBlocks(assistantMessages, errorMessage)
-
-      // Surface the real error instead of a misleading "[Request interrupted
-      // by user]" — this path is a model/runtime failure, not a user action.
-      // SDK consumers were seeing phantom interrupts on e.g. Node 18's missing
-      // Array.prototype.with(), masking the actual cause.
-      yield createAssistantAPIErrorMessage({
-        content: errorMessage,
-      })
-
-      // To help track down bugs, log loudly for ants
-      logAntError('Query error', error)
-      return { reason: 'model_error', error }
     }
 
     // Execute post-sampling hooks after model response is complete
@@ -1205,6 +1238,56 @@ async function* queryLoop(
         yield lastMessage
         void executeStopFailureHooks(lastMessage, toolUseContext)
         return { reason: isWithheldMedia ? 'image_error' : 'prompt_too_long' }
+      } else if (isWithheld413 && promptTooLongRecoveryEnabled) {
+        const compacted = hasAttemptedReactiveCompact
+          ? null
+          : await deps.compactOnPromptTooLong(
+              messagesForQuery,
+              toolUseContext,
+              {
+                systemPrompt,
+                userContext,
+                systemContext,
+                toolUseContext,
+                forkContextMessages: messagesForQuery,
+              },
+              querySource,
+              false,
+            )
+
+        if (compacted) {
+          if (params.taskBudget) {
+            const preCompactContext =
+              finalContextTokensFromLastResponse(messagesForQuery)
+            taskBudgetRemaining = Math.max(
+              0,
+              (taskBudgetRemaining ?? params.taskBudget.total) -
+                preCompactContext,
+            )
+          }
+
+          const postCompactMessages = buildPostCompactMessages(compacted)
+          for (const msg of postCompactMessages) {
+            yield msg
+          }
+          state = {
+            messages: postCompactMessages,
+            toolUseContext,
+            autoCompactTracking: undefined,
+            maxOutputTokensRecoveryCount,
+            hasAttemptedReactiveCompact: true,
+            maxOutputTokensOverride: undefined,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            turnCount,
+            transition: { reason: 'reactive_compact_retry' },
+          }
+          continue
+        }
+
+        yield lastMessage
+        void executeStopFailureHooks(lastMessage, toolUseContext)
+        return { reason: 'prompt_too_long' }
       } else if (feature('CONTEXT_COLLAPSE') && isWithheld413) {
         // reactiveCompact compiled out but contextCollapse withheld and
         // couldn't recover (staged queue empty/stale). Surface. Same

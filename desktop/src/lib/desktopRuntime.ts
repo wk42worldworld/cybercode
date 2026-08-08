@@ -29,8 +29,17 @@ export async function initializeDesktopServerUrl() {
     const { invoke } = await import(/* @vite-ignore */ '@tauri-apps/api/core')
     const refreshConnection = async () => {
       const connection = await invoke<{ url: string; authToken: string }>('get_server_connection')
-      await waitForHealth(connection.url)
-      return connection
+      try {
+        await waitForHealth(connection.url, { attempts: 2 })
+        return connection
+      } catch (error) {
+        console.warn('[desktop] Local server is unresponsive; restarting it', error)
+        const restarted = await invoke<{ url: string; authToken: string }>('restart_server_sidecar', {
+          expectedUrl: connection.url,
+        })
+        await waitForHealth(restarted.url)
+        return restarted
+      }
     }
     setServerConnectionRefresher(refreshConnection)
     const connection = await refreshConnection()
@@ -45,13 +54,21 @@ export async function initializeDesktopServerUrl() {
   }
 }
 
-async function waitForHealth(serverUrl: string) {
+async function waitForHealth(
+  serverUrl: string,
+  options: { attempts?: number; requestTimeoutMs?: number } = {},
+) {
   let lastError: unknown
+  const attempts = options.attempts ?? 30
+  const requestTimeoutMs = options.requestTimeoutMs ?? 1_000
 
-  for (let attempt = 0; attempt < 30; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs)
     try {
       const response = await fetch(`${serverUrl}/health`, {
         cache: 'no-store',
+        signal: controller.signal,
       })
       if (response.ok) {
         return
@@ -59,9 +76,13 @@ async function waitForHealth(serverUrl: string) {
       lastError = new Error(`healthcheck returned ${response.status}`)
     } catch (error) {
       lastError = error
+    } finally {
+      clearTimeout(timeout)
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 250))
+    if (attempt + 1 < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
   }
 
   throw new Error(

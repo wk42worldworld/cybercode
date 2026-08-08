@@ -9,6 +9,7 @@ import { useTabStore } from '../../stores/tabStore'
 import { useTeamStore } from '../../stores/teamStore'
 import { useUIStore } from '../../stores/uiStore'
 import { OFFICIAL_MODELS } from '../../constants/modelCatalog'
+import { wsManager } from '../../api/websocket'
 import { open } from '@tauri-apps/plugin-dialog'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 
@@ -574,5 +575,86 @@ describe('ChatInput composer controls', () => {
         status: 'draft',
       },
     ])
+  })
+
+  it('keeps the stop button until the entire turn has settled', async () => {
+    vi.useFakeTimers()
+    useSettingsStore.setState({ completionSoundEnabled: false })
+    useChatStore.setState({
+      sessions: {
+        'settling-session': makeChatSession({ chatState: 'streaming' }),
+      },
+    })
+
+    render(<ChatInput variant="hero" sessionId="settling-session" />)
+    expect(screen.getByRole('button', { name: 'Stop generation (Cmd+.)' })).toBeInTheDocument()
+
+    act(() => {
+      useChatStore.getState().handleServerMessage('settling-session', {
+        type: 'message_complete',
+        usage: { input_tokens: 2, output_tokens: 4 },
+      })
+    })
+
+    expect(useChatStore.getState().sessions['settling-session']).toMatchObject({
+      chatState: 'thinking',
+      turnCompletionPending: true,
+    })
+    expect(screen.getByRole('button', { name: 'Stop generation (Cmd+.)' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Run' })).not.toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000)
+    })
+
+    expect(useChatStore.getState().sessions['settling-session']).toMatchObject({
+      chatState: 'idle',
+      turnCompletionPending: false,
+    })
+    expect(screen.queryByRole('button', { name: 'Stop generation (Cmd+.)' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Run' })).toBeInTheDocument()
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it('shows an immediate waiting indicator until stopping is confirmed', async () => {
+    const sendSpy = vi.spyOn(wsManager, 'send').mockImplementation(() => {})
+    useChatStore.setState({
+      sessions: {
+        'running-session': makeChatSession({ chatState: 'streaming' }),
+      },
+    })
+
+    render(<ChatInput sessionId="running-session" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop generation (Cmd+.)' }))
+
+    const waitingButton = screen.getByRole('button', { name: 'Stopping generation...' })
+    expect(waitingButton).toBeDisabled()
+    expect(waitingButton).toHaveAttribute('aria-busy', 'true')
+    expect(waitingButton).toHaveAttribute('data-stop-state', 'requesting')
+    const progress = screen.getByTestId('stop-generation-progress')
+    expect(progress).toHaveClass('stop-progress-indicator', 'h-[20px]', 'w-[20px]')
+    expect(progress).not.toHaveClass('animate-spin', 'motion-safe:animate-spin')
+    expect(progress.querySelector('[data-stop-progress-arc]')).toHaveClass('stop-progress-arc')
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      useChatStore.getState().handleServerMessage('running-session', {
+        type: 'generation_stop_requested',
+      })
+    })
+    expect(waitingButton).toHaveAttribute('data-stop-state', 'stopping')
+
+    fireEvent.click(waitingButton)
+    expect(sendSpy).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      useChatStore.getState().handleServerMessage('running-session', {
+        type: 'generation_stopped',
+        forced: false,
+      })
+    })
+    expect(screen.queryByRole('button', { name: 'Stopping generation...' })).not.toBeInTheDocument()
   })
 })

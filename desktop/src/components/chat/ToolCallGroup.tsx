@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n'
 import type { TranslationKey } from '../../i18n'
 import type { AgentTaskNotification, UIMessage } from '../../types/chat'
 import { AGENT_LIFECYCLE_TYPES } from '../../types/team'
+import { isAgentLaunchResult } from '../../utils/toolCallState'
 import { Icon } from '../shared/Icon'
 
 type ToolCall = Extract<UIMessage, { type: 'tool_use' }>
@@ -16,43 +17,82 @@ type Props = {
   resultMap: Map<string, ToolResult>
   childToolCallsByParent: Map<string, ToolCall[]>
   agentTaskNotifications: Record<string, AgentTaskNotification>
-  /** When true, the last tool is still executing — show expanded */
+  /** When true, a tool is executing and receives the live progress treatment. */
   isStreaming?: boolean
+  /** Keeps the group expanded until the entire assistant turn finishes. */
+  isTurnActive?: boolean
 }
 
-const TOOL_VERBS: Record<string, (count: number, t: (key: TranslationKey, params?: Record<string, string | number>) => string) => string> = {
-  Read: (n, t) => n === 1 ? t('toolGroup.readOne') : t('toolGroup.readMany', { count: n }),
-  Write: (n, t) => n === 1 ? t('toolGroup.createdOne') : t('toolGroup.createdMany', { count: n }),
-  Edit: (n, t) => n === 1 ? t('toolGroup.editedOne') : t('toolGroup.editedMany', { count: n }),
-  Bash: (n, t) => n === 1 ? t('toolGroup.ranOne') : t('toolGroup.ranMany', { count: n }),
-  Glob: (_n, t) => t('toolGroup.foundFiles'),
-  Grep: (n, t) => n === 1 ? t('toolGroup.searchedOne') : t('toolGroup.searchedMany', { count: n }),
-  CodeGraph: (n, t) => n === 1 ? t('toolGroup.searchedOne') : t('toolGroup.searchedMany', { count: n }),
-  Agent: (n, t) => n === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: n }),
-  WebSearch: (_n, t) => t('toolGroup.searchedWeb'),
-  WebFetch: (n, t) => n === 1 ? t('toolGroup.fetchedOne') : t('toolGroup.fetchedMany', { count: n }),
+const READ_TOOL_NAMES = new Set(['read'])
+const COMMAND_TOOL_NAMES = new Set(['bash'])
+const MODIFY_TOOL_NAMES = new Set(['edit', 'write', 'notebookedit', 'multiedit'])
+
+function normalizedToolName(toolName: string): string {
+  return toolName.replace(/[^a-z]/gi, '').toLowerCase()
 }
 
-function generateSummary(toolCalls: ToolCall[], t: (key: TranslationKey, params?: Record<string, string | number>) => string): string {
-  const counts = new Map<string, number>()
-  for (const tc of toolCalls) {
-    counts.set(tc.toolName, (counts.get(tc.toolName) ?? 0) + 1)
+function getToolFilePath(toolCall: ToolCall): string {
+  const input = toolCall.input && typeof toolCall.input === 'object'
+    ? toolCall.input as Record<string, unknown>
+    : {}
+  const filePath = input.file_path ?? input.notebook_path ?? input.path
+  return typeof filePath === 'string' ? filePath.trim() : ''
+}
+
+function flattenToolCalls(
+  rootToolCalls: ToolCall[],
+  childToolCallsByParent: Map<string, ToolCall[]>,
+): ToolCall[] {
+  const flattened: ToolCall[] = []
+  const visited = new Set<string>()
+
+  const visit = (toolCall: ToolCall) => {
+    if (visited.has(toolCall.toolUseId)) return
+    visited.add(toolCall.toolUseId)
+    flattened.push(toolCall)
+    for (const child of childToolCallsByParent.get(toolCall.toolUseId) ?? []) {
+      visit(child)
+    }
   }
 
-  const parts: string[] = []
-  for (const [name, count] of counts) {
-    const verbFn = TOOL_VERBS[name]
-    parts.push(verbFn ? verbFn(count, t) : `${name} (${count})`)
+  rootToolCalls.forEach(visit)
+  return flattened
+}
+
+function countDistinctFileOperations(toolCalls: ToolCall[], toolNames: Set<string>): number {
+  const filePaths = new Set<string>()
+  let callsWithoutPath = 0
+
+  for (const toolCall of toolCalls) {
+    if (!toolNames.has(normalizedToolName(toolCall.toolName))) continue
+    const filePath = getToolFilePath(toolCall)
+    if (filePath) {
+      filePaths.add(filePath)
+    } else {
+      callsWithoutPath += 1
+    }
   }
 
-  return parts.join(', ')
+  return filePaths.size + callsWithoutPath
+}
+
+function getActivityCounts(
+  rootToolCalls: ToolCall[],
+  childToolCallsByParent: Map<string, ToolCall[]>,
+) {
+  const toolCalls = flattenToolCalls(rootToolCalls, childToolCallsByParent)
+  return {
+    toolCalls,
+    filesRead: countDistinctFileOperations(toolCalls, READ_TOOL_NAMES),
+    commandsRun: toolCalls.filter((toolCall) =>
+      COMMAND_TOOL_NAMES.has(normalizedToolName(toolCall.toolName))
+    ).length,
+    filesModified: countDistinctFileOperations(toolCalls, MODIFY_TOOL_NAMES),
+  }
 }
 
 function groupHasErrors(toolCalls: ToolCall[], resultMap: Map<string, ToolResult>): boolean {
-  return toolCalls.some((tc) => {
-    const result = resultMap.get(tc.toolUseId)
-    return result?.isError
-  })
+  return toolCalls.some((toolCall) => resultMap.get(toolCall.toolUseId)?.isError)
 }
 
 export function ToolCallGroup({
@@ -61,229 +101,185 @@ export function ToolCallGroup({
   childToolCallsByParent,
   agentTaskNotifications,
   isStreaming = true,
+  isTurnActive = false,
 }: Props) {
-  const allAgents = toolCalls.every((toolCall) => toolCall.toolName === 'Agent')
-
-  if (allAgents) {
-    return (
-      <AgentToolGroup
-        toolCalls={toolCalls}
-        resultMap={resultMap}
-        childToolCallsByParent={childToolCallsByParent}
-        agentTaskNotifications={agentTaskNotifications}
-        isStreaming={isStreaming}
-      />
-    )
-  }
-
-  // Single tool call — render directly without group wrapper
-  if (toolCalls.length === 1) {
-    const tc = toolCalls[0]!
-    return (
-      <ToolCallTree
-        toolCall={tc}
-        resultMap={resultMap}
-        childToolCallsByParent={childToolCallsByParent}
-        isActive={isStreaming}
-      />
-    )
-  }
-
   return (
-    <ToolCallGroupMulti
+    <UnifiedToolGroup
       toolCalls={toolCalls}
       resultMap={resultMap}
       childToolCallsByParent={childToolCallsByParent}
       agentTaskNotifications={agentTaskNotifications}
       isStreaming={isStreaming}
+      isTurnActive={isTurnActive}
     />
   )
 }
 
-function AgentToolGroup({
+/**
+ * Unified tool-call presentation: one container style for 1..N tools.
+ * Stays expanded for the entire live assistant turn, then auto-collapses to a
+ * single summary line. The tool execution state only controls live styling.
+ */
+function UnifiedToolGroup({
   toolCalls,
   resultMap,
   childToolCallsByParent,
   agentTaskNotifications,
   isStreaming,
+  isTurnActive,
 }: Props) {
-  const [expanded, setExpanded] = useState(true)
   const t = useTranslation()
-  const statuses = toolCalls.map((toolCall) =>
-    getAgentStatus({
-      hasResult: resultMap.has(toolCall.toolUseId),
-      isError: !!resultMap.get(toolCall.toolUseId)?.isError,
-      isLaunchResult: isAgentLaunchResult(resultMap.get(toolCall.toolUseId)?.content),
-      isStreaming: !!isStreaming && !resultMap.has(toolCall.toolUseId),
-      childCount: (childToolCallsByParent.get(toolCall.toolUseId) ?? []).length,
+  const [manualOverride, setManualOverride] = useState<boolean | null>(null)
+  const { toolCalls: allToolCalls, filesRead, commandsRun, filesModified } =
+    getActivityCounts(toolCalls, childToolCallsByParent)
+  const hasRunningAgent = allToolCalls.some((toolCall) => {
+    if (normalizedToolName(toolCall.toolName) !== 'agent') return false
+    const result = resultMap.get(toolCall.toolUseId)
+    const status = getAgentStatus({
+      hasResult: Boolean(result),
+      isError: Boolean(result?.isError),
+      isLaunchResult: isAgentLaunchResult(result?.content),
+      isStreaming: Boolean(isStreaming) && !result,
+      childCount: childToolCallsByParent.get(toolCall.toolUseId)?.length ?? 0,
       taskStatus: agentTaskNotifications[toolCall.toolUseId]?.status,
-    }),
-  )
-  const isAnyRunning = statuses.some((status) => status === 'running' || status === 'starting')
-  const errorPresent = statuses.some((status) => status === 'failed')
-  const allComplete = statuses.every((status) => status === 'done')
-  const anyStopped = statuses.some((status) => status === 'stopped')
+    })
+    return status === 'starting' || status === 'running'
+  })
+  const isExecuting = Boolean(isStreaming) || hasRunningAgent
+  const expanded = Boolean(isTurnActive) || (manualOverride ?? isExecuting)
 
+  // Each new turn starts from the automatic expanded state. While that turn is
+  // active, individual tool waves must not collapse the activity history.
   useEffect(() => {
-    if (isStreaming) {
-      setExpanded(true)
-    }
-  }, [isStreaming])
+    if (isTurnActive) setManualOverride(null)
+  }, [isTurnActive])
+
+  const allComplete = allToolCalls.every((toolCall) => resultMap.has(toolCall.toolUseId))
+  const errorPresent = groupHasErrors(allToolCalls, resultMap)
+  const isInterrupted = !isExecuting && !allComplete
+  const summaryParts = [
+    t(
+      allToolCalls.length === 1
+        ? 'toolGroup.activityToolsOne'
+        : 'toolGroup.activityToolsMany',
+      { count: allToolCalls.length },
+    ),
+  ]
+  if (filesRead > 0) {
+    summaryParts.push(t(
+      filesRead === 1 ? 'toolGroup.activityReadOne' : 'toolGroup.activityReadMany',
+      { count: filesRead },
+    ))
+  }
+  if (commandsRun > 0) {
+    summaryParts.push(t(
+      commandsRun === 1 ? 'toolGroup.activityCommandsOne' : 'toolGroup.activityCommandsMany',
+      { count: commandsRun },
+    ))
+  }
+  if (filesModified > 0) {
+    summaryParts.push(t(
+      filesModified === 1 ? 'toolGroup.activityModifiedOne' : 'toolGroup.activityModifiedMany',
+      { count: filesModified },
+    ))
+  }
+  const summary = summaryParts.join(' · ')
 
   return (
-    <div
-      data-running={isAnyRunning ? 'true' : undefined}
-      className={`mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)] ${isAnyRunning ? 'tool-running-sweep' : ''}`}
-    >
-      {/* Left accent line */}
-      <div className="flex">
-        <div className={`w-0.5 shrink-0 ${isAnyRunning ? 'bg-[var(--color-brand)] animate-accent-pulse-line' : 'bg-[var(--color-brand)]'}`} />
-        <button
-          type="button"
-          onClick={() => setExpanded((value) => !value)}
-          className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
+    <div className="flex w-full justify-center">
+      <div
+        data-tool-activity-container
+        data-layout={expanded ? 'expanded' : 'collapsed'}
+        data-running={isExecuting ? 'true' : undefined}
+        data-interrupted={isInterrupted ? 'true' : undefined}
+        className={`w-full overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface-container-lowest)] text-[var(--color-text-primary)] ${isExecuting ? 'tool-running-sweep' : ''}`}
+      >
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-disabled={isTurnActive ? 'true' : undefined}
+        onClick={() => {
+          if (!isTurnActive) setManualOverride(!expanded)
+        }}
+        className="flex h-[44px] w-full items-center justify-center gap-[8px] px-[16px] text-center transition-colors hover:bg-[var(--color-surface-hover)]/45"
+      >
+        <span
+          data-tool-activity-status
+          className="flex h-4 w-4 shrink-0 items-center justify-center"
         >
-          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)] transition-transform duration-200" style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
-          <span className={`flex-1 truncate text-[12px] text-[var(--color-text-secondary)] ${isAnyRunning ? 'tool-running-text' : ''}`}>
-            {toolCalls.length === 1 ? t('toolGroup.agentOne') : t('toolGroup.agentMany', { count: toolCalls.length })}
-          </span>
-          <span className={`label-micro text-[var(--color-text-tertiary)] ${isAnyRunning ? 'tool-running-text' : ''}`}>
-            {toolCalls.length}
-          </span>
-          {isAnyRunning && (
-            <span className="tool-running-text rounded-full bg-[var(--color-brand)]/12 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-brand)]">
-              {t('agentStatus.running')}
+          {!isExecuting && allComplete && !errorPresent && (
+            <Icon name="check_circle" size={15} className="text-[var(--color-success)]" />
+          )}
+          {!isExecuting && errorPresent && (
+            <Icon name="error" size={15} className="text-[var(--color-error)]" />
+          )}
+          {!isExecuting && !allComplete && !errorPresent && (
+            <span className="flex" title={t('agentStatus.stopped')}>
+              <Icon name="stop_circle" size={15} className="text-[var(--color-outline)]" />
             </span>
           )}
-          {!isAnyRunning && errorPresent && (
-            <Icon name="error" size={14} className="text-[var(--color-error)]" />
+          {isExecuting && (
+            <span
+              data-tool-activity-status-dot
+              className="h-2 w-2 rounded-full bg-[var(--color-brand)] animate-pulse-dot"
+            />
           )}
-          {!isAnyRunning && !errorPresent && allComplete && (
-            <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
-          )}
-          {!isAnyRunning && !errorPresent && !allComplete && !anyStopped && (
-            <Icon name="pending" size={14} className="text-[var(--color-outline)]" />
-          )}
-          {!isAnyRunning && !errorPresent && !allComplete && anyStopped && (
-            <Icon name="stop_circle" size={14} className="text-[var(--color-outline)]" />
-          )}
-        </button>
-      </div>
+        </span>
+        <span
+          data-tool-activity-summary
+          className={`min-w-0 flex-1 truncate text-center text-[12px] font-semibold leading-none text-[var(--color-text-secondary)] ${isExecuting ? 'tool-running-text' : ''}`}
+        >
+          {summary}
+        </span>
+        <span
+          data-tool-activity-disclosure
+          className="flex h-4 w-4 shrink-0 items-center justify-center"
+        >
+          <Icon
+            name={expanded ? 'expand_less' : 'expand_more'}
+            size={16}
+            className="text-[var(--color-outline)] transition-transform duration-200"
+            style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
+          />
+        </span>
+      </button>
 
       {expanded && (
         <div
-          className="relative pl-5"
+          data-tool-activity-details
+          className="scrollbar-no-track max-h-[284px] space-y-2 overflow-y-auto border-t border-[var(--color-border-separator)]/45 px-4 py-3"
           style={{ animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
-          <div className="absolute bottom-6 left-[11px] top-4 w-px rounded-full bg-[var(--color-border-separator)]" />
-          <div className="space-y-2">
-            {toolCalls.map((toolCall) => (
-              <div key={toolCall.id} className="relative pl-7">
-                <div className="absolute left-0 top-1/2 -translate-y-1/2">
-                  <div className="absolute left-[11px] top-1/2 h-px w-4 -translate-y-1/2 bg-[var(--color-border-separator)]" />
-                  <div className="absolute left-[8px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-[var(--color-border)]/65 bg-[var(--color-surface-container-lowest)] shadow-[0_0_0_2px_var(--color-surface)]" />
-                </div>
-                <AgentCallCard
+          {toolCalls.map((toolCall) => (
+            toolCall.toolName === 'Agent' ? (
+              <AgentCallCard
+                key={toolCall.id}
+                toolCall={toolCall}
+                resultMap={resultMap}
+                childToolCallsByParent={childToolCallsByParent}
+                agentTaskNotification={agentTaskNotifications[toolCall.toolUseId]}
+                isStreaming={isExecuting && !resultMap.has(toolCall.toolUseId)}
+              />
+            ) : (
+              <div key={toolCall.id}>
+                <ToolCallTree
                   toolCall={toolCall}
                   resultMap={resultMap}
                   childToolCallsByParent={childToolCallsByParent}
-                  agentTaskNotification={agentTaskNotifications[toolCall.toolUseId]}
-                  isStreaming={isStreaming && !resultMap.has(toolCall.toolUseId)}
+                  isActive={isExecuting}
+                  compact
                 />
               </div>
-            ))}
-          </div>
+            )
+          ))}
         </div>
       )}
+      </div>
     </div>
   )
 }
 
 /** Separated so the useState hook is never called conditionally. */
-function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isStreaming }: Props) {
-  const [expanded, setExpanded] = useState(false)
-  const t = useTranslation()
-  const summary = generateSummary(toolCalls, t)
-  const errorPresent = groupHasErrors(toolCalls, resultMap)
-  const allComplete = toolCalls.every((tc) => resultMap.has(tc.toolUseId))
-  const hasNestedToolCalls = toolCalls.some((tc) => (childToolCallsByParent.get(tc.toolUseId)?.length ?? 0) > 0)
-
-  useEffect(() => {
-    if (isStreaming || hasNestedToolCalls) {
-      setExpanded(true)
-    }
-  }, [hasNestedToolCalls, isStreaming])
-
-  const isExecuting =
-    Boolean(isStreaming) &&
-    toolCalls.some((toolCall) => isToolCallRunning(toolCall, resultMap, childToolCallsByParent))
-
-  return (
-    <div
-      data-running={isExecuting ? 'true' : undefined}
-      className={`mb-2 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-container)] ${isExecuting ? 'tool-running-sweep' : ''}`}
-    >
-      {/* Left accent line + header */}
-      <div className="flex">
-        <div className={`w-0.5 shrink-0 ${isExecuting ? 'bg-[var(--color-brand)] animate-accent-pulse-line' : 'bg-[var(--color-brand)]'}`} />
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex flex-1 items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
-        >
-          <Icon name={expanded ? 'expand_less' : 'expand_more'} size={14} className="text-[var(--color-outline)] transition-transform duration-200" style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }} />
-          <span className={`flex-1 truncate text-[12px] text-[var(--color-text-secondary)] ${isExecuting ? 'tool-running-text' : ''}`}>
-            {summary}
-          </span>
-          <span className={`label-micro text-[var(--color-text-tertiary)] ${isExecuting ? 'tool-running-text' : ''}`}>
-            {toolCalls.length}
-          </span>
-          {!isExecuting && allComplete && !errorPresent && (
-            <Icon name="check_circle" size={14} className="text-[var(--color-success)]" />
-          )}
-          {!isExecuting && errorPresent && (
-            <Icon name="error" size={14} className="text-[var(--color-error)]" />
-          )}
-          {!isExecuting && !allComplete && !errorPresent && (
-            <span className="flex" title={t('agentStatus.stopped')}>
-              <Icon
-                name="stop_circle"
-                size={14}
-                className="text-[var(--color-outline)]"
-              />
-            </span>
-          )}
-          {isExecuting && (
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand)] animate-pulse-dot" />
-          )}
-        </button>
-      </div>
-
-      {expanded && (
-        <div
-          className="space-y-0 px-3 pb-2"
-          style={{ animation: 'fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1)' }}
-        >
-          {toolCalls.map((tc, idx) => {
-            const isLast = idx === toolCalls.length - 1
-            return (
-              <div key={tc.id} className={isLast ? '' : 'border-b border-[var(--color-border-separator)]'}>
-                <ToolCallTree
-                  toolCall={tc}
-                  resultMap={resultMap}
-                  childToolCallsByParent={childToolCallsByParent}
-                  isActive={Boolean(isStreaming)}
-                  compact
-                />
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function AgentCallCard({
   toolCall,
   resultMap,
@@ -475,7 +471,7 @@ function ToolCallTree({
         running={isRunning}
       />
       {childToolCalls.length > 0 && (
-        <div className={compact ? 'ml-4 border-l border-[var(--color-border-separator)] pl-3' : 'mb-2 ml-16 border-l border-[var(--color-border-separator)] pl-3'}>
+        <div className={compact ? 'ml-3 mt-1' : 'mb-2 ml-12 mt-1'}>
           <div className="space-y-1">
             {childToolCalls.map((childToolCall) => (
               <ToolCallTree
@@ -632,20 +628,6 @@ function stripAgentResultMetadata(text: string): string {
     .replace(/^\s*(?:total_tokens|tool_uses|duration_ms):\s*\d+\s*$/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
-}
-
-function isAgentLaunchResult(content: unknown): boolean {
-  const text = extractTextContent(content).trim()
-  if (!text) return false
-
-  return (
-    text.startsWith('Async agent launched successfully.') ||
-    text.startsWith('Remote agent launched in CCR.') ||
-    (text.startsWith('Spawned successfully.') &&
-      text.includes('The agent is now running and will receive instructions via mailbox.')) ||
-    text.includes('The agent is working in the background. You will be notified automatically when it completes.') ||
-    text.includes('The agent is running remotely. You will be notified automatically when it completes.')
-  )
 }
 
 /**

@@ -10,18 +10,29 @@ type Props = {
   attachments?: UIAttachment[]
   onRewind?: () => void
   rewindLabel?: string
+  anchorHighlightToken?: number
 }
 
-export function UserMessage({ content, attachments, onRewind, rewindLabel }: Props) {
+export function UserMessage({
+  content,
+  attachments,
+  onRewind,
+  rewindLabel,
+  anchorHighlightToken,
+}: Props) {
   const t = useTranslation()
   const {
     actionsVisible,
     showActions,
     scheduleHideActions,
-    hideActions,
   } = useMessageActionVisibility()
   const hasText = content.trim().length > 0
   const hasAttachments = Boolean(attachments && attachments.length > 0)
+  const anchorHighlightClass = typeof anchorHighlightToken === 'number'
+    ? anchorHighlightToken % 2 === 0
+      ? ' anchor-user-bubble-highlight anchor-user-bubble-highlight-even'
+      : ' anchor-user-bubble-highlight anchor-user-bubble-highlight-odd'
+    : ''
 
   return (
     <div
@@ -35,37 +46,41 @@ export function UserMessage({ content, attachments, onRewind, rewindLabel }: Pro
       >
         {(hasText || hasAttachments) && (
           <div
-            data-message-hover-trigger
-            data-message-bubble="user"
+            data-message-row="user"
             onPointerEnter={showActions}
             onPointerLeave={scheduleHideActions}
-            className="flex max-w-[85%] flex-col gap-[10px] rounded-[24px] rounded-tr-[8px] bg-[var(--color-message-user-bg)] px-[18px] py-[12px] text-[var(--color-message-user-fg)]"
+            className="flex w-full items-end justify-end gap-[8px]"
           >
-            {hasAttachments && (
-              <AttachmentGallery attachments={attachments!} variant="message" />
-            )}
-            {hasText && (
-              <div className="chat-bubble-text whitespace-pre-wrap break-words text-[14px] font-normal leading-relaxed tracking-normal">
-                {content}
-              </div>
-            )}
-          </div>
-        )}
-
-        {(hasText || hasAttachments) && (
-          <div
-            data-actions-visible={actionsVisible ? 'true' : 'false'}
-            className="message-action-visibility mr-[16px]"
-          >
-            <MessageActionBar
-              copyText={content}
-              copyLabel={t('chat.copyPrompt')}
-              onRewind={onRewind}
-              rewindLabel={rewindLabel}
-              align="end"
+            <div
+              data-actions-visible={actionsVisible ? 'true' : 'false'}
+              className="message-action-visibility flex shrink-0 items-center"
+            >
+              <MessageActionBar
+                copyText={content}
+                copyLabel={t('chat.copyPrompt')}
+                onRewind={onRewind}
+                rewindLabel={rewindLabel}
+                align="end"
+                onPointerEnter={showActions}
+                onPointerLeave={scheduleHideActions}
+              />
+            </div>
+            <div
+              data-message-hover-trigger
+              data-message-bubble="user"
               onPointerEnter={showActions}
-              onPointerLeave={hideActions}
-            />
+              onPointerLeave={scheduleHideActions}
+              className={`user-message-bubble flex max-w-[85%] flex-col gap-[10px] rounded-[24px] rounded-tr-[8px] px-[18px] py-[12px]${anchorHighlightClass}`}
+            >
+              {hasAttachments && (
+                <AttachmentGallery attachments={attachments!} variant="message" />
+              )}
+              {hasText && (
+                <div className="chat-bubble-text whitespace-pre-wrap break-words text-[14px] font-normal leading-relaxed tracking-normal">
+                  {content}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

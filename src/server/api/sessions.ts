@@ -7,6 +7,7 @@
  *   GET    /api/sessions            — 列出会话
  *   GET    /api/sessions/:id        — 获取会话详情
  *   GET    /api/sessions/:id/messages — 获取会话消息
+ *   GET    /api/sessions/:id/anchors  — 获取全量用户提问锚点
  *   POST   /api/sessions            — 创建新会话
  *   POST   /api/sessions/:id/branch — 从 AI 回复创建分支会话
  *   DELETE /api/sessions/:id        — 删除会话
@@ -86,6 +87,16 @@ export async function handleSessionsApi(
         )
       }
       return await getGitInfo(sessionId, url)
+    }
+
+    if (subResource === 'anchors') {
+      if (req.method !== 'GET') {
+        return Response.json(
+          { error: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` },
+          { status: 405 }
+        )
+      }
+      return await getSessionAnchors(sessionId, url)
     }
 
     if (subResource === 'git') {
@@ -210,14 +221,25 @@ async function getSessionMessages(sessionId: string, url: URL): Promise<Response
   const limit = parseInt(url.searchParams.get('limit') || '50', 10)
   const before = url.searchParams.get('before') || undefined
   const after = url.searchParams.get('after') || undefined
+  const seek = url.searchParams.get('seek') || undefined
   const projectPath = getProjectPath(url)
 
   if (isNaN(limit) || limit < 1) {
     throw ApiError.badRequest('Invalid limit parameter')
   }
 
-  const result = await sessionService.getSessionMessages(sessionId, { limit, before, after, projectPath })
-  return Response.json({ messages: result.messages, hasMore: result.hasMore })
+  const result = await sessionService.getSessionMessages(sessionId, { limit, before, after, seek, projectPath })
+  return Response.json({
+    messages: result.messages,
+    hasMore: result.hasMore,
+    ...(result.hasMoreAfter !== undefined ? { hasMoreAfter: result.hasMoreAfter } : {}),
+    ...(result.seekFound !== undefined ? { seekFound: result.seekFound } : {}),
+  })
+}
+
+async function getSessionAnchors(sessionId: string, url: URL): Promise<Response> {
+  const anchors = await sessionService.getSessionUserAnchors(sessionId, { projectPath: getProjectPath(url) })
+  return Response.json({ anchors })
 }
 
 async function createSession(req: Request): Promise<Response> {

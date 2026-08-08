@@ -42,6 +42,11 @@ import { PluginMarketplace } from '../components/plugins/PluginMarketplace'
 import { useUIStore, type SettingsTab } from '../stores/uiStore'
 import { ClaudeOAuthDialog } from '../components/settings/ClaudeOfficialLogin'
 import { SettingsPage, SettingsSection, SettingsRow, SegmentedControl, Switch } from '../components/settings/SettingsLayout'
+import {
+  previewCompletionSound,
+  readAudioFileAsDataUrl,
+  type CompletionSoundSetting,
+} from '../utils/completionSound'
 import { ProviderLogo } from '../components/providers/ProviderLogo'
 import {
   OAuthProviderCatalog,
@@ -3258,7 +3263,124 @@ export function GeneralSettings() {
           />
         </SettingsRow>
       </SettingsSection>
+      <CompletionSoundSection />
     </SettingsPage>
+  )
+}
+
+// ─── Completion Sound Settings ───────────────────────────────────
+
+function CompletionSoundSection() {
+  const t = useTranslation()
+  const addToast = useUIStore((s) => s.addToast)
+  const {
+    completionSoundEnabled,
+    setCompletionSoundEnabled,
+    completionSoundId,
+    setCompletionSoundId,
+    completionSoundCustomName,
+    completionSoundCustomData,
+    setCompletionSoundCustom,
+  } = useSettingsStore()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const soundItems: Array<{ value: CompletionSoundSetting; label: string }> = [
+    { value: 'ding', label: t('settings.general.completionSound.ding') },
+    { value: 'bell', label: t('settings.general.completionSound.bell') },
+    { value: 'knock', label: t('settings.general.completionSound.knock') },
+    { value: 'custom', label: t('settings.general.completionSound.custom') },
+  ]
+
+  const handleCustomFile = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const data = await readAudioFileAsDataUrl(file)
+      await setCompletionSoundCustom({ name: file.name, data })
+    } catch {
+      addToast({
+        type: 'error',
+        message: t('settings.general.completionSoundUploadFailed'),
+      })
+    }
+  }
+
+  return (
+    <SettingsSection>
+      <SettingsRow
+        label={t('settings.general.completionSoundTitle')}
+        hint={t('settings.general.completionSoundDescription')}
+        align="start"
+      >
+        <Switch
+          checked={completionSoundEnabled}
+          onChange={(next) => void setCompletionSoundEnabled(next)}
+          ariaLabel={t('settings.general.completionSoundTitle')}
+        />
+      </SettingsRow>
+      {completionSoundEnabled && (
+        <>
+          <SettingsRow
+            label={t('settings.general.completionSoundChoice')}
+            align="start"
+          >
+            <div className="flex items-center gap-[8px]">
+              <SegmentedControl
+                items={soundItems}
+                value={completionSoundId}
+                onChange={(sound) => void setCompletionSoundId(sound)}
+              />
+              <button
+                type="button"
+                className="flex h-[32px] w-[32px] items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                aria-label={t('settings.general.completionSoundPreview')}
+                title={t('settings.general.completionSoundPreview')}
+                onClick={() => previewCompletionSound(completionSoundId, completionSoundCustomData)}
+              >
+                <Icon name="play_arrow" size={15} />
+              </button>
+            </div>
+          </SettingsRow>
+          {completionSoundId === 'custom' && (
+            <SettingsRow
+              label={t('settings.general.completionSoundUpload')}
+              hint={completionSoundCustomName ?? t('settings.general.completionSoundUploadHint')}
+              align="start"
+            >
+              <div className="flex items-center gap-[8px]">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {t('settings.general.completionSoundUpload')}
+                </Button>
+                {completionSoundCustomName && (
+                  <button
+                    type="button"
+                    className="flex h-[28px] w-[28px] items-center justify-center rounded-full text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                    aria-label={t('settings.general.completionSoundClear')}
+                    title={t('settings.general.completionSoundClear')}
+                    onClick={() => void setCompletionSoundCustom(null)}
+                  >
+                    <Icon name="close" size={14} />
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    void handleCustomFile(event.target.files?.[0])
+                    event.target.value = ''
+                  }}
+                />
+              </div>
+            </SettingsRow>
+          )}
+        </>
+      )}
+    </SettingsSection>
   )
 }
 
@@ -3652,7 +3774,7 @@ export function MemorySettings() {
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
-                    className="mt-[10px] border-l-2 border-[var(--color-warning)] bg-[var(--color-surface-container-low)] px-[10px] py-[8px] text-[10px] leading-[16px] text-[var(--color-text-secondary)]"
+                    className="mt-[10px] rounded-[6px] border border-[var(--color-warning)]/25 bg-[var(--color-surface-container-low)] px-[10px] py-[8px] text-[10px] leading-[16px] text-[var(--color-text-secondary)]"
                   >
                     {t('settings.memory.soulWarning')}
                   </motion.div>

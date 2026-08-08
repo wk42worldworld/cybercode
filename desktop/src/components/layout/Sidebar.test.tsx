@@ -979,7 +979,9 @@ describe('Sidebar', () => {
     expect(betaRow).toBeInTheDocument()
     fireEvent.pointerEnter(betaRow!)
 
-    expect(prefetchHistory).toHaveBeenCalledWith('session-dup', '-project-beta')
+    expect(prefetchHistory).toHaveBeenCalledWith('session-dup', '-project-beta', {
+      priority: 'interactive',
+    })
 
     await act(async () => {
       fireEvent.click(betaRow!)
@@ -989,6 +991,47 @@ describe('Sidebar', () => {
     expect(useTabStore.getState().tabs).toMatchObject([
       { sessionId: 'session-dup', projectPath: '-project-beta', title: 'Project Beta' },
     ])
+  })
+
+  it('prefetches every session while prioritizing the most recent group', async () => {
+    vi.useFakeTimers()
+    try {
+      const sessions = Array.from({ length: 32 }, (_, index) => ({
+        id: `background-session-${index}`,
+        title: `Session ${index}`,
+        lastMessage: `Message ${index}`,
+        createdAt: new Date(2026, 0, 1, 0, index).toISOString(),
+        modifiedAt: new Date(2026, 0, 1, 0, 59 - index).toISOString(),
+        messageCount: 1,
+        projectPath: '-background-project',
+        workDir: '/workspace/background-project',
+        workDirExists: true,
+        isTemporary: false,
+      }))
+      useSessionStore.setState({ sessions })
+
+      render(<Sidebar />)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300)
+        for (let index = 0; index < sessions.length + 2; index += 1) {
+          await Promise.resolve()
+        }
+      })
+
+      expect(prefetchHistory).toHaveBeenCalledTimes(sessions.length)
+      expect(prefetchHistory).toHaveBeenCalledWith(
+        'background-session-0',
+        '-background-project',
+        { priority: 'recent' },
+      )
+      expect(prefetchHistory).toHaveBeenCalledWith(
+        'background-session-31',
+        '-background-project',
+        { priority: 'background' },
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not render when the sidebar is closed', () => {

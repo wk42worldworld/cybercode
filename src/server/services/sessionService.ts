@@ -9,6 +9,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { ApiError } from '../middleware/errorHandler.js'
+import { extractUserMessageAnchors, type SessionUserAnchor } from './sessionAnchors.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { sanitizePath as sanitizePortablePath } from '../../utils/sessionStoragePortable.js'
 import {
@@ -391,6 +392,17 @@ export class SessionService {
   // Config helpers
   // --------------------------------------------------------------------------
 
+  /** LRU cache of parsed transcripts (entriesToMessages output) keyed by file
+   *  path. Full hits require size+mtime match; append-only growth is handled
+   *  by tail-parsing just the new bytes, so live sessions being actively
+   *  written still get near-instant seeks. */
+  private transcriptMessageCache = new Map<string, { size: number; mtimeMs: number; entries: RawEntry[]; messages: MessageEntry[] }>()
+  /** Per-subagent-file message cache, keyed by file path, validated by
+   *  size+mtime. Subagent caches survive main-transcript growth, so
+   *  appendSubagentToolMessages costs ~0ms when agents are idle. */
+  private subagentMessagesCache = new Map<string, { size: number; mtimeMs: number; messages: MessageEntry[] }>()
+  private static readonly TRANSCRIPT_CACHE_LIMIT = 30
+
   private getConfigDir(): string {
     return getClaudeConfigHomeDir()
   }
@@ -405,6 +417,44 @@ export class SessionService {
    */
   private sanitizePath(dirPath: string): string {
     return sanitizePortablePath(dirPath)
+  }
+
+  private touchTranscriptCache(filePath: string, value: { size: number; mtimeMs: number; entries: RawEntry[]; messages: MessageEntry[] }) {
+    this.transcriptMessageCache.delete(filePath)
+    this.transcriptMessageCache.set(filePath, value)
+    if (this.transcriptMessageCache.size > SessionService.TRANSCRIPT_CACHE_LIMIT) {
+      const oldest = this.transcriptMessageCache.keys().next().value
+      if (typeof oldest === 'string') this.transcriptMessageCache.delete(oldest)
+    }
+  }
+
+  /**
+   * Parse a transcript file into MessageEntry[] with an incremental LRU cache.
+   * Append-only growth re-parses just the new tail instead of the whole file.
+   * The subagent injection is NOT included here — it stays per-call with its
+   * own per-subagent-file cache so in-flight agents are never stale.
+   */
+  private async getParsedTranscriptMessages(filePath: string): Promise<MessageEntry[]> {
+    const stat = await fs.stat(filePath)
+    const cached = this.transcriptMessageCache.get(filePath)
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      this.touchTranscriptCache(filePath, cached)
+      return cached.messages
+    }
+
+    // Append-only growth: parse just the tail beyond the previous file size.
+    if (cached && stat.size >= cached.size && cached.mtimeMs <= stat.mtimeMs) {
+      const tailEntries = await this.readJsonlTail(filePath, cached.size)
+      const entries = [...cached.entries, ...tailEntries]
+      const messages = this.entriesToMessages(entries)
+      this.touchTranscriptCache(filePath, { size: stat.size, mtimeMs: stat.mtimeMs, entries, messages })
+      return messages
+    }
+
+    const entries = await this.readJsonlFile(filePath)
+    const messages = this.entriesToMessages(entries)
+    this.touchTranscriptCache(filePath, { size: stat.size, mtimeMs: stat.mtimeMs, entries, messages })
+    return messages
   }
 
   // --------------------------------------------------------------------------
@@ -423,6 +473,25 @@ export class SessionService {
     }
 
     return this.parseJsonlEntries(content)
+  }
+
+  /** Read and parse only the bytes appended after `offset` (line-aligned). */
+  private async readJsonlTail(filePath: string, offset: number): Promise<RawEntry[]> {
+    let handle: fs.FileHandle | null = null
+    try {
+      handle = await fs.open(filePath, 'r')
+      const stat = await handle.stat()
+      const length = stat.size - offset
+      if (length <= 0) return []
+      const buffer = Buffer.alloc(length)
+      await handle.read(buffer, 0, length, offset)
+      return this.parseJsonlEntries(buffer.toString('utf-8'))
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw err
+    } finally {
+      await handle?.close()
+    }
   }
 
   private parseJsonlEntries(content: string): RawEntry[] {
@@ -970,6 +1039,13 @@ export class SessionService {
     agentId: string,
   ): Promise<MessageEntry[]> {
     const filePath = this.subagentTranscriptPath(projectDir, sessionId, agentId)
+    const stat = await fs.stat(filePath).catch(() => null)
+    if (stat) {
+      const cached = this.subagentMessagesCache.get(filePath)
+      if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+        return cached.messages
+      }
+    }
     const entries = await this.readJsonlFile(filePath)
     const namespace = `${parentToolUseId}/${agentId}`
     const messages: MessageEntry[] = []
@@ -996,6 +1072,13 @@ export class SessionService {
       }
     }
 
+    if (stat) {
+      this.subagentMessagesCache.set(filePath, { size: stat.size, mtimeMs: stat.mtimeMs, messages })
+      if (this.subagentMessagesCache.size > SessionService.TRANSCRIPT_CACHE_LIMIT * 4) {
+        const oldest = this.subagentMessagesCache.keys().next().value
+        if (typeof oldest === 'string') this.subagentMessagesCache.delete(oldest)
+      }
+    }
     return messages
   }
 
@@ -1256,9 +1339,30 @@ export class SessionService {
 
   private paginateMessages(
     allMessages: MessageEntry[],
-    options?: { limit?: number; before?: string; after?: string },
-  ): { messages: MessageEntry[]; hasMore: boolean } {
+    options?: { limit?: number; before?: string; after?: string; seek?: string },
+  ): { messages: MessageEntry[]; hasMore: boolean; hasMoreAfter?: boolean; seekFound?: boolean } {
     const limit = Math.min(Math.max(options?.limit ?? 50, 1), 1000)
+
+    // Seek: return a window centered on the target message. One full-file
+    // read locates the message directly instead of paginating backwards page
+    // by page (36+ reads for long sessions).
+    if (options?.seek) {
+      const targetIndex = allMessages.findIndex((m) => m.id === options.seek)
+      if (targetIndex < 0) {
+        return { messages: [], hasMore: false, hasMoreAfter: false, seekFound: false }
+      }
+      const half = Math.floor(limit / 2)
+      let sliceStart = Math.max(0, targetIndex - half)
+      const sliceEnd = Math.min(allMessages.length, sliceStart + limit)
+      sliceStart = Math.max(0, sliceEnd - limit)
+      const slice = allMessages.slice(sliceStart, sliceEnd)
+      return {
+        messages: slice,
+        hasMore: sliceStart > 0,
+        hasMoreAfter: sliceEnd < allMessages.length,
+        seekFound: true,
+      }
+    }
 
     if (options?.before) {
       const cursorIndex = allMessages.findIndex((m) => m.id === options.before)
@@ -1794,8 +1898,8 @@ export class SessionService {
    */
   async getSessionMessages(
     sessionId: string,
-    options?: { limit?: number; before?: string; after?: string; projectPath?: string },
-  ): Promise<{ messages: MessageEntry[]; hasMore: boolean }> {
+    options?: { limit?: number; before?: string; after?: string; seek?: string; projectPath?: string },
+  ): Promise<{ messages: MessageEntry[]; hasMore: boolean; hasMoreAfter?: boolean; seekFound?: boolean }> {
     let found = await this.findSessionFile(sessionId, { projectPath: options?.projectPath })
     if (!found && options?.projectPath) {
       // Session tabs can outlive project renames or moves. Reading history is
@@ -1807,24 +1911,84 @@ export class SessionService {
     }
 
     const limit = Math.min(Math.max(options?.limit ?? 50, 1), 1000)
-    const isInitialPage = !options?.before && !options?.after
-    const recentHistory = isInitialPage
-      ? await this.readRecentJsonlEntries(
-          found.filePath,
-          limit + RECENT_HISTORY_LOOKBACK_MESSAGES,
-        )
-      : null
-    const entries = recentHistory?.entries ?? await this.readJsonlFile(found.filePath)
+    const isInitialPage = !options?.before && !options?.after && !options?.seek
+    let entries: RawEntry[]
+    let hasMoreFromPartialRead: boolean = false
+
+    if (isInitialPage) {
+      const recentHistory = await this.readRecentJsonlEntries(
+        found.filePath,
+        limit + RECENT_HISTORY_LOOKBACK_MESSAGES,
+      )
+      entries = recentHistory.entries
+      hasMoreFromPartialRead = recentHistory.hasEarlierEntries
+    } else {
+      // Cursor pagination (before/after/seek): reuse the mtime-keyed parsed
+      // transcript cache instead of re-reading and re-parsing the whole file.
+      const cachedMessages = await this.getParsedTranscriptMessages(found.filePath)
+      const allMessages = await this.appendSubagentToolMessages(
+        found.projectDir,
+        sessionId,
+        cachedMessages,
+      )
+      let page = this.paginateMessages(allMessages, options)
+
+      return {
+        ...page,
+        hasMore: page.hasMore,
+      }
+    }
     const allMessages = await this.appendSubagentToolMessages(
       found.projectDir,
       sessionId,
       this.entriesToMessages(entries),
     )
-    const page = this.paginateMessages(allMessages, options)
+    let page = this.paginateMessages(allMessages, options)
+
+    // Fallback: if we did a partial read and the cursor wasn't found,
+    // load the full file and try again
+    if (isInitialPage && hasMoreFromPartialRead && page.messages.length === 0 && (options?.before || options?.after)) {
+      const fullEntries = await this.readJsonlFile(found.filePath)
+      const fullAllMessages = await this.appendSubagentToolMessages(
+        found.projectDir,
+        sessionId,
+        this.entriesToMessages(fullEntries),
+      )
+      page = this.paginateMessages(fullAllMessages, options)
+      hasMoreFromPartialRead = false // Now we have the full view
+    }
+
+    // Only use hasMoreFromPartialRead for the initial page and when we
+    // actually returned messages from the end (not from a cursor position)
+    const effectiveHasMore = (isInitialPage && !options?.before && !options?.after && page.messages.length > 0)
+      ? (page.hasMore || hasMoreFromPartialRead)
+      : page.hasMore
+
     return {
       ...page,
-      hasMore: page.hasMore || recentHistory?.hasEarlierEntries === true,
+      hasMore: effectiveHasMore,
     }
+  }
+
+  /**
+   * Return the full list of real user-question anchors for a session,
+   * regardless of what the client has loaded into its sliding window.
+   * Reuses the same transcript parsing as the paginated history endpoint.
+   */
+  async getSessionUserAnchors(
+    sessionId: string,
+    options?: { projectPath?: string },
+  ): Promise<SessionUserAnchor[]> {
+    let found = await this.findSessionFile(sessionId, { projectPath: options?.projectPath })
+    if (!found && options?.projectPath) {
+      // Read-only: recover by UUID when the project locator went stale.
+      found = await this.findSessionFile(sessionId)
+    }
+    if (!found) {
+      throw ApiError.notFound(`Session not found: ${sessionId}`)
+    }
+    const messages = await this.getParsedTranscriptMessages(found.filePath)
+    return extractUserMessageAnchors(messages)
   }
 
   async createProjectFolder(

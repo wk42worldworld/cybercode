@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { prepareLinuxSidecarPackage } from './linuxSidecarPackaging'
+import { SIDECAR_MINIFY_OPTIONS } from './sidecarBuildConfig'
 import { detectHostTriple, mapTargetTripleToBun } from './sidecarTarget'
 
 const desktopRoot = path.resolve(import.meta.dir, '..')
@@ -191,9 +192,10 @@ async function compileExecutable({
 }): Promise<string> {
   const result = await Bun.build({
     entrypoints: [entrypoint],
-    // minify whitespace + identifiers + dead-code 大概能省 5-15% 的二进制大小，
-    // 代价是 stack trace 里的函数名变成短名 —— 终端用户场景可接受。
-    minify: { whitespace: true, identifiers: true, syntax: true },
+    // Bun 1.3.14 identifier minification makes this large multi-mode executable
+    // continuously spin JavaScriptCore heap-helper threads while idle. Syntax
+    // and whitespace minification are safe and retain most of the size saving.
+    minify: SIDECAR_MINIFY_OPTIONS,
     sourcemap: 'none',
     target: 'bun',
     define: {

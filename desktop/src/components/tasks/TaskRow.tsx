@@ -71,22 +71,11 @@ export function TaskRow({ task, showLogs, onToggleLogs }: Props) {
   const iconBtn = 'p-1.5 rounded-full transition-colors'
   const menuItem = 'flex items-center gap-2.5 w-full px-3 py-2 text-[12px] text-left rounded-[8px] transition-colors'
 
-  // Determine status line color:
-  // completed = green, running = accent + pulse, pending/disabled = gray
-  const statusLineClass = isRunning
-    ? 'bg-[var(--color-brand)] animate-pulse-dot'
-    : task.enabled
-      ? 'bg-[var(--color-success)]'
-      : 'bg-[var(--color-text-tertiary)]'
-
   return (
     <div className="border-b border-[var(--color-border-separator)] bg-[var(--color-surface-container)] last:border-b-0">
       <div className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-surface-hover)] transition-colors group relative">
-        {/* Left status vertical line */}
-        <div className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${statusLineClass}`} />
-
         {/* Left: info */}
-        <div className="flex items-center gap-3 min-w-0 flex-1 pl-2">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${task.enabled ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
           <div className="min-w-0">
             <div className="text-[14px] font-medium text-[var(--color-text-primary)] truncate">{task.name}</div>

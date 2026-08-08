@@ -32,7 +32,7 @@ export function InlineTaskSummary({ tasks }: { tasks: TaskSummaryItem[] }) {
           const iconColor = task.status === 'completed'
             ? 'text-[var(--color-success)]'
             : isRunning
-              ? 'text-[var(--color-brand)] animate-accent-pulse-line'
+              ? 'text-[var(--color-brand)] animate-pulse-dot'
               : 'text-[var(--color-text-tertiary)]'
 
           return (

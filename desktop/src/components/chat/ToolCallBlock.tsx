@@ -33,6 +33,35 @@ const TOOL_ICONS: Record<string, string> = {
   Skill: 'auto_awesome',
 }
 
+/**
+ * The expanded content of a tool call (diff / terminal / output viewers)
+ * without its own header row. Used by ToolCallGroup so a single tool's
+ * details render directly under the unified group header.
+ */
+export function ToolCallDetails({ toolName, input, result }: Props) {
+  const t = useTranslation()
+  const obj = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+  const preview = useMemo(() => renderPreview(toolName, obj, result, t), [obj, result, toolName, t])
+  const details = useMemo(() => renderDetails(toolName, obj, t), [obj, toolName, t])
+  if (!preview && !details) return null
+  return (
+    <div className="space-y-2">
+      {preview}
+      {details}
+    </div>
+  )
+}
+
+/** One-line result summary ("N lines output" / first error line). */
+export function getToolResultSummaryText(
+  toolName: string,
+  content: unknown,
+  isError: boolean,
+  t?: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string {
+  return getToolResultSummary(toolName, content, isError, t)
+}
+
 export function ToolCallBlock({ toolName, input, result, compact = false, running }: Props) {
   const [expanded, setExpanded] = useState(false)
   const t = useTranslation()
@@ -54,8 +83,6 @@ export function ToolCallBlock({ toolName, input, result, compact = false, runnin
   const details = useMemo(() => renderDetails(toolName, obj, t), [obj, toolName, t])
   const hasResultDetails = Boolean(result && extractTextContent(result.content))
   const expandable = toolName === 'Edit' || toolName === 'Write' || hasResultDetails
-
-  // Left accent line removed — cleaner design
 
   return (
     <div

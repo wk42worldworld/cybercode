@@ -1,5 +1,85 @@
 import type { UIMessage } from '../types/chat'
 
+function extractTextContent(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) {
+    return content
+      .map((chunk) => {
+        if (typeof chunk === 'string') return chunk
+        if (chunk && typeof chunk === 'object' && 'text' in chunk) {
+          return typeof chunk.text === 'string' ? chunk.text : ''
+        }
+        return ''
+      })
+      .filter(Boolean)
+      .join('\n')
+  }
+  if (content && typeof content === 'object') {
+    if (
+      'status' in content
+      && (content as Record<string, unknown>).status === 'completed'
+      && Array.isArray((content as Record<string, unknown>).content)
+    ) {
+      return extractTextContent((content as Record<string, unknown>).content)
+    }
+    return JSON.stringify(content)
+  }
+  return ''
+}
+
+export function isAgentLaunchResult(content: unknown): boolean {
+  const text = extractTextContent(content).trim()
+  if (!text) return false
+
+  return (
+    text.startsWith('Async agent launched successfully.')
+    || text.startsWith('Remote agent launched in CCR.')
+    || (
+      text.startsWith('Spawned successfully.')
+      && text.includes('The agent is now running and will receive instructions via mailbox.')
+    )
+    || text.includes('The agent is working in the background. You will be notified automatically when it completes.')
+    || text.includes('The agent is running remotely. You will be notified automatically when it completes.')
+  )
+}
+
+function hasBackgroundTaskId(content: unknown): boolean {
+  if (!content || typeof content !== 'object') return false
+  if (
+    'backgroundTaskId' in content
+    && typeof (content as Record<string, unknown>).backgroundTaskId === 'string'
+    && Boolean((content as Record<string, unknown>).backgroundTaskId)
+  ) {
+    return true
+  }
+  if (Array.isArray(content)) return content.some(hasBackgroundTaskId)
+  if (
+    'content' in content
+    && Array.isArray((content as Record<string, unknown>).content)
+  ) {
+    return (content as { content: unknown[] }).content.some(hasBackgroundTaskId)
+  }
+  return false
+}
+
+function isBackgroundTaskLaunch(
+  toolUse: Extract<UIMessage, { type: 'tool_use' }>,
+  result: Extract<UIMessage, { type: 'tool_result' }> | undefined,
+): boolean {
+  if (!result || result.isError) return false
+  const input = toolUse.input && typeof toolUse.input === 'object'
+    ? toolUse.input as Record<string, unknown>
+    : {}
+  const text = extractTextContent(result.content)
+  return (
+    input.run_in_background === true
+    || isAgentLaunchResult(result.content)
+    || hasBackgroundTaskId(result.content)
+    || text.includes('Command running in background with ID:')
+    || text.includes('was moved to the background with ID:')
+  )
+}
+
 /** Return unresolved tool calls belonging to the most recent user turn. */
 export function getPendingToolUseIdsForLatestTurn(
   messages: UIMessage[],
@@ -26,6 +106,41 @@ export function getPendingToolUseIdsForLatestTurn(
       message?.type === 'tool_use' &&
       message.toolUseId &&
       !resultIds.has(message.toolUseId)
+    ) {
+      pendingIds.add(message.toolUseId)
+    }
+  }
+
+  return pendingIds
+}
+
+/** Return background tools that launched but have not reported a terminal status. */
+export function getPendingBackgroundTaskIdsForLatestTurn(
+  messages: UIMessage[],
+  terminalTaskIds: ReadonlySet<string>,
+): Set<string> {
+  let latestUserIndex = -1
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+    if (message?.type === 'user_text' && !message.pending) {
+      latestUserIndex = index
+      break
+    }
+  }
+
+  const results = new Map<string, Extract<UIMessage, { type: 'tool_result' }>>()
+  for (let index = latestUserIndex + 1; index < messages.length; index += 1) {
+    const message = messages[index]
+    if (message?.type === 'tool_result') results.set(message.toolUseId, message)
+  }
+
+  const pendingIds = new Set<string>()
+  for (let index = latestUserIndex + 1; index < messages.length; index += 1) {
+    const message = messages[index]
+    if (
+      message?.type === 'tool_use'
+      && !terminalTaskIds.has(message.toolUseId)
+      && isBackgroundTaskLaunch(message, results.get(message.toolUseId))
     ) {
       pendingIds.add(message.toolUseId)
     }

@@ -135,6 +135,51 @@
   --ai-shimmer-glow: rgba(103, 232, 249, 0.24);
 }
 
+/* The live thinking title uses a clipped overlay instead of repainting a
+   background-position on every frame. This stays smooth during token bursts. */
+.ai-thinking-sweep-label {
+  --ai-thinking-sweep-base: rgba(107, 114, 128, 0.82);
+  --ai-thinking-sweep-sheen: rgba(75, 85, 99, 0.92);
+  --ai-thinking-sweep-glow: rgba(0, 122, 255, 0.24);
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+  contain: paint;
+  color: var(--ai-thinking-sweep-base);
+}
+
+[data-theme="dark"] .ai-thinking-sweep-label {
+  --ai-thinking-sweep-base: rgba(156, 163, 175, 0.78);
+  --ai-thinking-sweep-sheen: rgba(229, 231, 235, 0.86);
+  --ai-thinking-sweep-glow: rgba(103, 232, 249, 0.26);
+}
+
+.ai-thinking-sweep-label::after {
+  content: attr(data-label);
+  position: absolute;
+  inset: 0;
+  color: var(--ai-thinking-sweep-sheen);
+  text-shadow: 0 0 7px var(--ai-thinking-sweep-glow);
+  pointer-events: none;
+  -webkit-clip-path: polygon(-35% 0, -10% 0, 0 100%, -25% 100%);
+  clip-path: polygon(-35% 0, -10% 0, 0 100%, -25% 100%);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: clip-path;
+  animation: ai-thinking-text-sweep 3s linear infinite;
+}
+
+@keyframes ai-thinking-text-sweep {
+  from {
+    -webkit-clip-path: polygon(-35% 0, -10% 0, 0 100%, -25% 100%);
+    clip-path: polygon(-35% 0, -10% 0, 0 100%, -25% 100%);
+  }
+  to {
+    -webkit-clip-path: polygon(100% 0, 125% 0, 135% 100%, 110% 100%);
+    clip-path: polygon(100% 0, 125% 0, 135% 100%, 110% 100%);
+  }
+}
+
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .ai-shimmer-text {
     background-image:
@@ -184,6 +229,42 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes anchor-user-bubble-highlight-odd {
+  0%, 36%, 72%, 100% { background-color: var(--color-message-user-bg); }
+  18%, 54% { background-color: var(--color-message-user-highlight-bg); }
+}
+
+@keyframes anchor-user-bubble-highlight-even {
+  0%, 36%, 72%, 100% { background-color: var(--color-message-user-bg); }
+  18%, 54% { background-color: var(--color-message-user-highlight-bg); }
+}
+
+.anchor-user-bubble-highlight-odd {
+  animation: anchor-user-bubble-highlight-odd 1.2s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+.anchor-user-bubble-highlight-even {
+  animation: anchor-user-bubble-highlight-even 1.2s cubic-bezier(0.45, 0, 0.55, 1) both;
+}
+
+@keyframes anchor-tooltip-enter {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.anchor-tooltip-enter {
+  animation: anchor-tooltip-enter 90ms ease-out both;
+}
+
+@keyframes anchor-bar-loading {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.85; }
+}
+
+.anchor-bar-loading {
+  animation: anchor-bar-loading 1s ease-in-out infinite;
+}
+
 .breathing-dot-ring {
   animation: breathing-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -198,6 +279,11 @@
     animation: none;
     background: none;
     -webkit-text-fill-color: currentColor;
+  }
+
+  .ai-thinking-sweep-label::after {
+    display: none;
+    animation: none;
   }
 
   .breathing-dot-ring,
@@ -367,6 +453,7 @@
 
   /* WeChat message bubble colors */
   --color-message-user-bg: #000000;
+  --color-message-user-highlight-bg: #686870;
   --color-message-user-fg: #ffffff;
   --color-message-assistant-bg: #ffffff;
   --color-chat-bg: #ffffff;
@@ -556,6 +643,7 @@
 
   /* Chat colors - dark mode */
   --color-message-user-bg: #f4f4f5;
+  --color-message-user-highlight-bg: #a4a4ac;
   --color-message-user-fg: #111315;
   --color-message-assistant-bg: #191c20;
   --color-chat-bg: #111315;
@@ -687,6 +775,16 @@ html[data-runtime="tauri"] #root {
   font-feature-settings: 'liga' 0, 'clig' 0, 'calt' 0, 'kern' 0;
   font-variant-ligatures: none;
   font-kerning: none;
+}
+
+.user-message-bubble {
+  background-color: var(--color-message-user-bg);
+  color: var(--color-message-user-fg);
+}
+
+.user-message-bubble .chat-bubble-text {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
 }
 
 .chat-bubble-text::selection,
@@ -2304,12 +2402,6 @@ button, input, textarea, select, a, [role="button"] {
   100% { background-position: 200% 50%; }
 }
 
-/* Accent pulse line — left-border indicator on tool/thinking blocks */
-@keyframes accent-pulse-line {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
 /* Tool running text sweep — GPT-style highlight pass across executing tool labels */
 .tool-running-text {
   --tool-text-sweep-base: color-mix(in srgb, var(--color-text-secondary) 78%, transparent);
@@ -2416,10 +2508,30 @@ button, input, textarea, select, a, [role="button"] {
 .animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 .animate-scan-line { animation: scan-line 2s linear infinite; }
-.animate-accent-pulse-line { animation: accent-pulse-line 1.5s ease-in-out infinite; }
 .animate-fade-in { animation: fade-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
 .animate-modal-in { animation: modal-in 240ms cubic-bezier(0.16, 1, 0.3, 1); }
 .animate-slide-down { animation: slide-down 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes stop-progress-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -47; }
+}
+
+.stop-progress-indicator {
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+}
+
+.stop-progress-arc {
+  animation: stop-progress-flow 880ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stop-progress-arc {
+    animation: none;
+    stroke-dasharray: 22 25;
+  }
+}
 
 @keyframes progress-fill {
   from { width: 0%; }
@@ -2468,6 +2580,90 @@ button, input, textarea, select, a, [role="button"] {
   );
   background-size: 200% 100%;
   animation: shimmer-slide 1.6s ease-in-out infinite;
+}
+
+/* Session history loading uses the same restrained wordmark motion as boot.
+   The moving highlight is clipped to the lettering pixels only. */
+.session-history-loading-brand {
+  width: min(240px, calc(100% - 48px));
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.session-history-loading-wordmark-frame {
+  position: relative;
+  overflow: hidden;
+}
+
+.session-history-loading-wordmark {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.session-history-loading-wordmark-frame {
+  width: 100%;
+  aspect-ratio: 240 / 50;
+}
+
+.session-history-loading-wordmark-dark {
+  display: none;
+}
+
+[data-theme="dark"] .session-history-loading-wordmark-light {
+  display: none;
+}
+
+[data-theme="dark"] .session-history-loading-wordmark-dark {
+  display: block;
+}
+
+.session-history-loading-shine {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.session-history-loading-wordmark-shine {
+  -webkit-mask: url('/brand/cybercode-wordmark-long-flat-v4.png') center / contain no-repeat;
+  mask: url('/brand/cybercode-wordmark-long-flat-v4.png') center / contain no-repeat;
+}
+
+.session-history-loading-shine-beam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 62%;
+  background: linear-gradient(
+    108deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.16) 22%,
+    rgba(255, 255, 255, 0.96) 45%,
+    rgba(73, 211, 255, 0.58) 55%,
+    transparent 75%
+  );
+  opacity: 0;
+  transform: translateX(-120%);
+  will-change: transform;
+  animation: session-history-brand-shine 2.6s cubic-bezier(0.45, 0, 0.2, 1) 300ms infinite;
+}
+
+@keyframes session-history-brand-shine {
+  0% { transform: translateX(-120%); opacity: 0; }
+  6% { opacity: 1; }
+  42% { transform: translateX(290%); opacity: 1; }
+  48%, 100% { transform: translateX(290%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-history-loading-shine {
+    display: none;
+  }
 }
 
 /* ─── WeChat Mac Theme Styles ───────────────────────── */
@@ -2607,6 +2803,7 @@ button, input, textarea, select, a, [role="button"] {
 
 .message-scrollbar {
   overflow-y: scroll !important;
+  overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
   scrollbar-width: auto;
   scrollbar-color: #e8e8ea transparent;

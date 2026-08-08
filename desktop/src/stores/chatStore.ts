@@ -10,8 +10,13 @@ import { useTabStore } from './tabStore'
 import { t } from '../i18n'
 import { randomSpinnerVerb } from '../config/spinnerVerbs'
 import { getDefaultSessionTitle, isDefaultSessionTitle } from '../utils/sessionTitle'
-import { getPendingToolUseIdsForLatestTurn } from '../utils/toolCallState'
-import type { MessageEntry } from '../types/session'
+import {
+  getPendingBackgroundTaskIdsForLatestTurn,
+  getPendingToolUseIdsForLatestTurn,
+} from '../utils/toolCallState'
+import { playCompletionSound } from '../utils/completionSound'
+import { useSettingsStore } from './settingsStore'
+import type { MessageEntry, SessionMessageAnchor } from '../types/session'
 import {
   mapHistoryMessages as mapHistoryMessagesImpl,
   reconstructAgentNotifications as reconstructAgentNotificationsImpl,
@@ -51,10 +56,19 @@ export const HISTORY_PAGE_SIZE = 50
 export const HISTORY_LOAD_LIMIT = 80
 /** Max messages kept in the visible window. Sliding window trims beyond this. */
 export const WINDOW_SIZE = 200
-const HISTORY_PREFETCH_CACHE_LIMIT = 12
+/** Safety cap for loadHistoryUntil pagination loops. */
+export const HISTORY_UNTIL_MAX_PAGES = 40
+const HISTORY_PREFETCH_CACHE_LIMIT = 96
+const HISTORY_PREFETCH_CACHE_MAX_BYTES = 32 * 1024 * 1024
 const HISTORY_PREFETCH_TTL_MS = 5 * 60_000
 const HISTORY_PREFETCH_TIMEOUT_MS = 4_000
 const HISTORY_PREFETCH_PROMOTION_WAIT_MS = 80
+type HistoryPrefetchPriority = 'background' | 'recent' | 'interactive'
+const HISTORY_PREFETCH_PRIORITY: Record<HistoryPrefetchPriority, number> = {
+  background: 0,
+  recent: 1,
+  interactive: 2,
+}
 
 export type PerSessionState = {
   projectPath?: string
@@ -65,6 +79,22 @@ export type PerSessionState = {
   /** Older messages that were trimmed from the head of `messages` when the
    *  user scrolled down (loadMoreRecent).  Restored by loadMoreHistory. */
   historyBuffer: UIMessage[]
+  /** Explicit server-side pagination cursor (raw transcript message id of the
+   *  oldest fetched entry). Preferred over the first UI message's serverId so
+   *  pages that map to zero UI messages still advance the cursor. */
+  historyCursor?: string
+  /** Server-side forward pagination cursor (raw transcript message id of the
+   *  newest fetched entry). Set by seek-based jumps so loadMoreRecent can page
+   *  forward from the server once recentBuffer is exhausted. */
+  forwardCursor?: string
+  /** Whether the server has newer messages beyond the current window tail.
+   *  Set by seek-based jumps. */
+  hasMoreRecent?: boolean
+  /** Full-session user-question anchors from the server (covers messages that
+   *  are not loaded into the sliding window yet). Undefined until fetched. */
+  anchors?: SessionMessageAnchor[]
+  /** Whether the anchors fetch has completed (even with an empty list). */
+  anchorsLoaded?: boolean
   /** Newer messages that were trimmed from the tail of `messages` when the
    *  user scrolled up (loadMoreHistory).  Restored by loadMoreRecent. */
   recentBuffer: UIMessage[]
@@ -79,6 +109,10 @@ export type PerSessionState = {
    * away+back several times. */
   historyLoadState?: 'idle' | 'loading' | 'loaded' | 'error'
   chatState: ChatState
+  /** A completion signal arrived, but the turn remains active until all
+   * background work and the settle window have finished. */
+  turnCompletionPending?: boolean
+  stopState?: 'idle' | 'requesting' | 'stopping'
   connectionState: ConnectionState
   streamingText: string
   /** Completed assistant text that remains in the live bubble until its visual
@@ -139,6 +173,8 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   allMessagesLoaded: false,
   historyLoadState: 'idle',
   chatState: 'idle',
+  turnCompletionPending: false,
+  stopState: 'idle',
   connectionState: 'disconnected',
   streamingText: '',
   settlingAssistant: null,
@@ -192,7 +228,11 @@ type ChatStore = {
     options?: { deferSocket?: boolean },
   ) => void
   prewarmSession: (sessionId: string) => void
-  prefetchHistory: (sessionId: string, projectPath?: string) => Promise<void>
+  prefetchHistory: (
+    sessionId: string,
+    projectPath?: string,
+    options?: { priority?: HistoryPrefetchPriority },
+  ) => Promise<void>
   suspendIdleConnectionsExcept: (sessionId: string) => void
   disconnectSession: (sessionId: string) => void
   ensureSessionReady: (sessionId: string, projectPath?: string) => Promise<void>
@@ -238,7 +278,18 @@ type ChatStore = {
   /** Load older messages via server-side pagination. No-op if all messages are loaded. */
   loadMoreHistory: (sessionId: string) => Promise<void>
   /** Restore newer messages that were trimmed from the tail of `messages`. */
-  loadMoreRecent: (sessionId: string) => void
+  loadMoreRecent: (sessionId: string) => Promise<void>
+  /** Fetch the full-session user-question anchor list (server-side, covers
+   *  messages outside the loaded window). Deduped per session. */
+  loadAnchors: (
+    sessionId: string,
+    projectPath?: string,
+    options?: { force?: boolean },
+  ) => Promise<void>
+  /** Page backwards through history until `messageId` is present in
+   *  `messages` (or everything is loaded). Resolves true when the target is
+   *  in the visible window. Concurrent calls per session are serialized. */
+  loadHistoryUntil: (sessionId: string, messageId: string) => Promise<boolean>
   reloadHistory: (sessionId: string, projectPath?: string) => Promise<void>
   queueComposerPrefill: (
     sessionId: string,
@@ -377,6 +428,93 @@ function mergePendingSteers(steers: PendingSteer[]): { content: string; attachme
   }
 }
 
+const TURN_COMPLETION_SETTLE_MS = 800
+const turnCompletionIntents = new Set<string>()
+const turnCompletionTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function clearTurnCompletionState(sessionId: string): void {
+  const timer = turnCompletionTimers.get(sessionId)
+  if (timer) clearTimeout(timer)
+  turnCompletionTimers.delete(sessionId)
+  turnCompletionIntents.delete(sessionId)
+}
+
+function pauseTurnCompletion(sessionId: string): void {
+  const timer = turnCompletionTimers.get(sessionId)
+  if (timer) clearTimeout(timer)
+  turnCompletionTimers.delete(sessionId)
+}
+
+function hasTurnCompletionBlockers(session: PerSessionState): boolean {
+  if (
+    !session.turnCompletionPending
+    || session.stopState === 'requesting'
+    || session.stopState === 'stopping'
+    || session.activeToolUseId
+    || session.pendingPermission
+    || session.pendingComputerUsePermission
+    || session.computerUseRuntime
+    || getPendingToolUseIdsForLatestTurn(session.messages).size > 0
+    || (session.pendingSteers ?? []).some((steer) => (
+      steer.status === 'queued'
+      || steer.status === 'processing'
+    ))
+  ) {
+    return true
+  }
+
+  return getPendingBackgroundTaskIdsForLatestTurn(
+    session.messages,
+    new Set(Object.keys(session.agentTaskNotifications)),
+  ).size > 0
+}
+
+function scheduleTurnCompletionIfSettled(
+  sessionId: string,
+  getSession: () => PerSessionState | undefined,
+  finalizeTurn: () => boolean,
+): void {
+  if (!turnCompletionIntents.has(sessionId)) return
+  pauseTurnCompletion(sessionId)
+
+  const session = getSession()
+  if (!session || hasTurnCompletionBlockers(session)) return
+
+  const timer = setTimeout(() => {
+    turnCompletionTimers.delete(sessionId)
+    if (!turnCompletionIntents.has(sessionId)) return
+
+    const latestSession = getSession()
+    if (!latestSession?.turnCompletionPending) {
+      turnCompletionIntents.delete(sessionId)
+      return
+    }
+    if (!latestSession || hasTurnCompletionBlockers(latestSession)) return
+
+    turnCompletionIntents.delete(sessionId)
+    if (finalizeTurn()) {
+      playCompletionSound(useSettingsStore.getState())
+    }
+  }, TURN_COMPLETION_SETTLE_MS)
+  turnCompletionTimers.set(sessionId, timer)
+}
+
+function isTurnActivity(msg: ServerMessage): boolean {
+  if (msg.type === 'status') return msg.state !== 'idle'
+  if (msg.type === 'steer_status') {
+    return msg.status === 'queued' || msg.status === 'processing'
+  }
+  return (
+    msg.type === 'content_start'
+    || msg.type === 'content_delta'
+    || msg.type === 'thinking'
+    || msg.type === 'tool_use_complete'
+    || msg.type === 'tool_result'
+    || msg.type === 'permission_request'
+    || msg.type === 'computer_use_permission_request'
+  )
+}
+
 // Streaming throttle for content_delta
 const pendingDeltas = new Map<string, string>()
 const flushTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -490,7 +628,18 @@ function updateSessionIn(
   return { ...sessions, [sessionId]: { ...session, ...updater(session) } }
 }
 
-type SessionHistorySnapshot = ParsedHistory & { hasMore: boolean }
+/** A UI message matches a transcript id via its own id or its serverId. */
+function messageMatchesId(message: UIMessage, id: string): boolean {
+  return message.id === id || ('serverId' in message && message.serverId === id)
+}
+
+type SessionHistorySnapshot = ParsedHistory & {
+  hasMore: boolean
+  /** Raw id of the oldest transcript entry in this page (before UI mapping).
+   *  Used as the next pagination cursor so pages that map to zero UI messages
+   *  still make progress. */
+  firstMessageId?: string
+}
 
 async function fetchAndMapSessionHistory(
   sessionId: string,
@@ -505,8 +654,11 @@ async function fetchAndMapSessionHistory(
     let response: Awaited<ReturnType<typeof sessionsApi.getMessages>>
     const getMessages = (
       requestParams?: { limit?: number; before?: string; after?: string; projectPath?: string },
-    ) => requestOptions?.timeout
-      ? sessionsApi.getMessages(sessionId, requestParams, { timeout: requestOptions.timeout })
+    ) => requestOptions
+      ? sessionsApi.getMessages(sessionId, requestParams, {
+          timeout: requestOptions.timeout,
+          recoverConnection: requestOptions.requestClass !== 'prefetch',
+        })
       : sessionsApi.getMessages(sessionId, requestParams)
     try {
       response = await getMessages(params)
@@ -528,6 +680,7 @@ async function fetchAndMapSessionHistory(
       lastTodos: parsed.lastTodos,
       hasMessagesAfterTaskCompletion: parsed.hasMessagesAfterTaskCompletion,
       hasMore,
+      firstMessageId: messages[0]?.id,
     }
   })()
 
@@ -546,13 +699,20 @@ async function fetchAndMapSessionHistory(
 type SessionHistoryCacheEntry = {
   value: SessionHistorySnapshot
   cachedAt: number
+  lastAccessedAt: number
+  priority: number
+  estimatedBytes: number
 }
 
 const historyPrefetchCache = new Map<string, SessionHistoryCacheEntry>()
 const historyPrefetchRequests = new Map<string, Promise<SessionHistorySnapshot | null>>()
+const historyPrefetchRequestPriorities = new Map<string, number>()
 const historyFetchRequests = new Map<string, Promise<SessionHistorySnapshot>>()
 const sessionReadyRequests = new Map<string, Promise<void>>()
+const anchorsFetchRequests = new Map<string, Promise<void>>()
+const historyUntilChains = new Map<string, Promise<unknown>>()
 let foregroundSessionKey: string | null = null
+let historyPrefetchCacheBytes = 0
 
 function historyPrefetchKey(sessionId: string, projectPath?: string) {
   return `${sessionId}\u0000${projectPath ?? ''}`
@@ -573,26 +733,81 @@ function historyFetchKey(
   ].join('\u0000')
 }
 
-function cachePrefetchedHistory(key: string, value: SessionHistorySnapshot) {
+function deleteCachedHistory(key: string) {
+  const cached = historyPrefetchCache.get(key)
+  if (!cached) return
+  historyPrefetchCacheBytes = Math.max(0, historyPrefetchCacheBytes - cached.estimatedBytes)
   historyPrefetchCache.delete(key)
-  historyPrefetchCache.set(key, { value, cachedAt: Date.now() })
-  while (historyPrefetchCache.size > HISTORY_PREFETCH_CACHE_LIMIT) {
-    const oldestKey = historyPrefetchCache.keys().next().value
-    if (typeof oldestKey !== 'string') break
-    historyPrefetchCache.delete(oldestKey)
+}
+
+function estimateHistorySnapshotBytes(value: SessionHistorySnapshot) {
+  try {
+    return JSON.stringify(value).length * 2
+  } catch {
+    return Number.POSITIVE_INFINITY
   }
 }
 
-function startHistoryPrefetch(sessionId: string, projectPath?: string) {
+function cachePrefetchedHistory(key: string, value: SessionHistorySnapshot, priority: number) {
+  const estimatedBytes = estimateHistorySnapshotBytes(value)
+  deleteCachedHistory(key)
+  if (estimatedBytes > HISTORY_PREFETCH_CACHE_MAX_BYTES) return
+
+  const now = Date.now()
+  historyPrefetchCache.set(key, {
+    value,
+    cachedAt: now,
+    lastAccessedAt: now,
+    priority,
+    estimatedBytes,
+  })
+  historyPrefetchCacheBytes += estimatedBytes
+
+  while (
+    historyPrefetchCache.size > HISTORY_PREFETCH_CACHE_LIMIT ||
+    historyPrefetchCacheBytes > HISTORY_PREFETCH_CACHE_MAX_BYTES
+  ) {
+    let evictionKey: string | null = null
+    let evictionEntry: SessionHistoryCacheEntry | null = null
+    for (const [candidateKey, candidate] of historyPrefetchCache) {
+      if (
+        !evictionEntry ||
+        candidate.priority < evictionEntry.priority ||
+        (candidate.priority === evictionEntry.priority && candidate.lastAccessedAt < evictionEntry.lastAccessedAt)
+      ) {
+        evictionKey = candidateKey
+        evictionEntry = candidate
+      }
+    }
+    if (!evictionKey) break
+    deleteCachedHistory(evictionKey)
+  }
+}
+
+function startHistoryPrefetch(
+  sessionId: string,
+  projectPath?: string,
+  priority: HistoryPrefetchPriority = 'background',
+) {
   const key = historyPrefetchKey(sessionId, projectPath)
+  const priorityValue = HISTORY_PREFETCH_PRIORITY[priority]
   const cached = historyPrefetchCache.get(key)
   if (cached && Date.now() - cached.cachedAt <= HISTORY_PREFETCH_TTL_MS) {
+    cached.lastAccessedAt = Date.now()
+    cached.priority = Math.max(cached.priority, priorityValue)
     return Promise.resolve(cached.value)
   }
-  if (cached) historyPrefetchCache.delete(key)
+  if (cached) deleteCachedHistory(key)
 
   const existing = historyPrefetchRequests.get(key)
-  if (existing) return existing
+  if (existing) {
+    historyPrefetchRequestPriorities.set(
+      key,
+      Math.max(historyPrefetchRequestPriorities.get(key) ?? 0, priorityValue),
+    )
+    return existing
+  }
+  historyPrefetchRequestPriorities.set(key, priorityValue)
 
   const request = fetchAndMapSessionHistory(sessionId, {
     limit: HISTORY_LOAD_LIMIT,
@@ -603,7 +818,11 @@ function startHistoryPrefetch(sessionId: string, projectPath?: string) {
   })
     .then((value) => {
       if (historyPrefetchRequests.get(key) === request) {
-        cachePrefetchedHistory(key, value)
+        cachePrefetchedHistory(
+          key,
+          value,
+          historyPrefetchRequestPriorities.get(key) ?? priorityValue,
+        )
       }
       return value
     })
@@ -611,6 +830,7 @@ function startHistoryPrefetch(sessionId: string, projectPath?: string) {
     .finally(() => {
       if (historyPrefetchRequests.get(key) === request) {
         historyPrefetchRequests.delete(key)
+        historyPrefetchRequestPriorities.delete(key)
       }
     })
 
@@ -622,10 +842,10 @@ async function takePrefetchedHistory(sessionId: string, projectPath?: string) {
   const key = historyPrefetchKey(sessionId, projectPath)
   const cached = historyPrefetchCache.get(key)
   if (cached && Date.now() - cached.cachedAt <= HISTORY_PREFETCH_TTL_MS) {
-    historyPrefetchCache.delete(key)
+    deleteCachedHistory(key)
     return cached.value
   }
-  if (cached) historyPrefetchCache.delete(key)
+  if (cached) deleteCachedHistory(key)
 
   const pending = historyPrefetchRequests.get(key)
   if (!pending) return null
@@ -643,22 +863,26 @@ async function takePrefetchedHistory(sessionId: string, projectPath?: string) {
     // The foreground request is promoted to its own request class. Removing
     // this entry prevents a late low-priority response from replacing it.
     historyPrefetchRequests.delete(key)
+    historyPrefetchRequestPriorities.delete(key)
     return null
   }
-  if (result) historyPrefetchCache.delete(key)
+  if (result) deleteCachedHistory(key)
   return result
 }
 
 function clearPrefetchedHistory(sessionId: string) {
   const prefix = `${sessionId}\u0000`
   for (const key of historyPrefetchCache.keys()) {
-    if (key.startsWith(prefix)) historyPrefetchCache.delete(key)
+    if (key.startsWith(prefix)) deleteCachedHistory(key)
   }
   for (const key of historyFetchRequests.keys()) {
     if (key.startsWith(prefix)) historyFetchRequests.delete(key)
   }
   for (const key of historyPrefetchRequests.keys()) {
-    if (key.startsWith(prefix)) historyPrefetchRequests.delete(key)
+    if (key.startsWith(prefix)) {
+      historyPrefetchRequests.delete(key)
+      historyPrefetchRequestPriorities.delete(key)
+    }
   }
 }
 
@@ -687,12 +911,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           recentBuffer: [],
           allMessagesLoaded: false,
           historyLoadState: 'idle',
+          historyCursor: undefined,
+          anchors: undefined,
+          anchorsLoaded: false,
           streamingText: '',
           settlingAssistant: null,
           streamingToolInput: '',
           activeThinkingId: null,
           activeToolUseId: null,
           activeToolName: null,
+          stopState: 'idle',
         })),
       }))
     } else if (projectPath && existing?.projectPath !== projectPath) {
@@ -722,6 +950,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             recentBuffer: locatorChanged ? [] : existing?.recentBuffer ?? [],
             allMessagesLoaded: locatorChanged ? false : existing?.allMessagesLoaded ?? false,
             historyLoadState: locatorChanged ? 'idle' : existing?.historyLoadState ?? 'idle',
+            historyCursor: locatorChanged ? undefined : existing?.historyCursor,
+            anchors: locatorChanged ? undefined : existing?.anchors,
+            anchorsLoaded: locatorChanged ? false : existing?.anchorsLoaded ?? false,
           },
         },
       }))
@@ -792,7 +1023,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     wsManager.send(sessionId, { type: 'prewarm_session' })
   },
 
-  prefetchHistory: async (sessionId, projectPath) => {
+  prefetchHistory: async (sessionId, projectPath, options) => {
     const session = get().sessions[sessionId]
     if (
       session &&
@@ -801,7 +1032,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     ) {
       return
     }
-    await startHistoryPrefetch(sessionId, projectPath)
+    await startHistoryPrefetch(sessionId, projectPath, options?.priority)
   },
 
   suspendIdleConnectionsExcept: (sessionId) => {
@@ -875,6 +1106,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   disconnectSession: (sessionId) => {
+    clearTurnCompletionState(sessionId)
     const readyPrefix = `${sessionId}\u0000`
     for (const key of sessionReadyRequests.keys()) {
       if (key.startsWith(readyPrefix)) sessionReadyRequests.delete(key)
@@ -899,6 +1131,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendMessage: (sessionId, content, attachments, options) => {
+    clearTurnCompletionState(sessionId)
     clearPrefetchedHistory(sessionId)
     const userFacingContent =
       options?.displayContent?.trim() || content.trim()
@@ -970,6 +1203,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ...session,
             messages: newMessages,
             chatState: 'thinking',
+            turnCompletionPending: false,
+            stopState: 'idle',
             elapsedSeconds: 0,
             tokenUsage: { input_tokens: 0, output_tokens: 0 },
             streamingText: '',
@@ -998,6 +1233,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           set((s) => ({
             sessions: updateSessionIn(s.sessions, sessionId, (session) => ({
               chatState: 'idle',
+              turnCompletionPending: false,
+              stopState: 'idle',
               messages: [
                 ...session.messages,
                 {
@@ -1065,6 +1302,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       isPendingSteerActionable(steer) && (!targetIds || targetIds.has(steer.id))
     )
     if (targets.length === 0) return
+    clearTurnCompletionState(sessionId)
 
     set((s) => ({
       sessions: updateSessionIn(s.sessions, sessionId, (current) => ({
@@ -1158,7 +1396,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       ...(options?.rule ? { rule: options.rule } : {}),
       ...(options?.updatedInput ? { updatedInput: options.updatedInput } : {}),
     })
-    set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ pendingPermission: null, chatState: allowed ? 'tool_executing' : 'idle' })) }))
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, () => ({
+        pendingPermission: null,
+        chatState: allowed ? 'tool_executing' : 'thinking',
+        turnCompletionPending: false,
+      })),
+    }))
   },
 
   respondToComputerUsePermission: (sessionId, requestId, response) => {
@@ -1170,7 +1414,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set((s) => ({
       sessions: updateSessionIn(s.sessions, sessionId, () => ({
         pendingComputerUsePermission: null,
-        chatState: response.userConsented === false ? 'idle' : 'tool_executing',
+        chatState: response.userConsented === false ? 'thinking' : 'tool_executing',
+        turnCompletionPending: false,
       })),
     }))
   },
@@ -1188,6 +1433,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   stopGeneration: (sessionId) => {
+    const current = get().sessions[sessionId]
+    if (!current || current.chatState === 'idle' || (current.stopState && current.stopState !== 'idle')) {
+      return
+    }
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, () => ({ stopState: 'requesting' })),
+    }))
     wsManager.send(sessionId, { type: 'stop_generation' })
     const pendingDelta = pendingDeltas.get(sessionId)
     if (pendingDelta) {
@@ -1221,6 +1473,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     let olderMessages: UIMessage[] = []
     let fetchedFromServer = false
     let serverHasMore = false
+    let serverFirstMessageId: string | undefined
 
     // 1. First try historyBuffer (local, instant)
     if (session.historyBuffer.length > 0) {
@@ -1229,7 +1482,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } else if (!session.allMessagesLoaded) {
       // 2. Fetch older messages from server using before cursor
       const firstMsgWithServerId = session.messages.find((m) => 'serverId' in m && m.serverId)
-      const cursor = firstMsgWithServerId?.serverId
+      const cursor = session.historyCursor ?? firstMsgWithServerId?.serverId
       if (!cursor) {
         // Can't paginate without a server-side cursor — mark done
         set((s) => ({ sessions: updateSessionIn(s.sessions, sessionId, () => ({ allMessagesLoaded: true })) }))
@@ -1243,6 +1496,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         })
         olderMessages = result.uiMessages
         serverHasMore = result.hasMore
+        serverFirstMessageId = result.firstMessageId
         fetchedFromServer = true
       } catch (err) {
         console.error('[chatStore] loadMoreHistory failed', err)
@@ -1250,7 +1504,42 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
     }
 
-    if (olderMessages.length === 0) return
+    if (olderMessages.length === 0) {
+      if (fetchedFromServer) {
+        if (!serverHasMore) {
+          // EOF: the server has nothing older than the cursor (empty page or
+          // unknown cursor). Latch the flag so callers stop re-fetching empty
+          // pages forever.
+          set((s) => ({
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              allMessagesLoaded: true,
+              historyCursor: undefined,
+            })),
+          }))
+        } else if (serverFirstMessageId && serverFirstMessageId !== session.historyCursor) {
+          // The page mapped to zero UI messages (e.g. only filtered entries).
+          // Advance the cursor past it so the next fetch makes progress
+          // instead of looping on the same page.
+          set((s) => ({
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              historyCursor: serverFirstMessageId,
+            })),
+          }))
+        } else {
+          // Empty page that claims hasMore but cannot advance the cursor
+          // (cursor unknown to the transcript while recentHistory reports
+          // earlier entries). Without this latch, loadHistoryUntil would
+          // re-fetch the same empty page until its page budget burns out.
+          set((s) => ({
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              allMessagesLoaded: true,
+              historyCursor: undefined,
+            })),
+          }))
+        }
+      }
+      return
+    }
 
     set((s) => {
       const sess = s.sessions[sessionId]
@@ -1282,14 +1571,64 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           historyBuffer,
           recentBuffer,
           allMessagesLoaded: allLoaded,
+          // Track the raw page cursor so subsequent fetches page from the
+          // oldest raw transcript entry, not the oldest rendered UI message.
+          historyCursor: fetchedFromServer ? serverFirstMessageId ?? sess.historyCursor : sess.historyCursor,
         })),
       }
     })
   },
 
-  loadMoreRecent: (sessionId) => {
+  loadMoreRecent: async (sessionId) => {
     const session = get().sessions[sessionId]
-    if (!session || session.recentBuffer.length === 0) return
+    if (!session) return
+
+    // Server forward fetch: after a seek-based jump the window may sit in the
+    // middle of the transcript with an empty recentBuffer. Page forward using
+    // the forwardCursor set by the seek.
+    if (session.recentBuffer.length === 0) {
+      if (!session.hasMoreRecent || !session.forwardCursor) return
+      try {
+        const result = await fetchAndMapSessionHistory(sessionId, {
+          limit: HISTORY_PAGE_SIZE,
+          after: session.forwardCursor,
+          projectPath: session.projectPath,
+        })
+        if (result.uiMessages.length === 0) {
+          set((s) => ({
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              hasMoreRecent: false,
+              forwardCursor: undefined,
+            })),
+          }))
+          return
+        }
+        set((s) => {
+          const sess = s.sessions[sessionId]
+          if (!sess) return s
+          let messages = [...sess.messages, ...result.uiMessages]
+          let historyBuffer = sess.historyBuffer
+          if (messages.length > WINDOW_SIZE) {
+            const trimCount = messages.length - WINDOW_SIZE
+            historyBuffer = [...messages.slice(0, trimCount), ...historyBuffer]
+            messages = messages.slice(trimCount)
+          }
+          const lastNew = result.uiMessages[result.uiMessages.length - 1]
+          return {
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              messages,
+              historyBuffer,
+              hasMoreRecent: result.hasMore,
+              forwardCursor: result.hasMore && lastNew?.serverId ? lastNew.serverId : undefined,
+              allMessagesLoaded: !result.hasMore && historyBuffer.length === 0,
+            })),
+          }
+        })
+      } catch (err) {
+        console.error('[chatStore] loadMoreRecent forward fetch failed', err)
+      }
+      return
+    }
 
     const takeCount = Math.min(HISTORY_PAGE_SIZE, session.recentBuffer.length)
     const newerMessages = session.recentBuffer.slice(0, takeCount)
@@ -1331,6 +1670,241 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }))
   },
 
+  loadAnchors: async (sessionId, projectPath, options) => {
+    const session = get().sessions[sessionId]
+    if (!session) return
+    if (!options?.force && session.anchorsLoaded) return
+    const existing = anchorsFetchRequests.get(sessionId)
+    if (existing) return existing
+
+    const effectiveProjectPath = projectPath ?? session.projectPath
+    const request = (async () => {
+      try {
+        const { anchors } = await sessionsApi.getAnchors(sessionId, { projectPath: effectiveProjectPath })
+        set((s) => ({
+          sessions: updateSessionIn(s.sessions, sessionId, () => ({ anchors, anchorsLoaded: true })),
+        }))
+      } catch (err) {
+        // The rail is progressive enhancement: on failure keep the UI working
+        // with locally derived (loaded-window-only) anchors.
+        if (!isNotFoundError(err)) console.error('[chatStore] loadAnchors failed', err)
+        set((s) => ({
+          sessions: updateSessionIn(s.sessions, sessionId, () => ({ anchorsLoaded: true })),
+        }))
+      }
+    })()
+    anchorsFetchRequests.set(sessionId, request)
+    void request.then(
+      () => { if (anchorsFetchRequests.get(sessionId) === request) anchorsFetchRequests.delete(sessionId) },
+      () => { if (anchorsFetchRequests.get(sessionId) === request) anchorsFetchRequests.delete(sessionId) },
+    )
+    return request
+  },
+
+  loadHistoryUntil: (sessionId, messageId) => {
+    // Serialize per session: a second click while a load is in flight queues
+    // behind it and returns immediately if the target arrived meanwhile.
+    const run = (historyUntilChains.get(sessionId) ?? Promise.resolve()).then(async () => {
+      // Batch-loading strategy: fetch ALL pages into a local accumulator
+      // WITHOUT calling set(), then do a single set() at the end. This way
+      // Virtuoso's prepend compensation fires only once instead of once per
+      // page, eliminating the "jumping around" effect.
+
+      // Forward direction first: the target may live in recentBuffer (newer
+      // messages trimmed off the window tail). Restoring forward is local and
+      // instant — check before paging backward.
+      {
+        const session = get().sessions[sessionId]
+        if (!session) return false
+        if (session.messages.some((m) => messageMatchesId(m, messageId))) return true
+        const forwardCount = session.recentBuffer.findIndex((m) => messageMatchesId(m, messageId))
+        if (forwardCount >= 0) {
+          const take = forwardCount + 1
+          set((s) => {
+            const sess = s.sessions[sessionId]
+            if (!sess) return s
+            const restored = sess.recentBuffer.slice(0, take)
+            let messages = [...sess.messages, ...restored]
+            let historyBuffer = sess.historyBuffer
+            const recentBuffer = sess.recentBuffer.slice(take)
+            // Trim head (oldest) into historyBuffer if window exceeds WINDOW_SIZE
+            if (messages.length > WINDOW_SIZE) {
+              const trimCount = messages.length - WINDOW_SIZE
+              historyBuffer = [...historyBuffer, ...messages.slice(0, trimCount)]
+              messages = messages.slice(trimCount)
+            }
+            return {
+              sessions: updateSessionIn(s.sessions, sessionId, () => ({
+                messages,
+                historyBuffer,
+                recentBuffer,
+                allMessagesLoaded: recentBuffer.length === 0 ? sess.allMessagesLoaded : false,
+              })),
+            }
+          })
+          return true
+        }
+      }
+
+      // Seek path: one full-file server read locates the target and returns a
+      // window centered on it. For long sessions this replaces 36+ backward
+      // page fetches (each a full-file read) with a single request.
+      {
+        const session = get().sessions[sessionId]
+        if (!session) return false
+        try {
+          const response = await sessionsApi.getMessages(sessionId, {
+            limit: WINDOW_SIZE,
+            seek: messageId,
+            projectPath: session.projectPath,
+          })
+          // Only accept the seek result when the target is actually in it.
+          // (A real server returns seekFound=false or a window centered on the
+          // target; mocks may return an unrelated page.)
+          const seekHit = response.seekFound !== false
+            && response.messages.some((m) => m.id === messageId)
+          if (seekHit) {
+            const parsed = parseHistory(response.messages, nextId)
+            const firstRawId = response.messages[0]?.id
+            const lastRawId = response.messages[response.messages.length - 1]?.id
+            set((s) => ({
+              sessions: updateSessionIn(s.sessions, sessionId, () => ({
+                messages: parsed.uiMessages,
+                historyBuffer: [],
+                recentBuffer: [],
+                allMessagesLoaded: !response.hasMore && !response.hasMoreAfter,
+                hasMoreRecent: response.hasMoreAfter ?? false,
+                historyCursor: response.hasMore ? firstRawId : undefined,
+                forwardCursor: response.hasMoreAfter ? lastRawId : undefined,
+              })),
+            }))
+            return true
+          }
+          // Seek couldn't locate the target — fall through to the
+          // backward-paging loop below as a last resort.
+        } catch (err) {
+          console.error('[chatStore] loadHistoryUntil seek failed, falling back to paging', err)
+        }
+      }
+
+      const accumulated: UIMessage[] = []
+      let localCursor: string | undefined
+      let localAllLoaded = false
+      let localHistoryBufferTake = 0 // how many items we took from historyBuffer
+
+      for (let page = 0; page < HISTORY_UNTIL_MAX_PAGES; page += 1) {
+        const session = get().sessions[sessionId]
+        if (!session) return false
+
+        // Check if target is already in messages or accumulated
+        if (session.messages.some((m) => messageMatchesId(m, messageId))) break
+        if (accumulated.some((m) => messageMatchesId(m, messageId))) break
+
+        if (session.allMessagesLoaded && session.historyBuffer.length === 0 && accumulated.length === 0) return false
+
+        // Try historyBuffer first (local, instant)
+        if (session.historyBuffer.length > localHistoryBufferTake) {
+          const available = session.historyBuffer.length - localHistoryBufferTake
+          const takeCount = Math.min(HISTORY_PAGE_SIZE, available)
+          const items = session.historyBuffer.slice(available - takeCount, available)
+          accumulated.unshift(...items)
+          localHistoryBufferTake += takeCount
+          continue
+        }
+
+        // Fetch from server
+        if (localAllLoaded) break
+        const firstMsgWithServerId = session.messages.find((m) => 'serverId' in m && m.serverId)
+        const cursor = localCursor ?? session.historyCursor ?? firstMsgWithServerId?.serverId
+        if (!cursor) {
+          localAllLoaded = true
+          break
+        }
+
+        try {
+          const result = await fetchAndMapSessionHistory(sessionId, {
+            limit: HISTORY_PAGE_SIZE,
+            before: cursor,
+            projectPath: session.projectPath,
+          })
+          if (result.uiMessages.length === 0) {
+            if (!result.hasMore) {
+              localAllLoaded = true
+            } else if (result.firstMessageId && result.firstMessageId !== cursor) {
+              localCursor = result.firstMessageId
+            } else {
+              localAllLoaded = true
+            }
+            continue
+          }
+          accumulated.unshift(...result.uiMessages)
+          localCursor = result.firstMessageId ?? localCursor
+          if (!result.hasMore) localAllLoaded = true
+        } catch (err) {
+          console.error('[chatStore] loadHistoryUntil fetch failed', err)
+          break
+        }
+      }
+
+      // Check if we found the target
+      const session = get().sessions[sessionId]
+      if (!session) return false
+      const found = session.messages.some((m) => messageMatchesId(m, messageId))
+        || accumulated.some((m) => messageMatchesId(m, messageId))
+
+      if (accumulated.length > 0) {
+        // Single store update: prepend all accumulated messages at once
+        set((s) => {
+          const sess = s.sessions[sessionId]
+          if (!sess) return s
+
+          let historyBuffer = sess.historyBuffer
+          if (localHistoryBufferTake > 0) {
+            historyBuffer = historyBuffer.slice(0, -localHistoryBufferTake)
+          }
+
+          let messages = [...accumulated, ...sess.messages]
+          let recentBuffer = sess.recentBuffer
+
+          // Trim tail (newest) into recentBuffer if window exceeds WINDOW_SIZE
+          if (messages.length > WINDOW_SIZE) {
+            const trimCount = messages.length - WINDOW_SIZE
+            recentBuffer = [...messages.slice(-trimCount), ...recentBuffer]
+            messages = messages.slice(0, WINDOW_SIZE)
+          }
+
+          return {
+            sessions: updateSessionIn(s.sessions, sessionId, () => ({
+              messages,
+              historyBuffer,
+              recentBuffer,
+              allMessagesLoaded: localAllLoaded && historyBuffer.length === 0,
+              historyCursor: localCursor ?? sess.historyCursor,
+            })),
+          }
+        })
+      } else if (localAllLoaded) {
+        // EOF/stuck-page latch: nothing was accumulated but the transcript is
+        // exhausted (or the cursor cannot advance). Persist the flag so future
+        // callers stop re-fetching empty pages forever.
+        set((s) => ({
+          sessions: updateSessionIn(s.sessions, sessionId, () => ({
+            allMessagesLoaded: true,
+            historyCursor: undefined,
+          })),
+        }))
+      }
+
+      return found
+    })
+    historyUntilChains.set(sessionId, run)
+    void run.then(
+      () => { if (historyUntilChains.get(sessionId) === run) historyUntilChains.delete(sessionId) },
+      () => { if (historyUntilChains.get(sessionId) === run) historyUntilChains.delete(sessionId) },
+    )
+    return run
+  },
+
   loadHistory: async (sessionId, projectPath) => {
     const current = get().sessions[sessionId]
     if (!current) return
@@ -1367,6 +1941,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         lastTodos,
         hasMessagesAfterTaskCompletion,
         hasMore,
+        firstMessageId,
       } = prefetched ?? await fetchAndMapSessionHistory(sessionId, {
         limit: HISTORY_LOAD_LIMIT,
         projectPath: effectiveProjectPath,
@@ -1408,6 +1983,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           historyBuffer,
           recentBuffer: [],
           allMessagesLoaded: !hasMore && historyBuffer.length === 0,
+          historyCursor: hasMore ? firstMessageId : undefined,
           historyLoadState: 'loaded',
           projectPath: effectiveProjectPath,
           agentTaskNotifications: { ...s.agentTaskNotifications, ...restoredNotifications },
@@ -1415,6 +1991,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
       if (isCurrentHistoryLoad(sessionId, historyToken, effectiveProjectPath) && get().sessions[sessionId]?.historyLoadState === 'loaded') {
         finishHistoryLoad(sessionId, historyToken, effectiveProjectPath)
+        void get().loadAnchors(sessionId, effectiveProjectPath)
         if (lastTodos && lastTodos.length > 0) {
           const taskStore = useCLITaskStore.getState()
           if (taskStore.tasks.length === 0) taskStore.setTasksFromTodos(lastTodos)
@@ -1482,6 +2059,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         lastTodos,
         hasMessagesAfterTaskCompletion,
         hasMore,
+        firstMessageId,
       } = await fetchAndMapSessionHistory(sessionId, { limit: HISTORY_LOAD_LIMIT, projectPath: effectiveProjectPath })
       if (!isCurrentHistoryLoad(sessionId, historyToken, effectiveProjectPath)) return
 
@@ -1507,10 +2085,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             historyBuffer,
             recentBuffer: [],
             allMessagesLoaded: !hasMore && historyBuffer.length === 0,
+            historyCursor: hasMore ? firstMessageId : undefined,
             agentTaskNotifications: restoredNotifications,
             historyLoadState: 'loaded',
             projectPath: effectiveProjectPath,
             chatState: 'idle',
+            turnCompletionPending: false,
+            stopState: 'idle',
             activeThinkingId: null,
             activeToolUseId: null,
             activeToolName: null,
@@ -1529,6 +2110,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       if (isCurrentHistoryLoad(sessionId, historyToken, effectiveProjectPath) && get().sessions[sessionId]?.historyLoadState === 'loaded') {
         finishHistoryLoad(sessionId, historyToken, effectiveProjectPath)
+        void get().loadAnchors(sessionId, effectiveProjectPath, { force: true })
         if (lastTodos && lastTodos.length > 0) {
           useCLITaskStore.getState().setTasksFromTodos(lastTodos)
         } else {
@@ -1583,6 +2165,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   clearMessages: (sessionId) => {
+    clearTurnCompletionState(sessionId)
     set((s) => ({
       sessions: updateSessionIn(s.sessions, sessionId, () => ({
         messages: [],
@@ -1591,6 +2174,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         activeThinkingId: null,
         dismissedThinkingPanelIdentityKey: null,
         chatState: 'idle',
+        turnCompletionPending: false,
+        stopState: 'idle',
         turnStartedAt: null,
         lastModelActivityAt: null,
         pendingSteers: [],
@@ -1618,6 +2203,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       lastConnectionActivityAt: receivedAt,
       lastModelActivityAt: receivedAt,
     })
+    const finalizeTurn = (): boolean => {
+      const session = get().sessions[sessionId]
+      if (!session) return false
+      if (shouldAutoSendPendingSteers(session.pendingSteers ?? [])) {
+        get().autoSendPendingSteers(sessionId)
+        return false
+      }
+      if (session.elapsedTimer) clearInterval(session.elapsedTimer)
+      update(() => ({
+        chatState: 'idle',
+        turnCompletionPending: false,
+        stopState: 'idle',
+        activeToolUseId: null,
+        activeToolName: null,
+        activeThinkingId: null,
+        elapsedTimer: null,
+        statusVerb: '',
+        turnStartedAt: null,
+        lastModelActivityAt: null,
+      }))
+      useTabStore.getState().updateTabStatus(sessionId, 'idle')
+      return true
+    }
+
+    if (isTurnActivity(msg)) {
+      pauseTurnCompletion(sessionId)
+      update(() => ({ turnCompletionPending: false }))
+    }
 
     switch (msg.type) {
       case 'connected':
@@ -1625,6 +2238,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         break
 
       case 'status':
+        {
+          const currentSession = get().sessions[sessionId]
+          if (
+            msg.state === 'idle'
+            && currentSession?.chatState !== 'idle'
+            && (currentSession?.stopState ?? 'idle') === 'idle'
+          ) {
+            turnCompletionIntents.add(sessionId)
+          }
+        }
         update((session) => {
           const pendingText = `${session.streamingText}${consumePendingDelta(sessionId)}`
           const hasPendingStreamText =
@@ -1640,13 +2263,37 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             : null
           const tokenProgress =
             typeof msg.tokens === 'number' && msg.tokens > session.tokenUsage.output_tokens
+          const terminalTaskIds = new Set(Object.keys(session.agentTaskNotifications))
+          const hasPendingToolWork =
+            Boolean(session.activeToolUseId)
+            || getPendingToolUseIdsForLatestTurn(session.messages).size > 0
+            || getPendingBackgroundTaskIdsForLatestTurn(
+              session.messages,
+              terminalTaskIds,
+            ).size > 0
+          const hasPendingInput = (session.pendingSteers ?? []).some((steer) => (
+            steer.status === 'draft'
+            || steer.status === 'queued'
+            || steer.status === 'processing'
+          ))
+          const isCompletionCandidate =
+            msg.state === 'idle' && turnCompletionIntents.has(sessionId)
+          const shouldHoldTurnOpen =
+            msg.state === 'idle'
+            && (isCompletionCandidate || hasPendingToolWork || hasPendingInput)
           return {
             ...markConnectionActivity(),
-            chatState: preserveStreamingTurn ? 'streaming' : msg.state,
+            chatState: preserveStreamingTurn
+              ? 'streaming'
+              : shouldHoldTurnOpen
+                ? hasPendingToolWork ? 'tool_executing' : 'thinking'
+                : msg.state,
+            turnCompletionPending: isCompletionCandidate,
             ...(msg.verb && msg.verb !== 'Thinking' ? { statusVerb: msg.verb } : {}),
             ...(msg.tokens ? { tokenUsage: { ...session.tokenUsage, output_tokens: msg.tokens } } : {}),
             ...(tokenProgress ? { lastModelActivityAt: receivedAt } : {}),
-            ...(msg.state === 'idle' ? {
+            ...(msg.state === 'idle' && !shouldHoldTurnOpen ? {
+              stopState: 'idle',
               activeThinkingId: null,
               statusVerb: '',
               turnStartedAt: null,
@@ -1668,13 +2315,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         })
         if (msg.state === 'idle') {
           const session = get().sessions[sessionId]
-          if (session?.elapsedTimer) {
+          if (session?.chatState === 'idle' && session.elapsedTimer) {
             clearInterval(session.elapsedTimer)
             update(() => ({ elapsedTimer: null }))
           }
+          scheduleTurnCompletionIfSettled(
+            sessionId,
+            () => get().sessions[sessionId],
+            finalizeTurn,
+          )
         }
         // Sync tab status
-        useTabStore.getState().updateTabStatus(sessionId, msg.state === 'idle' ? 'idle' : 'running')
+        useTabStore.getState().updateTabStatus(
+          sessionId,
+          get().sessions[sessionId]?.chatState === 'idle' ? 'idle' : 'running',
+        )
         break
 
       case 'content_start': {
@@ -1858,6 +2513,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const session = get().sessions[sessionId]
         if (!session) break
         const shouldAutoSendPending = shouldAutoSendPendingSteers(session.pendingSteers ?? [])
+        const hasQueuedPending = (session.pendingSteers ?? []).some((steer) => (
+          steer.status === 'queued' || steer.status === 'processing'
+        ))
+        const shouldAwaitFinalSettle =
+          session.chatState !== 'idle'
+          && !shouldAutoSendPending
+          && !hasQueuedPending
         const text = `${session.streamingText}${consumePendingDelta(sessionId)}`
         if (text.trim()) {
           update((s) => {
@@ -1872,29 +2534,55 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         } else if (text !== session.streamingText) {
           update(() => ({ ...markConnectionActivity(), streamingText: text }))
         }
-        if (session.elapsedTimer) clearInterval(session.elapsedTimer)
+        const completionSession = get().sessions[sessionId] ?? session
+        const terminalTaskIds = new Set(Object.keys(completionSession.agentTaskNotifications))
+        const hasPendingToolWork =
+          Boolean(completionSession.activeToolUseId)
+          || getPendingToolUseIdsForLatestTurn(completionSession.messages).size > 0
+          || getPendingBackgroundTaskIdsForLatestTurn(
+            completionSession.messages,
+            terminalTaskIds,
+          ).size > 0
         update(() => ({
           ...markConnectionActivity(),
           tokenUsage: msg.usage,
           usageRevision: (session.usageRevision ?? 0) + 1,
-          chatState: 'idle',
+          chatState: session.chatState === 'idle'
+            ? 'idle'
+            : hasPendingToolWork ? 'tool_executing' : 'thinking',
+          turnCompletionPending: shouldAwaitFinalSettle,
+          stopState: 'idle',
           activeThinkingId: null,
           pendingPermission: null,
           pendingComputerUsePermission: null,
-          elapsedTimer: null,
-          turnStartedAt: null,
-          lastModelActivityAt: null,
           pendingSteers: (session.pendingSteers ?? []).filter(
             (steer) => steer.status !== 'processed' && steer.status !== 'cancelled',
           ),
         }))
         if (shouldAutoSendPending) {
+          clearTurnCompletionState(sessionId)
           get().autoSendPendingSteers(sessionId)
+        } else if (shouldAwaitFinalSettle) {
+          turnCompletionIntents.add(sessionId)
+          scheduleTurnCompletionIfSettled(
+            sessionId,
+            () => get().sessions[sessionId],
+            finalizeTurn,
+          )
         }
         break
       }
 
+      case 'generation_stop_requested':
+        clearTurnCompletionState(sessionId)
+        update((session) => ({
+          ...markConnectionActivity(),
+          stopState: session.chatState === 'idle' ? 'idle' : 'stopping',
+        }))
+        break
+
       case 'generation_stopped': {
+        clearTurnCompletionState(sessionId)
         const session = get().sessions[sessionId]
         if (!session) break
         const shouldAutoSendPending = (session.pendingSteers ?? []).some(isPendingSteerAutoSendable)
@@ -1917,6 +2605,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           pendingPermission: null,
           pendingComputerUsePermission: null,
           chatState: 'idle',
+          turnCompletionPending: false,
+          stopState: 'idle',
           elapsedTimer: null,
           statusVerb: '',
           turnStartedAt: null,
@@ -1956,6 +2646,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         break
 
       case 'error':
+        clearTurnCompletionState(sessionId)
         update((s) => {
           const pendingText = `${s.streamingText}${consumePendingDelta(sessionId)}`
           let newMessages = s.messages
@@ -1967,6 +2658,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ...markConnectionActivity(),
             messages: newMessages,
             chatState: 'idle',
+            turnCompletionPending: false,
+            stopState: 'idle',
             activeThinkingId: null,
             streamingText: '',
             settlingAssistant: null,
@@ -2044,6 +2737,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
         }
         if (msg.subtype === 'session_cleared') {
+          clearTurnCompletionState(sessionId)
           const session = get().sessions[sessionId]
           if (session?.elapsedTimer) clearInterval(session.elapsedTimer)
           update(() => ({
@@ -2064,6 +2758,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             pendingComputerUsePermission: null,
             computerUseRuntime: null,
             chatState: 'idle',
+            turnCompletionPending: false,
+            stopState: 'idle',
             elapsedTimer: null,
             elapsedSeconds: 0,
             statusVerb: '',
@@ -2124,8 +2820,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               taskStatus === 'failed' ||
               taskStatus === 'stopped')
           ) {
-            update((session) => ({
-              agentTaskNotifications: {
+            update((session) => {
+              const agentTaskNotifications: Record<string, AgentTaskNotification> = {
                 ...session.agentTaskNotifications,
                 [toolUseId]: {
                   taskId:
@@ -2143,8 +2839,32 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                       ? data.output_file
                       : undefined,
                 },
-              },
-            }))
+              }
+              const backgroundTurnSettled =
+                turnCompletionIntents.has(sessionId)
+                && getPendingToolUseIdsForLatestTurn(session.messages).size === 0
+                && getPendingBackgroundTaskIdsForLatestTurn(
+                  session.messages,
+                  new Set(Object.keys(agentTaskNotifications)),
+                ).size === 0
+              return {
+                agentTaskNotifications,
+                ...(backgroundTurnSettled ? {
+                  chatState: 'thinking' as const,
+                  turnCompletionPending: true,
+                  stopState: 'idle' as const,
+                  activeToolUseId: null,
+                  activeToolName: null,
+                  activeThinkingId: null,
+                  statusVerb: '',
+                } : {}),
+              }
+            })
+            scheduleTurnCompletionIfSettled(
+              sessionId,
+              () => get().sessions[sessionId],
+              finalizeTurn,
+            )
           }
         }
         break

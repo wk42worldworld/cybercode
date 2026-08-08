@@ -892,6 +892,26 @@ describe('WebSocket Chat Integration', () => {
     expect(conversationService.hasSession(sessionId)).toBe(false)
   })
 
+  it('should emit completion only after immediate follow-up work is truly idle', async () => {
+    const messages = await runTurn(
+      `chat-completion-reentry-${crypto.randomUUID()}`,
+      '__mock_completion_reentry__',
+    )
+
+    const completionIndexes = messages.flatMap((message, index) =>
+      message.type === 'message_complete' ? [index] : [],
+    )
+    const followUpIndex = messages.findIndex(
+      (message) => message.type === 'content_delta'
+        && message.text === 'Final follow-up after queue drain',
+    )
+
+    expect(followUpIndex).toBeGreaterThanOrEqual(0)
+    expect(completionIndexes).toHaveLength(1)
+    expect(completionIndexes[0]).toBeGreaterThan(followUpIndex)
+    expect(messages.at(-1)?.type).toBe('message_complete')
+  })
+
   it('should handle stop_generation and return idle status', async () => {
     const messages: any[] = []
     const ws = new WebSocket(`${wsUrl}/ws/chat-test-2`)
@@ -919,6 +939,7 @@ describe('WebSocket Chat Integration', () => {
     })
 
     expect(messages.some((m) => m.type === 'status' && m.state === 'idle')).toBe(true)
+    expect(messages).toContainEqual({ type: 'generation_stop_requested' })
     expect(messages).toContainEqual({
       type: 'generation_stopped',
       forced: false,
@@ -964,6 +985,12 @@ describe('WebSocket Chat Integration', () => {
         }
       })
 
+      const stopRequestedIndex = messages.findIndex(
+        (message) => message.type === 'generation_stop_requested',
+      )
+      const stoppedIndex = messages.findIndex((message) => message.type === 'generation_stopped')
+      expect(stopRequestedIndex).toBeGreaterThanOrEqual(0)
+      expect(stoppedIndex).toBeGreaterThan(stopRequestedIndex)
       expect(messages).toContainEqual({
         type: 'generation_stopped',
         forced: false,
@@ -974,6 +1001,74 @@ describe('WebSocket Chat Integration', () => {
         typeof message.text === 'string' &&
         message.text.includes('Echo:'),
       )).toBe(false)
+      conversationService.stopSession(sessionId)
+    })
+  })
+
+  it('should deliver stop completion to the current client after reconnecting', async () => {
+    await withMockStreamDelay(750, async () => {
+      const sessionId = `chat-stop-reconnect-${crypto.randomUUID()}`
+      const firstClient = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          firstClient.close()
+          reject(new Error(`Timed out waiting for stop acknowledgement for ${sessionId}`))
+        }, 10_000)
+
+        firstClient.onmessage = (event) => {
+          const message = JSON.parse(event.data as string)
+          if (message.type === 'connected') {
+            firstClient.send(JSON.stringify({
+              type: 'user_message',
+              content: 'Start a delayed task before reconnecting',
+            }))
+          } else if (message.type === 'content_start') {
+            firstClient.send(JSON.stringify({ type: 'stop_generation' }))
+          } else if (message.type === 'generation_stop_requested') {
+            clearTimeout(timeout)
+            firstClient.close()
+            resolve()
+          }
+        }
+        firstClient.onerror = () => {
+          clearTimeout(timeout)
+          firstClient.close()
+          reject(new Error(`WebSocket error before reconnecting ${sessionId}`))
+        }
+      })
+
+      const secondClientMessages: any[] = []
+      const secondClient = new WebSocket(`${wsUrl}/ws/${sessionId}`)
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          secondClient.close()
+          reject(new Error(`Timed out waiting for reconnected stop confirmation for ${sessionId}`))
+        }, 10_000)
+
+        secondClient.onmessage = (event) => {
+          const message = JSON.parse(event.data as string)
+          secondClientMessages.push(message)
+          if (message.type === 'connected') {
+            secondClient.send(JSON.stringify({ type: 'stop_generation' }))
+          } else if (message.type === 'generation_stopped') {
+            clearTimeout(timeout)
+            secondClient.close()
+            resolve()
+          }
+        }
+        secondClient.onerror = () => {
+          clearTimeout(timeout)
+          secondClient.close()
+          reject(new Error(`WebSocket error after reconnecting ${sessionId}`))
+        }
+      })
+
+      expect(secondClientMessages).toContainEqual({ type: 'generation_stop_requested' })
+      expect(secondClientMessages).toContainEqual({
+        type: 'generation_stopped',
+        forced: false,
+      })
       conversationService.stopSession(sessionId)
     })
   })
@@ -1386,17 +1481,17 @@ describe('WebSocket Chat Integration', () => {
       }, 'immediate steer to reach the SDK input stream')
 
       const inbound = await readMockSdkInbound(sessionId)
-      const interruptIndex = inbound.findIndex((entry) =>
-        entry.type === 'control_request' && entry.request?.subtype === 'interrupt'
-      )
       const steerIndex = inbound.findIndex((entry) => entry.uuid === steerId)
-      expect(interruptIndex).toBeGreaterThanOrEqual(0)
-      expect(steerIndex).toBeGreaterThan(interruptIndex)
+      expect(steerIndex).toBeGreaterThanOrEqual(0)
       expect(inbound[steerIndex]).toMatchObject({
         type: 'user',
         uuid: steerId,
         priority: 'now',
       })
+      expect(inbound).not.toContainEqual(expect.objectContaining({
+        type: 'control_request',
+        request: expect.objectContaining({ subtype: 'interrupt' }),
+      }))
     } finally {
       ws.close()
       conversationService.stopSession(sessionId)

@@ -189,7 +189,7 @@ function CandidateRow({
             {candidate.reason}
           </p>
           {candidate.evidence.length > 0 && (
-            <div className="mt-2 space-y-1 border-l-2 border-[var(--color-border)] pl-2.5">
+            <div className="mt-2 space-y-1 rounded-[6px] bg-[var(--color-surface-container-low)] px-2.5 py-2">
               {candidate.evidence.slice(0, 3).map((item) => (
                 <p key={item} className="text-[11px] leading-4 text-[var(--color-text-tertiary)]">
                   {item}
