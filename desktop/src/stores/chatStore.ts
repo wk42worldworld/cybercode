@@ -113,6 +113,9 @@ export type PerSessionState = {
   /** A completion signal arrived, but the turn remains active until all
    * background work and the settle window have finished. */
   turnCompletionPending?: boolean
+  /** The latest completed turn has not yet been acknowledged from the sidebar
+   * or by sending another message in this session. */
+  completionUnread?: boolean
   stopState?: 'idle' | 'requesting' | 'stopping'
   connectionState: ConnectionState
   streamingText: string
@@ -175,6 +178,7 @@ const DEFAULT_SESSION_STATE: PerSessionState = {
   historyLoadState: 'idle',
   chatState: 'idle',
   turnCompletionPending: false,
+  completionUnread: false,
   stopState: 'idle',
   connectionState: 'disconnected',
   streamingText: '',
@@ -297,6 +301,7 @@ type ChatStore = {
     prefill: { text: string; attachments?: UIAttachment[] },
   ) => void
   clearMessages: (sessionId: string) => void
+  clearCompletionUnread: (sessionId: string) => void
   completeStreamingReveal: (sessionId: string, messageId: string) => void
   handleServerMessage: (sessionId: string, msg: ServerMessage) => void
 }
@@ -1205,6 +1210,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             messages: newMessages,
             chatState: 'thinking',
             turnCompletionPending: false,
+            completionUnread: false,
             stopState: 'idle',
             elapsedSeconds: 0,
             tokenUsage: { input_tokens: 0, output_tokens: 0 },
@@ -1235,6 +1241,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             sessions: updateSessionIn(s.sessions, sessionId, (session) => ({
               chatState: 'idle',
               turnCompletionPending: false,
+              completionUnread: false,
               stopState: 'idle',
               messages: [
                 ...session.messages,
@@ -1277,6 +1284,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           ...s.sessions,
           [sessionId]: {
             ...session,
+            completionUnread: false,
             pendingSteers: [
               ...(session.pendingSteers ?? []),
               {
@@ -2228,6 +2236,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }))
   },
 
+  clearCompletionUnread: (sessionId) => {
+    set((s) => ({
+      sessions: updateSessionIn(s.sessions, sessionId, (session) => (
+        session.completionUnread ? { completionUnread: false } : {}
+      )),
+    }))
+  },
+
   completeStreamingReveal: (sessionId, messageId) => {
     set((s) => ({
       sessions: updateSessionIn(s.sessions, sessionId, (session) => (
@@ -2256,9 +2272,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return false
       }
       if (session.elapsedTimer) clearInterval(session.elapsedTimer)
+      const isCurrentSession = useTabStore.getState().activeTabId === sessionId
       update(() => ({
         chatState: 'idle',
         turnCompletionPending: false,
+        completionUnread: !isCurrentSession,
         stopState: 'idle',
         activeToolUseId: null,
         activeToolName: null,

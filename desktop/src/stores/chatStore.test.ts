@@ -46,6 +46,7 @@ const {
   updateTabStatusMock: vi.fn(),
   tabStoreSnapshot: {
     tabs: [] as Array<{ sessionId: string; title: string; type: string; status: string }>,
+    activeTabId: null as string | null,
   },
   updateSessionTitleMock: vi.fn(),
   sessionStoreSnapshot: {
@@ -88,6 +89,7 @@ vi.mock('./tabStore', () => ({
   useTabStore: {
     getState: () => ({
       tabs: tabStoreSnapshot.tabs,
+      activeTabId: tabStoreSnapshot.activeTabId,
       updateTabStatus: updateTabStatusMock,
       updateTabTitle: updateTabTitleMock,
     }),
@@ -132,6 +134,7 @@ function makeSessionState(overrides: Partial<PerSessionState> = {}): PerSessionS
     allMessagesLoaded: true,
     chatState: 'idle',
     turnCompletionPending: false,
+    completionUnread: false,
     connectionState: 'connected',
     streamingText: '',
     streamingToolInput: '',
@@ -176,6 +179,7 @@ describe('chatStore history mapping', () => {
     updateTabStatusMock.mockReset()
     updateSessionTitleMock.mockReset()
     tabStoreSnapshot.tabs = []
+    tabStoreSnapshot.activeTabId = null
     sessionStoreSnapshot.sessions = []
     cliTaskStoreSnapshot.tasks = []
     cliTaskStoreSnapshot.sessionId = null
@@ -2370,6 +2374,7 @@ describe('completion sound on turn finish', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     soundPlayMock.mockClear()
+    tabStoreSnapshot.activeTabId = null
     vi.stubGlobal('Audio', class {
       currentTime = 0
       constructor(public src: string) {}
@@ -2407,13 +2412,54 @@ describe('completion sound on turn finish', () => {
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
       chatState: 'thinking',
       turnCompletionPending: true,
+      completionUnread: false,
     })
     settleCompletionSound()
     expect(soundPlayMock).toHaveBeenCalledTimes(1)
     expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
       chatState: 'idle',
       turnCompletionPending: false,
+      completionUnread: true,
     })
+  })
+
+  it('does not mark the currently selected session as unread when it finishes', () => {
+    tabStoreSnapshot.activeTabId = TEST_SESSION_ID
+    useChatStore.setState({
+      sessions: { [TEST_SESSION_ID]: makeSessionState({ chatState: 'streaming' }) },
+    })
+
+    completeTurn()
+    settleCompletionSound()
+
+    expect(soundPlayMock).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]).toMatchObject({
+      chatState: 'idle',
+      completionUnread: false,
+    })
+  })
+
+  it('clears the completion marker when the user sends or queues a new message', () => {
+    useChatStore.setState({
+      sessions: {
+        [TEST_SESSION_ID]: makeSessionState({ completionUnread: true }),
+      },
+    })
+
+    useChatStore.getState().sendMessage(TEST_SESSION_ID, 'Continue')
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.completionUnread).toBe(false)
+
+    useChatStore.setState((state) => ({
+      sessions: {
+        ...state.sessions,
+        [TEST_SESSION_ID]: {
+          ...state.sessions[TEST_SESSION_ID]!,
+          completionUnread: true,
+        },
+      },
+    }))
+    useChatStore.getState().queuePendingSteer(TEST_SESSION_ID, 'One more requirement')
+    expect(useChatStore.getState().sessions[TEST_SESSION_ID]?.completionUnread).toBe(false)
   })
 
   it('stays silent while a steer is queued or processing upstream', () => {

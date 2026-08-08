@@ -79,6 +79,7 @@ vi.mock('../../i18n', () => ({
       'sidebar.timeGroup.last30days': 'Last 30 Days',
       'sidebar.timeGroup.older': 'Older',
       'sidebar.missingDir': 'Missing',
+      'sidebar.completedUnread': 'Task completed',
       'sidebar.confirmDelete': 'Delete this session? This cannot be undone.',
       'sidebar.collapse': 'Collapse sidebar',
       'sidebar.expand': 'Expand sidebar',
@@ -495,6 +496,75 @@ describe('Sidebar', () => {
     expect(screen.getByText('created alpha transcript')).toBeInTheDocument()
     expect(screen.getByText('beta transcript')).toBeInTheDocument()
     expect(screen.getByText('temp transcript')).toBeInTheDocument()
+  })
+
+  it('shows a completion marker until the session is clicked', () => {
+    const now = new Date().toISOString()
+    useSessionStore.setState({
+      sessions: [{
+        id: 'session-completed',
+        title: 'Completed Session',
+        createdAt: now,
+        modifiedAt: now,
+        messageCount: 1,
+        projectPath: '-workspace-completed',
+        workDir: '/workspace/completed',
+        workDirExists: true,
+        isTemporary: false,
+      }],
+    })
+    const sessionState = useChatStore.getState().getSession('session-completed')
+    useChatStore.setState({
+      sessions: {
+        'session-completed': { ...sessionState, completionUnread: true },
+      },
+    })
+
+    render(<Sidebar />)
+
+    expect(screen.getByRole('status', { name: 'Task completed' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Completed Session').closest('button')!)
+
+    expect(screen.queryByRole('status', { name: 'Task completed' })).not.toBeInTheDocument()
+    expect(useChatStore.getState().sessions['session-completed']?.completionUnread).toBe(false)
+  })
+
+  it('hides a stale completion marker on the currently selected session', () => {
+    const now = new Date().toISOString()
+    const session = {
+      id: 'session-current',
+      title: 'Current Session',
+      createdAt: now,
+      modifiedAt: now,
+      messageCount: 1,
+      projectPath: '-workspace-current',
+      workDir: '/workspace/current',
+      workDirExists: true,
+      isTemporary: false,
+    }
+    useSessionStore.setState({ sessions: [session] })
+    useTabStore.setState({
+      tabs: [{
+        sessionId: session.id,
+        projectPath: session.projectPath,
+        title: session.title,
+        type: 'session',
+        status: 'idle',
+      }],
+      activeTabId: session.id,
+    })
+    useChatStore.setState({
+      sessions: {
+        [session.id]: {
+          ...useChatStore.getState().getSession(session.id),
+          completionUnread: true,
+        },
+      },
+    })
+
+    render(<Sidebar />)
+
+    expect(screen.queryByRole('status', { name: 'Task completed' })).not.toBeInTheDocument()
   })
 
   it('requires confirmation before deleting a session from the hover action', async () => {

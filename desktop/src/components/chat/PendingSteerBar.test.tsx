@@ -72,7 +72,7 @@ describe('PendingSteerBar', () => {
     expect(container.querySelector('[data-chat-content-column]')).toHaveClass('w-full', 'max-w-[878px]')
     expect(container.querySelector('[data-chat-content-column]')?.parentElement).toHaveClass(
       'px-[24px]',
-      'mb-[8px]',
+      '-mb-[12px]',
     )
     fireEvent.click(screen.getByRole('button', { name: 'Edit saved input' }))
 

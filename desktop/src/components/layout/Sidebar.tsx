@@ -481,6 +481,7 @@ export function Sidebar() {
     setNewSessionMenuOpen(false)
     setBulkSelection(null)
     setPendingSessionKey(currentKey)
+    useChatStore.getState().clearCompletionUnread(session.id)
     useTabStore.getState().switchToSession(session.id, displayTitle, session.projectPath)
     void useChatStore.getState().ensureSessionReady(session.id, session.projectPath)
   }, [])
@@ -992,8 +993,12 @@ function SidebarSessionRow({
   onToggleSelection: (session: SessionListItem) => void
 }) {
   const t = useTranslation()
+  const hasUnreadCompletion = useChatStore((state) => (
+    state.sessions[session.id]?.completionUnread ?? false
+  ))
   const currentKey = sessionKey(session.id, session.projectPath)
   const isActive = currentKey === activeKey
+  const completionUnread = hasUnreadCompletion && !isActive
   const useInverse = isActive && !selectionMode
   const displayTitle = getSessionDisplayTitle(session, t)
 
@@ -1064,6 +1069,14 @@ function SidebarSessionRow({
                     <span className="shrink-0 text-[9px] font-bold text-amber-500">
                       {t('sidebar.missingDir')}
                     </span>
+                  )}
+                  {completionUnread && (
+                    <span
+                      role="status"
+                      aria-label={t('sidebar.completedUnread')}
+                      title={t('sidebar.completedUnread')}
+                      className="mt-[4px] h-[7px] w-[7px] shrink-0 rounded-full bg-[#2f7df6]"
+                    />
                   )}
                   <span className={`mt-0.5 shrink-0 text-[9px] font-bold ${useInverse ? 'text-[var(--color-inverse-on-surface)]/45' : 'text-[var(--color-text-tertiary)]'}`}>
                     {formatRelativeTime(session.modifiedAt)}
