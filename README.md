@@ -902,11 +902,11 @@ bun run feishu
 
 如果这个项目对您有帮助，请给个 ⭐ Star 支持一下，让更多的人看到 CyberCode！
 
-<a href="https://www.star-history.com/#wk42worldworld/cybercode&Date">
+<a href="https://star-history.dera.page/#wk42worldworld/cybercode&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wk42worldworld/cybercode&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wk42worldworld/cybercode&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wk42worldworld/cybercode&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=wk42worldworld/cybercode&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=wk42worldworld/cybercode&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=wk42worldworld/cybercode&type=Date" />
   </picture>
 </a>
 
