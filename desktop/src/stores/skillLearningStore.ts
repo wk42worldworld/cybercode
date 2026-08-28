@@ -65,7 +65,7 @@ export const useSkillLearningStore = create<SkillLearningStore>((set, get) => ({
   approveCandidate: async (id, cwd) => {
     set({ pendingCandidateId: id, error: null })
     try {
-      await skillsApi.approveCandidate(id)
+      await skillsApi.approveCandidate(id, cwd)
       await get().fetchOverview(cwd, true)
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
@@ -78,7 +78,7 @@ export const useSkillLearningStore = create<SkillLearningStore>((set, get) => ({
   rejectCandidate: async (id, cwd) => {
     set({ pendingCandidateId: id, error: null })
     try {
-      await skillsApi.rejectCandidate(id)
+      await skillsApi.rejectCandidate(id, cwd)
       await get().fetchOverview(cwd, true)
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
