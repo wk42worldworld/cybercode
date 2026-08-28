@@ -5,7 +5,10 @@ import * as path from 'node:path'
 import { getCwdState, setCwdState } from '../../bootstrap/state.js'
 import { handleSkillsApi } from '../api/skills.js'
 import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
-import { saveSkillCandidate } from '../../skillLearning/store.js'
+import {
+  getSkillCandidate,
+  saveSkillCandidate,
+} from '../../skillLearning/store.js'
 
 let tmpHome: string
 let originalHome: string | undefined
@@ -272,7 +275,7 @@ describe('Skills API', () => {
     )
 
     const approveRequest = makeRequest(
-      `/api/skills/learning/${candidate.id}/approve`,
+      `/api/skills/learning/${candidate.id}/approve?cwd=${encodeURIComponent(projectRoot)}`,
       { method: 'POST' },
     )
     const approveResponse = await handleSkillsApi(
@@ -297,6 +300,67 @@ describe('Skills API', () => {
     expect(
       await fs.readFile(approved.candidate.outputPath, 'utf-8'),
     ).toContain('# API Verification')
+  })
+
+  it('prevents project Skill drafts from being reviewed through another project', async () => {
+    const projectRoot = path.join(tmpHome, 'workspace-a')
+    const otherProjectRoot = path.join(tmpHome, 'workspace-b')
+    await Promise.all([
+      fs.mkdir(projectRoot, { recursive: true }),
+      fs.mkdir(otherProjectRoot, { recursive: true }),
+    ])
+    const { candidate } = await saveSkillCandidate({
+      action: 'create',
+      scope: 'project',
+      projectRoot,
+      name: 'scoped-verification',
+      description: 'Verify only the originating project',
+      whenToUse: 'Use after code changes.',
+      reason: 'The workflow belongs to workspace A',
+      evidence: ['Workspace A tests passed'],
+      confidence: 0.94,
+      markdown: [
+        '---',
+        'name: scoped-verification',
+        'description: "Verify only the originating project"',
+        'when_to_use: "Use after code changes."',
+        '---',
+        '',
+        '# Scoped Verification',
+        '',
+        'Run the originating project tests.',
+        '',
+      ].join('\n'),
+      sourceSessionId: 'session-scoped',
+      sourceFingerprint: 'scoped-verification-fingerprint',
+      sourceToolUses: 9,
+    })
+
+    for (const action of ['approve', 'reject']) {
+      const request = makeRequest(
+        `/api/skills/learning/${candidate.id}/${action}?cwd=${encodeURIComponent(otherProjectRoot)}`,
+        { method: 'POST' },
+      )
+      const response = await handleSkillsApi(
+        request.req,
+        request.url,
+        request.segments,
+      )
+      expect(response.status).toBe(404)
+    }
+
+    expect((await getSkillCandidate(candidate.id))?.status).toBe('pending')
+    await expect(
+      fs.stat(
+        path.join(
+          projectRoot,
+          '.cyber',
+          'skills',
+          'scoped-verification',
+          'SKILL.md',
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('rejects unsafe Skill Learning configuration values', async () => {
