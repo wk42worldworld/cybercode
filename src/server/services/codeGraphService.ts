@@ -359,6 +359,7 @@ export class CodeGraphService {
       const proc = Bun.spawn([invocation.command, ...invocation.args], {
         cwd: projectPath,
         env: { ...process.env, ...invocation.env },
+        windowsHide: true,
         stdin: 'ignore',
         stdout: 'pipe',
         stderr: 'pipe',
@@ -460,6 +461,7 @@ export class CodeGraphService {
     const proc = Bun.spawn([invocation.command, ...invocation.args], {
       cwd: projectPath,
       env: { ...process.env, ...invocation.env },
+      windowsHide: true,
       stdin: 'ignore',
       stdout: 'pipe',
       stderr: 'pipe',

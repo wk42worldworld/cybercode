@@ -183,8 +183,10 @@ describe('native Code Graph service', () => {
   test('rebuilds an incomplete database instead of trying to reuse it', async () => {
     const service = new CodeGraphService()
     let invocation: string[] = []
-    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation((args) => {
+    let windowsHidden: boolean | undefined
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation((args, options) => {
       invocation = [...args]
+      windowsHidden = options?.windowsHide
       return createFakeWatchProcess(Promise.resolve(1))
     })
     const internals = service as unknown as {
@@ -196,6 +198,7 @@ describe('native Code Graph service', () => {
       await internals.runIndex(canonicalIncompleteProjectDir, false)
 
       expect(invocation).toContain('--rebuild')
+      expect(windowsHidden).toBe(true)
       expect(service.getStatus(incompleteProjectDir).state).toBe('error')
     } finally {
       service.shutdown()
@@ -380,8 +383,10 @@ describe('native Code Graph service', () => {
     const service = new CodeGraphService({ watcherRestartBaseDelayMs: 1 })
     const secondExit = Promise.withResolvers<number>()
     let spawnCount = 0
-    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation(() => {
+    let windowsHidden: boolean | undefined
+    const spawnSpy = spyOn(Bun, 'spawn').mockImplementation((_args, options) => {
       spawnCount += 1
+      windowsHidden = options?.windowsHide
       return createFakeWatchProcess(
         spawnCount === 1 ? Promise.resolve(1) : secondExit.promise,
       )
@@ -398,6 +403,7 @@ describe('native Code Graph service', () => {
       }
 
       expect(spawnCount).toBe(2)
+      expect(windowsHidden).toBe(true)
       service.shutdown()
       secondExit.resolve(0)
       await Bun.sleep(5)
