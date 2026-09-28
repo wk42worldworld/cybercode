@@ -159,15 +159,6 @@ describe('SettingsService', () => {
     expect(mode).toBe('bypassPermissions')
   })
 
-  it('should enable automatic session titles by default and persist opt-out', async () => {
-    const svc = new SettingsService()
-
-    expect(await svc.isAutoSessionTitleEnabled()).toBe(true)
-
-    await svc.updateUserSettings({ autoSessionTitleEnabled: false })
-    expect(await svc.isAutoSessionTitleEnabled()).toBe(false)
-  })
-
   it('should set and get permission mode', async () => {
     const svc = new SettingsService()
     await svc.setPermissionMode('plan')

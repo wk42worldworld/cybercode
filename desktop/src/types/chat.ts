@@ -90,13 +90,7 @@ export type ServerMessage =
   | { type: 'team_created'; teamName: string }
   | { type: 'team_deleted'; teamName: string }
   | { type: 'task_update'; taskId: string; status: string; progress?: string }
-  | {
-      type: 'session_title_updated'
-      sessionId: string
-      title: string
-      source?: 'placeholder' | 'generated'
-      previousTitle?: string
-    }
+  | { type: 'session_title_updated'; sessionId: string; title: string }
 
 export type TokenUsage = {
   input_tokens: number

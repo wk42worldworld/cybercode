@@ -18,7 +18,6 @@ type CheckOptions = {
 
 const DISMISSED_UPDATE_VERSION_KEY = 'cybercode-dismissed-update-version'
 const UPDATE_CHECK_TIMEOUT_MS = 12_000
-const UPDATE_DOWNLOAD_TIMEOUT_MS = 10 * 60_000
 
 type UpdateStore = {
   status: UpdateStatus
@@ -38,9 +37,6 @@ type UpdateStore = {
 
 let pendingUpdate: Update | null = null
 let startupCheckPromise: Promise<void> | null = null
-let updaterInitialized = false
-let checkPromise: Promise<Update | null> | null = null
-let reportCheckErrors = false
 let downloadPromise: Promise<void> | null = null
 let downloadingUpdate: Update | null = null
 
@@ -128,7 +124,7 @@ function startBackgroundDownload(
             progressPercent: 100,
           }))
         }
-      }, { timeout: UPDATE_DOWNLOAD_TIMEOUT_MS })
+      })
 
       if (pendingUpdate !== update) return
 
@@ -172,35 +168,21 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
 
   initialize: async () => {
     if (!isTauriRuntime()) return
-    if (!updaterInitialized) {
-      updaterInitialized = true
-      startupCheckPromise = get()
-        .checkForUpdates({ silent: true })
-        .then(() => undefined)
-        .finally(() => {
-          startupCheckPromise = null
-        })
+    if (!startupCheckPromise) {
+      startupCheckPromise = (async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5000))
+        await get().checkForUpdates({ silent: true })
+      })().finally(() => {
+        startupCheckPromise = null
+      })
     }
 
-    if (startupCheckPromise) {
-      await startupCheckPromise
-    }
+    await startupCheckPromise
   },
 
   checkForUpdates: async ({ silent = false } = {}) => {
     if (!isTauriRuntime()) return null
-    if (
-      pendingUpdate &&
-      ['downloading', 'restarting'].includes(get().status)
-    ) {
-      return pendingUpdate
-    }
-    if (checkPromise) {
-      if (!silent) reportCheckErrors = true
-      return checkPromise
-    }
-
-    reportCheckErrors = !silent
+    if (get().status === 'downloading' && pendingUpdate) return pendingUpdate
 
     set((state) => ({
       ...state,
@@ -208,36 +190,20 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
       error: null,
     }))
 
-    checkPromise = (async () => {
-      try {
-        const { check } = await import('@tauri-apps/plugin-updater')
-        const update = await check({ timeout: UPDATE_CHECK_TIMEOUT_MS })
-        await setPendingUpdate(update)
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater')
+      const update = await check({ timeout: UPDATE_CHECK_TIMEOUT_MS })
+      await setPendingUpdate(update)
 
-        const checkedAt = Date.now()
+      const checkedAt = Date.now()
 
-        if (!update) {
-          writeDismissedUpdateVersion(null)
-          set((state) => ({
-            ...state,
-            status: 'up-to-date',
-            availableVersion: null,
-            releaseNotes: null,
-            progressPercent: 0,
-            downloadedBytes: 0,
-            totalBytes: null,
-            checkedAt,
-            error: null,
-            shouldPrompt: false,
-          }))
-          return null
-        }
-
+      if (!update) {
+        writeDismissedUpdateVersion(null)
         set((state) => ({
           ...state,
-          status: 'downloading',
-          availableVersion: update.version,
-          releaseNotes: update.body ?? null,
+          status: 'up-to-date',
+          availableVersion: null,
+          releaseNotes: null,
           progressPercent: 0,
           downloadedBytes: 0,
           totalBytes: null,
@@ -245,32 +211,40 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
           error: null,
           shouldPrompt: false,
         }))
-        void startBackgroundDownload(update, set)
-        return update
-      } catch (error) {
-        if (reportCheckErrors) {
-          set((state) => ({
-            ...state,
-            status: 'error',
-            error: getErrorMessage(error),
-            checkedAt: Date.now(),
-          }))
-        } else {
-          console.warn('[update] Background update check failed:', error)
-          set((state) => ({
-            ...state,
-            status: state.availableVersion ? 'available' : 'idle',
-            checkedAt: Date.now(),
-          }))
-        }
         return null
       }
-    })().finally(() => {
-      checkPromise = null
-      reportCheckErrors = false
-    })
 
-    return checkPromise
+      set((state) => ({
+        ...state,
+        status: 'downloading',
+        availableVersion: update.version,
+        releaseNotes: update.body ?? null,
+        progressPercent: 0,
+        downloadedBytes: 0,
+        totalBytes: null,
+        checkedAt,
+        error: null,
+        shouldPrompt: false,
+      }))
+      void startBackgroundDownload(update, set)
+      return update
+    } catch (error) {
+      if (!silent) {
+        set((state) => ({
+          ...state,
+          status: 'error',
+          error: getErrorMessage(error),
+          checkedAt: Date.now(),
+        }))
+      } else {
+        set((state) => ({
+          ...state,
+          status: state.availableVersion ? 'available' : 'idle',
+          checkedAt: Date.now(),
+        }))
+      }
+      return null
+    }
   },
 
   installUpdate: async () => {

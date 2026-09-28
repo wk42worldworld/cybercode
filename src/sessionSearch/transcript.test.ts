@@ -15,33 +15,6 @@ afterEach(async () => {
   await Promise.all(cleanupPaths.splice(0).map(path => rm(path, { recursive: true, force: true })))
 })
 
-test('uses the generated title instead of the first-message placeholder', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'cybercode-title-transcript-'))
-  cleanupPaths.push(dir)
-  const sessionId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
-  const filePath = join(dir, `${sessionId}.jsonl`)
-  await writeFile(filePath, [
-    JSON.stringify({
-      type: 'user',
-      uuid: 'user-title',
-      timestamp: '2026-01-01T00:00:00.000Z',
-      message: { role: 'user', content: '帮我修改一下这个项目' },
-    }),
-    JSON.stringify({
-      type: 'ai-title',
-      aiTitle: '修复移动端登录流程',
-      timestamp: '2026-01-01T00:00:01.000Z',
-    }),
-  ].join('\n') + '\n')
-
-  const parsed = await parseSessionTranscript({
-    filePath,
-    projectPath: '-tmp-title-project',
-  })
-
-  expect(parsed.title).toBe('修复移动端登录流程')
-})
-
 describe('large transcript worker parsing', () => {
   test('uses only the bounded prefix when the worker fails', async () => {
     const filePath = await writeLargeTranscript('bounded-worker-fallback')

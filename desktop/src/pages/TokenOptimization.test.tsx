@@ -12,10 +12,6 @@ import { useTabStore } from '../stores/tabStore'
 import { useUIStore } from '../stores/uiStore'
 import { TokenOptimization } from './TokenOptimization'
 
-vi.mock('../components/settings/FastJudgmentSettings', () => ({
-  FastJudgmentSettings: () => <div data-testid="fast-judgment-settings" />,
-}))
-
 vi.mock('../api/tokenOptimization', () => ({
   tokenOptimizationApi: {
     status: vi.fn(),

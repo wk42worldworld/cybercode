@@ -607,7 +607,7 @@ describe('MessageList nested tool calls', () => {
     )
   })
 
-  it('merges every thinking wave in one user turn and animates closed only when the turn ends', async () => {
+  it('merges every thinking wave in one user turn and collapses only when the turn ends', () => {
     const messages: UIMessage[] = [
       {
         id: 'user-multi-thinking',
@@ -712,12 +712,7 @@ describe('MessageList nested tool calls', () => {
     expect(
       screen.getByTestId('thinking-message-panel').querySelector('button')?.getAttribute('aria-expanded'),
     ).toBe('false')
-    expect(screen.getByTestId('thinking-message-panel-collapse').getAttribute('data-state')).toBe('closing')
-    expect(screen.getByTestId('thinking-message-panel-content')).toBeTruthy()
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('thinking-message-panel-content')).toBeNull()
-    })
+    expect(screen.queryByTestId('thinking-message-panel-content')).toBeNull()
     const finalAssistant = screen.getByText('The fix is ready.')
     const completedThinking = screen.getByTestId('thinking-message-panel')
     const completedActivity = document.querySelector('[data-tool-activity-container]')

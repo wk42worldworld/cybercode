@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallBlock } from './ToolCallBlock'
 import { ToolCallGroup } from './ToolCallGroup'
@@ -497,7 +497,7 @@ describe('chat blocks', () => {
     animationFrame.mockRestore()
   })
 
-  it('stays expanded between tool waves and animates closed when the turn finishes', async () => {
+  it('stays expanded between tool waves until the assistant turn finishes', () => {
     const read = {
       id: 'completed-read',
       type: 'tool_use' as const,
@@ -548,12 +548,7 @@ describe('chat blocks', () => {
     )
 
     expect(activityButton.getAttribute('aria-expanded')).toBe('false')
-    expect(screen.getByTestId('tool-activity-collapse').getAttribute('data-state')).toBe('closing')
-    expect(container.querySelector('[data-tool-activity-details]')).toBeTruthy()
-
-    await waitFor(() => {
-      expect(container.querySelector('[data-tool-activity-details]')).toBeNull()
-    })
+    expect(container.querySelector('[data-tool-activity-details]')).toBeNull()
   })
 
   it('marks an orphaned tool group as stopped after the session becomes idle', () => {

@@ -8,7 +8,6 @@ import {
   smartPruningOptimizationService,
 } from '../../services/smartPruningOptimization.js'
 import { ApiError, errorResponse } from '../middleware/errorHandler.js'
-import { fastJudgmentService } from '../../services/fastJudgment/service.js'
 
 export async function handleTokenOptimizationApi(
   req: Request,
@@ -16,18 +15,6 @@ export async function handleTokenOptimizationApi(
   segments: string[],
 ): Promise<Response> {
   try {
-    if (segments[2] === 'judgment') {
-      if (segments[3] === undefined && req.method === 'GET') {
-        return Response.json(fastJudgmentService.getStatus())
-      }
-      if (segments[3] === undefined && req.method === 'POST') {
-        return Response.json(fastJudgmentService.updateConfig(await readJsonObject(req)))
-      }
-      if (segments[3] === 'test' && req.method === 'POST') {
-        return Response.json(await fastJudgmentService.testConnection())
-      }
-      throw new ApiError(405, `Method ${req.method} not allowed`, 'METHOD_NOT_ALLOWED')
-    }
     if (segments[2] === 'lite') {
       return handleLiteRequest(req, segments)
     }

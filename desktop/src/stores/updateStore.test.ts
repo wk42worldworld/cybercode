@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const check = vi.fn()
 const relaunch = vi.fn()
@@ -32,27 +32,6 @@ describe('updateStore', () => {
     })
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('checks immediately and initializes only once for the app process', async () => {
-    vi.useFakeTimers()
-    check.mockResolvedValue(null)
-
-    vi.resetModules()
-    const { useUpdateStore } = await import('./updateStore')
-
-    const firstInitialize = useUpdateStore.getState().initialize()
-    const secondInitialize = useUpdateStore.getState().initialize()
-    await vi.advanceTimersByTimeAsync(0)
-
-    expect(check).toHaveBeenCalledTimes(1)
-    expect(check).toHaveBeenCalledWith({ timeout: 12_000 })
-    await Promise.all([firstInitialize, secondInitialize])
-    expect(useUpdateStore.getState().status).toBe('up-to-date')
-  })
-
   it('stores available update metadata and predownloads after a successful check', async () => {
     const download = vi.fn(async (onEvent?: (event: unknown) => void) => {
       onEvent?.({ event: 'Started', data: { contentLength: 200 } })
@@ -82,60 +61,8 @@ describe('updateStore', () => {
     await tick()
 
     expect(download).toHaveBeenCalledTimes(1)
-    expect(download).toHaveBeenCalledWith(
-      expect.any(Function),
-      { timeout: 10 * 60_000 },
-    )
     expect(useUpdateStore.getState().status).toBe('downloaded')
     expect(useUpdateStore.getState().progressPercent).toBe(100)
-  })
-
-  it('joins concurrent background and manual checks instead of racing updater resources', async () => {
-    const download = vi.fn().mockResolvedValue(undefined)
-    const update = {
-      version: '0.2.0',
-      body: 'Notes',
-      download,
-      close: vi.fn().mockResolvedValue(undefined),
-    }
-    let resolveCheck!: (value: typeof update) => void
-    check.mockReturnValue(new Promise((resolve) => {
-      resolveCheck = resolve
-    }))
-
-    vi.resetModules()
-    const { useUpdateStore } = await import('./updateStore')
-
-    const background = useUpdateStore.getState().checkForUpdates({ silent: true })
-    const manual = useUpdateStore.getState().checkForUpdates()
-
-    await vi.waitFor(() => expect(check).toHaveBeenCalledTimes(1))
-    resolveCheck(update)
-    const [backgroundResult, manualResult] = await Promise.all([background, manual])
-
-    expect(backgroundResult).toBe(update)
-    expect(manualResult).toBe(update)
-    await tick()
-    expect(download).toHaveBeenCalledTimes(1)
-  })
-
-  it('surfaces an error when a manual check joins a silent background check', async () => {
-    let rejectCheck!: (reason: Error) => void
-    check.mockReturnValue(new Promise((_resolve, reject) => {
-      rejectCheck = reject
-    }))
-
-    vi.resetModules()
-    const { useUpdateStore } = await import('./updateStore')
-
-    const background = useUpdateStore.getState().checkForUpdates({ silent: true })
-    const manual = useUpdateStore.getState().checkForUpdates()
-    rejectCheck(new Error('manifest unavailable'))
-    await Promise.all([background, manual])
-
-    expect(check).toHaveBeenCalledTimes(1)
-    expect(useUpdateStore.getState().status).toBe('error')
-    expect(useUpdateStore.getState().error).toBe('manifest unavailable')
   })
 
   it('keeps the popup prompt hidden after dismissing once', async () => {

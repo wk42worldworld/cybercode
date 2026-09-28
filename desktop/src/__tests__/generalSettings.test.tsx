@@ -1878,8 +1878,7 @@ describe('Settings > Providers tab', () => {
 
 describe('Settings > About tab', () => {
   beforeEach(() => {
-    useSettingsStore.setState({ locale: 'en' })
-    useUIStore.setState({ pendingSettingsTab: 'about', toasts: [] })
+    useUIStore.setState({ pendingSettingsTab: 'about' })
     useUpdateStore.setState({
       status: 'available',
       availableVersion: '0.1.5',
@@ -1926,28 +1925,5 @@ describe('Settings > About tab', () => {
 
     expect(await screen.findByText('Downloading update... 1.5 KB downloaded')).toBeInTheDocument()
     expect(screen.queryByText('Downloading update... 0%')).not.toBeInTheDocument()
-  })
-
-  it('confirms that a manually discovered update is downloading in the background', async () => {
-    const checkForUpdates = vi.fn().mockImplementation(async () => {
-      useUpdateStore.setState({
-        status: 'downloading',
-        availableVersion: '0.2.0',
-      })
-      return { version: '0.2.0' }
-    })
-    useUpdateStore.setState({ checkForUpdates })
-
-    render(<Settings />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Check now' }))
-
-    await waitFor(() => {
-      expect(useUIStore.getState().toasts).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          type: 'info',
-          message: 'Found v0.2.0. Downloading it in the background...',
-        }),
-      ]))
-    })
   })
 })

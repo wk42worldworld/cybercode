@@ -159,29 +159,6 @@ describe('ChatInput composer controls', () => {
     expect(tokenUsage.compareDocumentPosition(modelSelector!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('offers new-session default actions from the composer model selector', () => {
-    useChatStore.setState({
-      sessions: {
-        'session-1': makeChatSession(),
-      },
-    })
-
-    render(
-      <ChatInput
-        sessionId="session-1"
-        projectPath="/tmp/project"
-        runtimeKey="session-1"
-      />,
-    )
-
-    const runtimeControls = screen.getByTestId('composer-runtime-controls')
-    fireEvent.click(runtimeControls.querySelector('.model-selector-compact')!)
-
-    expect(screen.getByRole('button', {
-      name: 'Set Opus 4.8 as the default for new sessions',
-    })).toBeInTheDocument()
-  })
-
   it('prewarms only after explicit composer interaction, not programmatic focus', () => {
     const prewarmSession = vi
       .spyOn(useChatStore.getState(), 'prewarmSession')

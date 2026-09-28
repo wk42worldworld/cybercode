@@ -27,7 +27,6 @@ const VALID_PERMISSION_MODES = [
   'dontAsk',
 ] as const
 export const DEFAULT_PERMISSION_MODE = 'bypassPermissions'
-export const DEFAULT_AUTO_SESSION_TITLE_ENABLED = true
 const MASKED_SECRET = '••••••••'
 
 function restoreMaskedSettingsValues(
@@ -239,13 +238,5 @@ export class SettingsService {
       )
     }
     await this.updateUserSettings({ defaultMode: mode })
-  }
-
-  /** Whether completed desktop turns may start a background title request. */
-  async isAutoSessionTitleEnabled(): Promise<boolean> {
-    const settings = await this.getUserSettings()
-    return typeof settings.autoSessionTitleEnabled === 'boolean'
-      ? settings.autoSessionTitleEnabled
-      : DEFAULT_AUTO_SESSION_TITLE_ENABLED
   }
 }

@@ -3304,8 +3304,6 @@ export function GeneralSettings() {
     setTheme,
     skipWebFetchPreflight,
     setSkipWebFetchPreflight,
-    autoSessionTitleEnabled,
-    setAutoSessionTitleEnabled,
   } = useSettingsStore()
   const t = useTranslation()
 
@@ -3332,17 +3330,6 @@ export function GeneralSettings() {
         </SettingsRow>
         <SettingsRow label={t('settings.general.effortTitle')} hint={t('settings.general.effortDescription')}>
           <SegmentedControl items={effortItems} value={effortLevel} onChange={(v) => setEffort(v)} />
-        </SettingsRow>
-        <SettingsRow
-          label={t('settings.general.autoSessionTitleTitle')}
-          hint={t('settings.general.autoSessionTitleDescription')}
-          align="start"
-        >
-          <Switch
-            checked={autoSessionTitleEnabled}
-            onChange={(next) => void setAutoSessionTitleEnabled(next)}
-            ariaLabel={t('settings.general.autoSessionTitleTitle')}
-          />
         </SettingsRow>
         <SettingsRow
           label={t('settings.general.webFetchPreflightEnabled')}
@@ -4425,6 +4412,7 @@ export function AboutSettings() {
   const checkedAt = useUpdateStore((s) => s.checkedAt)
   const checkForUpdates = useUpdateStore((s) => s.checkForUpdates)
   const installUpdate = useUpdateStore((s) => s.installUpdate)
+  const initialize = useUpdateStore((s) => s.initialize)
 
   useEffect(() => {
     let cancelled = false
@@ -4443,40 +4431,12 @@ export function AboutSettings() {
     }
   }, [])
 
+  useEffect(() => {
+    void initialize()
+  }, [initialize])
+
   const openUrl = (url: string) => {
     import('@tauri-apps/plugin-shell').then((mod) => mod.open(url)).catch(() => window.open(url, '_blank'))
-  }
-
-  const handleCheckForUpdates = async () => {
-    const update = await checkForUpdates()
-    const state = useUpdateStore.getState()
-
-    if (state.status === 'error' && state.error) {
-      useUIStore.getState().addToast({
-        type: 'error',
-        message: t('update.failed', { error: state.error }),
-      })
-      return
-    }
-
-    if (update) {
-      useUIStore.getState().addToast({
-        type: 'info',
-        message: state.status === 'downloaded'
-          ? t('update.ready')
-          : t('update.downloadStarted', { version: update.version }),
-      })
-      return
-    }
-
-    if (state.status === 'up-to-date') {
-      useUIStore.getState().addToast({
-        type: 'success',
-        message: t('update.upToDate', {
-          version: version || t('update.currentVersionUnknown'),
-        }),
-      })
-    }
   }
 
   const checkedAtText =
@@ -4553,7 +4513,7 @@ export function AboutSettings() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => void handleCheckForUpdates()}
+            onClick={() => void checkForUpdates()}
             loading={updateStatus === 'checking'}
           >
             {t('update.checkNow')}

@@ -163,32 +163,3 @@ describe('settingsStore completion sound', () => {
     })
   })
 })
-
-describe('settingsStore automatic session titles', () => {
-  beforeEach(() => {
-    vi.resetModules()
-    window.localStorage.clear()
-  })
-
-  it('defaults to enabled and persists the user toggle', async () => {
-    const { settingsApi } = await import('../api/settings')
-    const updateSpy = vi.spyOn(settingsApi, 'updateUser').mockResolvedValue({ ok: true })
-    const { useSettingsStore } = await import('./settingsStore')
-
-    expect(useSettingsStore.getState().autoSessionTitleEnabled).toBe(true)
-    await useSettingsStore.getState().setAutoSessionTitleEnabled(false)
-
-    expect(useSettingsStore.getState().autoSessionTitleEnabled).toBe(false)
-    expect(updateSpy).toHaveBeenCalledWith({ autoSessionTitleEnabled: false })
-  })
-
-  it('rolls the toggle back when persisting fails', async () => {
-    const { settingsApi } = await import('../api/settings')
-    vi.spyOn(settingsApi, 'updateUser').mockRejectedValue(new Error('offline'))
-    const { useSettingsStore } = await import('./settingsStore')
-
-    await useSettingsStore.getState().setAutoSessionTitleEnabled(false)
-
-    expect(useSettingsStore.getState().autoSessionTitleEnabled).toBe(true)
-  })
-})

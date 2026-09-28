@@ -23,7 +23,6 @@ import {
   type SmartPruningStatus,
 } from '../api/tokenOptimization'
 import { CodeGraphVisualization } from '../components/codegraph/CodeGraphVisualization'
-import { FastJudgmentSettings } from '../components/settings/FastJudgmentSettings'
 import {
   SettingsPage,
   Switch,
@@ -814,8 +813,6 @@ export function TokenOptimization({ initialView = 'overview' }: TokenOptimizatio
           )}
         />
       </section>
-
-      <FastJudgmentSettings pruningEnabled={pruningStatus?.enabled ?? false} />
 
       {[liteError, pruningError, ponytailError, cavemanError, rtkError, error].filter(Boolean).map((message) => (
         <div

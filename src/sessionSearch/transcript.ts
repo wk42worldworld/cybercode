@@ -833,7 +833,7 @@ export async function parseSessionTranscript(params: {
   const workDir = sessionMetaWorkDir
     ?? lastCwd
     ?? params.projectPath.replace(/-/g, '/')
-  const title = (customTitle ?? aiTitle ?? firstUserTitle ?? sessionId) || 'Untitled Session'
+  const title = (customTitle ?? firstUserTitle ?? aiTitle ?? sessionId) || 'Untitled Session'
   return {
     sessionId,
     projectPath: params.projectPath,

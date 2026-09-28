@@ -17,14 +17,7 @@ import { computerUseApprovalService } from '../services/computerUseApprovalServi
 import { sessionService } from '../services/sessionService.js'
 import { SettingsService } from '../services/settingsService.js'
 import { ProviderService } from '../services/providerService.js'
-import {
-  buildTitleConversationText,
-  generateTitle,
-  isLowInformationSessionTitle,
-  saveAiTitle,
-  shouldDeferTitleGenerationForMoreContext,
-} from '../services/titleService.js'
-import { backgroundScheduler } from '../background/scheduler.js'
+import { deriveTitle, saveAiTitle } from '../services/titleService.js'
 import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
 import {
   LOCAL_COMMAND_STDERR_TAG,
@@ -79,10 +72,7 @@ const sessionStopPromises = new Map<string, Promise<void>>()
 const sessionTitleState = new Map<string, {
   userMessageCount: number
   hasCustomTitle: boolean
-  hasAiTitle: boolean
-  titleSettled: boolean
   firstUserMessage: string
-  generationAttempts: number
 }>()
 
 const runtimeOverrides = new Map<string, {
@@ -154,7 +144,8 @@ const turnCompletionGate = new TurnCompletionGate<PendingTurnCompletion>({
     } else {
       finalizeSuccessfulImageTurns(sessionId)
     }
-    triggerTitleGeneration(sessionId)
+    const ws = activeSessions.get(sessionId)
+    if (ws) triggerTitleGeneration(ws, sessionId)
   },
 })
 
@@ -398,25 +389,12 @@ async function handleUserMessage(
   // Track user message for title generation
   let titleState = sessionTitleState.get(sessionId)
   if (!titleState) {
-    titleState = {
-      userMessageCount: 0,
-      hasCustomTitle: false,
-      hasAiTitle: false,
-      titleSettled: false,
-      firstUserMessage: '',
-      generationAttempts: 0,
-    }
+    titleState = { userMessageCount: 0, hasCustomTitle: false, firstUserMessage: '' }
     sessionTitleState.set(sessionId, titleState)
   }
   titleState.userMessageCount++
   if (titleState.userMessageCount === 1) {
-    const attachmentNames = (message.attachments ?? [])
-      .map((attachment) => attachment.name?.trim())
-      .filter((name): name is string => Boolean(name))
-    titleState.firstUserMessage = [
-      message.content.trim(),
-      attachmentNames.length > 0 ? `Files: ${attachmentNames.join(', ')}` : '',
-    ].filter(Boolean).join('\n')
+    titleState.firstUserMessage = message.content
   }
 
   // Register the callback before sending the turn so startup errors are not lost.
@@ -1165,127 +1143,30 @@ async function waitForSessionStop(sessionId: string): Promise<void> {
 // Title generation
 // ============================================================================
 
-function triggerTitleGeneration(sessionId: string): void {
+function triggerTitleGeneration(ws: ServerWebSocket<WebSocketData>, sessionId: string): void {
   const state = sessionTitleState.get(sessionId)
-  if (
-    !state ||
-    state.hasCustomTitle ||
-    state.titleSettled ||
-    !state.firstUserMessage ||
-    state.generationAttempts >= 2
-  ) return
+  if (!state || state.hasCustomTitle) return
 
-  if (shouldDeferTitleGenerationForMoreContext(
-    state.firstUserMessage,
-    state.userMessageCount,
-  )) return
+  const count = state.userMessageCount
 
-  const runtime = runtimeOverrides.get(sessionId)
-  const scheduledUserMessageCount = state.userMessageCount
+  // Keep session titles tied to the first user message. Do not later replace
+  // them with an AI summary title.
+  if (count !== 1) return
 
-  try {
-    const task = backgroundScheduler.enqueue<string | null>({
-      type: 'session-title',
-      key: sessionId,
-      lane: 'external',
-      priority: 3,
-      dedupe: 'join',
-      run: async ({ signal }) => {
-        if (!await settingsService.isAutoSessionTitleEnabled()) return null
-        state.generationAttempts++
+  const text = state.firstUserMessage
 
-        const launchInfo = await sessionService.getSessionLaunchInfo(sessionId)
-        if (launchInfo?.customTitle) {
-          state.hasCustomTitle = true
-          state.titleSettled = true
-          return null
-        }
-        const existingAiTitle = launchInfo?.aiTitle?.trim() || null
-        if (existingAiTitle && !isLowInformationSessionTitle(existingAiTitle)) {
-          state.hasAiTitle = true
-          state.titleSettled = true
-          return existingAiTitle
-        }
-
-        const recent = await sessionService
-          .getSessionMessages(sessionId, { limit: 80 })
-          .catch(() => ({ messages: [], hasMore: false }))
-        const titleInput = buildTitleConversationText(
-          state.firstUserMessage,
-          recent.messages,
-        )
-        const title = await generateTitle(titleInput, {
-          providerId: runtime?.providerId,
-          routeId: runtime?.routeId,
-          sessionId,
-        }, signal)
-        if (!title || signal.aborted) {
-          console.warn(`[Title] Runtime returned no title for session ${sessionId}`)
-          return null
-        }
-
-        if (!await settingsService.isAutoSessionTitleEnabled()) return null
-
-        // A manual rename may happen while the lightweight model is running.
-        // Re-check immediately before persistence and let custom-title retain
-        // permanent priority even in the narrow save/send race.
-        const latest = await sessionService.getSessionLaunchInfo(sessionId)
-        if (latest?.customTitle) {
-          state.hasCustomTitle = true
-          state.titleSettled = true
-          return null
-        }
-        const latestAiTitle = latest?.aiTitle?.trim() || null
-        if (latestAiTitle && latestAiTitle !== existingAiTitle) {
-          state.hasAiTitle = true
-          state.titleSettled = !isLowInformationSessionTitle(latestAiTitle)
-          return latestAiTitle
-        }
-        if (title === latestAiTitle) {
-          state.hasAiTitle = true
-          state.titleSettled =
-            !isLowInformationSessionTitle(title) || state.generationAttempts >= 2
-          return title
-        }
-
-        await saveAiTitle(sessionId, title)
-        state.hasAiTitle = true
-        state.titleSettled =
-          !isLowInformationSessionTitle(title) || state.generationAttempts >= 2
-        sendToSession(sessionId, {
-          type: 'session_title_updated',
-          sessionId,
-          title,
-          source: 'generated',
-          previousTitle: latestAiTitle ?? undefined,
-        })
-        return title
-      },
-    })
-
-    void task.promise
-      .catch((error) => {
-        if (error instanceof Error && error.name === 'AbortError') return
-        console.warn(
-          `[Title] Background title task failed for ${sessionId}:`,
-          error instanceof Error ? error.message : error,
-        )
-      })
-      .finally(() => {
-        if (
-          !state.titleSettled &&
-          state.userMessageCount > scheduledUserMessageCount &&
-          state.generationAttempts < 2
-        ) {
-          triggerTitleGeneration(sessionId)
-        }
-      })
-  } catch (error) {
-    console.warn(
-      `[Title] Could not enqueue title task for ${sessionId}:`,
-      error instanceof Error ? error.message : error,
-    )
-  }
+  // Fire-and-forget: derive a quick title from the first message.
+  void (async () => {
+    try {
+      const placeholder = deriveTitle(text)
+      if (placeholder) {
+        await saveAiTitle(sessionId, placeholder)
+        sendMessage(ws, { type: 'session_title_updated', sessionId, title: placeholder })
+      }
+    } catch (err) {
+      console.error(`[Title] Failed to generate title for ${sessionId}:`, err)
+    }
+  })()
 }
 
 // ============================================================================

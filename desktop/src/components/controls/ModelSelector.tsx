@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronRight, Pin, Route, Search, Server } from 'lucide-react'
+import { Check, ChevronRight, Route, Search, Server } from 'lucide-react'
 import { OFFICIAL_DEFAULT_MODEL_ID, OFFICIAL_MODELS } from '../../constants/modelCatalog'
 import { providersApi } from '../../api/providers'
 import { isLocalProvider } from '../chat/localProvider'
@@ -58,7 +58,6 @@ type Props = {
   fullWidth?: boolean
   variant?: 'default' | 'pill'
   openSignal?: number
-  showNewSessionDefaultAction?: boolean
 }
 
 type MenuPosition = {
@@ -226,7 +225,6 @@ export function ModelSelector({
   fullWidth = false,
   variant = 'default',
   openSignal,
-  showNewSessionDefaultAction = false,
 }: Props = {}) {
   const t = useTranslation()
   const {
@@ -534,38 +532,6 @@ export function ModelSelector({
     }
     setOpen(false)
   }
-
-  const directRuntimeSelection = (
-    group: ProviderModelBrowserGroup,
-    model: ProviderModelBrowserGroup['models'][number],
-  ): RuntimeSelection => {
-    const choice = providerChoices.find((item) => (
-      (item.providerId ?? 'official') === group.id
-    ))
-    const sourceModel = choice?.models.find((item) => item.id === model.id)
-    return {
-      providerId: choice?.providerId ?? null,
-      modelId: model.id,
-      contextWindow: sourceModel?.contextWindow,
-    }
-  }
-
-  const canSetNewSessionDefault = showNewSessionDefaultAction && isRuntimeScoped
-  const defaultDirectSelection = canSetNewSessionDefault &&
-    newSessionDefaultSelection &&
-    !newSessionDefaultSelection.routeId
-    ? {
-        groupId: newSessionDefaultSelection.providerId ?? 'official',
-        modelId: newSessionDefaultSelection.modelId,
-      }
-    : null
-  const setNewSessionDefault = (selection: RuntimeSelection) => {
-    useSessionRuntimeStore.getState().setSelection(
-      NEW_SESSION_DEFAULT_RUNTIME_SELECTION_KEY,
-      selection,
-    )
-  }
-
   const compactClassName = variant === 'pill'
     ? 'model-selector-compact h-[34px] max-w-[200px] rounded-[8px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[9px] text-[12px] font-semibold leading-normal text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
     : 'model-selector-compact h-[34px] max-w-[200px] rounded-[8px] border border-[var(--color-border-separator)] bg-[var(--color-surface-container-high)] px-[9px] text-[12px] font-semibold leading-normal text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
@@ -724,71 +690,43 @@ export function ModelSelector({
                               profile.name,
                             )
                           : profile.name
-                        const routeSelection: RuntimeSelection = {
-                          kind: 'route',
-                          providerId: null,
-                          routeId: profile.id,
-                          modelId: `cybercode-route-${profile.id}`,
-                          contextWindow: availability?.contextWindow,
-                        }
-                        const isDefault = newSessionDefaultSelection?.routeId === profile.id
-                        const defaultLabel = t(
-                          isDefault
-                            ? 'model.newSessionDefault'
-                            : 'model.setNewSessionDefault',
-                          { name: routeName },
-                        )
                         return (
-                          <div
+                          <button
                             key={profile.id}
-                            className={`group/route flex min-h-[54px] w-full items-stretch transition-colors ${
-                              selected ? 'bg-[var(--color-surface-selected)]' : ''
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => handleRuntimeSelect({
+                              kind: 'route',
+                              providerId: null,
+                              routeId: profile.id,
+                              modelId: `cybercode-route-${profile.id}`,
+                              contextWindow: availability?.contextWindow,
+                            })}
+                            className={`group flex min-h-[54px] w-full items-center gap-[10px] px-[11px] py-[8px] text-left transition-colors ${
+                              selected
+                                ? 'bg-[var(--color-surface-selected)]'
+                                : 'hover:bg-[var(--color-surface-hover)]'
                             }`}
                           >
-                            <button
-                              type="button"
-                              aria-pressed={selected}
-                              onClick={() => handleRuntimeSelect(routeSelection)}
-                              className={`group/select flex min-w-0 flex-1 items-center gap-[10px] px-[11px] py-[8px] text-left transition-colors ${
-                                selected ? '' : 'hover:bg-[var(--color-surface-hover)]'
-                              }`}
-                            >
-                              <span className="flex size-[30px] shrink-0 items-center justify-center rounded-[7px] bg-[#1473e6]/10 text-[#1473e6] dark:bg-[#68adff]/12 dark:text-[#68adff]">
-                                <Route size={15} strokeWidth={1.9} />
+                            <span className="flex size-[30px] shrink-0 items-center justify-center rounded-[7px] bg-[#1473e6]/10 text-[#1473e6] dark:bg-[#68adff]/12 dark:text-[#68adff]">
+                              <Route size={15} strokeWidth={1.9} />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[12px] font-semibold text-[var(--color-text-primary)]">
+                                {routeName}
                               </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[12px] font-semibold text-[var(--color-text-primary)]">
-                                  {routeName}
-                                </span>
-                                <span className="mt-[2px] block truncate text-[10px] text-[var(--color-text-tertiary)]">
-                                  {behaviorName} · {t('settings.routing.candidates', { count: availability?.candidateCount ?? 0 })}
-                                </span>
+                              <span className="mt-[2px] block truncate text-[10px] text-[var(--color-text-tertiary)]">
+                                {behaviorName} · {t('settings.routing.candidates', { count: availability?.candidateCount ?? 0 })}
                               </span>
-                              <span className={`flex size-[20px] shrink-0 items-center justify-center rounded-full border ${
-                                selected
-                                  ? 'border-[#1473e6] bg-[#1473e6] text-white dark:border-[#68adff] dark:bg-[#68adff] dark:text-[#111315]'
-                                  : 'border-[var(--color-border)] text-transparent group-hover/select:border-[var(--color-border-focus)]'
-                              }`}>
-                                <Check size={11} strokeWidth={2.5} />
-                              </span>
-                            </button>
-                            {canSetNewSessionDefault && (
-                              <button
-                                type="button"
-                                aria-label={defaultLabel}
-                                aria-pressed={isDefault}
-                                title={defaultLabel}
-                                onClick={() => setNewSessionDefault(routeSelection)}
-                                className={`my-auto mr-[9px] flex size-[28px] shrink-0 items-center justify-center rounded-[7px] transition-colors ${
-                                  isDefault
-                                    ? 'bg-[#1473e6]/10 text-[#1473e6] dark:bg-[#68adff]/12 dark:text-[#68adff]'
-                                    : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
-                                }`}
-                              >
-                                <Pin size={14} strokeWidth={2} fill={isDefault ? 'currentColor' : 'none'} />
-                              </button>
-                            )}
-                          </div>
+                            </span>
+                            <span className={`flex size-[20px] shrink-0 items-center justify-center rounded-full border ${
+                              selected
+                                ? 'border-[#1473e6] bg-[#1473e6] text-white dark:border-[#68adff] dark:bg-[#68adff] dark:text-[#111315]'
+                                : 'border-[var(--color-border)] text-transparent group-hover:border-[var(--color-border-focus)]'
+                            }`}>
+                              <Check size={11} strokeWidth={2.5} />
+                            </span>
+                          </button>
                         )
                       })}
                     </div>
@@ -809,28 +747,21 @@ export function ModelSelector({
                 selectedModelId={isRuntimeScoped
                   ? activeRouteId ? undefined : activeRuntimeSelection?.modelId
                   : selectedModel?.id}
-                defaultSelection={defaultDirectSelection}
                 searchLabel={t('model.searchModels')}
                 noMatchesLabel={t('model.noMatches')}
                 modelCountLabel={(count) => t('model.modelCount', { count })}
-                defaultActionLabel={(name, isDefault) => t(
-                  isDefault
-                    ? 'model.newSessionDefault'
-                    : 'model.setNewSessionDefault',
-                  { name },
-                )}
                 resetKey={`${open}:${menuView}`}
-                onSetDefault={canSetNewSessionDefault
-                  ? (group, model) => setNewSessionDefault(
-                      directRuntimeSelection(group, model),
-                    )
-                  : undefined}
                 onSelect={(group, model) => {
                   if (isRuntimeScoped) {
-                    handleRuntimeSelect(directRuntimeSelection(group, model))
                     const choice = providerChoices.find((item) => (
                       (item.providerId ?? 'official') === group.id
                     ))
+                    const sourceModel = choice?.models.find((item) => item.id === model.id)
+                    handleRuntimeSelect({
+                      providerId: choice?.providerId ?? null,
+                      modelId: model.id,
+                      contextWindow: sourceModel?.contextWindow,
+                    })
                     const provider = choice?.providerId
                       ? providers.find((item) => item.id === choice.providerId)
                       : undefined

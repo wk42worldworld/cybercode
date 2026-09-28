@@ -1,6 +1,5 @@
 import { Component, type ReactNode } from 'react'
 import { AppShell } from './components/layout/AppShell'
-import { UpdateChecker } from './components/shared/UpdateChecker'
 
 type EBState = { caught: boolean; msg: string }
 
@@ -28,7 +27,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 export function App() {
   return (
     <ErrorBoundary>
-      <UpdateChecker />
       <AppShell />
     </ErrorBoundary>
   )

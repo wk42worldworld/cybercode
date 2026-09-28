@@ -1440,7 +1440,7 @@ async function* queryModel(
 
   // Smart pruning only changes this request-local API payload. The persisted
   // transcript remains complete, so disabling it restores full context next turn.
-  messagesForAPI = (await smartPruningOptimizationService.optimizeMessagesForAPI(messagesForAPI, signal)).messages
+  messagesForAPI = smartPruningOptimizationService.optimizeMessages(messagesForAPI).messages
 
   // Instrumentation: Track message count after normalization
   logEvent('tengu_api_after_normalize', {

@@ -48,7 +48,6 @@ const CORE_TOOLS = [
 
 export const AGENT_BROWSER_SYSTEM_PROMPT = [
   'For websites and local web apps, prefer the agent-browser MCP tools.',
-  'If BrowserTask is available, use it for bounded multi-step tasks after opening the page; supply known field text. On handoff continue with the normal tools without replaying completed actions. Verify completion independently.',
   'Open the page, take a compact accessibility snapshot, and use its stable element refs before clicking or typing.',
   'Browser-page screenshots do not require operating-system screen-recording permission.',
   "Use Computer Use instead when the task requires the full desktop, another application, or the user's already-open browser session.",

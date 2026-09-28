@@ -24,15 +24,6 @@ afterEach(() => {
 })
 
 describe('Smart pruning token optimization', () => {
-  test('async API preparation stays identical without any Jev configuration', async () => {
-    useTemporaryConfig('cybercode-pruning-no-jev-')
-    const service = new SmartPruningOptimizationService()
-    const messages = createRepeatedReadConversation()
-    expect((await service.optimizeMessagesForAPI(messages)).messages).toEqual(messages)
-    service.setEnabled(true)
-    expect(await service.optimizeMessagesForAPI(messages)).toEqual(service.optimizeMessages(messages))
-  })
-
   test('is globally disabled by default and restores full context immediately when disabled', () => {
     const root = useTemporaryConfig('cybercode-pruning-toggle-test-')
     const service = new SmartPruningOptimizationService()

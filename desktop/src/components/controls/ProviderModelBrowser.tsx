@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronDown, ChevronRight, Pin, Search } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { ProviderLogo } from '../providers/ProviderLogo'
 
 export type ProviderModelBrowserModel = {
@@ -25,15 +25,12 @@ type ProviderModelBrowserProps = {
   groups: ProviderModelBrowserGroup[]
   selectedGroupId?: string | null
   selectedModelId?: string
-  defaultSelection?: { groupId: string; modelId: string } | null
   searchLabel: string
   noMatchesLabel: string
   modelCountLabel: (count: number) => string
-  defaultActionLabel?: (name: string, isDefault: boolean) => string
   resetKey?: string | number | boolean
   maxListHeight?: number
   onSelect: (group: ProviderModelBrowserGroup, model: ProviderModelBrowserModel) => void
-  onSetDefault?: (group: ProviderModelBrowserGroup, model: ProviderModelBrowserModel) => void
 }
 
 function matchesModel(
@@ -54,15 +51,12 @@ export function ProviderModelBrowser({
   groups,
   selectedGroupId,
   selectedModelId,
-  defaultSelection,
   searchLabel,
   noMatchesLabel,
   modelCountLabel,
-  defaultActionLabel,
   resetKey,
   maxListHeight,
   onSelect,
-  onSetDefault,
 }: ProviderModelBrowserProps) {
   const [query, setQuery] = useState('')
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(
@@ -160,91 +154,65 @@ export function ProviderModelBrowser({
                     <div className="border-t border-[var(--color-border-separator)] bg-[var(--color-surface-container-low)]">
                       {group.visibleModels.map((model) => {
                         const selected = selectedGroupId === group.id && selectedModelId === model.id
-                        const isDefault = defaultSelection?.groupId === group.id && defaultSelection.modelId === model.id
                         const primaryLabel = model.label || model.id
                         const secondaryLabel = model.label && model.label !== model.id
                           ? model.id
                           : model.description
-                        const setDefaultLabel = defaultActionLabel?.(primaryLabel, isDefault)
                         return (
-                          <div
+                          <button
                             key={model.id}
-                            className={`group/model flex min-h-[48px] w-full items-stretch transition-colors ${
+                            type="button"
+                            disabled={model.disabled}
+                            aria-pressed={selected}
+                            onClick={() => onSelect(group, model)}
+                            className={`group/model flex min-h-[48px] w-full items-center gap-[9px] px-[12px] py-[7px] pl-[20px] text-left transition-colors disabled:cursor-default ${
                               selected
                                 ? 'bg-[var(--color-surface-selected)]'
-                                : ''
+                                : 'hover:bg-[var(--color-surface-hover)] disabled:opacity-55 disabled:hover:bg-transparent'
                             }`}
                           >
-                            <button
-                              type="button"
-                              disabled={model.disabled}
-                              aria-pressed={selected}
-                              onClick={() => onSelect(group, model)}
-                              className={`flex min-w-0 flex-1 items-center gap-[9px] px-[12px] py-[7px] pl-[20px] text-left transition-colors disabled:cursor-default ${
+                            <ProviderLogo
+                              name={group.name}
+                              providerId={group.logoId}
+                              baseUrl={group.baseUrl}
+                              modelId={model.id}
+                              identityPriority="model"
+                              size="xs"
+                              decorative
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className={`block truncate text-[12px] ${
                                 selected
-                                  ? ''
-                                  : 'hover:bg-[var(--color-surface-hover)] disabled:opacity-55 disabled:hover:bg-transparent'
-                              }`}
-                            >
-                              <ProviderLogo
-                                name={group.name}
-                                providerId={group.logoId}
-                                baseUrl={group.baseUrl}
-                                modelId={model.id}
-                                identityPriority="model"
-                                size="xs"
-                                decorative
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className={`block truncate text-[12px] ${
-                                  selected
-                                    ? 'font-semibold text-[var(--color-text-primary)]'
-                                    : 'font-medium text-[var(--color-text-secondary)] group-hover/model:text-[var(--color-text-primary)]'
-                                }`}>
-                                  {primaryLabel}
-                                </span>
-                                {secondaryLabel && (
-                                  <span className="mt-[2px] block truncate text-[10px] text-[var(--color-text-tertiary)]">
-                                    {secondaryLabel}
-                                  </span>
-                                )}
+                                  ? 'font-semibold text-[var(--color-text-primary)]'
+                                  : 'font-medium text-[var(--color-text-secondary)] group-hover/model:text-[var(--color-text-primary)]'
+                              }`}>
+                                {primaryLabel}
                               </span>
-                              {model.context && (
-                                <span className="shrink-0 rounded-[5px] border border-[var(--color-border-separator)] px-[5px] py-[1px] text-[9px] font-semibold uppercase text-[var(--color-text-tertiary)]">
-                                  {model.context}
+                              {secondaryLabel && (
+                                <span className="mt-[2px] block truncate text-[10px] text-[var(--color-text-tertiary)]">
+                                  {secondaryLabel}
                                 </span>
                               )}
-                              {model.disabled && model.disabledLabel ? (
-                                <span className="shrink-0 text-[9px] font-semibold text-[var(--color-text-tertiary)]">
-                                  {model.disabledLabel}
-                                </span>
-                              ) : (
-                                <span className={`flex size-[20px] shrink-0 items-center justify-center rounded-full border transition-colors ${
-                                  selected
-                                    ? 'border-[#1473e6] bg-[#1473e6] text-white dark:border-[#68adff] dark:bg-[#68adff] dark:text-[#111315]'
-                                    : 'border-[var(--color-border)] text-transparent group-hover/model:border-[var(--color-border-focus)]'
-                                }`}>
-                                  <Check size={11} strokeWidth={2.5} />
-                                </span>
-                              )}
-                            </button>
-                            {onSetDefault && setDefaultLabel && !model.disabled && (
-                              <button
-                                type="button"
-                                aria-label={setDefaultLabel}
-                                aria-pressed={isDefault}
-                                title={setDefaultLabel}
-                                onClick={() => onSetDefault(group, model)}
-                                className={`my-auto mr-[9px] flex size-[28px] shrink-0 items-center justify-center rounded-[7px] transition-colors ${
-                                  isDefault
-                                    ? 'bg-[#1473e6]/10 text-[#1473e6] dark:bg-[#68adff]/12 dark:text-[#68adff]'
-                                    : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]'
-                                }`}
-                              >
-                                <Pin size={14} strokeWidth={2} fill={isDefault ? 'currentColor' : 'none'} />
-                              </button>
+                            </span>
+                            {model.context && (
+                              <span className="shrink-0 rounded-[5px] border border-[var(--color-border-separator)] px-[5px] py-[1px] text-[9px] font-semibold uppercase text-[var(--color-text-tertiary)]">
+                                {model.context}
+                              </span>
                             )}
-                          </div>
+                            {model.disabled && model.disabledLabel ? (
+                              <span className="shrink-0 text-[9px] font-semibold text-[var(--color-text-tertiary)]">
+                                {model.disabledLabel}
+                              </span>
+                            ) : (
+                              <span className={`flex size-[20px] shrink-0 items-center justify-center rounded-full border transition-colors ${
+                                selected
+                                  ? 'border-[#1473e6] bg-[#1473e6] text-white dark:border-[#68adff] dark:bg-[#68adff] dark:text-[#111315]'
+                                  : 'border-[var(--color-border)] text-transparent group-hover/model:border-[var(--color-border-focus)]'
+                              }`}>
+                                <Check size={11} strokeWidth={2.5} />
+                              </span>
+                            )}
+                          </button>
                         )
                       })}
                     </div>

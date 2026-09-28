@@ -932,7 +932,7 @@ const SessionProjectGroup = memo(function SessionProjectGroup({
       )}
 
       {expanded && (
-        <div className="flex flex-col gap-2 pl-[24px]">
+        <div className="flex flex-col gap-2 pl-[6px]">
           {group.sessions.map((session) => (
             <SidebarSessionRow
               key={sessionKey(session.id, session.projectPath)}

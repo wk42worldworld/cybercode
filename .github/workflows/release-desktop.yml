@@ -212,13 +212,6 @@ jobs:
       - name: Validate built-in tool result contracts
         run: bun test src/tools/toolContract.test.ts
 
-      - name: Validate fast judgment and browser acceleration
-        run: bun test src/services/fastJudgment src/services/browserAcceleration src/tools/BrowserTaskTool src/services/smartPruningOptimization.test.ts src/utils/agentBrowser/setup.test.ts
-
-      - name: Validate judgment settings and external browser links
-        working-directory: desktop
-        run: bun run test --run src/components/settings/FastJudgmentSettings.test.tsx src/lib/openExternalUrl.test.ts
-
       - name: Validate P2P signaling endpoint
         shell: bash
         run: |

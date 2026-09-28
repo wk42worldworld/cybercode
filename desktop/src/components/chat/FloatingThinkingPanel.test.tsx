@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -213,7 +213,7 @@ describe('FloatingThinkingPanel', () => {
     animationFrame.mockRestore()
   })
 
-  it('animates closed when thinking ends and can be reopened', async () => {
+  it('collapses in place when thinking ends and can be reopened', () => {
     const { rerender } = render(
       <FloatingThinkingPanel content="Short reasoning burst" isActive identityKey="thinking-a" />,
     )
@@ -235,12 +235,7 @@ describe('FloatingThinkingPanel', () => {
       width: '15px',
       height: '15px',
     })
-    expect(screen.getByTestId('thinking-message-panel-collapse')).toHaveAttribute('data-state', 'closing')
-    expect(screen.getByTestId('thinking-message-panel-content')).toBeInTheDocument()
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('thinking-message-panel-content')).not.toBeInTheDocument()
-    })
+    expect(screen.queryByTestId('thinking-message-panel-content')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button'))
 

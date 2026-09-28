@@ -73,7 +73,6 @@ export type SessionLaunchInfo = {
   workDir: string
   transcriptMessageCount: number
   customTitle: string | null
-  aiTitle: string | null
   isTemporary: boolean
 }
 
@@ -1316,16 +1315,7 @@ export class SessionService {
       }
     }
 
-    // 2. Use the latest background-generated title when available.
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const e = entries[i]!
-      if (e.type === 'ai-title' && e.aiTitle) {
-        return e.aiTitle as string
-      }
-    }
-
-    // 3. Fall back to the first non-meta user message while generation runs
-    // or when no lightweight model is available.
+    // 2. Look for first non-meta user message as title
     for (const e of entries) {
       if (e.type === 'user' && !e.isMeta && e.message?.role === 'user') {
         const content = e.message.content
@@ -1341,6 +1331,15 @@ export class SessionService {
         if (text) {
           return text.length > 80 ? text.slice(0, 80) + '...' : text
         }
+      }
+    }
+
+    // 3. Fall back to older AI-generated titles for legacy sessions that do
+    // not have a readable first user message.
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i]!
+      if (e.type === 'ai-title' && e.aiTitle) {
+        return e.aiTitle as string
       }
     }
 
@@ -2509,11 +2508,6 @@ export class SessionService {
       aiTitle: title,
       timestamp: new Date().toISOString(),
     })
-    await this.syncSessionSearchIndex({
-      filePath: found.filePath,
-      projectDir: found.projectDir,
-      sessionId,
-    })
   }
 
   /**
@@ -2540,15 +2534,11 @@ export class SessionService {
     const workDir = this.resolveWorkDirFromEntries(entries, found.projectDir) || process.cwd()
     const isTemporary = this.resolveIsTemporaryFromEntries(entries)
     let customTitle: string | null = null
-    let aiTitle: string | null = null
     let transcriptMessageCount = 0
 
     for (const entry of entries) {
       if (entry.type === 'custom-title' && typeof entry.customTitle === 'string') {
         customTitle = entry.customTitle
-      }
-      if (entry.type === 'ai-title' && typeof entry.aiTitle === 'string') {
-        aiTitle = entry.aiTitle
       }
       if (
         !entry.isMeta &&
@@ -2565,7 +2555,6 @@ export class SessionService {
       workDir,
       transcriptMessageCount,
       customTitle,
-      aiTitle,
       isTemporary,
     }
   }

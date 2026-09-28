@@ -1158,41 +1158,20 @@ describe('SessionService', () => {
     expect(detail!.title).toBe('This is my first real question')
   })
 
-  it('should prefer the generated AI title over the first-message placeholder', async () => {
+  it('should prefer first user message over AI title when no custom title', async () => {
     const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
     await writeSessionFile('-tmp-project', sessionId, [
       makeSnapshotEntry(),
       makeUserEntry('Use this first sentence as the title'),
       {
         type: 'ai-title',
-        aiTitle: 'Fix mobile login flow',
+        aiTitle: 'AI summary should not win',
         timestamp: '2026-01-01T00:03:00.000Z',
       },
     ])
 
     const detail = await service.getSession(sessionId)
-    expect(detail!.title).toBe('Fix mobile login flow')
-  })
-
-  it('should never let a generated title replace a manual title', async () => {
-    const sessionId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    await writeSessionFile('-tmp-project', sessionId, [
-      makeSnapshotEntry(),
-      makeUserEntry('Initial request'),
-      {
-        type: 'custom-title',
-        customTitle: 'My release checklist',
-        timestamp: '2026-01-01T00:02:00.000Z',
-      },
-      {
-        type: 'ai-title',
-        aiTitle: 'Generated title arrived late',
-        timestamp: '2026-01-01T00:03:00.000Z',
-      },
-    ])
-
-    const detail = await service.getSession(sessionId)
-    expect(detail!.title).toBe('My release checklist')
+    expect(detail!.title).toBe('Use this first sentence as the title')
   })
 
   it('should truncate long titles to 80 chars', async () => {
@@ -1278,7 +1257,6 @@ describe('SessionService', () => {
     expect(launchInfo!.workDir).toBe(os.tmpdir())
     expect(launchInfo!.transcriptMessageCount).toBe(0)
     expect(launchInfo!.customTitle).toBeNull()
-    expect(launchInfo!.aiTitle).toBeNull()
   })
 
   it('should recreate placeholder metadata after a zero-message placeholder is replaced', async () => {
@@ -1344,7 +1322,6 @@ describe('SessionService', () => {
       { type: 'session-meta', isMeta: true, workDir: '/tmp/project', timestamp: '2026-01-01T00:00:00.000Z' },
       makeUserEntry('Hello again', userUuid),
       makeAssistantEntry('Welcome back', userUuid),
-      { type: 'ai-title', aiTitle: 'Generated saved chat', timestamp: '2026-01-01T00:02:00.000Z' },
       { type: 'custom-title', customTitle: 'Saved chat', timestamp: '2026-01-01T00:03:00.000Z' },
     ])
 
@@ -1353,7 +1330,6 @@ describe('SessionService', () => {
     expect(launchInfo!.workDir).toBe('/tmp/project')
     expect(launchInfo!.transcriptMessageCount).toBe(2)
     expect(launchInfo!.customTitle).toBe('Saved chat')
-    expect(launchInfo!.aiTitle).toBe('Generated saved chat')
   })
 })
 

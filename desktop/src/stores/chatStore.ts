@@ -342,28 +342,13 @@ function shouldApplyFirstUserTitle(sessionId: string, title: string): boolean {
   return !currentTitle || isDefaultSessionTitle(currentTitle) || currentTitle === title
 }
 
-function resolveSessionTitleUpdate(
-  sessionId: string,
-  incomingTitle: string,
-  source?: 'placeholder' | 'generated',
-  previousTitle?: string,
-): string {
+function resolveSessionTitleUpdate(sessionId: string, incomingTitle: string): string {
   const firstUserTitle = getFirstUserMessageTitle(
     useChatStore.getState().sessions[sessionId]?.messages ?? [],
   )
   if (!firstUserTitle) return incomingTitle
 
   const currentTitle = currentSessionTitle(sessionId)
-  if (source === 'generated') {
-    return !currentTitle ||
-      isDefaultSessionTitle(currentTitle) ||
-      currentTitle === firstUserTitle ||
-      currentTitle === previousTitle ||
-      currentTitle === incomingTitle
-      ? incomingTitle
-      : currentTitle
-  }
-
   if (
     !currentTitle ||
     isDefaultSessionTitle(currentTitle) ||
@@ -2964,12 +2949,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'session_title_updated':
         {
           update(() => markConnectionActivity())
-          const title = resolveSessionTitleUpdate(
-            msg.sessionId,
-            msg.title,
-            msg.source,
-            msg.previousTitle,
-          )
+          const title = resolveSessionTitleUpdate(msg.sessionId, msg.title)
           useSessionStore.getState().updateSessionTitle(msg.sessionId, title)
           useTabStore.getState().updateTabTitle(msg.sessionId, title)
         }
