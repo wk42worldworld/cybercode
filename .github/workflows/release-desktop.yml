@@ -212,21 +212,11 @@ jobs:
       - name: Validate built-in tool result contracts
         run: bun test src/tools/toolContract.test.ts
 
-      - name: Validate P2P signaling endpoint
-        shell: bash
-        run: |
-          if [[ ! "${CYBERCODE_P2P_BUILTIN_SIGNAL_URL:-}" =~ ^https:// ]]; then
-            echo "::error::Repository variable CYBERCODE_P2P_SIGNAL_URL must contain the public HTTPS signaling endpoint."
-            exit 1
-          fi
-          health_payload="$(curl --fail --silent --show-error --retry 3 --max-time 10 \
-            "${CYBERCODE_P2P_BUILTIN_SIGNAL_URL%/}/health")"
-          HEALTH_PAYLOAD="$health_payload" bun -e '
-            const health = JSON.parse(process.env.HEALTH_PAYLOAD || "{}")
-            if (health.status !== "ok" || health.transport !== "webrtc-signaling") {
-              throw new Error("P2P endpoint returned an unexpected health payload")
-            }
-          '
+      - name: Test release health-check policy
+        run: bun test scripts/check-p2p-release-health.test.ts
+
+      - name: Check P2P signaling configuration and availability
+        run: bun run scripts/check-p2p-release-health.ts
 
       - name: Validate desktop sidecar helpers
         working-directory: desktop
