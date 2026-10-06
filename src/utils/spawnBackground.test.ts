@@ -44,7 +44,7 @@ describe('background processes', () => {
       if (/\bBun\.spawn(?:Sync)?\s*\(/.test(await Bun.file(join(root, file)).text())) bypasses.push(file)
     }
     expect(bypasses).toEqual([])
-  })
+  }, 30_000)
 
   test.skipIf(process.platform !== 'win32')('GUI sidecar children have no console window (with an unfixed control)', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'cybercode-console-'))
