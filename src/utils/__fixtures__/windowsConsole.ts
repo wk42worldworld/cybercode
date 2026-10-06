@@ -9,10 +9,13 @@ Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; pu
 exit 7
 `
 
-const command = ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script]
+const commands = {
+  powershell: ['powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
+  python: ['python.exe', '-c', "import ctypes, sys; sys.stdout.write(str(ctypes.windll.kernel32.GetConsoleWindow())); sys.stderr.write('probe stderr'); sys.exit(7)"],
+}
 const options = { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe' } as const
 
-async function probe(hidden: boolean) {
+async function probe(command: string[], hidden: boolean) {
   const child = hidden ? spawnBackground(command, options) : Bun.spawn(command, options)
   const [stdout, stderr, code] = await Promise.all([
     new Response(child.stdout).text(),
@@ -24,9 +27,11 @@ async function probe(hidden: boolean) {
 
 try {
   // Negative control proves that this test environment exposes the old bug.
-  const visible = await probe(false)
-  const hidden = await probe(true)
-  await Bun.write(process.argv[2], JSON.stringify({ visible, hidden }))
+  const results: Record<string, unknown> = {}
+  for (const [name, command] of Object.entries(commands)) {
+    results[name] = { visible: await probe(command, false), hidden: await probe(command, true) }
+  }
+  await Bun.write(process.argv[2], JSON.stringify(results))
 } catch (error) {
   await Bun.write(process.argv[2], JSON.stringify({ error: String(error) }))
   process.exitCode = 1

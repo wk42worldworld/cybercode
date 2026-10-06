@@ -27,7 +27,10 @@ describe('background processes', () => {
         new Response(child.stderr).text(),
         child.exited,
       ])
-      expect(JSON.parse(stdout)).toEqual({ input: '测试 input\n', cwd: await realpath(cwd), marker: 'background' })
+      const result = JSON.parse(stdout)
+      // Windows may return an 8.3 path, and macOS aliases /var to /private/var.
+      result.cwd = await realpath(result.cwd)
+      expect(result).toEqual({ input: '测试 input\n', cwd: await realpath(cwd), marker: 'background' })
       expect(stderr.trim()).toBe('diagnostic')
       expect(code).toBe(7)
     } finally {
@@ -53,11 +56,16 @@ describe('background processes', () => {
       const resultPath = join(dir, 'console-result.json')
       const build = await Bun.build({
         entrypoints: [join(import.meta.dir, '__fixtures__/windowsConsole.ts')],
-        compile: { outfile, windows: { hideConsole: true } },
+        compile: {
+          outfile,
+          autoloadBunfig: false,
+          autoloadDotenv: false,
+          windows: { hideConsole: true },
+        },
       })
       expect(build.success).toBe(true)
       const child = spawnBackground([outfile, resultPath], {
-        stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 45_000,
+        cwd: dir, stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout: 45_000,
       })
       const [stdout, stderr, code] = await Promise.all([
         new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited,
@@ -66,9 +74,11 @@ describe('background processes', () => {
       const result = await Bun.file(resultPath).json()
       console.log('Windows GUI subprocess probe:', JSON.stringify(result))
       expect(result.error).toBeUndefined()
-      expect(result.visible.code).toBe(7)
-      expect(result.visible.consoleWindow).toMatch(/^[1-9]\d*$/)
-      expect(result.hidden).toEqual({ consoleWindow: '0', stderr: 'probe stderr', code: 7 })
+      for (const name of ['powershell', 'python']) {
+        expect(result[name].visible.code).toBe(7)
+        expect(result[name].visible.consoleWindow).toMatch(/^[1-9]\d*$/)
+        expect(result[name].hidden).toEqual({ consoleWindow: '0', stderr: 'probe stderr', code: 7 })
+      }
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
