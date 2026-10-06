@@ -1,3 +1,4 @@
+import { spawnBackground } from '../spawnBackground.js'
 import { existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
@@ -103,7 +104,7 @@ async function closeOwnedAgentBrowserSession(
 
   let closeProcess: ReturnType<typeof Bun.spawn> | null = null
   try {
-    closeProcess = Bun.spawn(
+    closeProcess = spawnBackground(
       [command, '--session', sessionName, '--json', 'close'],
       {
         env: {

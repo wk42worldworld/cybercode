@@ -1,3 +1,4 @@
+import { spawnBackground } from '../../utils/spawnBackground.js'
 import { lstat, readFile, readlink, rm } from 'node:fs/promises'
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
 import { gitExe } from '../../utils/git.js'
@@ -116,7 +117,7 @@ async function runGit(
 ): Promise<GitRunResult> {
   let proc: ReturnType<typeof Bun.spawn>
   try {
-    proc = Bun.spawn([gitExe(), '--no-optional-locks', ...args], {
+    proc = spawnBackground([gitExe(), '--no-optional-locks', ...args], {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',

@@ -9,6 +9,7 @@
  *   POST   /api/computer-use/setup    — 旧版 venv 安装兼容入口
  */
 
+import { spawnBackground } from '../../utils/spawnBackground.js'
 import { join } from 'path'
 import { access, readFile, mkdir, writeFile } from 'fs/promises'
 import { createHash } from 'crypto'
@@ -103,7 +104,7 @@ async function runCommand(
   args: string[],
 ): Promise<{ ok: boolean; stdout: string; stderr: string; code: number }> {
   try {
-    const proc = Bun.spawn([cmd, ...args], {
+    const proc = spawnBackground([cmd, ...args], {
       stdout: 'pipe',
       stderr: 'pipe',
       env: getPythonCommandEnv(),

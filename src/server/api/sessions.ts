@@ -14,6 +14,7 @@
  *   PATCH  /api/sessions/:id        — 重命名会话
  */
 
+import { spawnBackground } from '../../utils/spawnBackground.js'
 import { sessionService } from '../services/sessionService.js'
 import { conversationService } from '../services/conversationService.js'
 import { codeGraphService } from '../services/codeGraphService.js'
@@ -627,7 +628,7 @@ async function mapWithConcurrency<T, R>(
 }
 
 async function readGitOutput(cwd: string, args: string[]): Promise<string> {
-  const proc = Bun.spawn(['git', ...args], {
+  const proc = spawnBackground(['git', ...args], {
     cwd,
     stdout: 'pipe',
     stderr: 'pipe',

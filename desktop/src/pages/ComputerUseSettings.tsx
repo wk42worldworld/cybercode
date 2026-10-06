@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   computerUseApi,
   type ComputerUseRuntimePhase,
@@ -57,6 +57,7 @@ export function ComputerUseSettings() {
   const [status, setStatus] = useState<ComputerUseStatus | null>(null)
   const [checkState, setCheckState] = useState<CheckState>('loading')
   const [runtimeActionError, setRuntimeActionError] = useState<string | null>(null)
+  const statusRequest = useRef<Promise<void> | null>(null)
 
   // App authorization state
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([])
@@ -68,15 +69,23 @@ export function ComputerUseSettings() {
   const [clipboardAccess, setClipboardAccess] = useState(true)
   const [systemKeys, setSystemKeys] = useState(true)
 
-  const fetchStatus = useCallback(async (silent = false) => {
+  const fetchStatus = useCallback((silent = false): Promise<void> => {
+    // Focus, visibility changes and preparation polling can coincide. Share the
+    // active check instead of spawning another pair of Python probes.
+    if (statusRequest.current) return statusRequest.current
     if (!silent) setCheckState('loading')
-    try {
-      const s = await computerUseApi.getStatus()
-      setStatus(s)
-      setCheckState('ready')
-    } catch {
-      if (!silent) setCheckState('error')
-    }
+    const request = (async () => {
+      try {
+        const s = await computerUseApi.getStatus()
+        setStatus(s)
+        setCheckState('ready')
+      } catch {
+        if (!silent) setCheckState('error')
+      }
+    })()
+    statusRequest.current = request
+    void request.finally(() => { statusRequest.current = null })
+    return request
   }, [])
 
   const fetchApps = useCallback(async () => {

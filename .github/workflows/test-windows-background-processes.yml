@@ -1,0 +1,43 @@
+name: Test Windows Background Processes
+
+on:
+  push:
+    branches: [main, 'fix/windows-background-console']
+    paths:
+      - 'src/**'
+      - 'desktop/src-tauri/src/**'
+      - '.github/workflows/test-windows-background-processes.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'desktop/src-tauri/src/**'
+      - '.github/workflows/test-windows-background-processes.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-background-processes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  console-regression:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Test GUI sidecar subprocesses
+        run: bun test src/utils/spawnBackground.test.ts
+      - name: Test native background commands
+        shell: pwsh
+        run: |
+          rustc --test desktop/src-tauri/src/background_command.rs -o "$env:RUNNER_TEMP/background-command-tests.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:RUNNER_TEMP/background-command-tests.exe" --nocapture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

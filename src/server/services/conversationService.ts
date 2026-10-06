@@ -6,6 +6,7 @@
  * to the server over its own client WebSocket.
  */
 
+import { spawnBackground } from '../../utils/spawnBackground.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { ProviderService } from './providerService.js'
@@ -215,7 +216,7 @@ export class ConversationService {
 
     let proc: ReturnType<typeof Bun.spawn>
     try {
-      proc = Bun.spawn(args, {
+      proc = spawnBackground(args, {
         cwd: workDir,
         env: childEnv,
         // Desktop messages travel over the SDK WebSocket. Leaving an unused

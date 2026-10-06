@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -84,6 +84,24 @@ describe('ComputerUseSettings runtime preparation', () => {
     })
     expect(screen.queryByText('下载 Python 3')).not.toBeInTheDocument()
     expect(screen.queryByText('虚拟环境')).not.toBeInTheDocument()
+  })
+
+  it('shares an active Python status check across focus and visibility events', async () => {
+    let finishCheck!: (value: ComputerUseStatus) => void
+    vi.mocked(computerUseApi.getStatus).mockReturnValueOnce(new Promise(resolve => {
+      finishCheck = resolve
+    }))
+    render(<ComputerUseSettings />)
+    fireEvent.focus(window)
+    fireEvent(document, new Event('visibilitychange'))
+    fireEvent.focus(window)
+    expect(computerUseApi.getStatus).toHaveBeenCalledOnce()
+
+    await act(async () => { finishCheck(status()) })
+    fireEvent.focus(window)
+    fireEvent(document, new Event('visibilitychange'))
+    expect(computerUseApi.getStatus).toHaveBeenCalledTimes(2)
+    await screen.findByText('一键准备 CyberCode Computer Use')
   })
 
   it('shows live background download progress and a pause action', async () => {

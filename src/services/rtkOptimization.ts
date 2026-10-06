@@ -1,3 +1,4 @@
+import { spawnBackground } from '../utils/spawnBackground.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
@@ -181,7 +182,7 @@ export class RtkOptimizationService {
   }
 
   private async runRtk(binaryPath: string, args: string[]): Promise<RtkResult> {
-    const proc = Bun.spawn([binaryPath, ...args], {
+    const proc = spawnBackground([binaryPath, ...args], {
       cwd: process.cwd(),
       env: {
         ...process.env,

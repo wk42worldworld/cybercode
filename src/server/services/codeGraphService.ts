@@ -1,3 +1,4 @@
+import { spawnBackground } from '../../utils/spawnBackground.js'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -356,7 +357,7 @@ export class CodeGraphService {
       }
       this.assertAssetsAvailable()
       const invocation = this.buildInvocation('index', projectPath, shouldRebuild)
-      const proc = Bun.spawn([invocation.command, ...invocation.args], {
+      const proc = spawnBackground([invocation.command, ...invocation.args], {
         cwd: projectPath,
         env: { ...process.env, ...invocation.env },
         stdin: 'ignore',
@@ -457,7 +458,7 @@ export class CodeGraphService {
     const runtime = this.getOrCreateRuntime(projectPath, true)
     if (runtime.watchProcess || !this.isProjectEnabled(projectPath)) return
     const invocation = this.buildInvocation('watch', projectPath, false)
-    const proc = Bun.spawn([invocation.command, ...invocation.args], {
+    const proc = spawnBackground([invocation.command, ...invocation.args], {
       cwd: projectPath,
       env: { ...process.env, ...invocation.env },
       stdin: 'ignore',

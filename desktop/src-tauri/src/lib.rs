@@ -1,3 +1,6 @@
+mod background_command;
+use background_command::background_command;
+
 use std::{
     collections::{HashMap, VecDeque},
     io::{Read, Write},
@@ -799,7 +802,7 @@ try {
 "#;
 
     let path = screenshot_source_temp_path();
-    let output = StdCommand::new("powershell.exe")
+    let output = background_command("powershell.exe")
         .args([
             "-NoLogo",
             "-NoProfile",
@@ -1964,9 +1967,6 @@ fn resolve_browser_executable() -> Option<PathBuf> {
 /// 通过 `reg query HKLM/HKCU ...\App Paths\<exe>` 查系统登记的浏览器路径。
 #[cfg(windows)]
 fn resolve_browser_from_registry() -> Option<PathBuf> {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
     for (hive, exe_name) in [
         ("HKLM", "chrome.exe"),
         ("HKCU", "chrome.exe"),
@@ -1978,9 +1978,8 @@ fn resolve_browser_from_registry() -> Option<PathBuf> {
         ("HKCU", "chromium.exe"),
     ] {
         let key = format!(r"{hive}\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe_name}");
-        let Ok(output) = StdCommand::new("reg")
+        let Ok(output) = background_command("reg")
             .args(["query", &key, "/ve"])
-            .creation_flags(CREATE_NO_WINDOW)
             .output()
         else {
             continue;
@@ -2032,18 +2031,12 @@ fn run_agent_browser_command(
     args: &[&str],
     timeout: Duration,
 ) -> Result<String, String> {
-    let mut command = StdCommand::new(binary);
+    let mut command = background_command(binary);
     command
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
 
     let mut child = command
         .spawn()
@@ -2406,7 +2399,7 @@ fn kill_windows_sidecars() {
         "claude-sidecar-aarch64-pc-windows-msvc.exe",
         "claude-sidecar.exe",
     ] {
-        let _ = StdCommand::new("taskkill")
+        let _ = background_command("taskkill")
             .args(["/F", "/T", "/IM", image_name])
             .stdout(Stdio::null())
             .stderr(Stdio::null())

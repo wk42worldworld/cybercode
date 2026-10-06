@@ -7,6 +7,7 @@
  * ~/.cyber/scheduled_tasks_log.json.
  */
 
+import { spawnBackground } from '../../utils/spawnBackground.js'
 import * as fs from 'fs/promises'
 import * as os from 'os'
 import { existsSync, statSync } from 'node:fs'
@@ -448,7 +449,7 @@ export class CronScheduler {
         task,
         agentBrowserSessionId,
       )
-      proc = Bun.spawn(
+      proc = spawnBackground(
         this.buildTaskCliArgs(cliPath, preloadPath, task, sessionId),
         {
           stdin: 'pipe',

@@ -1,4 +1,4 @@
-import type { ChildProcess } from 'child_process'
+import { execFile, type ChildProcess } from 'child_process'
 import { stat } from 'fs/promises'
 import type { Readable } from 'stream'
 import treeKill from 'tree-kill'
@@ -337,7 +337,15 @@ class ShellCommandImpl implements ShellCommand {
   #doKill(code?: number): void {
     this.#status = 'killed'
     if (this.#childProcess.pid) {
-      treeKill(this.#childProcess.pid, 'SIGKILL')
+      if (process.platform === 'win32') {
+        // tree-kill uses exec("taskkill ...") without windowsHide on Windows,
+        // so cancelling even a hidden shell used to flash another console.
+        execFile('taskkill', ['/pid', String(this.#childProcess.pid), '/T', '/F'], {
+          windowsHide: true,
+        }, () => {})
+      } else {
+        treeKill(this.#childProcess.pid, 'SIGKILL')
+      }
     }
     this.#resolveExitCode(code ?? SIGKILL)
   }

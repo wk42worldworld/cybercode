@@ -348,7 +348,7 @@ export class SearchService {
   /** 运行外部命令，返回 stdout */
   private runCommand(cmd: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
-      const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+      const proc = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
       const chunks: Buffer[] = []
 
       proc.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -374,7 +374,10 @@ export class SearchService {
   /** 检测命令是否存在 */
   private commandExists(cmd: string): Promise<boolean> {
     return new Promise((resolve) => {
-      const proc = spawn('which', [cmd], { stdio: 'ignore' })
+      const proc = spawn(process.platform === 'win32' ? 'where.exe' : 'which', [cmd], {
+        stdio: 'ignore',
+        windowsHide: true,
+      })
       proc.on('close', (code) => resolve(code === 0))
       proc.on('error', () => resolve(false))
     })

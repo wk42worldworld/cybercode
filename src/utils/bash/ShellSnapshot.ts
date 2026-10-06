@@ -462,6 +462,7 @@ export const createAndSaveSnapshot = async (
             CLAUDECODE: '1',
           },
           timeout: SNAPSHOT_CREATION_TIMEOUT,
+          windowsHide: true,
           maxBuffer: 1024 * 1024, // 1MB buffer
           encoding: 'utf8',
         },

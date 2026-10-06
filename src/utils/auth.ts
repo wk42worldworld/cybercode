@@ -655,6 +655,7 @@ export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
 
   return new Promise(resolve => {
     const refreshProc = exec(awsAuthRefresh, {
+      windowsHide: true,
       timeout: AWS_AUTH_REFRESH_TIMEOUT_MS,
     })
     refreshProc.stdout!.on('data', data => {
@@ -923,6 +924,7 @@ export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
 
   return new Promise(resolve => {
     const refreshProc = exec(gcpAuthRefresh, {
+      windowsHide: true,
       timeout: GCP_AUTH_REFRESH_TIMEOUT_MS,
     })
     refreshProc.stdout!.on('data', data => {

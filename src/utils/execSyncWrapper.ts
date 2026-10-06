@@ -34,5 +34,5 @@ export function execSync_DEPRECATED(
   options?: ExecSyncOptions,
 ): Buffer | string {
   using _ = slowLogging`execSync: ${command.slice(0, 100)}`
-  return nodeExecSync(command, options)
+  return nodeExecSync(command, { ...options, windowsHide: true })
 }
