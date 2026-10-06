@@ -69,10 +69,14 @@ export function ComputerUseSettings() {
   const [clipboardAccess, setClipboardAccess] = useState(true)
   const [systemKeys, setSystemKeys] = useState(true)
 
-  const fetchStatus = useCallback((silent = false): Promise<void> => {
+  const fetchStatus = useCallback(async (silent = false, fresh = false): Promise<void> => {
     // Focus, visibility changes and preparation polling can coincide. Share the
     // active check instead of spawning another pair of Python probes.
-    if (statusRequest.current) return statusRequest.current
+    if (statusRequest.current) {
+      if (!fresh) return statusRequest.current
+      // A runtime action needs a check started after the action completed.
+      await statusRequest.current
+    }
     if (!silent) setCheckState('loading')
     const request = (async () => {
       try {
@@ -143,7 +147,7 @@ export function ComputerUseSettings() {
     try {
       const runtime = await computerUseApi.prepareRuntime()
       setStatus(current => current ? { ...current, runtime } : current)
-      await fetchStatus(true)
+      await fetchStatus(true, true)
     } catch (error) {
       setRuntimeActionError(error instanceof Error ? error.message : String(error))
     }
@@ -154,6 +158,7 @@ export function ComputerUseSettings() {
     try {
       const runtime = await computerUseApi.pauseRuntime()
       setStatus(current => current ? { ...current, runtime } : current)
+      await fetchStatus(true, true)
     } catch (error) {
       setRuntimeActionError(error instanceof Error ? error.message : String(error))
     }

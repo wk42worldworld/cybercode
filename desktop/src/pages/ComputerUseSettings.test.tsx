@@ -104,6 +104,24 @@ describe('ComputerUseSettings runtime preparation', () => {
     await screen.findByText('一键准备 CyberCode Computer Use')
   })
 
+  it('checks again after preparation even if a previous focus check is still pending', async () => {
+    render(<ComputerUseSettings />)
+    const install = await screen.findByRole('button', { name: '一键安装全部依赖' })
+    let finishCheck!: (value: ComputerUseStatus) => void
+    const downloading = runtime({ phase: 'downloading', progressPercent: 25, canPause: true })
+    vi.mocked(computerUseApi.getStatus)
+      .mockReturnValueOnce(new Promise(resolve => { finishCheck = resolve }))
+      .mockResolvedValue(status(downloading))
+    vi.mocked(computerUseApi.prepareRuntime).mockResolvedValue(downloading)
+
+    fireEvent.focus(window)
+    fireEvent.click(install)
+    await waitFor(() => expect(computerUseApi.prepareRuntime).toHaveBeenCalledOnce())
+    await act(async () => { finishCheck(status()) })
+    await waitFor(() => expect(computerUseApi.getStatus).toHaveBeenCalledTimes(3))
+    expect(await screen.findByRole('button', { name: '暂停' })).toBeInTheDocument()
+  })
+
   it('shows live background download progress and a pause action', async () => {
     const downloading = runtime({
       phase: 'downloading',
