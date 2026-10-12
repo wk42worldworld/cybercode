@@ -862,11 +862,11 @@ Thanks to the following open-source projects and community practices for referen
 
 If this project helps you, please support it with a ⭐ Star so more people can discover CyberCode.
 
-<a href="https://www.star-history.com/#wk42worldworld/cybercode&Date">
+<a href="https://star-history.dera.page/#wk42worldworld/cybercode&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wk42worldworld/cybercode&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wk42worldworld/cybercode&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wk42worldworld/cybercode&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=wk42worldworld/cybercode&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=wk42worldworld/cybercode&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=wk42worldworld/cybercode&type=Date" />
   </picture>
 </a>
 
