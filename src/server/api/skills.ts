@@ -31,6 +31,7 @@ import {
   rejectSkillCandidate,
 } from '../../skillLearning/approval.js'
 import {
+  getSkillCandidate,
   isCandidateVisibleFromCwd,
   isEventVisibleFromCwd,
   listSkillMemoryOverview,
@@ -718,6 +719,7 @@ async function getSkillLearningOverview(url: URL): Promise<Response> {
 
 async function handleSkillCandidateAction(
   req: Request,
+  url: URL,
   candidateId: string,
   action: string,
 ): Promise<Response> {
@@ -728,15 +730,23 @@ async function handleSkillCandidateAction(
     throw ApiError.badRequest('Invalid Skill candidate id')
   }
 
+  const candidate = await getSkillCandidate(candidateId)
+  if (
+    !candidate ||
+    !isCandidateVisibleFromCwd(candidate, getRequestedCwd(url))
+  ) {
+    throw ApiError.notFound('Skill candidate not found')
+  }
+
   try {
     if (action === 'approve') {
-      const candidate = await approveSkillCandidate(candidateId)
+      const approvedCandidate = await approveSkillCandidate(candidateId)
       await clearCommandCaches()
-      return Response.json({ ok: true, candidate })
+      return Response.json({ ok: true, candidate: approvedCandidate })
     }
     if (action === 'reject') {
-      const candidate = await rejectSkillCandidate(candidateId)
-      return Response.json({ ok: true, candidate })
+      const rejectedCandidate = await rejectSkillCandidate(candidateId)
+      return Response.json({ ok: true, candidate: rejectedCandidate })
     }
   } catch (error) {
     throw ApiError.badRequest(
@@ -755,7 +765,7 @@ async function handleSkillLearningApi(
   const candidateId = segments[3]
   const action = segments[4]
   if (candidateId && action) {
-    return handleSkillCandidateAction(req, candidateId, action)
+    return handleSkillCandidateAction(req, url, candidateId, action)
   }
   if (candidateId || action) {
     throw ApiError.notFound('Incomplete Skill Learning endpoint')

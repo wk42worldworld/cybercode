@@ -37,8 +37,8 @@ describe('skillsApi', () => {
 
     const learning = await skillsApi.learning('/workspace/project')
     await skillsApi.updateLearningConfig({ mode: 'auto' })
-    await skillsApi.approveCandidate('candidate-123')
-    await skillsApi.rejectCandidate('candidate-123')
+    await skillsApi.approveCandidate('candidate-123', '/workspace/project')
+    await skillsApi.rejectCandidate('candidate-123', '/workspace/project')
 
     expect(learning.overview.recentCandidates).toEqual([])
 
@@ -54,12 +54,12 @@ describe('skillsApi', () => {
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
-      'http://127.0.0.1:3456/api/skills/learning/candidate-123/approve',
+      'http://127.0.0.1:3456/api/skills/learning/candidate-123/approve?cwd=%2Fworkspace%2Fproject',
       expect.objectContaining({ method: 'POST', body: '{}' }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       4,
-      'http://127.0.0.1:3456/api/skills/learning/candidate-123/reject',
+      'http://127.0.0.1:3456/api/skills/learning/candidate-123/reject?cwd=%2Fworkspace%2Fproject',
       expect.objectContaining({ method: 'POST', body: '{}' }),
     )
   })

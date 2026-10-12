@@ -109,15 +109,15 @@ export const skillsApi = {
       update,
     ),
 
-  approveCandidate: (id: string) =>
+  approveCandidate: (id: string, cwd?: string) =>
     api.post<{ ok: true; candidate: SkillCandidate }>(
-      `/api/skills/learning/${encodeURIComponent(id)}/approve`,
+      `/api/skills/learning/${encodeURIComponent(id)}/approve${cwd ? `?cwd=${encodeURIComponent(cwd)}` : ''}`,
       {},
     ),
 
-  rejectCandidate: (id: string) =>
+  rejectCandidate: (id: string, cwd?: string) =>
     api.post<{ ok: true; candidate: SkillCandidate }>(
-      `/api/skills/learning/${encodeURIComponent(id)}/reject`,
+      `/api/skills/learning/${encodeURIComponent(id)}/reject${cwd ? `?cwd=${encodeURIComponent(cwd)}` : ''}`,
       {},
     ),
 }
