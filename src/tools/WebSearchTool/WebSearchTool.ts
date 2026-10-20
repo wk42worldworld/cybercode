@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { getSessionId } from '../../bootstrap/state.js'
 import type {
   BetaContentBlock,
   BetaWebSearchTool20250305,
@@ -11,6 +13,8 @@ import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { queryModelWithStreaming } from '../../services/api/claude.js'
 import { searchLocalWeb } from '../../services/webSearch/localWebSearch.js'
+import { searchParallelWeb } from '../../services/webSearch/parallelWebSearch.js'
+import { shouldUseParallelWebSearch } from '../../services/webSearch/searchMode.js'
 import {
   buildTool,
   type ToolCallProgress,
@@ -331,6 +335,37 @@ export const WebSearchTool = buildTool({
   async call(input, context, _canUseTool, _parentMessage, onProgress) {
     const startTime = performance.now()
     const { query } = input
+
+    if (shouldUseParallelWebSearch()) {
+      // Snapshot conversation identity before any await. Subagents keep separate
+      // research sessions, even when background tasks survive a main-chat reset.
+      const sessionId = context.agentId
+        ? createHash('sha256').update(context.agentId).digest('hex')
+        : getSessionId()
+      const progressId = `parallel-web-search-${Math.round(startTime)}`
+      onProgress?.({
+        toolUseID: progressId,
+        data: { type: 'query_update', query },
+      })
+      const content = await searchParallelWeb({
+        query,
+        sessionId,
+        allowedDomains: input.allowed_domains,
+        blockedDomains: input.blocked_domains,
+        signal: context.abortController.signal,
+      })
+      onProgress?.({
+        toolUseID: progressId,
+        data: { type: 'search_results_received', resultCount: content.length, query },
+      })
+      return {
+        data: {
+          query,
+          results: [{ tool_use_id: progressId, content }],
+          durationSeconds: (performance.now() - startTime) / 1000,
+        },
+      }
+    }
 
     if (!shouldUseNativeWebSearch()) {
       return {
