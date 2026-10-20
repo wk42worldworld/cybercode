@@ -582,11 +582,11 @@ function matchesDomainRule(url: URL, rule: DomainRule): boolean {
   return hostMatches && (!rule.path || url.pathname.startsWith(rule.path))
 }
 
-export function filterSearchResultsByDomain(
-  results: LocalWebSearchHit[],
+export function filterSearchResultsByDomain<T extends { url: string }>(
+  results: T[],
   allowedDomains: string[] = [],
   blockedDomains: string[] = [],
-): LocalWebSearchHit[] {
+): T[] {
   const allowed = allowedDomains
     .map(parseDomainRule)
     .filter((rule): rule is DomainRule => rule !== null)

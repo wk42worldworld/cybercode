@@ -138,6 +138,15 @@ Code Graph is local and cross-platform. Once its global switch is enabled, curre
 
 The same tools, memory, desktop workflow, and permissions remain available across the official Claude path, Anthropic-compatible endpoints, OpenAI-compatible providers, and local models. CyberCode also includes a provider-neutral local WebSearch fallback with live search, domain filters, caching, and a direct GitHub Trending path for models whose native browsing is unavailable or unreliable.
 
+For free web search without a search account or API key, use [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp), powered by Fast mode:
+
+```bash
+CYBERCODE_WEB_SEARCH_MODE=parallel ./bin/cybercode
+```
+
+Parallel handles the built-in `WebSearch` tool with source links and domain filters, under the existing tool permissions. It is also selected when no provider endpoint, cloud provider or credentials are configured. Existing configured providers keep their current search behavior. Set `CYBERCODE_WEB_SEARCH_MODE=local` for the local engines (including direct GitHub Trending), or `native` for the model provider's search. Parallel search sends the query and an opaque conversation identifier to `search.parallel.ai`; anonymous usage has service limits, and errors are returned without switching providers. Page fetching continues to use the existing `WebFetch` tool.
+
+
 <table>
   <tr>
     <td width="50%"><img src="docs/images/gui/cybercode-gui-providers.png" alt="CyberCode provider configuration"><br><b>Provider control in the app</b><br>Configure hosted or local endpoints, test connections, and choose defaults without leaving the desktop workflow.</td>
