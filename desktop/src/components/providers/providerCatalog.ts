@@ -53,6 +53,7 @@ const AGGREGATOR_GATEWAY_PROVIDER_IDS = [
   'kilo-gateway',
   'aimlapi',
   'novita',
+  'atlascloud',
   'piapi',
   'getgoapi',
   'laozhang',

@@ -71,8 +71,8 @@ describe('API key provider catalog', () => {
       'openvecta',
     ]
 
-    expect(aggregatorGatewayProviderIds).toHaveLength(41)
-    expect(new Set(aggregatorGatewayProviderIds).size).toBe(41)
+    expect(aggregatorGatewayProviderIds).toHaveLength(42)
+    expect(new Set(aggregatorGatewayProviderIds).size).toBe(42)
     for (const id of reclassifiedPlatforms) {
       expect(isAggregatorGatewayPreset({ id }), id).toBe(true)
       expect(apiKeyProviderIds, id).not.toContain(id)
