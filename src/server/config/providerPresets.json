@@ -1056,6 +1056,39 @@
     "apiKeyUrl": "https://novita.ai/settings/key-management"
   },
   {
+    "id": "atlascloud",
+    "name": "Atlas Cloud",
+    "baseUrl": "https://api.atlascloud.ai/v1",
+    "apiFormat": "openai_chat",
+    "defaultModels": {
+      "main": "deepseek-ai/deepseek-v4-pro",
+      "haiku": "deepseek-ai/deepseek-v4-flash",
+      "sonnet": "deepseek-ai/deepseek-v4-pro",
+      "opus": "deepseek-ai/deepseek-v4-pro"
+    },
+    "modelOptions": [
+      {
+        "id": "deepseek-ai/deepseek-v4-pro",
+        "label": "DeepSeek V4 Pro"
+      },
+      {
+        "id": "deepseek-ai/deepseek-v4-flash",
+        "label": "DeepSeek V4 Flash"
+      },
+      {
+        "id": "moonshotai/kimi-k3",
+        "label": "Kimi K3"
+      },
+      {
+        "id": "zai-org/glm-5.2",
+        "label": "GLM 5.2"
+      }
+    ],
+    "needsApiKey": true,
+    "websiteUrl": "https://www.atlascloud.ai",
+    "apiKeyUrl": "https://console.atlascloud.ai/api-keys"
+  },
+  {
     "id": "piapi",
     "name": "PiAPI",
     "baseUrl": "https://api.piapi.ai/v1",

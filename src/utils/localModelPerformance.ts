@@ -68,6 +68,7 @@ const KNOWN_CLOUD_PROVIDER_PRESETS = new Set([
   'kilo-gateway',
   'aimlapi',
   'novita',
+  'atlascloud',
   'piapi',
   'getgoapi',
   'laozhang',

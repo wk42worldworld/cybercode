@@ -39,6 +39,7 @@ const AGGREGATOR_GATEWAY_PROVIDER_IDS = [
   'kilo-gateway',
   'aimlapi',
   'novita',
+  'atlascloud',
   'piapi',
   'getgoapi',
   'laozhang',
@@ -237,7 +238,7 @@ describe('provider presets API', () => {
   test('ships all multi-model platforms and gateways as configurable sources', () => {
     const byId = new Map(PROVIDER_PRESETS.map((preset) => [preset.id, preset]))
 
-    expect(AGGREGATOR_GATEWAY_PROVIDER_IDS).toHaveLength(41)
+    expect(AGGREGATOR_GATEWAY_PROVIDER_IDS).toHaveLength(42)
     for (const id of AGGREGATOR_GATEWAY_PROVIDER_IDS) {
       const preset = byId.get(id)
       expect(preset, `${id} preset`).toBeDefined()

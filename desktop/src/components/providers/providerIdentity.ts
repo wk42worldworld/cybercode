@@ -204,6 +204,14 @@ const KNOWN_PROVIDER_IDENTITIES: ProviderIdentityDefinition[] = [
     matchers: ['fenayai'],
   },
   {
+    id: 'atlascloud',
+    label: 'Atlas Cloud',
+    initials: 'AC',
+    accent: '#2563eb',
+    motif: 'monogram',
+    matchers: ['atlascloud', 'atlas cloud'],
+  },
+  {
     id: 'freetheai',
     label: 'FreeTheAi',
     initials: 'FA',
